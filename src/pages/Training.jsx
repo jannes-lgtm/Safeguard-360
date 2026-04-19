@@ -52,12 +52,34 @@ export default function Training() {
       if (!session) return
 
       const { data } = await supabase
-        .from('training_progress')
-        .select('*')
+        .from('training_records')
+        .select(`
+          id,
+          user_id,
+          completed,
+          completed_at,
+          training_modules (
+            id,
+            title,
+            duration_minutes,
+            module_order
+          )
+        `)
         .eq('user_id', session.user.id)
-        .order('module_order')
+        .order('module_order', { referencedTable: 'training_modules' })
 
-      setModules(data || [])
+      const mapped = (data || []).map(r => ({
+        id: r.id,
+        user_id: r.user_id,
+        module_order: r.training_modules?.module_order,
+        module_name: r.training_modules?.title,
+        duration_minutes: r.training_modules?.duration_minutes,
+        status: r.completed ? 'Complete' : 'Not Started',
+        progress_pct: r.completed ? 100 : 0,
+        completed_date: r.completed_at ? new Date(r.completed_at).toLocaleDateString() : null,
+      }))
+
+      setModules(mapped)
       setLoading(false)
     }
     load()
