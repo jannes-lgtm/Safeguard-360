@@ -8,11 +8,12 @@ export default {
     extend: {
       colors: {
         navy: {
-          DEFAULT: '#1B3A6B',
-          dark: '#142d54',
-          light: '#234a8a',
+          DEFAULT: '#1E2461',
+          dark: '#161a4a',
+          light: '#272e7a',
         },
         brand: {
+          yellow: '#C8D42F',
           blue: '#2563EB',
           green: '#16A34A',
           amber: '#D97706',

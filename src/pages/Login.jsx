@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Shield, MapPin, AlertTriangle, PhoneCall } from 'lucide-react'
+import { Eye, EyeOff, MapPin, AlertTriangle, PhoneCall } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 export default function Login() {
@@ -46,12 +46,10 @@ export default function Login() {
   return (
     <div className="min-h-screen flex">
       {/* Left column — navy */}
-      <div className="hidden md:flex w-1/2 bg-[#1B3A6B] flex-col justify-center px-12 py-16">
+      <div className="hidden md:flex w-1/2 bg-[#1E2461] flex-col justify-center px-12 py-16">
         {/* Logo */}
         <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 bg-white rounded-[8px] flex items-center justify-center">
-            <Shield size={22} className="text-[#1B3A6B]" />
-          </div>
+          <img src="/logo.svg" alt="SafeGuard360" className="w-11 h-11" />
           <span className="text-white font-bold text-xl tracking-tight">SafeGuard360</span>
         </div>
 
@@ -90,8 +88,8 @@ export default function Login() {
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="flex md:hidden items-center gap-2 mb-8">
-            <Shield size={22} className="text-[#1B3A6B]" />
-            <span className="font-bold text-lg text-[#1B3A6B]">SafeGuard360</span>
+            <img src="/logo.svg" alt="SafeGuard360" className="w-8 h-8" />
+            <span className="font-bold text-lg text-[#1E2461]">SafeGuard360</span>
           </div>
 
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h2>
@@ -108,7 +106,7 @@ export default function Login() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 placeholder="you@company.com"
-                className="w-full border border-gray-300 rounded-[6px] px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1B3A6B] focus:border-transparent"
+                className="w-full border border-gray-300 rounded-[6px] px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1E2461] focus:border-transparent"
               />
             </div>
 
@@ -123,7 +121,7 @@ export default function Login() {
                   onChange={e => setPassword(e.target.value)}
                   required
                   placeholder="••••••••"
-                  className="w-full border border-gray-300 rounded-[6px] px-3 py-2.5 pr-10 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1B3A6B] focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-[6px] px-3 py-2.5 pr-10 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1E2461] focus:border-transparent"
                 />
                 <button
                   type="button"
@@ -150,7 +148,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#1B3A6B] hover:bg-[#142d54] text-white font-semibold py-2.5 rounded-[6px] text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-[#1E2461] hover:bg-[#161a4a] text-white font-semibold py-2.5 rounded-[6px] text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Circle border -->
+  <circle cx="100" cy="100" r="95" stroke="#1E2461" stroke-width="6" fill="white"/>
+
+  <!-- Top-left chevrons (yellow-green) -->
+  <g transform="rotate(-120, 100, 100)">
+    <polygon points="100,38 115,58 100,52 85,58" fill="#C8D42F"/>
+    <polygon points="100,55 115,75 100,69 85,75" fill="#C8D42F"/>
+  </g>
+
+  <!-- Top-right chevrons (navy) -->
+  <g transform="rotate(0, 100, 100)">
+    <polygon points="100,38 115,58 100,52 85,58" fill="#1E2461"/>
+    <polygon points="100,55 115,75 100,69 85,75" fill="#1E2461"/>
+  </g>
+
+  <!-- Bottom chevrons (navy) -->
+  <g transform="rotate(120, 100, 100)">
+    <polygon points="100,38 115,58 100,52 85,58" fill="#1E2461"/>
+    <polygon points="100,55 115,75 100,69 85,75" fill="#1E2461"/>
+  </g>
+</svg>

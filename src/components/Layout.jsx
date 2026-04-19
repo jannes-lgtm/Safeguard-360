@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutGrid, MapPin, Bell, FileText, CheckCircle,
-  Users, LogOut, Shield
+  Users, LogOut
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -21,7 +21,7 @@ function NavItem({ to, icon: Icon, label, badge }) {
       className={({ isActive }) =>
         `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-[6px] text-sm font-medium transition-colors
         ${isActive
-          ? 'bg-white/15 text-white'
+          ? 'bg-[#C8D42F]/20 text-[#C8D42F]'
           : 'text-blue-100 hover:bg-white/10 hover:text-white'
         }`
       }
@@ -75,13 +75,11 @@ export default function Layout({ children }) {
   return (
     <div className="flex min-h-screen bg-[#F9FAFB]">
       {/* Sidebar */}
-      <aside className="w-[220px] shrink-0 bg-[#1B3A6B] flex flex-col fixed top-0 left-0 h-full z-30">
+      <aside className="w-[220px] shrink-0 bg-[#1E2461] flex flex-col fixed top-0 left-0 h-full z-30">
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-white rounded-[6px] flex items-center justify-center">
-              <Shield size={16} className="text-[#1B3A6B]" />
-            </div>
+        <div className="px-5 py-4 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <img src="/logo.svg" alt="SafeGuard360" className="w-9 h-9" />
             <span className="text-white font-bold text-base tracking-tight">SafeGuard360</span>
           </div>
         </div>
@@ -110,7 +108,7 @@ export default function Layout({ children }) {
         {/* User footer */}
         <div className="border-t border-white/10 p-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[#C8D42F] flex items-center justify-center text-[#1E2461] text-xs font-bold shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
