@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, MapPin, AlertTriangle, PhoneCall } from 'lucide-react'
+import { Eye, EyeOff, Shield, MapPin, AlertTriangle, PhoneCall } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 export default function Login() {
