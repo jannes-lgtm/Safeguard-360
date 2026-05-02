@@ -77,11 +77,8 @@ export default function Layout({ children }) {
       {/* Sidebar */}
       <aside className="w-[220px] shrink-0 bg-[#1E2461] flex flex-col fixed top-0 left-0 h-full z-30">
         {/* Logo */}
-        <div className="px-5 py-4 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="SafeGuard360" className="w-9 h-9" />
-            <span className="text-white font-bold text-base tracking-tight">SafeGuard360</span>
-          </div>
+        <div className="px-4 py-4 border-b border-white/10">
+          <img src="/logo-blue.png" alt="SafeGuard360" className="h-9 w-auto" />
         </div>
 
         {/* Nav */}
