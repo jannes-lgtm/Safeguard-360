@@ -7,7 +7,7 @@ import {
 import { supabase } from '../lib/supabase'
 
 // Brand colours extracted from SafeGuard360 logo
-const BRAND_BLUE = '#1010CC'
+const BRAND_BLUE = '#1010C4'
 const BRAND_GREEN = '#AACC00'
 
 function NavSection({ label }) {
