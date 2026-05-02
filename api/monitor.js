@@ -9,7 +9,7 @@ const FROM = 'SafeGuard360 Alerts <alerts@risk360.co>'
 // Supabase admin client (bypasses RLS)
 function getSupabase() {
   return createClient(
-    process.env.SUPABASE_URL,
+    process.env.VITE_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
   )
 }
