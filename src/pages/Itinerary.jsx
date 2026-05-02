@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react'
 import { MapPin, Plane, Hotel, AlertTriangle } from 'lucide-react'
 import Layout from '../components/Layout'
 import SeverityBadge from '../components/SeverityBadge'
+import FlightStatus from '../components/FlightStatus'
+import CountryRisk from '../components/CountryRisk'
 import { supabase } from '../lib/supabase'
+import { toIcao, isKnownIata } from '../lib/airlineCodes'
+import { resolveCountry } from '../lib/cityToCountry'
 
 const HIGH_RISK_CRITICAL = ['lagos', 'kinshasa', 'mogadishu', 'kabul']
 const HIGH_RISK_HIGH = ['nairobi', 'kampala', 'harare', 'lusaka']
@@ -188,6 +192,16 @@ export default function Itinerary() {
                           )}
                         </div>
                       </div>
+                      {(trip.flight_number || trip.arrival_city) && (
+                        <div className="mt-2 pt-2 border-t border-gray-100 flex flex-col gap-1">
+                          {trip.flight_number && (
+                            <FlightStatus flightNumber={trip.flight_number} />
+                          )}
+                          {trip.arrival_city && resolveCountry(trip.arrival_city) && (
+                            <CountryRisk country={resolveCountry(trip.arrival_city)} />
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -227,7 +241,17 @@ export default function Itinerary() {
               </div>
               <div>
                 <label className={labelClass}>Flight number</label>
-                <input className={inputClass} placeholder="e.g. SA101" {...f('flight_number')} />
+                <input className={inputClass} placeholder="e.g. BA001 or BAW001" {...f('flight_number')} />
+                {form.flight_number && isKnownIata(form.flight_number) && (
+                  <p className="mt-1 text-xs text-blue-600">
+                    Will track as ICAO <span className="font-semibold">{toIcao(form.flight_number)}</span>
+                  </p>
+                )}
+                {form.flight_number && !isKnownIata(form.flight_number) && !/^[A-Z]{3}\d/i.test(form.flight_number) && form.flight_number.length >= 3 && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    Use ICAO format (3-letter prefix) for best results, e.g. BAW001
+                  </p>
+                )}
               </div>
               <div>
                 <label className={labelClass}>Departure city</label>
