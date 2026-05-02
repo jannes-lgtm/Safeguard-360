@@ -10,19 +10,53 @@ export default async function handler(req, res) {
     const result = await getCountryRisk(country)
     res.json(result)
   } catch (e) {
-    res.status(500).json({ error: e.message })
+    console.error('country-risk error:', e.message)
+    res.status(500).json({ error: e.message || 'Failed to fetch country risk' })
+  }
+}
+
+// Normalize country names to URL-safe slugs, handling accented characters
+function toSlug(str) {
+  return str
+    .normalize('NFD')                     // decompose accented chars
+    .replace(/[̀-ͯ]/g, '')      // remove accent marks
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+}
+
+async function fetchWithTimeout(url, options = {}, ms = 6000) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), ms)
+  try {
+    const r = await fetch(url, { ...options, signal: controller.signal })
+    clearTimeout(timeout)
+    return r
+  } catch (e) {
+    clearTimeout(timeout)
+    if (e.name === 'AbortError') return null
+    return null
   }
 }
 
 async function getCountryRisk(country) {
-  // --- US State Dept ---
-  if (!stateCache || Date.now() - stateCacheTime > CACHE_TTL) {
-    const r = await fetch(
+  // --- US State Dept (cached) ---
+  const cacheExpired = !stateCache || Date.now() - stateCacheTime > CACHE_TTL
+  if (cacheExpired) {
+    const r = await fetchWithTimeout(
       'https://travel.state.gov/content/dam/traveladvisories/Feeds/TravelAdvisoryJSON.json'
     )
-    if (r.ok) {
-      stateCache = await r.json()
-      stateCacheTime = Date.now()
+    if (r?.ok) {
+      try {
+        stateCache = await r.json()
+        stateCacheTime = Date.now()
+      } catch {
+        // Keep stale cache if JSON parse fails
+        console.error('Failed to parse State Dept advisory JSON')
+      }
+    } else {
+      console.error('State Dept advisory fetch failed:', r?.status)
+      // Don't clear cache — use stale data if available
     }
   }
 
@@ -37,10 +71,12 @@ async function getCountryRisk(country) {
   const fcdo = await fetchFcdo(country)
 
   // --- Australian DFAT (link only) ---
-  const dfatSlug = country.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z-]/g, '')
+  const dfatSlug = toSlug(country)
   const dfatUrl = `https://www.smartraveller.gov.au/destinations/${dfatSlug}`
 
-  const combinedLevel = Math.max(usLevel ?? 0, fcdo?.level ?? 0) || null
+  // Combined risk level — if both sources return nothing, level is null → Unknown
+  const rawMax = Math.max(usLevel ?? 0, fcdo?.level ?? 0)
+  const combinedLevel = rawMax > 0 ? rawMax : null
 
   return {
     country,
@@ -55,28 +91,31 @@ async function getCountryRisk(country) {
 }
 
 async function fetchFcdo(country) {
-  const slug = country.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z-]/g, '')
+  const slug = toSlug(country)
   try {
-    const r = await fetch(`https://www.gov.uk/api/content/foreign-travel-advice/${slug}`, {
-      headers: { 'Accept': 'application/json' }
-    })
-    if (!r.ok) return null
+    const r = await fetchWithTimeout(
+      `https://www.gov.uk/api/content/foreign-travel-advice/${slug}`,
+      { headers: { Accept: 'application/json' } }
+    )
+    if (!r || !r.ok) return null
     const data = await r.json()
     const warnings = data.details?.parts?.find(p => p.slug === 'warnings-and-insurance')
     if (!warnings?.body) return null
 
     const text = warnings.body.toLowerCase()
     let level = 1
-    if (text.includes('advises against all travel')) level = 4
-    else if (text.includes('advises against all but essential travel')) level = 3
-    else if (text.includes('advises against some travel') || text.includes('some parts of')) level = 2
+    // Check most severe first to avoid partial matches
+    if (text.includes('advises against all travel') && !text.includes('all but essential')) level = 4
+    else if (text.includes('all but essential travel')) level = 3
+    else if (text.includes('advises against some travel') || text.includes('some parts')) level = 2
 
     return {
       level,
       message: fcdoLevelText(level),
       url: `https://www.gov.uk/foreign-travel-advice/${slug}`,
     }
-  } catch {
+  } catch (e) {
+    console.error('FCDO fetch error for', country, ':', e.message)
     return null
   }
 }
@@ -89,7 +128,7 @@ function fcdoLevelText(level) {
 }
 
 function levelToSeverity(level) {
-  if (!level) return 'Unknown'
+  if (!level || level <= 0) return 'Unknown'
   if (level >= 4) return 'Critical'
   if (level >= 3) return 'High'
   if (level >= 2) return 'Medium'

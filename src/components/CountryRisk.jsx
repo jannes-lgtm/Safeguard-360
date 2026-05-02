@@ -30,11 +30,12 @@ async function fetchFcdo(country) {
     if (!part?.body) return null
     const t = part.body.toLowerCase()
     let level = 1
-    if (t.includes('advises against all travel')) level = 4
-    else if (t.includes('advises against all but essential travel')) level = 3
-    else if (t.includes('advises against some travel') || t.includes('some parts of')) level = 2
+    // Check most severe first — "all but essential" is a subset of "all travel"
+    if (t.includes('advises against all travel') && !t.includes('all but essential')) level = 4
+    else if (t.includes('all but essential travel')) level = 3
+    else if (t.includes('advises against some travel') || t.includes('some parts')) level = 2
     const labels = ['', 'Normal precautions', 'Exercise caution', 'All but essential travel', 'Do not travel']
-    return { level, message: labels[level], url: `https://www.gov.uk/foreign-travel-advice/${slug}` }
+    return { level, message: labels[Math.min(level, 4)], url: `https://www.gov.uk/foreign-travel-advice/${slug}` }
   } catch { return null }
 }
 
@@ -60,12 +61,14 @@ async function fetchStateAdvisory(country) {
 }
 
 async function getCountryRisk(country) {
+  if (!country) throw new Error('No country provided')
   const [fcdo, us] = await Promise.allSettled([fetchFcdo(country), fetchStateAdvisory(country)])
   const fcdoData = fcdo.status === 'fulfilled' ? fcdo.value : null
   const usData = us.status === 'fulfilled' ? us.value : null
 
-  const combinedLevel = Math.max(fcdoData?.level ?? 0, usData?.level ?? 0) || null
-  const dfatSlug = country.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z-]/g, '')
+  const rawMax = Math.max(fcdoData?.level ?? 0, usData?.level ?? 0)
+  const combinedLevel = rawMax > 0 ? rawMax : null
+  const dfatSlug = country.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
 
   return {
     country,

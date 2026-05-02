@@ -30,6 +30,7 @@ const TABS = ['Flight', 'Hotel', 'Meeting', 'Ground transport']
 export default function Itinerary() {
   const [trips, setTrips] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [activeTab, setActiveTab] = useState('Flight')
   const [submitting, setSubmitting] = useState(false)
   const [toast, setToast] = useState('')
@@ -66,6 +67,7 @@ export default function Itinerary() {
   }, [])
 
   const loadTrips = async () => {
+    setLoadError(null)
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
@@ -79,7 +81,10 @@ export default function Itinerary() {
         .eq('user_id', uid)
         .order('depart_date', { ascending: true })
 
-      if (tripsError) console.error('Trips error:', tripsError)
+      if (tripsError) {
+        console.error('Trips error:', tripsError)
+        setLoadError('Could not load your trips. Please refresh the page.')
+      }
       setTrips(trips || [])
 
       const { data: prof } = await supabase
@@ -90,6 +95,7 @@ export default function Itinerary() {
       setProfile(prof || null)
     } catch (e) {
       console.error('loadTrips error:', e)
+      setLoadError('Something went wrong loading your trips.')
     } finally {
       setLoading(false)
     }
@@ -170,6 +176,11 @@ export default function Itinerary() {
         {loading ? (
           <div className="space-y-3">
             {[1,2].map(i => <div key={i} className="h-20 bg-gray-100 rounded animate-pulse" />)}
+          </div>
+        ) : loadError ? (
+          <div className="flex items-center gap-2 py-4">
+            <span className="text-sm text-red-600">{loadError}</span>
+            <button onClick={loadTrips} className="text-sm text-[#0118A1] hover:underline font-medium">Retry</button>
           </div>
         ) : trips.length === 0 ? (
           <p className="text-sm text-gray-500 py-4">No trips yet. Add your first trip below.</p>
