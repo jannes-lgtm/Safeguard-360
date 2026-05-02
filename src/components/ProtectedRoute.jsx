@@ -11,7 +11,7 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
       const { data: { session } } = await supabase.auth.getSession()
 
       if (!session) {
-        navigate('/')
+        navigate('/login')
         return
       }
 

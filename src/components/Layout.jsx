@@ -65,7 +65,7 @@ export default function Layout({ children }) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    navigate('/')
+    navigate('/login')
   }
 
   const initials = profile?.full_name
