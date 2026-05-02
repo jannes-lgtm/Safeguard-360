@@ -105,9 +105,13 @@ export default function Itinerary() {
       status,
     }
 
+    // Always get user ID fresh from session to avoid null state issues
+    const { data: { session } } = await supabase.auth.getSession()
+    const currentUserId = session?.user?.id
+
     const { error } = editingId
       ? await supabase.from('itineraries').update(tripData).eq('id', editingId)
-      : await supabase.from('itineraries').insert({ ...tripData, user_id: userId })
+      : await supabase.from('itineraries').insert({ ...tripData, user_id: currentUserId })
 
     if (!error) {
       setToast(editingId ? 'Trip updated successfully.' : 'Trip saved. We will monitor your journey and alert you to any disruptions.')

@@ -168,6 +168,9 @@ function countryAlertHtml({ travelerName, country, severity, tripName }) {
     </div>`
 }
 
+const ALERT_FLIGHT_STATUSES = ['En Route/Late', 'Cancelled', 'Diverted']
+const ALERT_RISK_LEVELS = ['Critical', 'High']
+
 export default async function handler(req, res) {
   // Security check
   const secret = req.headers['x-monitor-secret'] || new URLSearchParams(req.url?.split('?')[1]).get('secret')
@@ -178,7 +181,6 @@ export default async function handler(req, res) {
   const supabase = getSupabase()
   const flightApiKey = process.env.FLIGHTAWARE_API_KEY
   const resendApiKey = process.env.RESEND_API_KEY
-
   const today = new Date().toISOString().split('T')[0]
 
   // Get all active itineraries with profile info
@@ -190,6 +192,15 @@ export default async function handler(req, res) {
 
   if (error) return res.status(500).json({ error: error.message })
   if (!itineraries?.length) return res.json({ ok: true, checked: 0, message: 'No active trips' })
+
+  // Load existing monitor states
+  const { data: states } = await supabase
+    .from('monitor_state')
+    .select('*')
+    .in('itinerary_id', itineraries.map(t => t.id))
+
+  const stateMap = {}
+  for (const s of states || []) stateMap[s.itinerary_id] = s
 
   const results = []
 
@@ -206,39 +217,62 @@ export default async function handler(req, res) {
 
     if (!recipients.length) continue
 
-    const tripResult = { trip: trip.trip_name, traveler: travelerName, alerts: [] }
+    const prevState = stateMap[trip.id] || {}
+    const tripResult = { trip: trip.trip_name, traveler: travelerName, alerts: [], skipped: [] }
+    const newState = { itinerary_id: trip.id, last_checked: new Date().toISOString() }
 
-    // 1. Check flight status
+    // 1. Check flight status — only alert if status has CHANGED
     if (trip.flight_number && flightApiKey) {
       const flight = await getFlightStatus(trip.flight_number, flightApiKey)
-      if (flight && ['En Route/Late', 'Cancelled', 'Diverted'].includes(flight.status)) {
-        const subject = flight.status === 'Cancelled'
-          ? `🚫 Flight ${flight.ident} Cancelled — ${trip.trip_name}`
-          : `⚠️ Flight ${flight.ident} Delayed — ${trip.trip_name}`
-        await sendAlert(
-          recipients,
-          subject,
-          flightAlertHtml({ ...flight, tripName: trip.trip_name, travelerName }),
-          resendApiKey
-        )
-        tripResult.alerts.push(`Flight ${flight.status}`)
+      if (flight) {
+        newState.flight_status = flight.status
+        const statusChanged = flight.status !== prevState.flight_status
+        const isAlertStatus = ALERT_FLIGHT_STATUSES.includes(flight.status)
+
+        if (isAlertStatus && statusChanged) {
+          const subject = flight.status === 'Cancelled'
+            ? `🚫 Flight ${flight.ident} Cancelled — ${trip.trip_name}`
+            : `⚠️ Flight ${flight.ident} Delayed — ${trip.trip_name}`
+          await sendAlert(
+            recipients,
+            subject,
+            flightAlertHtml({ ...flight, tripName: trip.trip_name, travelerName }),
+            resendApiKey
+          )
+          newState.last_alerted_flight = new Date().toISOString()
+          tripResult.alerts.push(`Flight changed to ${flight.status}`)
+        } else if (isAlertStatus && !statusChanged) {
+          tripResult.skipped.push(`Flight still ${flight.status} — already alerted`)
+        }
       }
     }
 
-    // 2. Check country risk
+    // 2. Check country risk — only alert if risk level has CHANGED
     const country = resolveCountry(trip.arrival_city)
     if (country) {
       const risk = await getCountryRisk(country)
-      if (['Critical', 'High'].includes(risk.severity)) {
+      newState.country_risk = risk.severity
+      const riskChanged = risk.severity !== prevState.country_risk
+      const isAlertRisk = ALERT_RISK_LEVELS.includes(risk.severity)
+
+      if (isAlertRisk && riskChanged) {
         await sendAlert(
           recipients,
           `🚨 Risk Alert: ${country} — ${risk.severity} | ${trip.trip_name}`,
           countryAlertHtml({ country, severity: risk.severity, tripName: trip.trip_name, travelerName }),
           resendApiKey
         )
-        tripResult.alerts.push(`Country risk ${risk.severity}`)
+        newState.last_alerted_risk = new Date().toISOString()
+        tripResult.alerts.push(`Country risk changed to ${risk.severity}`)
+      } else if (isAlertRisk && !riskChanged) {
+        tripResult.skipped.push(`Country risk still ${risk.severity} — already alerted`)
       }
     }
+
+    // Save updated state
+    await supabase
+      .from('monitor_state')
+      .upsert(newState, { onConflict: 'itinerary_id' })
 
     results.push(tripResult)
   }
