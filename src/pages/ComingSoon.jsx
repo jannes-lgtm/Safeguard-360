@@ -1,10 +1,10 @@
 export default function ComingSoon() {
   return (
-    <div className="min-h-screen bg-[#1515B8] flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: '#0118A1' }}>
       <div className="flex flex-col items-center gap-6 text-center">
 
-        {/* Logo */}
-        <img src="/logo-blue.png" alt="SafeGuard360" className="h-14 w-auto rounded-xl" />
+        {/* Logo - transparent blends with background */}
+        <img src="/logo-transparent.png" alt="SafeGuard360" className="h-16 w-auto" />
 
         {/* Divider */}
         <div className="w-12 h-0.5 bg-[#AACC00] rounded-full" />
