@@ -4,7 +4,7 @@ export default function ComingSoon() {
       <div className="flex flex-col items-center gap-6 text-center">
 
         {/* Logo - transparent blends with background */}
-        <img src="/logo-transparent.png" alt="SafeGuard360" className="h-16 w-auto" />
+        <img src="/logo-transparent.png" alt="SafeGuard360" className="h-28 w-auto" />
 
         {/* Divider */}
         <div className="w-12 h-0.5 bg-[#AACC00] rounded-full" />
