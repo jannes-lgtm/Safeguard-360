@@ -35,6 +35,7 @@ export default function Itinerary() {
   const [userId, setUserId] = useState(null)
   const [profile, setProfile] = useState(null)
   const [editingId, setEditingId] = useState(null)
+  const [authDebug, setAuthDebug] = useState(null)
 
   const emptyForm = { trip_name: '', flight_number: '', departure_city: '', arrival_city: '', depart_date: '', return_date: '', hotel_name: '', meetings: '' }
   const [form, setForm] = useState(emptyForm)
@@ -76,6 +77,10 @@ export default function Itinerary() {
       const uid = session.user.id
       setUserId(uid)
       console.log('Session user ID:', uid)
+
+      const { data: dbAuth } = await supabase.rpc('debug_auth')
+      console.log('Server auth debug:', dbAuth)
+      setAuthDebug(dbAuth)
 
       const { data: trips, error: tripsError } = await supabase
         .from('itineraries')
@@ -162,7 +167,8 @@ export default function Itinerary() {
 
       {/* DEBUG — remove after fix */}
       <div className="mb-4 px-4 py-2 bg-yellow-50 border border-yellow-300 text-yellow-900 rounded text-xs font-mono">
-        Session UID: {userId || 'NULL — not authenticated'} | Trips loaded: {trips.length}
+        <div>Client UID: {userId || 'NULL'} | Trips: {trips.length}</div>
+        <div>Server uid: {authDebug?.uid || 'NULL'} | role: {authDebug?.role || 'NULL'} | jwt_sub: {authDebug?.jwt_sub || 'NULL'}</div>
       </div>
 
       {/* Toast */}
