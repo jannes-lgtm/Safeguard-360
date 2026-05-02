@@ -65,18 +65,31 @@ export default function Itinerary() {
   }, [])
 
   const loadTrips = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    setUserId(session.user.id)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      setUserId(session.user.id)
 
-    const [{ data: trips }, { data: prof }] = await Promise.all([
-      supabase.from('itineraries').select('*').eq('user_id', session.user.id).order('depart_date', { ascending: true }),
-      supabase.from('profiles').select('*').eq('id', session.user.id).single(),
-    ])
+      const { data: trips, error: tripsError } = await supabase
+        .from('itineraries')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('depart_date', { ascending: true })
 
-    setTrips(trips || [])
-    setProfile(prof || null)
-    setLoading(false)
+      if (tripsError) console.error('Trips error:', tripsError)
+      setTrips(trips || [])
+
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single()
+      setProfile(prof || null)
+    } catch (e) {
+      console.error('loadTrips error:', e)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSubmit = async (e) => {
