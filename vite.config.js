@@ -50,5 +50,6 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   return {
     plugins: [react(), devApiPlugin(env.FLIGHTAWARE_API_KEY)],
+    server: { port: 5174 },
   }
 })

@@ -9,7 +9,6 @@ export default function ComingSoon() {
         {/* Brand */}
         <div>
           <h1 className="text-white text-4xl font-bold tracking-tight">SafeGuard360</h1>
-          <p className="text-[#a5b4fc] text-sm mt-1 tracking-widest uppercase">Travel Risk & Duty of Care</p>
         </div>
 
         {/* Divider */}

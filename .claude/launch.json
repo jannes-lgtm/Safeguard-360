@@ -5,7 +5,8 @@
       "name": "safeguard360",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 5174
+      "port": 5174,
+      "cwd": "/Users/janneskeeve/Desktop/AI/Safeguard 360/safeguard360"
     }
   ]
 }
