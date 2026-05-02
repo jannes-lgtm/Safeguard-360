@@ -67,22 +67,30 @@ export default function Itinerary() {
   const loadTrips = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      setUserId(session.user.id)
+      if (!session) {
+        console.warn('NO SESSION — user not authenticated')
+        setLoading(false)
+        return
+      }
+
+      const uid = session.user.id
+      setUserId(uid)
+      console.log('Session user ID:', uid)
 
       const { data: trips, error: tripsError } = await supabase
         .from('itineraries')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', uid)
         .order('depart_date', { ascending: true })
 
+      console.log('Trips returned:', trips, 'Error:', tripsError)
       if (tripsError) console.error('Trips error:', tripsError)
       setTrips(trips || [])
 
       const { data: prof } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', session.user.id)
+        .eq('id', uid)
         .single()
       setProfile(prof || null)
     } catch (e) {
@@ -150,6 +158,11 @@ export default function Itinerary() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">My Itinerary</h1>
         <p className="text-sm text-gray-500 mt-0.5">View and manage your travel plans</p>
+      </div>
+
+      {/* DEBUG — remove after fix */}
+      <div className="mb-4 px-4 py-2 bg-yellow-50 border border-yellow-300 text-yellow-900 rounded text-xs font-mono">
+        Session UID: {userId || 'NULL — not authenticated'} | Trips loaded: {trips.length}
       </div>
 
       {/* Toast */}
