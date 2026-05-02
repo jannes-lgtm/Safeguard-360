@@ -80,8 +80,8 @@ export default function Layout({ children }) {
     <div className="flex min-h-screen bg-[#F4F5F7]">
       {/* Sidebar */}
       <aside style={{ background: BRAND_BLUE }} className="w-[230px] shrink-0 flex flex-col fixed top-0 left-0 h-full z-30">
-        {/* Logo — blue PNG blends with matching sidebar colour */}
-        <div className="border-b border-white/10">
+        {/* Logo */}
+        <div>
           <img src="/logo-transparent.png" alt="SafeGuard360" className="w-full object-contain" />
         </div>
 
