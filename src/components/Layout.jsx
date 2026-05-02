@@ -7,7 +7,7 @@ import {
 import { supabase } from '../lib/supabase'
 
 // Brand colours extracted from SafeGuard360 logo
-const BRAND_BLUE = '#1313C8'
+const BRAND_BLUE = '#1010CC'
 const BRAND_GREEN = '#AACC00'
 
 function NavSection({ label }) {
@@ -81,8 +81,8 @@ export default function Layout({ children }) {
       {/* Sidebar */}
       <aside style={{ background: BRAND_BLUE }} className="w-[230px] shrink-0 flex flex-col fixed top-0 left-0 h-full z-30">
         {/* Logo — blue PNG blends with matching sidebar colour */}
-        <div className="px-4 pt-5 pb-4 border-b border-white/10">
-          <img src="/logo-blue.png" alt="SafeGuard360" className="h-12 w-auto" />
+        <div className="border-b border-white/10">
+          <img src="/logo-blue.png" alt="SafeGuard360" className="w-full object-contain" />
         </div>
 
         {/* Nav */}
