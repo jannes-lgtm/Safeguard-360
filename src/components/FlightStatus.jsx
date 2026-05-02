@@ -66,7 +66,8 @@ export default function FlightStatus({ flightNumber, tripName, profile }) {
     setError(null)
     setNotified(false)
     try {
-      const res = await fetch(`/api/flight-status?flight=${encodeURIComponent(icao)}`)
+      // Send original flight number — API handles IATA/ICAO itself
+      const res = await fetch(`/api/flight-status?flight=${encodeURIComponent(flightNumber.replace(/\s/g, ''))}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to fetch')
       setStatus(data)
@@ -107,6 +108,10 @@ export default function FlightStatus({ flightNumber, tripName, profile }) {
   const { Icon } = config
   const delay = formatDelay(status.arrivalDelay)
   const eta = formatTime(status.estimatedArrival ?? status.scheduledArrival)
+  const dep = formatTime(status.estimatedDeparture ?? status.scheduledDeparture)
+  const depDate = status.scheduledDeparture
+    ? new Date(status.scheduledDeparture).toLocaleDateString([], { day: 'numeric', month: 'short' })
+    : null
 
   return (
     <div className="mt-2 flex items-center gap-2 flex-wrap">
@@ -115,7 +120,8 @@ export default function FlightStatus({ flightNumber, tripName, profile }) {
         {config.label}
         {delay && <span>{delay}</span>}
       </span>
-      {eta && <span className="text-xs text-gray-500">ETA {eta}</span>}
+      {dep && <span className="text-xs text-gray-500">Dep {dep}{depDate ? ` (${depDate})` : ''}</span>}
+      {eta && <span className="text-xs text-gray-500">→ Arr {eta}</span>}
       {status._mock && <span className="text-xs text-gray-400 italic">demo data</span>}
       {notified && (
         <span className="inline-flex items-center gap-1 text-xs text-green-600">

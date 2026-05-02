@@ -5,7 +5,6 @@ export default async function handler(req, res) {
   const apiKey = process.env.FLIGHTAWARE_API_KEY
 
   if (!apiKey) {
-    // Mock response for development — replace with real key in Vercel env vars
     return res.json({
       ident: flight.toUpperCase(),
       status: 'Scheduled',
@@ -13,30 +12,58 @@ export default async function handler(req, res) {
       estimatedArrival: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(),
       departureDelay: 0,
       arrivalDelay: 0,
-      cancelled: false,
       _mock: true,
     })
   }
 
-  try {
-    const response = await fetch(
-      `https://aeroapi.flightaware.com/aeroapi/flights/${encodeURIComponent(flight)}`,
+  // Try the flight number as-is first, then strip spaces
+  const clean = flight.toUpperCase().replace(/\s/g, '')
+
+  async function fetchFlight(ident) {
+    const r = await fetch(
+      `https://aeroapi.flightaware.com/aeroapi/flights/${encodeURIComponent(ident)}`,
       { headers: { 'x-apikey': apiKey } }
     )
+    if (!r.ok) return null
+    const data = await r.json()
+    return data.flights?.length ? data.flights : null
+  }
 
-    if (!response.ok) {
-      return res.status(response.status).json({ error: `FlightAware error ${response.status}` })
+  try {
+    // Try original (may be IATA like LX283), FlightAware accepts both IATA and ICAO
+    let flights = await fetchFlight(clean)
+
+    if (!flights) {
+      return res.status(404).json({ error: `Flight ${clean} not found. Check the flight number and try again.` })
     }
 
-    const data = await response.json()
-    const latest = data.flights?.[0]
-    if (!latest) return res.status(404).json({ error: 'Flight not found' })
+    // Pick the most relevant flight — prefer upcoming/active over completed
+    const now = new Date()
+    const today = now.toISOString().split('T')[0]
+
+    // Sort by scheduled departure, prefer today or future flights
+    const sorted = flights
+      .filter(f => f.scheduled_out) // must have a departure time
+      .sort((a, b) => {
+        const aDate = new Date(a.scheduled_out)
+        const bDate = new Date(b.scheduled_out)
+        const aDiff = Math.abs(aDate - now)
+        const bDiff = Math.abs(bDate - now)
+        // Prefer upcoming over past
+        const aFuture = aDate >= now
+        const bFuture = bDate >= now
+        if (aFuture && !bFuture) return -1
+        if (!aFuture && bFuture) return 1
+        return aDiff - bDiff
+      })
+
+    const latest = sorted[0] ?? flights[0]
 
     res.json({
       ident: latest.ident,
       status: latest.status,
-      origin: latest.origin?.name,
-      destination: latest.destination?.name,
+      origin: latest.origin?.name ?? latest.origin?.code,
+      destination: latest.destination?.name ?? latest.destination?.code,
       scheduledDeparture: latest.scheduled_out,
       estimatedDeparture: latest.estimated_out,
       actualDeparture: latest.actual_out,
@@ -49,7 +76,7 @@ export default async function handler(req, res) {
       diverted: latest.diverted,
       aircraftType: latest.aircraft_type,
     })
-  } catch {
+  } catch (e) {
     res.status(500).json({ error: 'Internal error fetching flight data' })
   }
 }
