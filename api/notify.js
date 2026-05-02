@@ -1,4 +1,7 @@
 const FROM = 'SafeGuard360 Alerts <onboarding@resend.dev>'
+// Note: Without a verified domain in Resend, emails can only be sent
+// to the address registered on your Resend account.
+// To send to any address, verify your domain at resend.com/domains
 
 function flightHtml({ travelerName, ident, status, origin, destination, arrivalDelay, estimatedArrival, tripName }) {
   const delay = arrivalDelay > 0 ? `${arrivalDelay} minutes late` : ''

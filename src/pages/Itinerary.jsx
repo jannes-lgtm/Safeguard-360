@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { MapPin, Plane, Hotel, AlertTriangle } from 'lucide-react'
+import { MapPin, Plane, Hotel, AlertTriangle, Pencil } from 'lucide-react'
 import Layout from '../components/Layout'
 import SeverityBadge from '../components/SeverityBadge'
 import FlightStatus from '../components/FlightStatus'
@@ -34,17 +34,31 @@ export default function Itinerary() {
   const [toast, setToast] = useState('')
   const [userId, setUserId] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [editingId, setEditingId] = useState(null)
 
-  const [form, setForm] = useState({
-    trip_name: '',
-    flight_number: '',
-    departure_city: '',
-    arrival_city: '',
-    depart_date: '',
-    return_date: '',
-    hotel_name: '',
-    meetings: '',
-  })
+  const emptyForm = { trip_name: '', flight_number: '', departure_city: '', arrival_city: '', depart_date: '', return_date: '', hotel_name: '', meetings: '' }
+  const [form, setForm] = useState(emptyForm)
+
+  const startEdit = (trip) => {
+    setEditingId(trip.id)
+    setForm({
+      trip_name: trip.trip_name || '',
+      flight_number: trip.flight_number || '',
+      departure_city: trip.departure_city || '',
+      arrival_city: trip.arrival_city || '',
+      depart_date: trip.depart_date || '',
+      return_date: trip.return_date || '',
+      hotel_name: trip.hotel_name || '',
+      meetings: trip.meetings || '',
+    })
+    setActiveTab('Flight')
+    setTimeout(() => document.getElementById('trip-form')?.scrollIntoView({ behavior: 'smooth' }), 100)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setForm(emptyForm)
+  }
 
   useEffect(() => {
     loadTrips()
@@ -78,8 +92,7 @@ export default function Itinerary() {
     if (now >= departDate && now <= returnDate) status = 'Active'
     else if (now > returnDate) status = 'Completed'
 
-    const { error } = await supabase.from('itineraries').insert({
-      user_id: userId,
+    const tripData = {
       trip_name: form.trip_name,
       flight_number: form.flight_number,
       departure_city: form.departure_city,
@@ -90,11 +103,16 @@ export default function Itinerary() {
       meetings: form.meetings,
       risk_level: riskLevel,
       status,
-    })
+    }
+
+    const { error } = editingId
+      ? await supabase.from('itineraries').update(tripData).eq('id', editingId)
+      : await supabase.from('itineraries').insert({ ...tripData, user_id: userId })
 
     if (!error) {
-      setToast('Trip saved. We will monitor your journey and alert you to any disruptions.')
-      setForm({ trip_name: '', flight_number: '', departure_city: '', arrival_city: '', depart_date: '', return_date: '', hotel_name: '', meetings: '' })
+      setToast(editingId ? 'Trip updated successfully.' : 'Trip saved. We will monitor your journey and alert you to any disruptions.')
+      setEditingId(null)
+      setForm(emptyForm)
       await loadTrips()
       setTimeout(() => setToast(''), 5000)
     }
@@ -160,6 +178,10 @@ export default function Itinerary() {
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="font-semibold text-gray-900">{trip.trip_name}</span>
                             <SeverityBadge severity={trip.risk_level} />
+                            <button onClick={() => startEdit(trip)}
+                              className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#1B3A6B] transition-colors ml-1">
+                              <Pencil size={11} /> Edit
+                            </button>
                             <span className={`text-xs px-2 py-0.5 rounded font-medium ${
                               trip.status === 'Active' ? 'bg-blue-100 text-blue-700' :
                               trip.status === 'Upcoming' ? 'bg-green-100 text-green-700' :
@@ -220,9 +242,18 @@ export default function Itinerary() {
         )}
       </div>
 
-      {/* Add trip form */}
-      <div className="bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-5">
-        <h2 className="text-base font-semibold text-gray-900 mb-4">Add or update a trip</h2>
+      {/* Add / Edit trip form */}
+      <div id="trip-form" className="bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-semibold text-gray-900">
+            {editingId ? 'Edit trip' : 'Add a trip'}
+          </h2>
+          {editingId && (
+            <button onClick={cancelEdit} className="text-xs text-gray-400 hover:text-gray-600">
+              Cancel
+            </button>
+          )}
+        </div>
 
         {/* Tab selector */}
         <div className="flex gap-1 mb-5 bg-gray-100 rounded-[6px] p-1 w-fit">
@@ -383,7 +414,7 @@ export default function Itinerary() {
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Saving...
                 </>
-              ) : 'Save trip'}
+              ) : editingId ? 'Update trip' : 'Save trip'}
             </button>
           </div>
         </form>
