@@ -226,10 +226,11 @@ export default async function handler(req, res) {
       const flight = await getFlightStatus(trip.flight_number, flightApiKey)
       if (flight) {
         newState.flight_status = flight.status
+        const isFirstRun = !prevState.flight_status  // never checked before — don't alert yet
         const statusChanged = flight.status !== prevState.flight_status
         const isAlertStatus = ALERT_FLIGHT_STATUSES.includes(flight.status)
 
-        if (isAlertStatus && statusChanged) {
+        if (isAlertStatus && statusChanged && !isFirstRun) {
           const subject = flight.status === 'Cancelled'
             ? `🚫 Flight ${flight.ident} Cancelled — ${trip.trip_name}`
             : `⚠️ Flight ${flight.ident} Delayed — ${trip.trip_name}`
@@ -252,10 +253,11 @@ export default async function handler(req, res) {
     if (country) {
       const risk = await getCountryRisk(country)
       newState.country_risk = risk.severity
+      const isFirstRiskRun = !prevState.country_risk
       const riskChanged = risk.severity !== prevState.country_risk
       const isAlertRisk = ALERT_RISK_LEVELS.includes(risk.severity)
 
-      if (isAlertRisk && riskChanged) {
+      if (isAlertRisk && riskChanged && !isFirstRiskRun) {
         await sendAlert(
           recipients,
           `🚨 Risk Alert: ${country} — ${risk.severity} | ${trip.trip_name}`,
@@ -270,9 +272,10 @@ export default async function handler(req, res) {
     }
 
     // Save updated state
-    await supabase
+    const { error: upsertErr } = await supabase
       .from('monitor_state')
       .upsert(newState, { onConflict: 'itinerary_id' })
+    if (upsertErr) console.error('monitor_state upsert error:', upsertErr.message)
 
     results.push(tripResult)
   }

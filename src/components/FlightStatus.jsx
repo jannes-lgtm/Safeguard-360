@@ -12,9 +12,11 @@ const STATUS_CONFIG = {
 }
 
 function formatDelay(minutes) {
-  if (!minutes || minutes <= 0) return null
+  if (!minutes || minutes <= 0) return null  // negative = early, don't show
   if (minutes < 60) return `+${minutes}m`
-  return `+${Math.floor(minutes / 60)}h ${minutes % 60}m`
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return m > 0 ? `+${h}h ${m}m` : `+${h}h`
 }
 
 function formatTime(iso) {
@@ -84,7 +86,7 @@ export default function FlightStatus({ flightNumber, tripName, profile }) {
 
   if (error) return (
     <div className="mt-2 flex items-center gap-2">
-      <span className="text-xs text-red-600">{error}</span>
+      <span className="text-xs text-red-600">⚠ {error}</span>
       <button onClick={check} className="text-xs text-[#1B3A6B] hover:underline">Retry</button>
     </div>
   )

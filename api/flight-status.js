@@ -60,10 +60,10 @@ export default async function handler(req, res) {
     const latest = sorted[0] ?? flights[0]
 
     res.json({
-      ident: latest.ident,
-      status: latest.status,
-      origin: latest.origin?.name ?? latest.origin?.code,
-      destination: latest.destination?.name ?? latest.destination?.code,
+      ident: latest.ident ?? clean,
+      status: latest.status ?? 'Unknown',
+      origin: latest.origin?.name ?? latest.origin?.code ?? null,
+      destination: latest.destination?.name ?? latest.destination?.code ?? null,
       scheduledDeparture: latest.scheduled_out,
       estimatedDeparture: latest.estimated_out,
       actualDeparture: latest.actual_out,

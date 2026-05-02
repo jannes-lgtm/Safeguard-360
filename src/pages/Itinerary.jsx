@@ -8,13 +8,14 @@ import { supabase } from '../lib/supabase'
 import { toIcao, isKnownIata } from '../lib/airlineCodes'
 import { resolveCountry } from '../lib/cityToCountry'
 
-const HIGH_RISK_CRITICAL = ['lagos', 'kinshasa', 'mogadishu', 'kabul']
-const HIGH_RISK_HIGH = ['nairobi', 'kampala', 'harare', 'lusaka']
+const HIGH_RISK_CRITICAL = ['lagos', 'kinshasa', 'mogadishu', 'kabul', 'juba', 'khartoum', 'tripoli', 'baghdad']
+const HIGH_RISK_HIGH = ['nairobi', 'kampala', 'harare', 'lusaka', 'moscow', 'kyiv', 'tehran', 'karachi']
 
 function getRiskLevel(city) {
-  const c = city.toLowerCase()
-  if (HIGH_RISK_CRITICAL.some(r => c.includes(r))) return 'Critical'
-  if (HIGH_RISK_HIGH.some(r => c.includes(r))) return 'High'
+  // Use exact word match to avoid substring false-positives (e.g. "los angeles" matching "lagos")
+  const c = city.toLowerCase().trim()
+  if (HIGH_RISK_CRITICAL.some(r => c === r || c.startsWith(r + ' ') || c.endsWith(' ' + r))) return 'Critical'
+  if (HIGH_RISK_HIGH.some(r => c === r || c.startsWith(r + ' ') || c.endsWith(' ' + r))) return 'High'
   return 'Medium'
 }
 
