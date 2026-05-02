@@ -45,18 +45,17 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left column — navy */}
-      <div className="hidden md:flex w-1/2 bg-[#1E2461] flex-col justify-center px-12 py-16">
+      {/* Left column — brand blue */}
+      <div className="hidden md:flex w-1/2 flex-col justify-center px-12 py-16" style={{ background: '#0118A1' }}>
         {/* Logo */}
-        <div className="flex items-center gap-3 mb-10">
-          <img src="/logo.svg" alt="SafeGuard360" className="w-11 h-11" />
-          <span className="text-white font-bold text-xl tracking-tight">SafeGuard360</span>
+        <div className="mb-10">
+          <img src="/logo-transparent.png" alt="SafeGuard360" className="h-20 w-auto" />
         </div>
 
         <h1 className="text-white text-4xl font-bold leading-tight mb-4">
           Protecting your people,<br />wherever they are.
         </h1>
-        <p className="text-blue-300 text-lg mb-12 leading-relaxed">
+        <p className="text-blue-200 text-lg mb-12 leading-relaxed">
           Duty of care and travel risk management for pan-African operations.
         </p>
 
@@ -64,23 +63,26 @@ export default function Login() {
         <div className="flex flex-col gap-5">
           <div className="flex items-center gap-4">
             <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-              <AlertTriangle size={16} className="text-white" />
+              <AlertTriangle size={16} className="text-[#AACC00]" />
             </div>
             <span className="text-white text-sm font-medium">Real-time risk alerts</span>
           </div>
           <div className="flex items-center gap-4">
             <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-              <Shield size={16} className="text-white" />
+              <Shield size={16} className="text-[#AACC00]" />
             </div>
             <span className="text-white text-sm font-medium">ISO 31000 compliance</span>
           </div>
           <div className="flex items-center gap-4">
             <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-              <PhoneCall size={16} className="text-white" />
+              <PhoneCall size={16} className="text-[#AACC00]" />
             </div>
             <span className="text-white text-sm font-medium">24/7 emergency response</span>
           </div>
         </div>
+
+        {/* Bottom divider accent */}
+        <div className="mt-16 w-12 h-0.5 bg-[#AACC00] rounded-full" />
       </div>
 
       {/* Right column — login form */}
@@ -88,8 +90,7 @@ export default function Login() {
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="flex md:hidden items-center gap-2 mb-8">
-            <img src="/logo.svg" alt="SafeGuard360" className="w-8 h-8" />
-            <span className="font-bold text-lg text-[#1E2461]">SafeGuard360</span>
+            <img src="/logo-transparent.png" alt="SafeGuard360" className="h-8 w-auto" style={{ filter: 'brightness(0) saturate(100%) invert(7%) sepia(96%) saturate(5187%) hue-rotate(231deg) brightness(89%) contrast(115%)' }} />
           </div>
 
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h2>
@@ -106,7 +107,7 @@ export default function Login() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 placeholder="you@company.com"
-                className="w-full border border-gray-300 rounded-[6px] px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1E2461] focus:border-transparent"
+                className="w-full border border-gray-300 rounded-[6px] px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent"
               />
             </div>
 
@@ -121,7 +122,7 @@ export default function Login() {
                   onChange={e => setPassword(e.target.value)}
                   required
                   placeholder="••••••••"
-                  className="w-full border border-gray-300 rounded-[6px] px-3 py-2.5 pr-10 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1E2461] focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-[6px] px-3 py-2.5 pr-10 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent"
                 />
                 <button
                   type="button"
@@ -152,7 +153,7 @@ export default function Login() {
             >
               {loading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" />
                   Signing in...
                 </>
               ) : 'Sign in'}
@@ -162,7 +163,7 @@ export default function Login() {
           <div className="mt-4 text-center">
             <button
               onClick={handleForgotPassword}
-              className="text-sm text-[#2563EB] hover:underline"
+              className="text-sm text-[#0118A1] hover:underline"
             >
               Forgot your password?
             </button>
