@@ -6,6 +6,7 @@ import Alerts from './pages/Alerts'
 import Policies from './pages/Policies'
 import Training from './pages/Training'
 import Tracker from './pages/Tracker'
+import Profile from './pages/Profile'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/policies" element={<ProtectedRoute><Policies /></ProtectedRoute>} />
         <Route path="/training" element={<ProtectedRoute><Training /></ProtectedRoute>} />
         <Route path="/tracker" element={<ProtectedRoute adminOnly><Tracker /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

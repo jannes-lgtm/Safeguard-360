@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Shield, ExternalLink, RefreshCw, Globe } from 'lucide-react'
+import { Shield, ExternalLink, RefreshCw, Globe, Bell } from 'lucide-react'
 
 const SEVERITY_CONFIG = {
   'Critical': { color: 'text-red-700 bg-red-100 border-red-200', label: 'Do Not Travel' },
@@ -78,16 +78,47 @@ async function getCountryRisk(country) {
   }
 }
 
-export default function CountryRisk({ country }) {
+function getRecipients(profile) {
+  const emails = []
+  if (profile?.email) emails.push(profile.email)
+  if (profile?.emergency_contact_1_email) emails.push(profile.emergency_contact_1_email)
+  if (profile?.emergency_contact_2_email) emails.push(profile.emergency_contact_2_email)
+  return emails
+}
+
+export default function CountryRisk({ country, tripName, profile }) {
   const [risk, setRisk] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [notified, setNotified] = useState(false)
+
+  const sendNotification = async (riskData) => {
+    const recipients = getRecipients(profile)
+    if (!recipients.length) return
+    try {
+      await fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'country_risk',
+          recipients,
+          data: { ...riskData, tripName, travelerName: profile?.full_name || profile?.email || 'Traveler' },
+        }),
+      })
+      setNotified(true)
+    } catch {}
+  }
 
   const check = async () => {
     setLoading(true)
     setError(null)
+    setNotified(false)
     try {
-      setRisk(await getCountryRisk(country))
+      const result = await getCountryRisk(country)
+      setRisk(result)
+      if (['Critical', 'High'].includes(result.severity)) {
+        await sendNotification(result)
+      }
     } catch (e) {
       setError(e.message)
     } finally {
@@ -126,6 +157,11 @@ export default function CountryRisk({ country }) {
           {s.name} <ExternalLink size={9} />
         </a>
       ))}
+      {notified && (
+        <span className="inline-flex items-center gap-1 text-xs text-green-600">
+          <Bell size={10} /> Contacts notified
+        </span>
+      )}
       <button onClick={check} disabled={loading} title="Refresh"
         className="text-gray-400 hover:text-gray-600 disabled:opacity-40">
         <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />

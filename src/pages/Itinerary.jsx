@@ -33,6 +33,7 @@ export default function Itinerary() {
   const [submitting, setSubmitting] = useState(false)
   const [toast, setToast] = useState('')
   const [userId, setUserId] = useState(null)
+  const [profile, setProfile] = useState(null)
 
   const [form, setForm] = useState({
     trip_name: '',
@@ -54,13 +55,13 @@ export default function Itinerary() {
     if (!session) return
     setUserId(session.user.id)
 
-    const { data } = await supabase
-      .from('itineraries')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('depart_date', { ascending: true })
+    const [{ data: trips }, { data: prof }] = await Promise.all([
+      supabase.from('itineraries').select('*').eq('user_id', session.user.id).order('depart_date', { ascending: true }),
+      supabase.from('profiles').select('*').eq('id', session.user.id).single(),
+    ])
 
-    setTrips(data || [])
+    setTrips(trips || [])
+    setProfile(prof || null)
     setLoading(false)
   }
 
@@ -195,10 +196,18 @@ export default function Itinerary() {
                       {(trip.flight_number || trip.arrival_city) && (
                         <div className="mt-2 pt-2 border-t border-gray-100 flex flex-col gap-1">
                           {trip.flight_number && (
-                            <FlightStatus flightNumber={trip.flight_number} />
+                            <FlightStatus
+                              flightNumber={trip.flight_number}
+                              tripName={trip.trip_name}
+                              profile={profile}
+                            />
                           )}
                           {trip.arrival_city && resolveCountry(trip.arrival_city) && (
-                            <CountryRisk country={resolveCountry(trip.arrival_city)} />
+                            <CountryRisk
+                              country={resolveCountry(trip.arrival_city)}
+                              tripName={trip.trip_name}
+                              profile={profile}
+                            />
                           )}
                         </div>
                       )}

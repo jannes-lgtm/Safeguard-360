@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import { Plane, Clock, XCircle, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react'
+import { Plane, Clock, XCircle, CheckCircle, AlertTriangle, RefreshCw, Bell } from 'lucide-react'
 import { toIcao, isKnownIata } from '../lib/airlineCodes'
 
 const STATUS_CONFIG = {
-  'Scheduled': { label: 'Scheduled', color: 'text-gray-600 bg-gray-100', Icon: Clock },
+  'Scheduled':      { label: 'Scheduled', color: 'text-gray-600 bg-gray-100', Icon: Clock },
   'En Route/On Time': { label: 'On Time', color: 'text-green-700 bg-green-100', Icon: Plane },
-  'En Route/Late': { label: 'Delayed', color: 'text-amber-700 bg-amber-100', Icon: AlertTriangle },
-  'Arrived': { label: 'Landed', color: 'text-blue-700 bg-blue-100', Icon: CheckCircle },
-  'Cancelled': { label: 'Cancelled', color: 'text-red-700 bg-red-100', Icon: XCircle },
-  'Diverted': { label: 'Diverted', color: 'text-orange-700 bg-orange-100', Icon: AlertTriangle },
+  'En Route/Late':  { label: 'Delayed', color: 'text-amber-700 bg-amber-100', Icon: AlertTriangle },
+  'Arrived':        { label: 'Landed', color: 'text-blue-700 bg-blue-100', Icon: CheckCircle },
+  'Cancelled':      { label: 'Cancelled', color: 'text-red-700 bg-red-100', Icon: XCircle },
+  'Diverted':       { label: 'Diverted', color: 'text-orange-700 bg-orange-100', Icon: AlertTriangle },
 }
 
 function formatDelay(minutes) {
@@ -22,22 +22,58 @@ function formatTime(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-export default function FlightStatus({ flightNumber }) {
+function getRecipients(profile) {
+  const emails = []
+  if (profile?.email) emails.push(profile.email)
+  if (profile?.emergency_contact_1_email) emails.push(profile.emergency_contact_1_email)
+  if (profile?.emergency_contact_2_email) emails.push(profile.emergency_contact_2_email)
+  return emails
+}
+
+const ALERT_STATUSES = ['En Route/Late', 'Cancelled', 'Diverted']
+
+export default function FlightStatus({ flightNumber, tripName, profile }) {
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [notified, setNotified] = useState(false)
+  const [notifying, setNotifying] = useState(false)
 
   const icao = toIcao(flightNumber)
   const converted = isKnownIata(flightNumber)
 
+  const sendNotification = async (flightData) => {
+    const recipients = getRecipients(profile)
+    if (!recipients.length) return
+    setNotifying(true)
+    try {
+      await fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'flight',
+          recipients,
+          data: { ...flightData, tripName, travelerName: profile?.full_name || profile?.email || 'Traveler' },
+        }),
+      })
+      setNotified(true)
+    } catch {}
+    setNotifying(false)
+  }
+
   const check = async () => {
     setLoading(true)
     setError(null)
+    setNotified(false)
     try {
       const res = await fetch(`/api/flight-status?flight=${encodeURIComponent(icao)}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to fetch')
       setStatus(data)
+      // Auto-notify if flight is delayed, cancelled or diverted
+      if (ALERT_STATUSES.includes(data.status) && !data._mock) {
+        await sendNotification(data)
+      }
     } catch (e) {
       setError(e.message)
     } finally {
@@ -45,38 +81,27 @@ export default function FlightStatus({ flightNumber }) {
     }
   }
 
-  if (error) {
-    return (
-      <div className="mt-2 flex items-center gap-2">
-        <span className="text-xs text-red-600">{error}</span>
-        <button onClick={check} className="text-xs text-[#1B3A6B] hover:underline">Retry</button>
-      </div>
-    )
-  }
+  if (error) return (
+    <div className="mt-2 flex items-center gap-2">
+      <span className="text-xs text-red-600">{error}</span>
+      <button onClick={check} className="text-xs text-[#1B3A6B] hover:underline">Retry</button>
+    </div>
+  )
 
-  if (!status) {
-    return (
-      <div className="mt-2 flex items-center gap-2 flex-wrap">
-        <button
-          onClick={check}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 text-xs text-[#1B3A6B] font-medium hover:underline disabled:opacity-60"
-        >
-          {loading ? (
-            <div className="w-3 h-3 border border-[#1B3A6B] border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Plane size={11} />
-          )}
-          {loading ? 'Checking…' : 'Check live status'}
-        </button>
-        {converted && (
-          <span className="text-xs text-gray-400">
-            using ICAO <span className="font-medium text-gray-500">{icao}</span>
-          </span>
-        )}
-      </div>
-    )
-  }
+  if (!status) return (
+    <div className="mt-2 flex items-center gap-2 flex-wrap">
+      <button onClick={check} disabled={loading}
+        className="inline-flex items-center gap-1.5 text-xs text-[#1B3A6B] font-medium hover:underline disabled:opacity-60">
+        {loading
+          ? <div className="w-3 h-3 border border-[#1B3A6B] border-t-transparent rounded-full animate-spin" />
+          : <Plane size={11} />}
+        {loading ? 'Checking…' : 'Check live status'}
+      </button>
+      {converted && (
+        <span className="text-xs text-gray-400">using ICAO <span className="font-medium text-gray-500">{icao}</span></span>
+      )}
+    </div>
+  )
 
   const config = STATUS_CONFIG[status.status] ?? { label: status.status, color: 'text-gray-600 bg-gray-100', Icon: Clock }
   const { Icon } = config
@@ -92,12 +117,14 @@ export default function FlightStatus({ flightNumber }) {
       </span>
       {eta && <span className="text-xs text-gray-500">ETA {eta}</span>}
       {status._mock && <span className="text-xs text-gray-400 italic">demo data</span>}
-      <button
-        onClick={check}
-        disabled={loading}
-        title="Refresh"
-        className="text-gray-400 hover:text-gray-600 disabled:opacity-40"
-      >
+      {notified && (
+        <span className="inline-flex items-center gap-1 text-xs text-green-600">
+          <Bell size={10} /> Contacts notified
+        </span>
+      )}
+      {notifying && <span className="text-xs text-gray-400">Notifying…</span>}
+      <button onClick={check} disabled={loading} title="Refresh"
+        className="text-gray-400 hover:text-gray-600 disabled:opacity-40">
         <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
       </button>
     </div>
