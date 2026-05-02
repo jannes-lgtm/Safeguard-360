@@ -99,7 +99,7 @@ function AddAlertModal({ onClose, onAdded }) {
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 bg-[#1E2461] hover:bg-[#161a4a] text-white font-semibold py-2.5 rounded-[6px] text-sm transition-colors disabled:opacity-60">
+              className="flex-1 bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold py-2.5 rounded-[6px] text-sm transition-colors disabled:opacity-60">
               {saving ? 'Saving...' : 'Add Alert'}
             </button>
           </div>
@@ -179,7 +179,7 @@ export default function Alerts() {
         {isAdmin && (
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 bg-[#1E2461] hover:bg-[#161a4a] text-white font-semibold px-4 py-2.5 rounded-[6px] text-sm transition-colors"
+            className="flex items-center gap-2 bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold px-4 py-2.5 rounded-[6px] text-sm transition-colors"
           >
             <Plus size={16} />
             Add Alert

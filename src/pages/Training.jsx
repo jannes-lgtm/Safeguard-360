@@ -32,7 +32,7 @@ function Modal({ onClose }) {
         </p>
         <button
           onClick={onClose}
-          className="w-full bg-[#1B3A6B] hover:bg-[#142d54] text-white font-semibold py-2.5 rounded-[6px] text-sm transition-colors"
+          className="w-full bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold py-2.5 rounded-[6px] text-sm transition-colors"
         >
           Close
         </button>
@@ -106,9 +106,7 @@ export default function Training() {
         </div>
         <div className="w-full bg-gray-200 rounded-full h-3">
           <div
-            className={`h-3 rounded-full transition-all duration-700 ${
-              avgProgress >= 80 ? 'bg-green-500' : avgProgress >= 50 ? 'bg-amber-500' : 'bg-gray-400'
-            }`}
+            className="h-3 rounded-full transition-all duration-700 bg-[#AACC00]"
             style={{ width: `${avgProgress}%` }}
           />
         </div>
@@ -179,14 +177,14 @@ export default function Training() {
                   ) : isInProgress ? (
                     <button
                       onClick={() => setShowModal(true)}
-                      className="px-4 py-2 text-xs font-medium rounded-[6px] bg-[#2563EB] hover:bg-blue-700 text-white transition-colors"
+                      className="px-4 py-2 text-xs font-semibold rounded-[6px] bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] transition-colors"
                     >
                       Continue module →
                     </button>
                   ) : (
                     <button
                       onClick={() => setShowModal(true)}
-                      className="px-4 py-2 text-xs font-medium rounded-[6px] bg-[#1B3A6B] hover:bg-[#142d54] text-white transition-colors"
+                      className="px-4 py-2 text-xs font-semibold rounded-[6px] bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] transition-colors"
                     >
                       Start module →
                     </button>

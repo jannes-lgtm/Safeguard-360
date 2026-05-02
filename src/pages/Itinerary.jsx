@@ -438,7 +438,7 @@ export default function Itinerary() {
             <button
               type="submit"
               disabled={submitting}
-              className="bg-[#1B3A6B] hover:bg-[#142d54] text-white font-semibold px-6 py-2.5 rounded-[6px] text-sm transition-colors disabled:opacity-60 flex items-center gap-2"
+              className="bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold px-6 py-2.5 rounded-[6px] text-sm transition-colors disabled:opacity-60 flex items-center gap-2"
             >
               {submitting ? (
                 <>

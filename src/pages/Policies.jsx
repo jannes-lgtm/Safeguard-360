@@ -122,7 +122,7 @@ export default function Policies() {
                     href={policy.file_url || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-auto w-full flex items-center justify-center gap-2 bg-[#1B3A6B] hover:bg-[#142d54] text-white rounded-[6px] py-2 text-xs font-medium transition-colors"
+                    className="mt-auto w-full flex items-center justify-center gap-2 bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] rounded-[6px] py-2 text-xs font-medium transition-colors"
                   >
                     <Download size={13} />
                     Download PDF

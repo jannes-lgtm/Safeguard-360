@@ -128,7 +128,7 @@ export default function Profile() {
         </div>
 
         <button type="submit" disabled={saving}
-          className="bg-[#1E2461] hover:bg-[#161a4a] text-white font-semibold px-6 py-2.5 rounded-[6px] text-sm transition-colors disabled:opacity-60 flex items-center gap-2">
+          className="bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold px-6 py-2.5 rounded-[6px] text-sm transition-colors disabled:opacity-60 flex items-center gap-2">
           {saving ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving…</> : 'Save profile'}
         </button>
       </form>
