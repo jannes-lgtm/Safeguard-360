@@ -82,7 +82,7 @@ export default function Layout({ children }) {
       <aside style={{ background: BRAND_BLUE }} className="w-[230px] shrink-0 flex flex-col fixed top-0 left-0 h-full z-30">
         {/* Logo — blue PNG blends with matching sidebar colour */}
         <div className="border-b border-white/10">
-          <img src="/logo-blue.png" alt="SafeGuard360" className="w-full object-contain" />
+          <img src="/logo-blue.png" alt="SafeGuard360" className="w-full object-contain" style={{ filter: 'brightness(1.18)' }} />
         </div>
 
         {/* Nav */}
