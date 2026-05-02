@@ -3,8 +3,8 @@ export default function ComingSoon() {
     <div className="min-h-screen bg-[#1515B8] flex flex-col items-center justify-center px-6">
       <div className="flex flex-col items-center gap-6 text-center">
 
-        {/* Logo - blue version blends with background */}
-        <img src="/logo-blue.png" alt="SafeGuard360" className="h-20 w-auto" />
+        {/* Logo */}
+        <img src="/logo-blue.png" alt="SafeGuard360" className="h-14 w-auto rounded-xl" />
 
         {/* Divider */}
         <div className="w-12 h-0.5 bg-[#AACC00] rounded-full" />

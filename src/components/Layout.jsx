@@ -78,7 +78,9 @@ export default function Layout({ children }) {
       <aside className="w-[220px] shrink-0 bg-[#1E2461] flex flex-col fixed top-0 left-0 h-full z-30">
         {/* Logo */}
         <div className="px-4 py-4 border-b border-white/10">
-          <img src="/logo-blue.png" alt="SafeGuard360" className="h-9 w-auto" />
+          <div className="bg-white rounded-lg px-3 py-2">
+            <img src="/logo-white.png" alt="SafeGuard360" className="h-7 w-auto" />
+          </div>
         </div>
 
         {/* Nav */}
