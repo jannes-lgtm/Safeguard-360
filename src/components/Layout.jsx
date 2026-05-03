@@ -51,8 +51,8 @@ export default function Layout({ children }) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Read role from auth metadata — bypasses RLS entirely
-      const metaRole = user.app_metadata?.role || user.user_metadata?.role || null
+      // Get role via SECURITY DEFINER RPC — bypasses RLS completely
+      const { data: roleFromRpc } = await supabase.rpc('get_my_role')
 
       const { data: prof } = await supabase
         .from('profiles')
@@ -60,15 +60,13 @@ export default function Layout({ children }) {
         .eq('id', user.id)
         .single()
 
-      // Merge auth metadata role into profile so rest of app works normally
+      const role = roleFromRpc || prof?.role || user.app_metadata?.role || 'traveller'
+
       setProfile({
         id: user.id,
         email: user.email,
-        full_name: null,
-        role: metaRole,
         ...(prof || {}),
-        // Always trust app_metadata role over DB role (avoids RLS blocking role reads)
-        role: metaRole || prof?.role || 'traveller',
+        role,
       })
 
       const { count } = await supabase
