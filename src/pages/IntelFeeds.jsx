@@ -109,12 +109,12 @@ const STATUS = {
   error:       { label: 'Error',               dot: 'bg-red-500',    text: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200' },
 }
 
-function StatusPill({ status }) {
+function StatusDot({ status }) {
   const s = STATUS[status] || STATUS.pending
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${s.bg} ${s.text} ${s.border}`}>
-      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.dot}`} />
-      {s.label}
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <span className={`w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
+      <span className={`text-xs font-medium ${s.text}`}>{s.label}</span>
     </span>
   )
 }
@@ -129,61 +129,146 @@ function CategoryPill({ categoryId }) {
   )
 }
 
-function FeedCard({ feed, onDelete }) {
+// ── Feed Table Row ────────────────────────────────────────────────────────────
+function FeedRow({ feed, onDelete, isEven }) {
+  const rowBg = isEven ? 'bg-white' : 'bg-gray-50/50'
+  const sourceLinkLabel = feed.status === 'partnership' ? 'Website' : feed.status === 'pending_key' ? 'Get key' : 'Source'
+
   return (
-    <div className="bg-white rounded-[10px] shadow-[0_1px_4px_rgba(0,0,0,0.08)] p-5 flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            <h3 className="text-sm font-bold text-gray-900">{feed.name}</h3>
-            {!feed.builtin && <span className="text-[10px] bg-gray-100 text-gray-500 border border-gray-200 px-1.5 py-0.5 rounded font-medium">Custom</span>}
-          </div>
-          <div className="flex items-center gap-2 flex-wrap mb-2">
-            <CategoryPill categoryId={feed.category} />
-            <span className="text-[10px] text-gray-400 border border-gray-200 px-1.5 py-0.5 rounded">{feed.feedType}</span>
-          </div>
-          <p className="text-xs text-gray-500 leading-relaxed">{feed.description}</p>
-        </div>
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          <StatusPill status={feed.status} />
+    <tr className={`${rowBg} border-b border-gray-100 hover:bg-blue-50/30 transition-colors group`}>
+      {/* Status */}
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <StatusDot status={feed.status} />
+      </td>
+
+      {/* Feed Name */}
+      <td className="px-3 py-2.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-semibold text-gray-900 leading-tight">{feed.name}</span>
           {!feed.builtin && (
-            <button onClick={() => onDelete(feed.id)} className="text-gray-300 hover:text-red-400 transition-colors"><X size={14} /></button>
+            <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded font-medium leading-none">
+              Custom
+            </span>
+          )}
+          {feed.envVar && (
+            <span className="hidden sm:inline text-[10px] font-mono text-gray-400 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded leading-none">
+              {feed.envVar}
+            </span>
           )}
         </div>
-      </div>
+      </td>
 
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-        <div>
-          <span className="text-gray-400">Geography</span>
-          <div className="text-gray-700 font-medium mt-0.5">{feed.geography || '—'}</div>
-        </div>
-        <div>
-          <span className="text-gray-400">Update Frequency</span>
-          <div className="text-gray-700 font-medium mt-0.5">{feed.updateFrequency || '—'}</div>
-        </div>
-        {feed.envVar && (
-          <div className="col-span-2">
-            <span className="text-gray-400">Env Variable</span>
-            <div className="text-gray-600 font-mono text-[10px] mt-0.5">{feed.envVar}</div>
-          </div>
-        )}
-        {feed.notes && (
-          <div className="col-span-2">
-            <span className="text-gray-400">Notes</span>
-            <div className="text-gray-600 mt-0.5">{feed.notes}</div>
-          </div>
-        )}
-      </div>
+      {/* Category */}
+      <td className="px-3 py-2.5 hidden md:table-cell">
+        <CategoryPill categoryId={feed.category} />
+      </td>
 
-      {feed.sourceUrl && (
-        <div className="pt-1 border-t border-gray-100">
-          <a href={feed.sourceUrl} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-[#0118A1] hover:underline font-medium">
-            <ExternalLink size={11} />
-            {feed.status === 'partnership' ? 'Visit website' : feed.status === 'pending_key' ? 'Get API key' : 'Source'}
-          </a>
+      {/* Description */}
+      <td className="px-3 py-2.5 hidden lg:table-cell">
+        <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 max-w-xs">{feed.description || '—'}</p>
+      </td>
+
+      {/* Geography */}
+      <td className="px-3 py-2.5 hidden sm:table-cell whitespace-nowrap">
+        <span className="text-xs text-gray-700">{feed.geography || '—'}</span>
+      </td>
+
+      {/* Update Frequency */}
+      <td className="px-3 py-2.5 hidden xl:table-cell whitespace-nowrap">
+        <span className="text-xs text-gray-500">{feed.updateFrequency || '—'}</span>
+      </td>
+
+      {/* Actions */}
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <div className="flex items-center gap-2 justify-end">
+          {feed.sourceUrl && (
+            <a href={feed.sourceUrl} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-[#0118A1] hover:underline opacity-0 group-hover:opacity-100 transition-opacity font-medium">
+              <ExternalLink size={11} />
+              <span className="hidden sm:inline">{sourceLinkLabel}</span>
+            </a>
+          )}
+          {!feed.builtin && (
+            <button onClick={() => onDelete(feed.id)}
+              className="text-gray-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-0.5 rounded">
+              <X size={13} />
+            </button>
+          )}
         </div>
-      )}
+      </td>
+    </tr>
+  )
+}
+
+// ── Feed Table ────────────────────────────────────────────────────────────────
+function FeedTable({ feeds, onDelete, emptyMsg }) {
+  if (!feeds.length) {
+    return (
+      <div className="text-xs text-gray-400 italic py-8 text-center">{emptyMsg}</div>
+    )
+  }
+
+  // Group by category
+  const grouped = CATEGORIES.map(cat => ({
+    ...cat,
+    feeds: feeds.filter(f => f.category === cat.id),
+  })).filter(g => g.feeds.length > 0)
+
+  let rowIndex = 0
+
+  return (
+    <div className="bg-white rounded-[8px] border border-gray-200 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+      <table className="w-full table-fixed border-collapse">
+        <colgroup>
+          <col style={{ width: '140px' }} />
+          <col style={{ width: '220px' }} />
+          <col className="hidden md:table-column" style={{ width: '160px' }} />
+          <col className="hidden lg:table-column" style={{ width: 'auto' }} />
+          <col className="hidden sm:table-column" style={{ width: '160px' }} />
+          <col className="hidden xl:table-column" style={{ width: '160px' }} />
+          <col style={{ width: '80px' }} />
+        </colgroup>
+        <thead>
+          <tr className="border-b border-gray-200 bg-gray-50">
+            <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+            <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Feed Name</th>
+            <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Category</th>
+            <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Description</th>
+            <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Geography</th>
+            <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide hidden xl:table-cell">Frequency</th>
+            <th className="px-3 py-2 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wide"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {grouped.map(group => {
+            const GIcon = group.icon
+            return (
+              <>
+                {/* Category header row */}
+                <tr key={`cat-${group.id}`} className="border-b border-gray-100">
+                  <td colSpan={7} className="px-3 py-1.5 bg-gray-50/80">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-5 h-5 rounded flex items-center justify-center ${group.bg} border ${group.border}`}>
+                        <GIcon size={11} className={group.text} />
+                      </div>
+                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{group.label}</span>
+                      <span className="text-[10px] text-gray-400 bg-gray-200 rounded-full px-1.5 py-0.5 leading-none">{group.feeds.length}</span>
+                    </div>
+                  </td>
+                </tr>
+                {/* Feed rows */}
+                {group.feeds.map((feed) => {
+                  const isEven = rowIndex % 2 === 0
+                  rowIndex++
+                  return (
+                    <FeedRow key={feed.id} feed={feed} onDelete={onDelete} isEven={isEven} />
+                  )
+                })}
+              </>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -338,40 +423,6 @@ function AddFeedModal({ onClose, onSaved, defaultScope = 'international', defaul
           </button>
         </div>
       </div>
-    </div>
-  )
-}
-
-// ── Section component ─────────────────────────────────────────────────────────
-function FeedSection({ title, icon: Icon, feeds, onDelete, emptyMsg, accent }) {
-  if (!feeds.length) return (
-    <div className="text-xs text-gray-400 italic py-4 pl-1">{emptyMsg}</div>
-  )
-  // Group by category within section
-  const grouped = CATEGORIES.map(cat => ({
-    ...cat,
-    feeds: feeds.filter(f => f.category === cat.id),
-  })).filter(g => g.feeds.length > 0)
-
-  return (
-    <div className="space-y-6">
-      {grouped.map(group => {
-        const GIcon = group.icon
-        return (
-          <div key={group.id}>
-            <div className="flex items-center gap-2 mb-3">
-              <div className={`w-6 h-6 rounded-md flex items-center justify-center ${group.bg} border ${group.border}`}>
-                <GIcon size={12} className={group.text} />
-              </div>
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{group.label}</span>
-              <span className="text-xs text-gray-300">{group.feeds.length}</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {group.feeds.map(feed => <FeedCard key={feed.id} feed={feed} onDelete={onDelete} />)}
-            </div>
-          </div>
-        )
-      })}
     </div>
   )
 }
@@ -726,7 +777,7 @@ export default function IntelFeeds() {
               <Plus size={11} /> Add international feed
             </button>
           </div>
-          <FeedSection feeds={intlFeeds} onDelete={handleDelete} emptyMsg="No international feeds configured." />
+          <FeedTable feeds={intlFeeds} onDelete={handleDelete} emptyMsg="No international feeds configured." />
         </div>
       ) : (
         /* ── Local tab ── */
@@ -781,7 +832,7 @@ export default function IntelFeeds() {
                     <h3 className="text-sm font-bold text-gray-800">{selectedCountry}</h3>
                     <span className="text-xs text-gray-400">{countryFeeds.length} feed{countryFeeds.length !== 1 ? 's' : ''}</span>
                   </div>
-                  <FeedSection feeds={countryFeeds} onDelete={handleDelete} emptyMsg={`No local feeds for ${selectedCountry} yet.`} />
+                  <FeedTable feeds={countryFeeds} onDelete={handleDelete} emptyMsg={`No local feeds for ${selectedCountry} yet.`} />
                 </div>
               )}
             </>

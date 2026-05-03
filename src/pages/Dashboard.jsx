@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart2, Bell, Plane, FileText } from 'lucide-react'
+import { BarChart2, Bell, Plane, Radio } from 'lucide-react'
 import Layout from '../components/Layout'
 import MetricCard from '../components/MetricCard'
 import SeverityBadge from '../components/SeverityBadge'
@@ -19,7 +19,7 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState({
     activeAlerts: 0,
     staffTravelling: 0,
-    activePolicies: 0,
+    activeFeeds: 0,
   })
   const [recentAlerts, setRecentAlerts] = useState([])
   const [trainingModules, setTrainingModules] = useState([])
@@ -33,21 +33,23 @@ export default function Dashboard() {
       const [
         { count: alertCount },
         { count: travelCount },
-        { count: policyCount },
         { data: alerts },
         { data: training },
+        feedStatuses,
       ] = await Promise.all([
         supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
         supabase.from('itineraries').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
-        supabase.from('policies').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
         supabase.from('alerts').select('*').eq('status', 'Active').order('date_issued', { ascending: false }).limit(4),
         supabase.from('training_progress').select('*').eq('user_id', session.user.id).order('module_order'),
+        fetch('/api/feed-status').then(r => r.json()).catch(() => ({})),
       ])
+
+      const activeFeeds = Object.values(feedStatuses || {}).filter(s => s === 'active').length
 
       setMetrics({
         activeAlerts: alertCount || 0,
         staffTravelling: travelCount || 0,
-        activePolicies: policyCount || 0,
+        activeFeeds,
       })
       setRecentAlerts(alerts || [])
       setTrainingModules((training || []).slice(0, 5))
@@ -91,10 +93,10 @@ export default function Dashboard() {
           icon={Plane}
         />
         <MetricCard
-          label="Policies Active"
-          value={loading ? '–' : metrics.activePolicies}
+          label="Active Feeds"
+          value={loading ? '–' : metrics.activeFeeds}
           valueColor="text-[#16A34A]"
-          icon={FileText}
+          icon={Radio}
         />
       </div>
 
