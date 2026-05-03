@@ -94,8 +94,12 @@ export default function Layout({ children }) {
           <NavItem to="/itinerary" icon={MapPin} label="My Itinerary" />
           <NavItem to="/alerts" icon={Bell} label="Risk Alerts" badge={activeAlertCount} />
 
-          <NavSection label="Intelligence" />
-          <NavItem to="/intel-feeds" icon={Radio} label="Intel Feeds" />
+          {profile?.role === 'admin' && (
+            <>
+              <NavSection label="Intelligence" />
+              <NavItem to="/intel-feeds" icon={Radio} label="Intel Feeds" />
+            </>
+          )}
 
           <NavSection label="Compliance" />
           <NavItem to="/policies" icon={FileText} label="Policy Library" />

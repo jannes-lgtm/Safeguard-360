@@ -24,7 +24,7 @@ export default function App() {
         <Route path="/training" element={<ProtectedRoute><Training /></ProtectedRoute>} />
         <Route path="/tracker" element={<ProtectedRoute adminOnly><Tracker /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/intel-feeds" element={<ProtectedRoute><IntelFeeds /></ProtectedRoute>} />
+        <Route path="/intel-feeds" element={<ProtectedRoute adminOnly><IntelFeeds /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )
