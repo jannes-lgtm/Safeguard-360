@@ -7,7 +7,41 @@ const CACHE_TTL = 60 * 60 * 1000 // 1 hour
 
 // ── Pre-configured Africa + Middle East risk/security RSS feeds ───────────────
 export const PRECONFIGURED_FEEDS = [
-  // Africa
+  // ── Disease & Health ──────────────────────────────────────────────────────
+  {
+    id: 'who-outbreak',
+    name: 'WHO Disease Outbreak News',
+    category: 'health',
+    geography: 'Global',
+    url: 'https://www.who.int/feeds/entity/csr/don/en/rss.xml',
+    description: 'World Health Organization official disease outbreak news — confirmed outbreaks, alerts and public health emergencies (PHEIC).',
+  },
+  {
+    id: 'cdc-travel-health',
+    name: 'CDC Travel Health Notices',
+    category: 'health',
+    geography: 'Global',
+    url: 'https://tools.cdc.gov/api/v2/resources/media/403372.rss',
+    description: 'US Centers for Disease Control travel health notices — Warning (Level 3), Alert (Level 2), Watch (Level 1) for infectious disease risks at destinations.',
+  },
+  {
+    id: 'ecdc-threats',
+    name: 'ECDC — Communicable Disease Threats',
+    category: 'health',
+    geography: 'Global (EU focus)',
+    url: 'https://www.ecdc.europa.eu/en/rss-feed/ecdc-communicable-disease-threats-report',
+    description: 'European Centre for Disease Prevention and Control weekly threats report — active outbreaks relevant to international travellers.',
+  },
+  {
+    id: 'promed',
+    name: 'ProMED Mail',
+    category: 'health',
+    geography: 'Global',
+    url: 'https://promedmail.org/feed/',
+    description: 'Expert-moderated global rapid reporting of infectious disease outbreaks and acute exposures. One of the world\'s largest disease surveillance systems.',
+  },
+
+  // ── Security / Africa ─────────────────────────────────────────────────────
   {
     id: 'iss-africa',
     name: 'ISS Africa — ISS Today',
@@ -49,12 +83,20 @@ export const PRECONFIGURED_FEEDS = [
     description: 'United Nations news from Africa — peacekeeping operations, political missions, humanitarian updates.',
   },
   {
-    id: 'acled-blog',
-    name: 'ACLED Research Blog',
-    category: 'conflict',
+    id: 'african-arguments',
+    name: 'African Arguments',
+    category: 'security',
+    geography: 'Africa',
+    url: 'https://africanarguments.org/feed/',
+    description: 'Expert analysis on African politics, security and society — in-depth reporting on conflict zones, governance and elections across the continent.',
+  },
+  {
+    id: 'osac',
+    name: 'OSAC Security Reports',
+    category: 'security',
     geography: 'Africa + Middle East',
-    url: 'https://acleddata.com/feed/',
-    description: 'ACLED data-driven analysis of armed conflict trends, protest movements and political violence.',
+    url: 'https://www.osac.gov/Content/Browse/Report/56/RSS',
+    description: 'Overseas Security Advisory Council — US State Dept security reports for business travellers covering Africa and the Middle East.',
   },
   {
     id: 'bbc-africa',
@@ -64,7 +106,26 @@ export const PRECONFIGURED_FEEDS = [
     url: 'https://feeds.bbci.co.uk/news/world/africa/rss.xml',
     description: 'BBC Africa news feed — breaking news, security incidents, political developments.',
   },
-  // Middle East
+
+  // ── Conflict ──────────────────────────────────────────────────────────────
+  {
+    id: 'acled-blog',
+    name: 'ACLED Research Blog',
+    category: 'conflict',
+    geography: 'Africa + Middle East',
+    url: 'https://acleddata.com/feed/',
+    description: 'ACLED data-driven analysis of armed conflict trends, protest movements and political violence.',
+  },
+  {
+    id: 'gdelt',
+    name: 'GDELT — Africa Security Events',
+    category: 'conflict',
+    geography: 'Africa',
+    url: 'https://api.gdeltproject.org/api/v2/doc/doc?query=africa+security+conflict&mode=ArtList&maxrecords=10&format=atom',
+    description: 'GDELT Project real-time monitoring of Africa security and conflict events from 100+ languages of global news.',
+  },
+
+  // ── Middle East ───────────────────────────────────────────────────────────
   {
     id: 'crisis-group-me',
     name: 'Crisis Group — Middle East & North Africa',
