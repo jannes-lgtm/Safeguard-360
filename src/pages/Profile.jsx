@@ -9,7 +9,7 @@ const labelClass = "block text-sm font-medium text-gray-700 mb-1"
 export default function Profile() {
   const [profile, setProfile] = useState(null)
   const [form, setForm] = useState({
-    full_name: '', phone: '',
+    full_name: '', phone: '', whatsapp_number: '',
     emergency_contact_1_name: '', emergency_contact_1_email: '',
     emergency_contact_2_name: '', emergency_contact_2_email: '',
   })
@@ -26,6 +26,7 @@ export default function Profile() {
         setForm({
           full_name: data.full_name || '',
           phone: data.phone || '',
+          whatsapp_number: data.whatsapp_number || '',
           emergency_contact_1_name: data.emergency_contact_1_name || '',
           emergency_contact_1_email: data.emergency_contact_1_email || '',
           emergency_contact_2_name: data.emergency_contact_2_name || '',
@@ -86,6 +87,11 @@ export default function Profile() {
             <div>
               <label className={labelClass}>Phone number</label>
               <input className={inputClass} placeholder="+27 82 000 0000" {...f('phone')} />
+            </div>
+            <div>
+              <label className={labelClass}>WhatsApp number</label>
+              <input className={inputClass} placeholder="+27 82 000 0000" {...f('whatsapp_number')} />
+              <p className="text-xs text-gray-400 mt-1">Include country code — alerts will be sent here via WhatsApp</p>
             </div>
           </div>
         </div>

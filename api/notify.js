@@ -1,4 +1,5 @@
 const FROM = 'SafeGuard360 Alerts <alerts@risk360.co>'
+import { sendWhatsApp } from './whatsapp-send.js'
 
 function flightHtml({ travelerName, ident, status, origin, destination, arrivalDelay, estimatedArrival, tripName }) {
   const delay = arrivalDelay > 0 ? `${arrivalDelay} minutes late` : ''
@@ -82,7 +83,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid JSON body' })
   }
 
-  const { type, recipients, data } = parsed
+  const { type, recipients, data, whatsappNumbers } = parsed
 
   // Validate required fields
   if (!type) return res.status(400).json({ error: 'type is required' })
@@ -125,6 +126,18 @@ export default async function handler(req, res) {
 
     const result = await r.json()
     if (!r.ok) return res.status(r.status).json({ error: result.message || result.error || 'Send failed' })
+
+    // Also send WhatsApp if numbers provided
+    if (Array.isArray(whatsappNumbers) && whatsappNumbers.length > 0) {
+      const waMessage = type === 'flight'
+        ? `✈️ *SafeGuard360 Flight Alert*\n\nFlight ${data.ident || ''} — *${data.status || ''}*\nTrip: ${data.tripName || '—'}\nRoute: ${data.origin || '—'} → ${data.destination || '—'}\n\n_View details at risk360.co_`
+        : `🚨 *SafeGuard360 Risk Alert*\n\n*${data.country || ''}* — ${data.severity || ''} Risk\nTrip: ${data.tripName || '—'}\n\n_View details at risk360.co_`
+
+      await Promise.allSettled(
+        whatsappNumbers.filter(Boolean).map(n => sendWhatsApp(n, waMessage))
+      )
+    }
+
     res.json({ ok: true, id: result.id })
   } catch (e) {
     if (e.name === 'AbortError') return res.status(504).json({ error: 'Email service timed out' })
