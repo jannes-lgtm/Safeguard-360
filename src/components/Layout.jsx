@@ -51,11 +51,14 @@ export default function Layout({ children }) {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      const { data: prof } = await supabase
+      const { data: prof, error: profErr } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
         .single()
+      console.log('[Layout] session.user.id:', session.user.id)
+      console.log('[Layout] profile data:', prof)
+      console.log('[Layout] profile error:', profErr)
       setProfile(prof)
 
       const { count } = await supabase
