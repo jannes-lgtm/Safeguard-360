@@ -64,7 +64,7 @@ export default function Dashboard() {
     <Layout>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Your duty of care overview</p>
+        <p className="text-sm text-gray-500 mt-0.5">Your duty of care overview — BUILD 003</p>
       </div>
 
       {/* SA Load Shedding Banner */}
