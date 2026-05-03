@@ -16,15 +16,21 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
       }
 
       if (adminOnly) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
+        // Read role from auth metadata — bypasses RLS
+        const metaRole = user.app_metadata?.role || user.user_metadata?.role
 
-        if (!profile || profile.role !== 'admin') {
-          navigate('/dashboard')
-          return
+        if (metaRole !== 'admin') {
+          // Fallback: check profiles table
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+
+          if (!profile || profile.role !== 'admin') {
+            navigate('/dashboard')
+            return
+          }
         }
       }
 

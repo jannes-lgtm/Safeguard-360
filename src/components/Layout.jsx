@@ -51,12 +51,25 @@ export default function Layout({ children }) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      // Read role from auth metadata — bypasses RLS entirely
+      const metaRole = user.app_metadata?.role || user.user_metadata?.role || null
+
       const { data: prof } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
-      setProfile(prof)
+
+      // Merge auth metadata role into profile so rest of app works normally
+      setProfile({
+        id: user.id,
+        email: user.email,
+        full_name: null,
+        role: metaRole,
+        ...(prof || {}),
+        // Always trust app_metadata role over DB role (avoids RLS blocking role reads)
+        role: metaRole || prof?.role || 'traveller',
+      })
 
       const { count } = await supabase
         .from('alerts')
