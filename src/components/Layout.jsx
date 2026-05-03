@@ -54,7 +54,7 @@ export default function Layout({ children }) {
       if (!user) return
 
       // Ask the server for the role — uses service role key, bypasses all RLS
-      let role = 'traveller'
+      let role = null
       try {
         const { data: { session } } = await supabase.auth.getSession()
         const res = await fetch('/api/my-role', {
@@ -62,25 +62,25 @@ export default function Layout({ children }) {
         })
         if (res.ok) {
           const json = await res.json()
-          if (json.role) role = json.role
+          if (json.role && json.role !== 'traveller') role = json.role
         }
       } catch (_) {}
 
-      // Fallback: profiles table direct read
+      // Also load the full profile row for display (name, etc.)
       const { data: prof } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
 
-      // Keep prof data for display but trust server role
-      if (role === 'traveller' && prof?.role) role = prof.role
+      // Priority: server API > profiles table > traveller
+      const finalRole = role || prof?.role || 'traveller'
 
       setProfile({
         id: user.id,
         email: user.email,
         ...(prof || {}),
-        role,
+        role: finalRole,   // always wins — never overridden by the spread
       })
 
       const { count } = await supabase
