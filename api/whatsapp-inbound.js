@@ -12,24 +12,27 @@ function getSupabase() {
   )
 }
 
+function getParam(req, key) {
+  // Vercel parses application/x-www-form-urlencoded into req.body automatically
+  if (req.body && typeof req.body === 'object') {
+    return req.body[key] || ''
+  }
+  return ''
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed')
 
-  // Twilio sends form-encoded data
-  let body = ''
-  await new Promise(resolve => { req.on('data', d => body += d); req.on('end', resolve) })
-  const params = new URLSearchParams(body)
-
-  const from = params.get('From') || ''        // e.g. whatsapp:+27821234567
-  const messageBody = params.get('Body') || ''
-  const numMedia = parseInt(params.get('NumMedia') || '0')
+  const from = getParam(req, 'From')         // e.g. whatsapp:+27821234567
+  const messageBody = getParam(req, 'Body')
 
   const senderNumber = from.replace('whatsapp:', '')
 
   console.log('Inbound WhatsApp from', senderNumber, ':', messageBody)
 
   if (!messageBody.trim()) {
-    return res.set('Content-Type', 'text/xml').send(twiml('Message received.'))
+    res.setHeader('Content-Type', 'text/xml')
+    return res.send(twiml('Message received.'))
   }
 
   // Store as incident in Supabase
@@ -46,7 +49,7 @@ export default async function handler(req, res) {
     console.error('Failed to store incident:', error.message)
   }
 
-  // Notify admin (you) that a new incident was reported
+  // Notify admin that a new incident was reported
   const adminNumber = process.env.ADMIN_WHATSAPP_NUMBER
   if (adminNumber) {
     await sendWhatsApp(
@@ -56,7 +59,8 @@ export default async function handler(req, res) {
   }
 
   // Acknowledge the sender
-  return res.set('Content-Type', 'text/xml').send(
+  res.setHeader('Content-Type', 'text/xml')
+  return res.send(
     twiml('✅ Thank you for your report. Our team will review and distribute this alert to affected travellers.')
   )
 }
