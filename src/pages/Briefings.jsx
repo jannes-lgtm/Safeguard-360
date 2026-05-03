@@ -1,23 +1,75 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import {
-  Newspaper, ExternalLink, RefreshCw, Globe, MapPin,
-  ChevronDown, ChevronUp, Search, Download, AlertTriangle,
-  BookOpen, Rss, Calendar, Shield
+  Newspaper, ExternalLink, Globe, MapPin, Search,
+  AlertTriangle, BookOpen, Calendar, Shield, Activity,
+  Wind, Thermometer, RefreshCw, ChevronRight, Clock
 } from 'lucide-react'
 import Layout from '../components/Layout'
 
-const BRAND_BLUE = '#0118A1'
+// ── Country metadata: capital city + coordinates ──────────────────────────────
+const COUNTRY_META = {
+  'Angola':                       { capital: 'Luanda',       lat: -8.8383,  lon: 13.2344,  region: 'Africa' },
+  'Botswana':                     { capital: 'Gaborone',     lat: -24.6282, lon: 25.9231,  region: 'Africa' },
+  'Cameroon':                     { capital: 'Yaoundé',      lat: 3.8480,   lon: 11.5021,  region: 'Africa' },
+  'Chad':                         { capital: "N'Djamena",    lat: 12.1348,  lon: 15.0557,  region: 'Africa' },
+  'Democratic Republic of Congo': { capital: 'Kinshasa',     lat: -4.3217,  lon: 15.3222,  region: 'Africa' },
+  'Egypt':                        { capital: 'Cairo',         lat: 30.0444,  lon: 31.2357,  region: 'Africa' },
+  'Ethiopia':                     { capital: 'Addis Ababa',  lat: 9.0320,   lon: 38.7469,  region: 'Africa' },
+  'Ghana':                        { capital: 'Accra',         lat: 5.6037,   lon: -0.1870,  region: 'Africa' },
+  'Iraq':                         { capital: 'Baghdad',       lat: 33.3152,  lon: 44.3661,  region: 'Middle East' },
+  'Jordan':                       { capital: 'Amman',         lat: 31.9539,  lon: 35.9106,  region: 'Middle East' },
+  'Kenya':                        { capital: 'Nairobi',       lat: -1.2921,  lon: 36.8219,  region: 'Africa' },
+  'Lebanon':                      { capital: 'Beirut',        lat: 33.8886,  lon: 35.4955,  region: 'Middle East' },
+  'Libya':                        { capital: 'Tripoli',       lat: 32.9020,  lon: 13.1800,  region: 'Africa' },
+  'Mali':                         { capital: 'Bamako',        lat: 12.3714,  lon: -8.0000,  region: 'Africa' },
+  'Mauritania':                   { capital: 'Nouakchott',   lat: 18.0735,  lon: -15.9582, region: 'Africa' },
+  'Morocco':                      { capital: 'Rabat',         lat: 33.9716,  lon: -6.8498,  region: 'Africa' },
+  'Mozambique':                   { capital: 'Maputo',        lat: -25.9692, lon: 32.5732,  region: 'Africa' },
+  'Namibia':                      { capital: 'Windhoek',      lat: -22.5609, lon: 17.0658,  region: 'Africa' },
+  'Niger':                        { capital: 'Niamey',        lat: 13.5137,  lon: 2.1098,   region: 'Africa' },
+  'Nigeria':                      { capital: 'Abuja',         lat: 9.0765,   lon: 7.3986,   region: 'Africa' },
+  'Rwanda':                       { capital: 'Kigali',        lat: -1.9441,  lon: 30.0619,  region: 'Africa' },
+  'Saudi Arabia':                 { capital: 'Riyadh',        lat: 24.7136,  lon: 46.6753,  region: 'Middle East' },
+  'Senegal':                      { capital: 'Dakar',         lat: 14.7167,  lon: -17.4677, region: 'Africa' },
+  'Sierra Leone':                 { capital: 'Freetown',      lat: 8.4897,   lon: -13.2344, region: 'Africa' },
+  'Somalia':                      { capital: 'Mogadishu',     lat: 2.0469,   lon: 45.3182,  region: 'Africa' },
+  'South Africa':                 { capital: 'Pretoria',      lat: -25.7461, lon: 28.1881,  region: 'Africa' },
+  'South Sudan':                  { capital: 'Juba',          lat: 4.8594,   lon: 31.5713,  region: 'Africa' },
+  'Sudan':                        { capital: 'Khartoum',      lat: 15.5007,  lon: 32.5599,  region: 'Africa' },
+  'Syria':                        { capital: 'Damascus',      lat: 33.5102,  lon: 36.2913,  region: 'Middle East' },
+  'Tanzania':                     { capital: 'Dodoma',        lat: -6.1722,  lon: 35.7395,  region: 'Africa' },
+  'Tunisia':                      { capital: 'Tunis',         lat: 36.8190,  lon: 10.1658,  region: 'Africa' },
+  'Uganda':                       { capital: 'Kampala',       lat: 0.3476,   lon: 32.5825,  region: 'Africa' },
+  'Yemen':                        { capital: "Sana'a",        lat: 15.3694,  lon: 44.1910,  region: 'Middle East' },
+  'Zambia':                       { capital: 'Lusaka',        lat: -15.4167, lon: 28.2833,  region: 'Africa' },
+  'Zimbabwe':                     { capital: 'Harare',        lat: -17.8292, lon: 31.0522,  region: 'Africa' },
+}
 
-// ── Country list for risk advisories ─────────────────────────────────────────
-const COUNTRIES = [
-  'Angola','Botswana','Cameroon','Chad','Democratic Republic of Congo',
-  'Egypt','Ethiopia','Ghana','Iraq','Jordan','Kenya','Lebanon','Libya',
-  'Mali','Mauritania','Morocco','Mozambique','Namibia','Niger','Nigeria',
-  'Rwanda','Saudi Arabia','Senegal','Sierra Leone','Somalia','South Africa',
-  'South Sudan','Sudan','Syria','Tanzania','Tunisia','Uganda','Yemen','Zambia','Zimbabwe',
-]
+const COUNTRIES = Object.keys(COUNTRY_META).sort()
 
-// ── External report / resource links ─────────────────────────────────────────
+// ── WMO weather codes ─────────────────────────────────────────────────────────
+const WMO = {
+  0: '☀️ Clear sky', 1: '🌤 Mainly clear', 2: '⛅ Partly cloudy', 3: '☁️ Overcast',
+  45: '🌫 Fog', 48: '🌫 Icy fog',
+  51: '🌦 Light drizzle', 53: '🌦 Drizzle', 55: '🌧 Heavy drizzle',
+  61: '🌧 Light rain', 63: '🌧 Rain', 65: '🌧 Heavy rain',
+  71: '🌨 Light snow', 73: '❄️ Snow', 75: '❄️ Heavy snow',
+  80: '🌦 Light showers', 81: '🌧 Showers', 82: '⛈ Heavy showers',
+  95: '⛈ Thunderstorm', 96: '⛈ Thunderstorm + hail', 99: '⛈ Heavy thunderstorm',
+}
+const wmo = (code) => WMO[code] ?? '🌡 Unknown'
+
+// ── Risk severity config ──────────────────────────────────────────────────────
+const RISK = {
+  Critical: { bg: 'bg-red-600',    light: 'bg-red-50',    border: 'border-red-300',    text: 'text-red-800',    dot: 'bg-red-500',    bar: 100 },
+  High:     { bg: 'bg-orange-500', light: 'bg-orange-50', border: 'border-orange-300', text: 'text-orange-800', dot: 'bg-orange-500', bar: 75  },
+  Medium:   { bg: 'bg-yellow-500', light: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-800', dot: 'bg-yellow-400', bar: 50  },
+  Low:      { bg: 'bg-green-500',  light: 'bg-green-50',  border: 'border-green-300',  text: 'text-green-800',  dot: 'bg-green-500',  bar: 25  },
+  Unknown:  { bg: 'bg-gray-400',   light: 'bg-gray-50',   border: 'border-gray-300',   text: 'text-gray-600',   dot: 'bg-gray-400',   bar: 10  },
+}
+const getRisk = (s) => RISK[s] || RISK.Unknown
+
+// ── Resource links ────────────────────────────────────────────────────────────
 const RESOURCES = [
   {
     category: 'Travel Advisories',
@@ -65,115 +117,52 @@ const RESOURCES = [
   },
 ]
 
-// ── RSS sources ───────────────────────────────────────────────────────────────
-const REGION_COLORS = {
-  'Africa': 'bg-orange-100 text-orange-700 border-orange-200',
-  'Africa + Middle East': 'bg-rose-100 text-rose-700 border-rose-200',
-  'Middle East': 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  'Middle East + North Africa': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+// ── Category badge colours ────────────────────────────────────────────────────
+const CAT_COLORS = {
+  security: 'bg-purple-100 text-purple-700 border-purple-200',
+  conflict: 'bg-red-100 text-red-700 border-red-200',
+  health:   'bg-rose-100 text-rose-700 border-rose-200',
+  weather:  'bg-teal-100 text-teal-700 border-teal-200',
 }
+const catColor = (c) => CAT_COLORS[c] || 'bg-gray-100 text-gray-600 border-gray-200'
 
-// ── Country risk advisory lookup ──────────────────────────────────────────────
-const RISK_LEVELS = {
-  1: { label: 'Exercise Normal Precautions', color: 'bg-green-100 text-green-800 border-green-300' },
-  2: { label: 'Exercise Increased Caution', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  3: { label: 'Reconsider Travel', color: 'bg-orange-100 text-orange-800 border-orange-300' },
-  4: { label: 'Do Not Travel', color: 'bg-red-100 text-red-800 border-red-300' },
-}
+// ── Article card ──────────────────────────────────────────────────────────────
+function ArticleCard({ article }) {
+  const dateStr = article.date
+    ? new Date(article.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null
 
-// ── Article row ───────────────────────────────────────────────────────────────
-function ArticleRow({ article, sourceName }) {
   return (
-    <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0 group">
-      <div className="w-1.5 h-1.5 rounded-full bg-[#AACC00] mt-1.5 shrink-0" />
+    <div className="flex items-start gap-3 py-3.5 border-b border-gray-100 last:border-0 group">
+      <div className="w-1.5 h-1.5 rounded-full bg-[#AACC00] mt-2 shrink-0" />
       <div className="flex-1 min-w-0">
         <a href={article.url} target="_blank" rel="noopener noreferrer"
-          className="text-sm font-medium text-gray-900 hover:text-[#0118A1] hover:underline leading-snug block">
+          className="text-sm font-semibold text-gray-900 hover:text-[#0118A1] hover:underline leading-snug block mb-1.5">
           {article.title}
         </a>
-        <div className="flex items-center gap-3 mt-1">
-          <span className="text-[11px] text-gray-400">{sourceName}</span>
-          {article.date && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${catColor(article.feedCategory)}`}>
+            {article.feedName}
+          </span>
+          {dateStr && (
             <span className="text-[11px] text-gray-400 flex items-center gap-1">
-              <Calendar size={10} />
-              {new Date(article.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+              <Calendar size={9} />{dateStr}
             </span>
           )}
         </div>
         {article.summary && (
-          <p className="text-xs text-gray-400 mt-1 leading-relaxed line-clamp-2">{article.summary}</p>
+          <p className="text-xs text-gray-500 mt-1.5 leading-relaxed line-clamp-2">{article.summary}</p>
         )}
       </div>
       <a href={article.url} target="_blank" rel="noopener noreferrer"
-        className="text-gray-300 hover:text-[#0118A1] transition-colors opacity-0 group-hover:opacity-100 shrink-0 mt-0.5">
+        className="text-gray-300 hover:text-[#0118A1] transition-colors opacity-0 group-hover:opacity-100 shrink-0 mt-1">
         <ExternalLink size={13} />
       </a>
     </div>
   )
 }
 
-// ── RSS source row (expandable) ───────────────────────────────────────────────
-function RssSourceRow({ feed }) {
-  const [expanded, setExpanded] = useState(false)
-  const [articles, setArticles] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-
-  const toggle = async () => {
-    if (!expanded && articles.length === 0) {
-      setLoading(true)
-      try {
-        const r = await fetch(`/api/rss-ingest?id=${feed.id}&limit=5`)
-        const d = await r.json()
-        setArticles(d.articles || [])
-        if (!d.articles) setError('Could not load articles')
-      } catch {
-        setError('Feed unavailable')
-      }
-      setLoading(false)
-    }
-    setExpanded(e => !e)
-  }
-
-  const regionClass = REGION_COLORS[feed.geography] || 'bg-gray-100 text-gray-600 border-gray-200'
-
-  return (
-    <div className="border-b border-gray-100 last:border-0">
-      <button onClick={toggle}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group text-left">
-        <Rss size={13} className="text-orange-400 shrink-0" />
-        <span className="flex-1 text-sm font-medium text-gray-800">{feed.name}</span>
-        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${regionClass} hidden sm:inline`}>
-          {feed.geography}
-        </span>
-        <span className="text-[11px] text-gray-400 hidden md:inline">{feed.description?.slice(0, 60)}…</span>
-        {expanded ? <ChevronUp size={14} className="text-gray-400 shrink-0" /> : <ChevronDown size={14} className="text-gray-400 shrink-0" />}
-      </button>
-
-      {expanded && (
-        <div className="px-4 pb-3 pt-1 bg-gray-50/50">
-          {loading ? (
-            <p className="text-xs text-gray-400 py-2">Loading articles…</p>
-          ) : error ? (
-            <p className="text-xs text-red-400 py-2">{error}</p>
-          ) : articles.length === 0 ? (
-            <p className="text-xs text-gray-400 py-2">No articles found.</p>
-          ) : (
-            <div>
-              {articles.map((a, i) => <ArticleRow key={i} article={a} sourceName={feed.name} />)}
-              <a href={feed.url} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-[#0118A1] hover:underline mt-2 font-medium">
-                <ExternalLink size={11} /> View full feed
-              </a>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Resource card ─────────────────────────────────────────────────────────────
+// ── Resource section ──────────────────────────────────────────────────────────
 function ResourceSection({ section }) {
   const Icon = section.icon
   return (
@@ -198,106 +187,334 @@ function ResourceSection({ section }) {
   )
 }
 
-// ── Country risk lookup ───────────────────────────────────────────────────────
-function CountryAdvisory() {
-  const [country, setCountry] = useState('')
-  const [search, setSearch] = useState('')
+// ── Country profile panel ─────────────────────────────────────────────────────
+function CountryProfile({ country, meta, allArticles }) {
+  const [risk, setRisk]       = useState(null)
+  const [weather, setWeather] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  // Incidents: articles mentioning this country from last 30 days
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+  const incidents = allArticles.filter(a => {
+    const text = (a.title + ' ' + (a.summary || '')).toLowerCase()
+    const inRange = !a.date || new Date(a.date).getTime() > cutoff
+    return inRange && text.includes(country.toLowerCase())
+  }).slice(0, 8)
+
+  useEffect(() => {
+    setRisk(null)
+    setWeather(null)
+    setLoading(true)
+
+    const fetchRisk = fetch(`/api/country-risk?country=${encodeURIComponent(country)}`)
+      .then(r => r.json())
+      .catch(() => null)
+
+    const fetchWeather = fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${meta.lat}&longitude=${meta.lon}` +
+      `&current=temperature_2m,weathercode,wind_speed_10m,relative_humidity_2m` +
+      `&daily=temperature_2m_max,temperature_2m_min,weathercode&forecast_days=4&timezone=auto`
+    ).then(r => r.json()).catch(() => null)
+
+    Promise.all([fetchRisk, fetchWeather]).then(([r, w]) => {
+      setRisk(r)
+      setWeather(w)
+      setLoading(false)
+    })
+  }, [country])
+
+  const severity = risk?.severity || 'Unknown'
+  const rc = getRisk(severity)
+
+  const days = ['Today', 'Tomorrow']
+  const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  const dayLabel = (i) => i < 2 ? days[i] : dow[new Date(weather?.daily?.time?.[i]).getDay()]
+
+  return (
+    <div className="space-y-4">
+      {/* Country header */}
+      <div className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">{country}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Capital: {meta.capital} · {meta.region}</p>
+          </div>
+          {/* Risk badge */}
+          <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-bold ${rc.light} ${rc.border} ${rc.text}`}>
+            <span className={`w-2 h-2 rounded-full ${rc.dot}`} />
+            {severity} Risk
+          </span>
+        </div>
+
+        {/* Risk bar */}
+        <div className="mt-3">
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full transition-all duration-700 ${rc.bg}`} style={{ width: `${rc.bar}%` }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Risk sources */}
+      {loading ? (
+        <div className="bg-white rounded-[8px] border border-gray-200 p-6 text-center">
+          <RefreshCw size={16} className="animate-spin text-gray-400 mx-auto mb-2" />
+          <p className="text-xs text-gray-400">Loading risk data &amp; weather…</p>
+        </div>
+      ) : (
+        <>
+          {/* Advisory sources */}
+          {risk?.sources?.length > 0 && (
+            <div className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+              <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Official Advisories</span>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {risk.sources.map((src, i) => (
+                  <a key={i} href={src.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-800 group-hover:text-[#0118A1]">{src.name}</span>
+                        {src.level && (
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getRisk(['Low','Low','Medium','High','Critical'][src.level] || 'Unknown').light} ${getRisk(['Low','Low','Medium','High','Critical'][src.level] || 'Unknown').border} ${getRisk(['Low','Low','Medium','High','Critical'][src.level] || 'Unknown').text}`}>
+                            Level {src.level}
+                          </span>
+                        )}
+                      </div>
+                      {src.message && <p className="text-xs text-gray-500 mt-0.5">{src.message}</p>}
+                    </div>
+                    <ExternalLink size={12} className="text-gray-300 group-hover:text-[#0118A1] shrink-0" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Weather */}
+          {weather?.current && (
+            <div className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+              <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Weather — {meta.capital}</span>
+              </div>
+              <div className="px-4 py-4">
+                {/* Current */}
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="text-4xl font-bold text-gray-900">
+                    {Math.round(weather.current.temperature_2m)}°C
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">{wmo(weather.current.weathercode)}</p>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                      <span className="flex items-center gap-1"><Wind size={11} />{Math.round(weather.current.wind_speed_10m)} km/h</span>
+                      <span className="flex items-center gap-1"><Thermometer size={11} />{weather.current.relative_humidity_2m}% humidity</span>
+                    </div>
+                  </div>
+                </div>
+                {/* 4-day forecast */}
+                {weather.daily?.time && (
+                  <div className="grid grid-cols-4 gap-2">
+                    {weather.daily.time.slice(0, 4).map((_, i) => (
+                      <div key={i} className="text-center bg-gray-50 rounded-[6px] px-2 py-2.5">
+                        <div className="text-[10px] font-bold text-gray-500 uppercase mb-1">{dayLabel(i)}</div>
+                        <div className="text-xs mb-1">{wmo(weather.daily.weathercode[i])?.split(' ')[0]}</div>
+                        <div className="text-xs font-semibold text-gray-800">{Math.round(weather.daily.temperature_2m_max[i])}°</div>
+                        <div className="text-[10px] text-gray-400">{Math.round(weather.daily.temperature_2m_min[i])}°</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Recent incidents */}
+      <div className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+          <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            Recent Intelligence — Last 30 Days
+          </span>
+          <span className="text-[11px] text-gray-400">{incidents.length} article{incidents.length !== 1 ? 's' : ''} found</span>
+        </div>
+        {incidents.length === 0 ? (
+          <p className="text-xs text-gray-400 text-center py-8">
+            No recent articles mentioning {country} in loaded feeds.
+            {allArticles.length === 0 && ' Articles are still loading — try again shortly.'}
+          </p>
+        ) : (
+          <div className="px-4 divide-y divide-gray-100">
+            {incidents.map((a, i) => (
+              <div key={i} className="flex items-start gap-3 py-3 group">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#AACC00] mt-2 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <a href={a.url} target="_blank" rel="noopener noreferrer"
+                    className="text-sm font-medium text-gray-900 hover:text-[#0118A1] hover:underline leading-snug block">
+                    {a.title}
+                  </a>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${catColor(a.feedCategory)}`}>
+                      {a.feedName}
+                    </span>
+                    {a.date && (
+                      <span className="text-[11px] text-gray-400 flex items-center gap-1">
+                        <Calendar size={9} />
+                        {new Date(a.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <a href={a.url} target="_blank" rel="noopener noreferrer"
+                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-[#0118A1] transition-all shrink-0 mt-1">
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Country advisory (search + select) ───────────────────────────────────────
+function CountryAdvisory({ allArticles }) {
+  const [search, setSearch]   = useState('')
+  const [selected, setSelected] = useState(null)
 
   const filtered = COUNTRIES.filter(c => c.toLowerCase().includes(search.toLowerCase()))
 
-  const stateDeptUrl = country
-    ? `https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/${country.toLowerCase().replace(/ /g, '-')}.html`
-    : null
-  const fcdoUrl = country
-    ? `https://www.gov.uk/foreign-travel-advice/${country.toLowerCase().replace(/ /g, '-')}`
-    : null
-
   return (
-    <div className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-5">
-      <h3 className="text-sm font-bold text-gray-900 mb-1">Country Risk Advisory Lookup</h3>
-      <p className="text-xs text-gray-500 mb-4">Select a country to jump straight to the latest government travel advisories.</p>
-
-      <div className="relative mb-3">
-        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search country…"
-          className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"
-        />
-      </div>
-
-      <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto mb-4">
-        {filtered.map(c => (
-          <button key={c} onClick={() => setCountry(c)}
-            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors
-              ${country === c
-                ? 'bg-[#0118A1] text-white border-[#0118A1]'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-[#0118A1] hover:text-[#0118A1]'}`}>
-            {c}
-          </button>
-        ))}
-      </div>
-
-      {country && (
-        <div className="border-t border-gray-100 pt-4 space-y-2">
-          <p className="text-xs font-semibold text-gray-700 mb-3">Official advisories for <span className="text-[#0118A1]">{country}</span>:</p>
-          <a href={stateDeptUrl} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-[6px] border border-gray-200 hover:border-[#0118A1] hover:bg-blue-50/30 transition-colors group">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Flag_of_the_United_States.svg/20px-Flag_of_the_United_States.svg.png" alt="US" className="w-5 h-3 object-cover rounded-sm" />
-            <div className="flex-1">
-              <div className="text-xs font-semibold text-gray-800 group-hover:text-[#0118A1]">US State Department Advisory</div>
-              <div className="text-[11px] text-gray-400">travel.state.gov</div>
-            </div>
-            <ExternalLink size={12} className="text-gray-400 group-hover:text-[#0118A1]" />
-          </a>
-          <a href={fcdoUrl} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-[6px] border border-gray-200 hover:border-[#0118A1] hover:bg-blue-50/30 transition-colors group">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Flag_of_the_United_Kingdom.svg/20px-Flag_of_the_United_Kingdom.svg.png" alt="UK" className="w-5 h-3 object-cover rounded-sm" />
-            <div className="flex-1">
-              <div className="text-xs font-semibold text-gray-800 group-hover:text-[#0118A1]">UK FCDO Travel Advice</div>
-              <div className="text-[11px] text-gray-400">gov.uk/foreign-travel-advice</div>
-            </div>
-            <ExternalLink size={12} className="text-gray-400 group-hover:text-[#0118A1]" />
-          </a>
-          <a href={`https://www.smartraveller.gov.au/destinations/africa/${country.toLowerCase().replace(/ /g, '-')}`}
-            target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-[6px] border border-gray-200 hover:border-[#0118A1] hover:bg-blue-50/30 transition-colors group">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Flag_of_Australia_%28converted%29.svg/20px-Flag_of_Australia_%28converted%29.svg.png" alt="AU" className="w-5 h-3 object-cover rounded-sm" />
-            <div className="flex-1">
-              <div className="text-xs font-semibold text-gray-800 group-hover:text-[#0118A1]">Australian DFAT Advisory</div>
-              <div className="text-[11px] text-gray-400">smartraveller.gov.au</div>
-            </div>
-            <ExternalLink size={12} className="text-gray-400 group-hover:text-[#0118A1]" />
-          </a>
+    <div className="flex gap-6 items-start">
+      {/* Left: country selector */}
+      <div className="w-64 shrink-0">
+        <div className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4">
+          <h3 className="text-sm font-bold text-gray-900 mb-3">Select Country</h3>
+          <div className="relative mb-3">
+            <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search…"
+              className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"
+            />
+          </div>
+          <div className="space-y-0.5 max-h-[calc(100vh-280px)] overflow-y-auto">
+            {filtered.map(c => (
+              <button key={c} onClick={() => setSelected(c)}
+                className={`w-full text-left flex items-center justify-between px-3 py-2 rounded-[6px] text-sm transition-colors
+                  ${selected === c
+                    ? 'bg-[#0118A1] text-white font-semibold'
+                    : 'text-gray-700 hover:bg-gray-50'}`}>
+                <span>{c}</span>
+                {selected === c && <ChevronRight size={14} />}
+              </button>
+            ))}
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* Right: country profile */}
+      <div className="flex-1 min-w-0">
+        {selected ? (
+          <CountryProfile
+            key={selected}
+            country={selected}
+            meta={COUNTRY_META[selected]}
+            allArticles={allArticles}
+          />
+        ) : (
+          <div className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-12 text-center">
+            <MapPin size={32} className="mx-auto mb-3 text-gray-300" />
+            <p className="text-sm font-medium text-gray-500">Select a country to see its risk profile</p>
+            <p className="text-xs text-gray-400 mt-1">Risk rating, current weather and recent intelligence</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function Briefings() {
-  const [rssFeeds, setRssFeeds] = useState([])
-  const [rssLoading, setRssLoading] = useState(true)
+  const [rssFeeds, setRssFeeds]     = useState([])
+  const [articles, setArticles]     = useState([])
+  const [loadedCount, setLoadedCount] = useState(0)
+  const [totalFeeds, setTotalFeeds]  = useState(0)
+  const [catFilter, setCatFilter]    = useState('all')
   const [regionFilter, setRegionFilter] = useState('All')
-  const [activeTab, setActiveTab] = useState('news')
+  const [activeTab, setActiveTab]    = useState('news')
+  const loadedRef = useRef(new Set())
 
+  // Step 1: fetch feed list
   useEffect(() => {
     fetch('/api/rss-ingest')
       .then(r => r.json())
-      .then(d => { setRssFeeds(d.feeds || []); setRssLoading(false) })
-      .catch(() => setRssLoading(false))
+      .then(d => {
+        const feeds = d.feeds || []
+        setRssFeeds(feeds)
+        setTotalFeeds(feeds.length)
+      })
+      .catch(() => {})
   }, [])
 
-  const filteredFeeds = regionFilter === 'All'
-    ? rssFeeds
-    : rssFeeds.filter(f => f.geography?.includes(regionFilter === 'Middle East' ? 'Middle East' : 'Africa'))
+  // Step 2: fetch articles from every feed in parallel when list arrives
+  useEffect(() => {
+    if (!rssFeeds.length) return
+    loadedRef.current = new Set()
+    setArticles([])
+    setLoadedCount(0)
+
+    rssFeeds.forEach(feed => {
+      fetch(`/api/rss-ingest?id=${feed.id}&limit=6`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.articles?.length) {
+            const tagged = d.articles.map(a => ({
+              ...a,
+              feedId: feed.id,
+              feedName: feed.name,
+              feedCategory: feed.category,
+              feedGeography: feed.geography,
+            }))
+            setArticles(prev =>
+              [...prev, ...tagged].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+            )
+          }
+          loadedRef.current.add(feed.id)
+          setLoadedCount(loadedRef.current.size)
+        })
+        .catch(() => {
+          loadedRef.current.add(feed.id)
+          setLoadedCount(loadedRef.current.size)
+        })
+    })
+  }, [rssFeeds])
+
+  const isLoading = loadedCount < totalFeeds
+
+  // Apply filters
+  const filteredArticles = articles.filter(a => {
+    const catOk = catFilter === 'all' || a.feedCategory === catFilter
+    const regionOk = regionFilter === 'All' ||
+      (regionFilter === 'Africa' && a.feedGeography?.includes('Africa')) ||
+      (regionFilter === 'Middle East' && a.feedGeography?.includes('Middle East')) ||
+      (regionFilter === 'Health' && a.feedCategory === 'health')
+    return catOk && regionOk
+  })
+
+  const CATS = [
+    { id: 'all',      label: 'All' },
+    { id: 'security', label: 'Security' },
+    { id: 'conflict', label: 'Conflict' },
+    { id: 'health',   label: 'Health' },
+    { id: 'weather',  label: 'Weather' },
+  ]
 
   const tabs = [
-    { id: 'news',      label: 'Intel News',         icon: Newspaper },
-    { id: 'advisories', label: 'Country Advisories', icon: MapPin },
-    { id: 'resources', label: 'Reports & Resources', icon: BookOpen },
+    { id: 'news',       label: 'Intel News',         icon: Newspaper },
+    { id: 'advisories', label: 'Country Profiles',   icon: MapPin },
+    { id: 'resources',  label: 'Reports & Resources', icon: BookOpen },
   ]
 
   return (
@@ -308,7 +525,7 @@ export default function Briefings() {
           <Newspaper size={20} className="text-[#0118A1]" />
           <h1 className="text-2xl font-bold text-gray-900">Briefings</h1>
         </div>
-        <p className="text-sm text-gray-500">Latest intelligence, country risk assessments and security reports</p>
+        <p className="text-sm text-gray-500">Live intelligence, country risk profiles and security reports</p>
       </div>
 
       {/* Tabs */}
@@ -326,53 +543,85 @@ export default function Briefings() {
         })}
       </div>
 
-      {/* ── Intel News tab ── */}
+      {/* ── Intel News ── */}
       {activeTab === 'news' && (
         <div>
-          {/* Region filter */}
-          <div className="flex items-center gap-2 mb-4">
-            {['All', 'Africa', 'Middle East'].map(r => (
-              <button key={r} onClick={() => setRegionFilter(r)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
-                  ${regionFilter === r
-                    ? 'bg-[#0118A1] text-white border-[#0118A1]'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
-                {r}
-              </button>
-            ))}
-            <span className="text-xs text-gray-400 ml-2">{filteredFeeds.length} sources — click a source to see latest articles</span>
+          {/* Loading bar */}
+          {isLoading && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                <span className="flex items-center gap-1.5">
+                  <RefreshCw size={11} className="animate-spin text-[#0118A1]" />
+                  Loading feeds… {loadedCount} / {totalFeeds} sources
+                </span>
+                <span>{articles.length} articles so far</span>
+              </div>
+              <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#0118A1] rounded-full transition-all duration-300"
+                  style={{ width: totalFeeds ? `${(loadedCount / totalFeeds) * 100}%` : '0%' }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Filters */}
+          <div className="flex items-center gap-4 mb-4 flex-wrap">
+            <div className="flex gap-1">
+              {CATS.map(c => (
+                <button key={c.id} onClick={() => setCatFilter(c.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
+                    ${catFilter === c.id
+                      ? 'bg-[#0118A1] text-white border-[#0118A1]'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1">
+              {['All', 'Africa', 'Middle East'].map(r => (
+                <button key={r} onClick={() => setRegionFilter(r)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
+                    ${regionFilter === r
+                      ? 'bg-[#AACC00] text-[#0118A1] border-[#AACC00] font-bold'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                  {r}
+                </button>
+              ))}
+            </div>
+            {!isLoading && (
+              <span className="text-xs text-gray-400 ml-auto">
+                {filteredArticles.length} articles · {loadedCount} sources
+              </span>
+            )}
           </div>
 
-          {rssLoading ? (
-            <div className="bg-white rounded-[8px] border border-gray-200 p-8 text-center text-sm text-gray-400">
-              Loading intelligence sources…
+          {/* Article feed */}
+          {filteredArticles.length === 0 && !isLoading ? (
+            <div className="bg-white rounded-[8px] border border-gray-200 p-12 text-center text-sm text-gray-400">
+              No articles match the selected filters.
             </div>
           ) : (
-            <div className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-              {/* Table header */}
-              <div className="grid grid-cols-[auto_1fr_auto] items-center px-4 py-2 bg-gray-50 border-b-2 border-gray-200">
-                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Source</span>
-                <span />
-                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider hidden md:block">Coverage</span>
-              </div>
-              {filteredFeeds.length === 0 ? (
-                <div className="text-xs text-gray-400 text-center py-8">No sources for this region.</div>
+            <div className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] divide-y divide-gray-100 px-4">
+              {filteredArticles.length === 0 && isLoading ? (
+                <div className="py-12 text-center text-sm text-gray-400">
+                  <RefreshCw size={20} className="animate-spin mx-auto mb-3 text-gray-300" />
+                  Loading articles from all sources…
+                </div>
               ) : (
-                filteredFeeds.map(feed => <RssSourceRow key={feed.id} feed={feed} />)
+                filteredArticles.map((a, i) => <ArticleCard key={`${a.feedId}-${i}`} article={a} />)
               )}
             </div>
           )}
         </div>
       )}
 
-      {/* ── Country Advisories tab ── */}
+      {/* ── Country Profiles ── */}
       {activeTab === 'advisories' && (
-        <div className="max-w-2xl">
-          <CountryAdvisory />
-        </div>
+        <CountryAdvisory allArticles={articles} />
       )}
 
-      {/* ── Reports & Resources tab ── */}
+      {/* ── Reports & Resources ── */}
       {activeTab === 'resources' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {RESOURCES.map(section => (
