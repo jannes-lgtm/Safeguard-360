@@ -53,20 +53,28 @@ export default function Layout({ children }) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Try 1: SECURITY DEFINER RPC (bypasses RLS entirely)
-      const { data: roleFromRpc } = await supabase.rpc('get_my_role').single().catch(() => ({ data: null }))
+      // Ask the server for the role — uses service role key, bypasses all RLS
+      let role = 'traveller'
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const res = await fetch('/api/my-role', {
+          headers: { Authorization: `Bearer ${session?.access_token}` }
+        })
+        if (res.ok) {
+          const json = await res.json()
+          if (json.role) role = json.role
+        }
+      } catch (_) {}
 
-      // Try 2: profiles table direct read
+      // Fallback: profiles table direct read
       const { data: prof } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
 
-      // Try 3: freshly-refreshed JWT app_metadata
-      const metaRole = user.app_metadata?.role
-
-      const role = roleFromRpc || prof?.role || metaRole || 'traveller'
+      // Keep prof data for display but trust server role
+      if (role === 'traveller' && prof?.role) role = prof.role
 
       setProfile({
         id: user.id,
