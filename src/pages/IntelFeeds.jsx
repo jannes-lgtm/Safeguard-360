@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
   Radio, RefreshCw, ExternalLink, Key, Handshake,
-  CheckCircle, Clock, Plus, X, Plane, Ship,
-  Zap, Globe, Shield, MessageSquare, Crosshair, MapPin, CloudLightning
+  Clock, Plus, X, Plane, Ship, Rss,
+  Zap, Globe, Shield, MessageSquare, Crosshair, MapPin, CloudLightning, ChevronDown, ChevronUp
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -356,6 +356,215 @@ function FeedSection({ title, icon: Icon, feeds, onDelete, emptyMsg, accent }) {
   )
 }
 
+// ── RSS Feed Card ─────────────────────────────────────────────────────────────
+const REGION_COLORS = {
+  'Africa': 'bg-orange-50 text-orange-700 border-orange-200',
+  'Africa + Middle East': 'bg-rose-50 text-rose-700 border-rose-200',
+  'Middle East': 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  'Middle East + North Africa': 'bg-yellow-50 text-yellow-700 border-yellow-200',
+}
+
+function RssFeedCard({ feed }) {
+  const [expanded, setExpanded] = useState(false)
+  const [articles, setArticles] = useState([])
+  const [loadingArticles, setLoadingArticles] = useState(false)
+  const [error, setError] = useState(null)
+
+  const toggleExpand = async () => {
+    if (!expanded && articles.length === 0) {
+      setLoadingArticles(true)
+      try {
+        const r = await fetch(`/api/rss-ingest?id=${feed.id}&limit=5`)
+        const d = await r.json()
+        if (d.articles) setArticles(d.articles)
+        else setError('Could not load articles')
+      } catch {
+        setError('Feed unavailable')
+      }
+      setLoadingArticles(false)
+    }
+    setExpanded(e => !e)
+  }
+
+  const regionClass = REGION_COLORS[feed.geography] || 'bg-gray-50 text-gray-600 border-gray-200'
+
+  return (
+    <div className="bg-white rounded-[10px] shadow-[0_1px_4px_rgba(0,0,0,0.08)] overflow-hidden">
+      <button onClick={toggleExpand} className="w-full text-left p-4 flex items-start gap-3 hover:bg-gray-50 transition-colors">
+        <div className="w-8 h-8 rounded-lg bg-orange-100 border border-orange-200 flex items-center justify-center shrink-0 mt-0.5">
+          <Rss size={14} className="text-orange-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+            <span className="text-sm font-bold text-gray-900">{feed.name}</span>
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${regionClass}`}>
+              {feed.geography}
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 leading-relaxed">{feed.description}</p>
+        </div>
+        <div className="shrink-0 text-gray-400 mt-1">
+          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-gray-100 px-4 pb-4 pt-3">
+          {loadingArticles ? (
+            <div className="text-xs text-gray-400 py-2">Loading latest articles…</div>
+          ) : error ? (
+            <div className="text-xs text-red-500 py-2">{error}</div>
+          ) : articles.length === 0 ? (
+            <div className="text-xs text-gray-400 py-2">No articles found.</div>
+          ) : (
+            <div className="space-y-3">
+              {articles.map((a, i) => (
+                <div key={i} className="flex gap-2">
+                  <div className="w-1 rounded-full bg-orange-200 shrink-0 mt-1" />
+                  <div className="min-w-0">
+                    <a href={a.url} target="_blank" rel="noopener noreferrer"
+                      className="text-xs font-semibold text-gray-800 hover:text-[#0118A1] hover:underline leading-snug block">
+                      {a.title}
+                    </a>
+                    {a.summary && <p className="text-[10px] text-gray-400 mt-0.5 leading-relaxed line-clamp-2">{a.summary}</p>}
+                    {a.date && <p className="text-[10px] text-gray-300 mt-0.5">{new Date(a.date).toLocaleDateString()}</p>}
+                  </div>
+                </div>
+              ))}
+              <a href={feed.url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[10px] text-[#0118A1] hover:underline mt-1">
+                <ExternalLink size={10} /> View full feed
+              </a>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── RSS Panel ─────────────────────────────────────────────────────────────────
+const RSS_REGIONS = ['All', 'Africa', 'Middle East']
+
+function RssPanel() {
+  const [feeds, setFeeds] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [regionFilter, setRegionFilter] = useState('All')
+  const [customUrl, setCustomUrl] = useState('')
+  const [addingCustom, setAddingCustom] = useState(false)
+  const [customResult, setCustomResult] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/rss-ingest')
+      .then(r => r.json())
+      .then(d => { setFeeds(d.feeds || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const filtered = regionFilter === 'All'
+    ? feeds
+    : feeds.filter(f => f.geography.includes(regionFilter === 'Middle East' ? 'Middle East' : 'Africa'))
+
+  const africaFeeds = filtered.filter(f => f.geography.includes('Africa'))
+  const meFeeds = filtered.filter(f => f.geography.includes('Middle East') && !f.geography.includes('Africa'))
+
+  const testCustomFeed = async () => {
+    if (!customUrl.trim()) return
+    setAddingCustom(true)
+    setCustomResult(null)
+    try {
+      const r = await fetch(`/api/rss-ingest?url=${encodeURIComponent(customUrl.trim())}&limit=3`)
+      const d = await r.json()
+      setCustomResult(d)
+    } catch {
+      setCustomResult({ error: 'Could not fetch feed' })
+    }
+    setAddingCustom(false)
+  }
+
+  if (loading) return <div className="text-sm text-gray-400 text-center py-10">Loading RSS feeds…</div>
+
+  return (
+    <div className="space-y-8">
+      {/* Region filter */}
+      <div className="flex gap-2">
+        {RSS_REGIONS.map(r => (
+          <button key={r} onClick={() => setRegionFilter(r)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
+              ${regionFilter === r ? 'bg-[#0118A1] text-white border-[#0118A1]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+            {r}
+          </button>
+        ))}
+      </div>
+
+      {/* Africa feeds */}
+      {africaFeeds.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-md bg-orange-100 border border-orange-200 flex items-center justify-center">
+              <Rss size={12} className="text-orange-600" />
+            </div>
+            <h3 className="text-sm font-bold text-gray-700">Africa</h3>
+            <span className="text-xs text-gray-400">{africaFeeds.length} feeds</span>
+          </div>
+          <div className="space-y-2">
+            {africaFeeds.map(f => <RssFeedCard key={f.id} feed={f} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Middle East feeds */}
+      {meFeeds.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 rounded-md bg-yellow-100 border border-yellow-200 flex items-center justify-center">
+              <Rss size={12} className="text-yellow-600" />
+            </div>
+            <h3 className="text-sm font-bold text-gray-700">Middle East</h3>
+            <span className="text-xs text-gray-400">{meFeeds.length} feeds</span>
+          </div>
+          <div className="space-y-2">
+            {meFeeds.map(f => <RssFeedCard key={f.id} feed={f} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Custom RSS tester */}
+      <div className="bg-white rounded-[10px] shadow-[0_1px_4px_rgba(0,0,0,0.08)] p-5">
+        <h3 className="text-sm font-bold text-gray-900 mb-1">Test a Custom RSS Feed</h3>
+        <p className="text-xs text-gray-500 mb-3">Paste any public RSS feed URL to preview it here before saving.</p>
+        <div className="flex gap-2">
+          <input value={customUrl} onChange={e => setCustomUrl(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && testCustomFeed()}
+            placeholder="https://example.com/rss.xml"
+            className="flex-1 border border-gray-200 rounded-[6px] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3A6B]" />
+          <button onClick={testCustomFeed} disabled={addingCustom}
+            className="bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold px-4 py-2 rounded-[6px] text-sm transition-colors disabled:opacity-60">
+            {addingCustom ? '…' : 'Preview'}
+          </button>
+        </div>
+        {customResult && (
+          <div className="mt-3 space-y-2">
+            {customResult.error ? (
+              <p className="text-xs text-red-500">{customResult.error}</p>
+            ) : (
+              <>
+                <p className="text-xs text-green-600 font-medium">✓ {customResult.total} articles found</p>
+                {customResult.articles?.map((a, i) => (
+                  <div key={i} className="text-xs text-gray-600 pl-2 border-l-2 border-gray-200">
+                    <a href={a.url} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">{a.title}</a>
+                    {a.date && <span className="text-gray-400 ml-2">{new Date(a.date).toLocaleDateString()}</span>}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function IntelFeeds() {
   const [customFeeds, setCustomFeeds] = useState([])
@@ -449,7 +658,7 @@ export default function IntelFeeds() {
         ))}
       </div>
 
-      {/* International / Local tabs */}
+      {/* Tabs: International / Local / RSS */}
       <div className="flex gap-1 mb-6 bg-gray-100 rounded-[8px] p-1 w-fit">
         <button onClick={() => setActiveTab('international')}
           className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors
@@ -465,9 +674,18 @@ export default function IntelFeeds() {
           Local
           <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-1.5">{localFeeds.length}</span>
         </button>
+        <button onClick={() => setActiveTab('rss')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors
+            ${activeTab === 'rss' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+          <Rss size={14} />
+          RSS Feeds
+          <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-1.5">12</span>
+        </button>
       </div>
 
-      {loading ? (
+      {activeTab === 'rss' ? (
+        <RssPanel />
+      ) : loading ? (
         <div className="text-sm text-gray-400 text-center py-16">Loading feeds…</div>
       ) : activeTab === 'international' ? (
         /* ── International tab ── */
