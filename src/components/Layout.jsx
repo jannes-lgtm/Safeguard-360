@@ -45,19 +45,33 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [activeAlertCount, setActiveAlertCount] = useState(0)
+  const [debug, setDebug] = useState(null)
 
   useEffect(() => {
     const loadData = async () => {
+      const dbg = { step: 'start', user: null, prof: null, apiRole: null, finalRole: null }
+
       // getUser() makes a live server request — always fresh
       const { data: { user }, error: userError } = await supabase.auth.getUser()
-      if (userError || !user) return
+      dbg.userError = userError?.message || null
+      dbg.user = user ? user.email : 'NULL'
+      dbg.appMeta = user?.app_metadata?.role || null
+      dbg.userMeta = user?.user_metadata?.role || null
+
+      if (userError || !user) {
+        dbg.step = 'bailed_no_user'
+        setDebug(dbg)
+        return
+      }
 
       // Load full profile for display (name etc.)
-      const { data: prof } = await supabase
+      const { data: prof, error: profError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
+
+      dbg.prof = prof?.role || ('ERR:' + (profError?.message || 'null'))
 
       // Try the server API (uses service role, bypasses RLS)
       let apiRole = null
@@ -67,12 +81,15 @@ export default function Layout({ children }) {
           const res = await fetch('/api/my-role', {
             headers: { Authorization: `Bearer ${session.access_token}` }
           })
-          if (res.ok) {
-            const json = await res.json()
-            if (json.role && json.role !== 'traveller') apiRole = json.role
-          }
+          const json = await res.json()
+          dbg.api = JSON.stringify(json)
+          if (json.role && json.role !== 'traveller') apiRole = json.role
+        } else {
+          dbg.api = 'no_session'
         }
-      } catch (_) {}
+      } catch (e) {
+        dbg.api = 'ERR:' + e.message
+      }
 
       // Priority: API (service role) > profiles table > JWT metadata > default
       const finalRole =
@@ -81,6 +98,10 @@ export default function Layout({ children }) {
         user.app_metadata?.role ||
         user.user_metadata?.role ||
         'traveller'
+
+      dbg.finalRole = finalRole
+      dbg.step = 'done'
+      setDebug(dbg)
 
       setProfile({
         id: user.id,
@@ -146,6 +167,18 @@ export default function Layout({ children }) {
             </>
           )}
         </nav>
+
+        {/* TEMP DEBUG PANEL */}
+        {debug && (
+          <div style={{background:'rgba(0,0,0,0.6)',padding:'6px 8px',fontSize:'9px',color:'#0f0',fontFamily:'monospace',lineHeight:'1.4'}}>
+            <div>step: {debug.step}</div>
+            <div>user: {debug.user}</div>
+            <div>profRole: {debug.prof}</div>
+            <div>appMeta: {debug.appMeta}</div>
+            <div>api: {debug.api}</div>
+            <div>final: {debug.finalRole}</div>
+          </div>
+        )}
 
         {/* User footer */}
         <div className="border-t border-white/10 p-4">
