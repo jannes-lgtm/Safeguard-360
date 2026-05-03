@@ -568,6 +568,7 @@ function RssPanel() {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function IntelFeeds() {
   const [customFeeds, setCustomFeeds] = useState([])
+  const [liveStatuses, setLiveStatuses] = useState({})
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [modalDefaults, setModalDefaults] = useState({})
@@ -577,7 +578,11 @@ export default function IntelFeeds() {
 
   const loadCustom = async () => {
     setLoading(true)
-    const { data } = await supabase.from('intel_feed_sources').select('*').order('created_at', { ascending: false })
+    const [{ data }, statusRes] = await Promise.all([
+      supabase.from('intel_feed_sources').select('*').order('created_at', { ascending: false }),
+      fetch('/api/feed-status').then(r => r.json()).catch(() => ({})),
+    ])
+    setLiveStatuses(statusRes || {})
     setCustomFeeds((data || []).map(d => ({
       id: d.id, name: d.name, category: d.category, feedType: d.feed_type,
       scope: d.scope || 'international', countries: d.countries || [],
@@ -598,7 +603,11 @@ export default function IntelFeeds() {
 
   const openModal = (defaults = {}) => { setModalDefaults(defaults); setShowModal(true) }
 
-  const allFeeds = [...BUILTIN_FEEDS, ...customFeeds]
+  // Override hardcoded statuses with live server-side check
+  const allFeeds = [...BUILTIN_FEEDS.map(f => ({
+    ...f,
+    status: liveStatuses[f.id] ?? f.status,
+  })), ...customFeeds]
   const intlFeeds = allFeeds.filter(f => f.scope === 'international')
   const localFeeds = allFeeds.filter(f => f.scope === 'local')
 
