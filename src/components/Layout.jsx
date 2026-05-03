@@ -73,27 +73,10 @@ export default function Layout({ children }) {
 
       dbg.prof = prof?.role || ('ERR:' + (profError?.message || 'null'))
 
-      // Try the server API (uses service role, bypasses RLS)
-      let apiRole = null
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.access_token) {
-          const res = await fetch('/api/my-role', {
-            headers: { Authorization: `Bearer ${session.access_token}` }
-          })
-          const json = await res.json()
-          dbg.api = JSON.stringify(json)
-          if (json.role && json.role !== 'traveller') apiRole = json.role
-        } else {
-          dbg.api = 'no_session'
-        }
-      } catch (e) {
-        dbg.api = 'ERR:' + e.message
-      }
+      dbg.api = 'n/a'
 
-      // Priority: API (service role) > profiles table > JWT metadata > default
+      // Priority: profiles table > JWT app_metadata > JWT user_metadata > default
       const finalRole =
-        apiRole ||
         prof?.role ||
         user.app_metadata?.role ||
         user.user_metadata?.role ||
