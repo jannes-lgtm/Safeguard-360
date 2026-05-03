@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import {
   Newspaper, ExternalLink, Globe, MapPin, Search,
-  AlertTriangle, BookOpen, Calendar, Shield, Activity,
+  AlertTriangle, BookOpen, Calendar, Shield,
   Wind, Thermometer, RefreshCw, ChevronRight, Clock
 } from 'lucide-react'
 import Layout from '../components/Layout'
@@ -126,11 +126,25 @@ const CAT_COLORS = {
 }
 const catColor = (c) => CAT_COLORS[c] || 'bg-gray-100 text-gray-600 border-gray-200'
 
+// ── Relative time ─────────────────────────────────────────────────────────────
+function timeAgo(dateStr) {
+  if (!dateStr) return null
+  const diff = Date.now() - new Date(dateStr).getTime()
+  if (isNaN(diff)) return null
+  const s = Math.floor(diff / 1000)
+  if (s < 60)  return `${s}s ago`
+  const m = Math.floor(s / 60)
+  if (m < 60)  return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24)  return `${h}h ago`
+  const d = Math.floor(h / 24)
+  if (d < 7)   return `${d}d ago`
+  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
 // ── Article card ──────────────────────────────────────────────────────────────
 function ArticleCard({ article }) {
-  const dateStr = article.date
-    ? new Date(article.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-    : null
+  const ago = timeAgo(article.date)
 
   return (
     <div className="flex items-start gap-3 py-3.5 border-b border-gray-100 last:border-0 group">
@@ -144,9 +158,9 @@ function ArticleCard({ article }) {
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${catColor(article.feedCategory)}`}>
             {article.feedName}
           </span>
-          {dateStr && (
+          {ago && (
             <span className="text-[11px] text-gray-400 flex items-center gap-1">
-              <Calendar size={9} />{dateStr}
+              <Clock size={9} />{ago}
             </span>
           )}
         </div>
