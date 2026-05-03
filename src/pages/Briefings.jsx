@@ -47,6 +47,45 @@ const COUNTRY_META = {
 
 const COUNTRIES = Object.keys(COUNTRY_META).sort()
 
+// ── Country search terms (name + aliases + demonyms) ──────────────────────────
+const COUNTRY_TERMS = {
+  'Angola':                       ['angola', 'angolan', 'luanda'],
+  'Botswana':                     ['botswana', 'motswana', 'batswana', 'gaborone'],
+  'Cameroon':                     ['cameroon', 'cameroonian', 'yaoundé', 'yaounde', 'douala'],
+  'Chad':                         ['chad', 'chadian', "n'djamena", 'ndjamena'],
+  'Democratic Republic of Congo': ['democratic republic of congo', 'drc', 'congo', 'congolese', 'kinshasa', 'dr congo'],
+  'Egypt':                        ['egypt', 'egyptian', 'cairo'],
+  'Ethiopia':                     ['ethiopia', 'ethiopian', 'addis ababa', 'addis'],
+  'Ghana':                        ['ghana', 'ghanaian', 'accra'],
+  'Iraq':                         ['iraq', 'iraqi', 'baghdad', 'mosul', 'basra'],
+  'Jordan':                       ['jordan', 'jordanian', 'amman'],
+  'Kenya':                        ['kenya', 'kenyan', 'nairobi', 'mombasa'],
+  'Lebanon':                      ['lebanon', 'lebanese', 'beirut'],
+  'Libya':                        ['libya', 'libyan', 'tripoli', 'benghazi'],
+  'Mali':                         ['mali', 'malian', 'bamako'],
+  'Mauritania':                   ['mauritania', 'mauritanian', 'nouakchott'],
+  'Morocco':                      ['morocco', 'moroccan', 'rabat', 'casablanca'],
+  'Mozambique':                   ['mozambique', 'mozambican', 'maputo', 'cabo delgado'],
+  'Namibia':                      ['namibia', 'namibian', 'windhoek'],
+  'Niger':                        ['niger ', 'nigerien', 'niamey'],
+  'Nigeria':                      ['nigeria', 'nigerian', 'abuja', 'lagos', 'kano'],
+  'Rwanda':                       ['rwanda', 'rwandan', 'kigali'],
+  'Saudi Arabia':                 ['saudi arabia', 'saudi', 'riyadh', 'jeddah'],
+  'Senegal':                      ['senegal', 'senegalese', 'dakar'],
+  'Sierra Leone':                 ['sierra leone', 'freetown'],
+  'Somalia':                      ['somalia', 'somali', 'mogadishu', 'al-shabaab', 'al shabaab'],
+  'South Africa':                 ['south africa', 'south african', 'pretoria', 'johannesburg', 'cape town', 'durban'],
+  'South Sudan':                  ['south sudan', 'juba'],
+  'Sudan':                        ['sudan', 'sudanese', 'khartoum', 'darfur'],
+  'Syria':                        ['syria', 'syrian', 'damascus', 'aleppo'],
+  'Tanzania':                     ['tanzania', 'tanzanian', 'dar es salaam', 'dodoma'],
+  'Tunisia':                      ['tunisia', 'tunisian', 'tunis'],
+  'Uganda':                       ['uganda', 'ugandan', 'kampala'],
+  'Yemen':                        ['yemen', 'yemeni', "sana'a", 'sanaa', 'hodeidah', 'houthi'],
+  'Zambia':                       ['zambia', 'zambian', 'lusaka'],
+  'Zimbabwe':                     ['zimbabwe', 'zimbabwean', 'harare'],
+}
+
 // ── WMO weather codes ─────────────────────────────────────────────────────────
 const WMO = {
   0: '☀️ Clear sky', 1: '🌤 Mainly clear', 2: '⛅ Partly cloudy', 3: '☁️ Overcast',
@@ -202,18 +241,19 @@ function ResourceSection({ section }) {
 }
 
 // ── Country profile panel ─────────────────────────────────────────────────────
-function CountryProfile({ country, meta, allArticles }) {
+function CountryProfile({ country, meta, allArticles, feedsLoading }) {
   const [risk, setRisk]       = useState(null)
   const [weather, setWeather] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Incidents: articles mentioning this country from last 30 days
-  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+  // Build search terms for this country (name + aliases + demonyms)
+  const terms = COUNTRY_TERMS[country] || [country.toLowerCase()]
+
+  // Incidents: articles mentioning this country (any alias) — no date cutoff
   const incidents = allArticles.filter(a => {
     const text = (a.title + ' ' + (a.summary || '')).toLowerCase()
-    const inRange = !a.date || new Date(a.date).getTime() > cutoff
-    return inRange && text.includes(country.toLowerCase())
-  }).slice(0, 8)
+    return terms.some(t => text.includes(t))
+  }).slice(0, 15)
 
   useEffect(() => {
     setRisk(null)
@@ -343,19 +383,34 @@ function CountryProfile({ country, meta, allArticles }) {
         </>
       )}
 
-      {/* Recent incidents */}
+      {/* Recent incidents from RSS feeds */}
       <div className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
         <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-          <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-            Recent Intelligence — Last 30 Days
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              Intel Feed Headlines
+            </span>
+            {feedsLoading && (
+              <span className="flex items-center gap-1 text-[10px] text-[#0118A1]">
+                <RefreshCw size={9} className="animate-spin" /> loading more…
+              </span>
+            )}
+          </div>
+          <span className="text-[11px] text-gray-400">
+            {incidents.length} article{incidents.length !== 1 ? 's' : ''} mentioning {country}
           </span>
-          <span className="text-[11px] text-gray-400">{incidents.length} article{incidents.length !== 1 ? 's' : ''} found</span>
         </div>
         {incidents.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-8">
-            No recent articles mentioning {country} in loaded feeds.
-            {allArticles.length === 0 && ' Articles are still loading — try again shortly.'}
-          </p>
+          <div className="py-8 text-center">
+            {feedsLoading ? (
+              <p className="text-xs text-gray-400 flex items-center justify-center gap-2">
+                <RefreshCw size={12} className="animate-spin text-[#0118A1]" />
+                Scanning feeds for {country}…
+              </p>
+            ) : (
+              <p className="text-xs text-gray-400">No articles mentioning {country} found in current feeds.</p>
+            )}
+          </div>
         ) : (
           <div className="px-4 divide-y divide-gray-100">
             {incidents.map((a, i) => (
@@ -366,14 +421,13 @@ function CountryProfile({ country, meta, allArticles }) {
                     className="text-sm font-medium text-gray-900 hover:text-[#0118A1] hover:underline leading-snug block">
                     {a.title}
                   </a>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${catColor(a.feedCategory)}`}>
                       {a.feedName}
                     </span>
                     {a.date && (
                       <span className="text-[11px] text-gray-400 flex items-center gap-1">
-                        <Calendar size={9} />
-                        {new Date(a.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        <Clock size={9} />{timeAgo(a.date)}
                       </span>
                     )}
                   </div>
@@ -392,7 +446,7 @@ function CountryProfile({ country, meta, allArticles }) {
 }
 
 // ── Country advisory (search + select) ───────────────────────────────────────
-function CountryAdvisory({ allArticles }) {
+function CountryAdvisory({ allArticles, feedsLoading }) {
   const [search, setSearch]   = useState('')
   const [selected, setSelected] = useState(null)
 
@@ -436,6 +490,7 @@ function CountryAdvisory({ allArticles }) {
             country={selected}
             meta={COUNTRY_META[selected]}
             allArticles={allArticles}
+            feedsLoading={feedsLoading}
           />
         ) : (
           <div className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-12 text-center">
@@ -632,7 +687,7 @@ export default function Briefings() {
 
       {/* ── Country Profiles ── */}
       {activeTab === 'advisories' && (
-        <CountryAdvisory allArticles={articles} />
+        <CountryAdvisory allArticles={articles} feedsLoading={isLoading} />
       )}
 
       {/* ── Reports & Resources ── */}
