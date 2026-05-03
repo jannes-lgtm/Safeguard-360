@@ -1,6 +1,9 @@
 let stateCache = null
 let stateCacheTime = 0
+let issCache = {}
+let issCacheTime = 0
 const CACHE_TTL = 60 * 60 * 1000 // 1 hour
+const ISS_CACHE_TTL = 4 * 60 * 60 * 1000 // 4 hours — ISS publishes a few times a day
 
 export default async function handler(req, res) {
   const { country } = req.query
@@ -74,6 +77,9 @@ async function getCountryRisk(country) {
   const dfatSlug = toSlug(country)
   const dfatUrl = `https://www.smartraveller.gov.au/destinations/${dfatSlug}`
 
+  // --- ISS Africa (Institute for Security Studies) ---
+  const iss = await fetchIssAlerts(country)
+
   // Combined risk level — if both sources return nothing, level is null → Unknown
   const rawMax = Math.max(usLevel ?? 0, fcdo?.level ?? 0)
   const combinedLevel = rawMax > 0 ? rawMax : null
@@ -86,8 +92,66 @@ async function getCountryRisk(country) {
       usLevel != null ? { name: 'US State Dept', level: usLevel, message: usMessage, url: usUrl } : null,
       fcdo ? { name: 'UK FCDO', level: fcdo.level, message: fcdo.message, url: fcdo.url } : null,
       { name: 'AU DFAT', level: null, url: dfatUrl },
+      iss ? { name: 'ISS Africa', level: null, message: iss.headline, url: iss.url, articles: iss.articles } : null,
     ].filter(Boolean),
   }
+}
+
+// --- ISS Africa RSS feed ---
+async function fetchIssAlerts(country) {
+  const now = Date.now()
+  const cacheExpired = now - issCacheTime > ISS_CACHE_TTL
+
+  if (cacheExpired) {
+    // Fetch ISS Today RSS feed
+    const r = await fetchWithTimeout('https://issafrica.org/rss/iss-today', {}, 6000)
+    if (r?.ok) {
+      try {
+        const xml = await r.text()
+        issCache = parseRssItems(xml)
+        issCacheTime = now
+      } catch {
+        console.error('ISS RSS parse failed')
+      }
+    }
+  }
+
+  if (!issCache?.length) return null
+
+  // Find articles mentioning this country
+  const countryLower = country.toLowerCase()
+  const matches = issCache.filter(item => {
+    const text = (item.title + ' ' + item.description).toLowerCase()
+    return text.includes(countryLower)
+  }).slice(0, 3) // max 3 articles
+
+  if (!matches.length) return null
+
+  return {
+    headline: matches[0].title,
+    url: 'https://issafrica.org/iss-today',
+    articles: matches.map(m => ({ title: m.title, url: m.link, date: m.pubDate })),
+  }
+}
+
+function parseRssItems(xml) {
+  const items = []
+  const itemRegex = /<item>([\s\S]*?)<\/item>/g
+  let match
+  while ((match = itemRegex.exec(xml)) !== null) {
+    const block = match[1]
+    const get = (tag) => {
+      const m = block.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([^<]*)<\\/${tag}>`))
+      return m ? (m[1] || m[2] || '').trim() : ''
+    }
+    items.push({
+      title: get('title'),
+      link: get('link'),
+      description: get('description'),
+      pubDate: get('pubDate'),
+    })
+  }
+  return items
 }
 
 async function fetchFcdo(country) {

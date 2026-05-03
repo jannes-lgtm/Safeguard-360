@@ -5,6 +5,7 @@ import Layout from '../components/Layout'
 import MetricCard from '../components/MetricCard'
 import SeverityBadge from '../components/SeverityBadge'
 import ProgressBar from '../components/ProgressBar'
+import LoadSheddingBanner from '../components/LoadSheddingBanner'
 import { supabase } from '../lib/supabase'
 
 const severityDot = {
@@ -65,6 +66,9 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-sm text-gray-500 mt-0.5">Your duty of care overview</p>
       </div>
+
+      {/* SA Load Shedding Banner */}
+      <LoadSheddingBanner className="mb-5" />
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
