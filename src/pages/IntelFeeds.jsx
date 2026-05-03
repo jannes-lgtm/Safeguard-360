@@ -103,6 +103,58 @@ const BUILTIN_FEEDS = [
     geography: 'Africa + Middle East (18 cities)', updateFrequency: 'Hourly (30 min cache)',
     status: 'active', sourceUrl: 'https://open-meteo.com', builtin: true },
 
+  // International — Security Intelligence (additional)
+  { id: 'osac', name: 'OSAC', category: 'security', feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Overseas Security Advisory Council — detailed US State Dept security reports for business travellers. Comprehensive Africa and Middle East coverage.',
+    geography: 'Africa + Middle East', updateFrequency: 'As issued',
+    status: 'pending', sourceUrl: 'https://www.osac.gov', builtin: true },
+  { id: 'control-risks', name: 'Control Risks', category: 'security', feedType: 'Partnership', scope: 'international', countries: [],
+    description: 'World-leading political risk and security intelligence — real-time alerts, 180+ country profiles, analyst reports and 24/7 crisis response.',
+    geography: 'Global', updateFrequency: 'Real-time',
+    status: 'partnership', sourceUrl: 'https://www.controlrisks.com', builtin: true },
+  { id: 'crisis24', name: 'Crisis24 (Garda World)', category: 'security', feedType: 'Partnership', scope: 'international', countries: [],
+    description: 'AI-powered global risk intelligence — real-time threat feeds, analyst assessments and traveller tracking for enterprise clients.',
+    geography: 'Global', updateFrequency: 'Real-time',
+    status: 'partnership', sourceUrl: 'https://crisis24.garda.com', builtin: true },
+  { id: 'dataminr', name: 'Dataminr', category: 'security', feedType: 'Partnership', scope: 'international', countries: [],
+    description: 'AI real-time event detection from 500,000+ public sources — first alerts 20–30 minutes ahead of traditional news. Critical for fast-moving crises.',
+    geography: 'Global', updateFrequency: 'Real-time',
+    status: 'partnership', sourceUrl: 'https://www.dataminr.com', builtin: true },
+  { id: 'stratfor', name: 'Stratfor (RANE)', category: 'security', feedType: 'Partnership', scope: 'international', countries: [],
+    description: 'Geopolitical intelligence and forecasting — country outlooks, threat assessments and strategic analysis trusted by government and corporate security teams.',
+    geography: 'Global', updateFrequency: 'Daily / as issued',
+    status: 'partnership', sourceUrl: 'https://worldview.stratfor.com', builtin: true },
+  { id: 'african-arguments', name: 'African Arguments', category: 'security', feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Expert analysis on African politics, security and society — in-depth reporting on conflict zones, governance and elections across the continent.',
+    geography: 'Africa', updateFrequency: 'Multiple weekly',
+    status: 'pending', sourceUrl: 'https://africanarguments.org/feed/', builtin: true },
+
+  // International — Conflict (additional)
+  { id: 'gdelt', name: 'GDELT Project', category: 'conflict', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'Monitors world news in 100+ languages with 15-minute update cycles — massive open dataset of global events for Africa conflict monitoring.',
+    geography: 'Global', updateFrequency: 'Every 15 minutes',
+    status: 'pending', sourceUrl: 'https://www.gdeltproject.org', builtin: true },
+
+  // International — Weather (additional)
+  { id: 'nasa-firms', name: 'NASA FIRMS', category: 'weather', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'Fire Information for Resource Management System — near real-time active fire detection. Critical for Africa dry-season wildfire and bushfire monitoring.',
+    geography: 'Africa + Global', updateFrequency: 'Real-time',
+    status: 'pending_key', envVar: 'NASA_FIRMS_API_KEY', sourceUrl: 'https://firms.modaps.eosdis.nasa.gov/api/', builtin: true },
+
+  // International — Disease & Health (additional)
+  { id: 'healthmap', name: 'HealthMap', category: 'health', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'Automated disease surveillance from social media, news and official sources — real-time intelligence on emerging infectious disease threats for travellers.',
+    geography: 'Global', updateFrequency: 'Near real-time',
+    status: 'pending_key', envVar: 'HEALTHMAP_API_KEY', sourceUrl: 'https://healthmap.org/en/', builtin: true },
+  { id: 'healix', name: 'Healix', category: 'health', feedType: 'Partnership', scope: 'international', countries: [],
+    description: 'Medical and security travel risk management — real-time health travel alerts, country medical risk profiles and 24/7 medical assistance.',
+    geography: 'Global', updateFrequency: 'Real-time',
+    status: 'partnership', sourceUrl: 'https://www.healix.com', builtin: true },
+  { id: 'intl-sos', name: 'International SOS', category: 'health', feedType: 'Partnership', scope: 'international', countries: [],
+    description: 'Medical and security travel risk management — alerts, country health briefings, 24/7 assistance and evacuation coordination.',
+    geography: 'Global', updateFrequency: 'Real-time',
+    status: 'partnership', sourceUrl: 'https://www.internationalsos.com', builtin: true },
+
   // Local — South Africa
   { id: 'eskomsepush', name: 'EskomSePush', category: 'loadshedding', feedType: 'REST API', scope: 'local', countries: ['South Africa'],
     description: 'Live Eskom load shedding stage and area schedules across South Africa.', geography: 'South Africa', updateFrequency: 'Real-time (15 min cache)',
@@ -191,48 +243,30 @@ const ACTIVATION_GUIDE = {
     ],
     url: 'https://openweathermap.org/api/one-call-3',
   },
+  'nasa-firms': {
+    cost: 'Free — NASA account required',
+    steps: [
+      'Register at firms.modaps.eosdis.nasa.gov/api/ with your email',
+      'Receive your MAP_KEY by email (usually instant)',
+      'Add NASA_FIRMS_API_KEY to Vercel Environment Variables',
+      'Redeploy to activate',
+    ],
+    url: 'https://firms.modaps.eosdis.nasa.gov/api/',
+  },
+  healthmap: {
+    cost: 'Free — HealthMap API access request',
+    steps: [
+      'Request API access at healthmap.org/en/ (contact their team)',
+      'Receive your API key by email',
+      'Add HEALTHMAP_API_KEY to Vercel Environment Variables',
+      'Redeploy to activate',
+    ],
+    url: 'https://healthmap.org/en/',
+  },
 }
 
-// ── Audit: suggested additions ────────────────────────────────────────────────
-const SUGGESTED_FEEDS = [
-  // Free
-  { name: 'OSAC', category: 'security', cost: 'Free (US-registered companies)', tier: 'free',
-    description: 'Overseas Security Advisory Council — detailed security reports for US business travellers. Comprehensive Africa and Middle East coverage.',
-    url: 'https://www.osac.gov', region: 'Africa + Middle East' },
-  { name: 'GDELT Project', category: 'conflict', cost: 'Free', tier: 'free',
-    description: 'Monitors world news in 100+ languages with 15-minute update cycles. Massive open dataset of global events, useful for Africa conflict monitoring.',
-    url: 'https://www.gdeltproject.org', region: 'Global' },
-  { name: 'NASA FIRMS', category: 'weather', cost: 'Free (API key)', tier: 'free',
-    description: 'Fire Information for Resource Management System — near real-time active fire detection. Critical for Africa dry-season wildfire monitoring.',
-    url: 'https://firms.modaps.eosdis.nasa.gov/api/', region: 'Africa + Global' },
-  { name: 'HealthMap', category: 'health', cost: 'Free (API key)', tier: 'free',
-    description: 'Automated disease surveillance from social media, news and official sources. Real-time intelligence on emerging infectious disease threats for travellers.',
-    url: 'https://healthmap.org/en/', region: 'Global' },
-  { name: 'African Arguments RSS', category: 'security', cost: 'Free', tier: 'free',
-    description: 'Expert analysis on African politics, security and society. Regular in-depth reporting on conflict zones, governance and elections across the continent.',
-    url: 'https://africanarguments.org/feed/', region: 'Africa' },
-
-  // Subscription / Paid
-  { name: 'Control Risks', category: 'security', cost: 'Enterprise subscription', tier: 'paid',
-    description: 'World-leading political risk and security intelligence. Real-time alerts, 180+ country profiles, analyst reports and 24/7 crisis response.',
-    url: 'https://www.controlrisks.com', region: 'Global' },
-  { name: 'Healix', category: 'health', cost: 'Enterprise subscription', tier: 'paid',
-    description: 'Medical and security travel risk management. Real-time health travel alerts, country medical risk profiles and 24/7 medical assistance.',
-    url: 'https://www.healix.com', region: 'Global' },
-  { name: 'International SOS', category: 'health', cost: 'Enterprise subscription', tier: 'paid',
-    description: 'Medical and security travel risk management. Alerts, country health briefings, 24/7 assistance and evacuation coordination.',
-    url: 'https://www.internationalsos.com', region: 'Global' },
-  { name: 'Crisis24 (Garda World)', category: 'security', cost: 'Enterprise subscription', tier: 'paid',
-    description: 'AI-powered global risk intelligence. Real-time threat feeds, analyst assessments and traveller tracking for enterprise clients.',
-    url: 'https://crisis24.garda.com', region: 'Global' },
-  { name: 'Dataminr', category: 'security', cost: 'Enterprise subscription', tier: 'paid',
-    description: 'AI real-time event detection from 500,000+ public data sources. First alerts 20–30 minutes ahead of traditional news — critical for fast-moving crises.',
-    url: 'https://www.dataminr.com', region: 'Global' },
-  { name: 'Stratfor (RANE)', category: 'security', cost: '~$599/year (individual) or enterprise',
-    tier: 'paid',
-    description: 'Geopolitical intelligence and forecasting. Country outlooks, threat assessments and strategic analysis — trusted by government and corporate security teams.',
-    url: 'https://worldview.stratfor.com', region: 'Global' },
-]
+// All suggested feeds have been promoted to BUILTIN_FEEDS above
+const SUGGESTED_FEEDS = []
 
 // ── Status icon ───────────────────────────────────────────────────────────────
 function StatusIcon({ status }) {
@@ -500,24 +534,34 @@ function AuditPanel({ allFeeds }) {
         </div>
       )}
 
-      {/* ── Section C: Suggested ── */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Lightbulb size={16} className="text-[#0118A1]" />
-          <h2 className="text-base font-bold text-gray-900">Suggested Additions</h2>
-        </div>
-        <p className="text-xs text-gray-500 mb-5">Additional feeds recommended for a comprehensive duty-of-care programme. Mix of free and subscription options.</p>
+      {/* ── Section C: Suggested — only shown if any remain ── */}
+      {SUGGESTED_FEEDS.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Lightbulb size={16} className="text-[#0118A1]" />
+            <h2 className="text-base font-bold text-gray-900">Suggested Additions</h2>
+          </div>
+          <p className="text-xs text-gray-500 mb-5">Additional feeds recommended for a comprehensive duty-of-care programme.</p>
 
-        <h3 className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Free / Self-Register</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
-          {freesuggestions.map(s => <SuggestedCard key={s.name} suggestion={s} />)}
-        </div>
+          {freesuggestions.length > 0 && (
+            <>
+              <h3 className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Free / Self-Register</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
+                {freesuggestions.map(s => <SuggestedCard key={s.name} suggestion={s} />)}
+              </div>
+            </>
+          )}
 
-        <h3 className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Premium / Enterprise</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {paidSuggestions.map(s => <SuggestedCard key={s.name} suggestion={s} />)}
+          {paidSuggestions.length > 0 && (
+            <>
+              <h3 className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Premium / Enterprise</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {paidSuggestions.map(s => <SuggestedCard key={s.name} suggestion={s} />)}
+              </div>
+            </>
+          )}
         </div>
-      </div>
+      )}
     </div>
   )
 }
