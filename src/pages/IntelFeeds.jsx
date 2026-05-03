@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   Radio, RefreshCw, ExternalLink, Key, Handshake,
   CheckCircle, Clock, Plus, X, Plane, Ship,
-  Zap, Globe, Shield, MessageSquare, Crosshair, MapPin
+  Zap, Globe, Shield, MessageSquare, Crosshair, MapPin, CloudLightning
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -15,7 +15,8 @@ const CATEGORIES = [
   { id: 'loadshedding', label: 'Load Shedding',         icon: Zap,           bg: 'bg-amber-100',  text: 'text-amber-800',  border: 'border-amber-200' },
   { id: 'country-risk', label: 'Country Risk',          icon: Globe,         bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200' },
   { id: 'security',     label: 'Security Intelligence', icon: Shield,        bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' },
-  { id: 'community',    label: 'Community Reports',     icon: MessageSquare, bg: 'bg-green-100',  text: 'text-green-800',  border: 'border-green-200' },
+  { id: 'community',    label: 'Community Reports',     icon: MessageSquare,  bg: 'bg-green-100',  text: 'text-green-800',  border: 'border-green-200' },
+  { id: 'weather',      label: 'Weather & Disasters',   icon: CloudLightning, bg: 'bg-teal-100',   text: 'text-teal-800',   border: 'border-teal-200' },
 ]
 const getCat = (id) => CATEGORIES.find(c => c.id === id) || CATEGORIES[5]
 
@@ -37,6 +38,20 @@ const BUILTIN_FEEDS = [
   { id: 'whatsapp', name: 'WhatsApp Community', category: 'community', feedType: 'Webhook', scope: 'international', countries: [],
     description: 'Ground-truth incident reports submitted by field contacts and travellers via WhatsApp.', geography: 'All regions', updateFrequency: 'Real-time',
     status: 'active', builtin: true },
+
+  // International — Weather & Disasters
+  { id: 'gdacs', name: 'GDACS', category: 'weather', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'UN Global Disaster Alert & Coordination System — cyclones, floods, earthquakes, volcanoes, droughts and wildfires. Free, no API key required.',
+    geography: 'Global (Africa-wide coverage)', updateFrequency: 'Real-time',
+    status: 'active', sourceUrl: 'https://www.gdacs.org', builtin: true },
+  { id: 'usgs', name: 'USGS Earthquakes', category: 'weather', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'US Geological Survey real-time earthquake feed — magnitude 4.5+ events globally including East Africa Rift, Cape region and Indian Ocean.',
+    geography: 'Global', updateFrequency: 'Real-time',
+    status: 'active', sourceUrl: 'https://earthquake.usgs.gov/fdsnws/event/1/', builtin: true },
+  { id: 'openweathermap', name: 'OpenWeatherMap', category: 'weather', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'Severe weather alerts, storm warnings and current conditions for any location. Government-issued alerts pushed in real time.',
+    geography: 'Global', updateFrequency: 'Real-time (30 min cache)',
+    status: 'pending_key', envVar: 'OPENWEATHERMAP_API_KEY', sourceUrl: 'https://openweathermap.org/api/one-call-3', builtin: true },
 
   // Local — South Africa
   { id: 'eskomsepush', name: 'EskomSePush', category: 'loadshedding', feedType: 'REST API', scope: 'local', countries: ['South Africa'],
