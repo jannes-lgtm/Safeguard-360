@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
+import { getTemplate } from '../data/vettingTemplates'
 
 const BRAND_BLUE  = '#0118A1'
 const BRAND_GREEN = '#AACC00'
@@ -98,8 +99,28 @@ function ScoreBar({ score }) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const isExpired = date => date && new Date(date) < new Date()
-const fmtDate   = date => date ? new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+const isExpired  = date => date && new Date(date) < new Date()
+const fmtDate    = date => date ? new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+const daysUntil  = date => date ? Math.ceil((new Date(date) - new Date()) / 86400000) : null
+
+function getPassCount(template, checklist) {
+  const required = template.sections.flatMap(s => s.items).filter(i => i.required)
+  const passed   = required.filter(i => checklist?.[i.id]?.pass)
+  return { passed: passed.length, total: required.length }
+}
+
+function VettingStatusPill({ status }) {
+  const cfg = {
+    pass:        { label: '✅ Pass',          bg: 'bg-green-50 border-green-200',  text: 'text-green-700'  },
+    conditional: { label: '⚠️ Conditional',   bg: 'bg-amber-50 border-amber-200',  text: 'text-amber-700'  },
+    fail:        { label: '❌ Failed',         bg: 'bg-red-50 border-red-200',      text: 'text-red-700'    },
+  }[status] || { label: status, bg: 'bg-gray-50 border-gray-200', text: 'text-gray-600' }
+  return (
+    <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.text}`}>
+      {cfg.label}
+    </span>
+  )
+}
 
 // ── Provider card ─────────────────────────────────────────────────────────────
 function ProviderCard({ provider, score, isAdmin, onEdit, onDelete, onView }) {
@@ -417,8 +438,242 @@ function AddReference({ providerId, onAdded }) {
   )
 }
 
+// ── Vetting record row ────────────────────────────────────────────────────────
+function VettingRecord({ record, category }) {
+  const template = getTemplate(category)
+  const { passed, total } = getPassCount(template, record.checklist || {})
+  return (
+    <div className="bg-white rounded-[8px] border border-gray-200 p-4">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <VettingStatusPill status={record.overall_status} />
+          <span className="text-xs text-gray-500">{fmtDate(record.vetted_at)}</span>
+        </div>
+        <span className="text-xs text-gray-500 font-medium">{passed}/{total} required items passed</span>
+      </div>
+      {record.notes && (
+        <p className="text-xs text-gray-500 bg-gray-50 rounded p-2 mt-2 italic border border-gray-100">"{record.notes}"</p>
+      )}
+      <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
+        <Calendar size={9}/>Next review due: {fmtDate(record.next_review_date)}
+      </p>
+    </div>
+  )
+}
+
+// ── Vetting tab ───────────────────────────────────────────────────────────────
+function VettingTab({ provider, isAdmin, onVettingComplete }) {
+  const [records, setRecords]         = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [completing, setCompleting]   = useState(false)
+  const [checklist, setChecklist]     = useState({})
+  const [overallStatus, setOverallStatus] = useState('pass')
+  const [notes, setNotes]             = useState('')
+  const [saving, setSaving]           = useState(false)
+  const [nextReview, setNextReview]   = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() + 6); return d.toISOString().slice(0, 10)
+  })
+
+  const template = getTemplate(provider.category)
+
+  const loadRecords = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('provider_vetting_records')
+      .select('*')
+      .eq('provider_id', provider.id)
+      .order('vetted_at', { ascending: false })
+    setRecords(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { loadRecords() }, [provider.id])
+
+  const initChecklist = () => {
+    const init = {}
+    template.sections.forEach(s => s.items.forEach(item => {
+      init[item.id] = { pass: false, value: '' }
+    }))
+    setChecklist(init)
+    setOverallStatus('pass')
+    setNotes('')
+    setCompleting(true)
+  }
+
+  const toggle = id => setChecklist(p => ({ ...p, [id]: { ...p[id], pass: !p[id]?.pass } }))
+  const setVal = (id, value) => setChecklist(p => ({ ...p, [id]: { ...p[id], value } }))
+
+  const allRequired    = template.sections.flatMap(s => s.items).filter(i => i.required)
+  const passedRequired = allRequired.filter(i => checklist[i.id]?.pass)
+  const passRate       = allRequired.length ? Math.round((passedRequired.length / allRequired.length) * 100) : 100
+
+  const saveVetting = async () => {
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error } = await supabase.from('provider_vetting_records').insert({
+      provider_id: provider.id,
+      vetted_by: user?.id,
+      next_review_date: nextReview,
+      checklist,
+      overall_status: overallStatus,
+      notes: notes.trim() || null,
+    })
+    if (!error) {
+      await supabase.from('service_providers').update({
+        last_vetted_date: new Date().toISOString().slice(0, 10),
+        next_review_date: nextReview,
+        status: overallStatus === 'fail' ? 'suspended' : overallStatus === 'conditional' ? 'pending' : 'vetted',
+      }).eq('id', provider.id)
+      setCompleting(false)
+      await loadRecords()
+      onVettingComplete()
+    }
+    setSaving(false)
+  }
+
+  const inp = 'w-full border border-gray-200 rounded-[6px] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]'
+  const days = daysUntil(provider.next_review_date)
+
+  return (
+    <div className="space-y-5">
+      {/* Status card */}
+      <div className="bg-gray-50 rounded-[8px] border border-gray-200 p-4">
+        <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-3">Standard: {template.standard}</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Last Vetted</p>
+            <p className="text-sm font-semibold text-gray-800 mt-0.5">{fmtDate(provider.last_vetted_date)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Next Review Due</p>
+            <p className={`text-sm font-semibold mt-0.5 ${days !== null && days < 0 ? 'text-red-600' : days !== null && days <= 30 ? 'text-amber-600' : 'text-gray-800'}`}>
+              {fmtDate(provider.next_review_date)}
+              {days !== null && days < 0  && <span className="text-xs font-normal ml-1">— Overdue</span>}
+              {days !== null && days >= 0 && days <= 30 && <span className="text-xs font-normal ml-1">— {days}d left</span>}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Start button */}
+      {isAdmin && !completing && (
+        <button onClick={initChecklist}
+          style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
+          className="flex items-center gap-2 font-semibold px-4 py-2 rounded-[6px] text-sm hover:opacity-90">
+          <Shield size={13}/>Start New Vetting Assessment
+        </button>
+      )}
+
+      {/* Checklist form */}
+      {completing && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-gray-900">{template.label} Checklist</h3>
+            <button onClick={() => setCompleting(false)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+          </div>
+
+          {template.sections.map(section => (
+            <div key={section.title}>
+              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">{section.title}</p>
+              <div className="bg-white rounded-[8px] border border-gray-200 overflow-hidden">
+                {section.items.map(item => {
+                  const state = checklist[item.id] || { pass: false, value: '' }
+                  return (
+                    <div key={item.id}
+                      className={`px-4 py-3 border-b border-gray-100 last:border-0 transition-colors
+                        ${item.required && !state.pass ? 'bg-red-50/20' : state.pass ? 'bg-green-50/20' : ''}`}>
+                      <div className="flex items-start gap-3">
+                        <button onClick={() => toggle(item.id)}
+                          className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all
+                            ${state.pass ? 'bg-green-500 border-green-500' : 'border-gray-300 hover:border-gray-400'}`}>
+                          {state.pass && <Check size={11} color="white" strokeWidth={3}/>}
+                        </button>
+                        <div className="flex-1">
+                          <p className={`text-sm leading-snug ${item.required ? 'font-medium text-gray-800' : 'text-gray-500'}`}>
+                            {item.label}
+                            {item.required && <span className="text-[10px] text-gray-400 font-normal ml-1.5">required</span>}
+                          </p>
+                          {item.type === 'number' && (
+                            <input type="number" placeholder={`Enter ${item.unit}…`}
+                              value={state.value} onChange={e => setVal(item.id, e.target.value)}
+                              className="mt-1.5 w-36 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"/>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* Pass rate bar */}
+          <div className="bg-gray-50 rounded-[8px] border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-gray-500">Required criteria passed</span>
+              <span className="text-sm font-bold text-gray-900">{passedRequired.length} / {allRequired.length}</span>
+            </div>
+            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full transition-all duration-300 ${passRate >= 80 ? 'bg-green-500' : passRate >= 50 ? 'bg-amber-400' : 'bg-red-400'}`}
+                style={{ width: `${passRate}%` }}/>
+            </div>
+          </div>
+
+          {/* Overall status + next review */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] text-gray-500 mb-0.5 block">Overall Assessment *</label>
+              <select value={overallStatus} onChange={e => setOverallStatus(e.target.value)} className={inp}>
+                <option value="pass">✅ Pass — Approved</option>
+                <option value="conditional">⚠️ Conditional — With conditions</option>
+                <option value="fail">❌ Fail — Not approved</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] text-gray-500 mb-0.5 block">Next Review Date *</label>
+              <input type="date" value={nextReview} onChange={e => setNextReview(e.target.value)} className={inp}/>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[11px] text-gray-500 mb-0.5 block">Assessment Notes</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
+              className={`${inp} resize-none`}
+              placeholder="Conditions, concerns, action items, follow-up steps…"/>
+          </div>
+
+          <button onClick={saveVetting} disabled={saving || !nextReview}
+            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
+            className="flex items-center gap-2 font-semibold px-4 py-2 rounded-[6px] text-sm disabled:opacity-60 hover:opacity-90">
+            {saving
+              ? <><RefreshCw size={13} className="animate-spin"/>Saving…</>
+              : <><CheckCircle size={13}/>Save Vetting Record</>}
+          </button>
+        </div>
+      )}
+
+      {/* History */}
+      {!loading && records.length > 0 && !completing && (
+        <div>
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-3">Vetting History</p>
+          <div className="space-y-3">
+            {records.map(r => <VettingRecord key={r.id} record={r} category={provider.category}/>)}
+          </div>
+        </div>
+      )}
+
+      {!loading && records.length === 0 && !completing && (
+        <p className="text-sm text-gray-400 text-center py-6">No vetting records yet.</p>
+      )}
+      {loading && (
+        <div className="text-center py-8 text-gray-400 text-sm">Loading vetting records…</div>
+      )}
+    </div>
+  )
+}
+
 // ── Provider detail modal ─────────────────────────────────────────────────────
-function ProviderDetail({ provider, isAdmin, onClose, onEditInfo }) {
+function ProviderDetail({ provider, isAdmin, onClose, onEditInfo, onVettingComplete }) {
   const [tab, setTab]     = useState('overview')
   const [docs, setDocs]   = useState([])
   const [refs, setRefs]   = useState([])
@@ -463,6 +718,7 @@ function ProviderDetail({ provider, isAdmin, onClose, onEditInfo }) {
     { id: 'overview',   label: 'Overview',   icon: Building },
     { id: 'documents',  label: `Documents${docs.length ? ` (${docs.length})` : ''}`, icon: FileText },
     { id: 'references', label: `References${refs.length ? ` (${refs.length})` : ''}`, icon: User },
+    { id: 'vetting',    label: 'Vetting',    icon: Shield },
   ]
 
   return (
@@ -658,6 +914,15 @@ function ProviderDetail({ provider, isAdmin, onClose, onEditInfo }) {
                 <AddReference providerId={provider.id} onAdded={loadCompliance}/>
               )}
             </div>
+          )}
+
+          {/* ── Vetting tab ── */}
+          {tab === 'vetting' && (
+            <VettingTab
+              provider={provider}
+              isAdmin={isAdmin}
+              onVettingComplete={() => { loadCompliance(); if (onVettingComplete) onVettingComplete() }}
+            />
           )}
         </div>
       </div>
@@ -962,6 +1227,7 @@ export default function Services() {
           isAdmin={isAdmin}
           onClose={() => setViewingProvider(null)}
           onEditInfo={p => { setViewingProvider(null); openEdit(p) }}
+          onVettingComplete={load}
         />
       )}
 
@@ -982,6 +1248,46 @@ export default function Services() {
           </button>
         )}
       </div>
+
+      {/* Overdue vetting alert — admin only */}
+      {isAdmin && (() => {
+        const today = new Date()
+        const in30  = new Date(today.getTime() + 30 * 86400000)
+        const overdue  = providers.filter(p => p.next_review_date && new Date(p.next_review_date) < today)
+        const dueSoon  = providers.filter(p => {
+          if (!p.next_review_date) return false
+          const d = new Date(p.next_review_date)
+          return d >= today && d <= in30
+        })
+        if (overdue.length === 0 && dueSoon.length === 0) return null
+        const isRed = overdue.length > 0
+        return (
+          <div className={`rounded-[8px] border p-4 mb-5 flex items-start gap-3 ${isRed ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
+            <AlertCircle size={15} className={`${isRed ? 'text-red-500' : 'text-amber-500'} shrink-0 mt-0.5`}/>
+            <div className="flex-1">
+              <p className={`text-sm font-semibold ${isRed ? 'text-red-800' : 'text-amber-800'}`}>
+                {overdue.length > 0 && `${overdue.length} provider${overdue.length !== 1 ? 's' : ''} overdue for vetting`}
+                {overdue.length > 0 && dueSoon.length > 0 && '  ·  '}
+                {dueSoon.length > 0 && `${dueSoon.length} due within 30 days`}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {[...overdue, ...dueSoon].slice(0, 6).map(p => (
+                  <button key={p.id} onClick={() => setViewingProvider(p)}
+                    className={`text-xs px-2.5 py-0.5 rounded-full font-medium transition-colors
+                      ${overdue.includes(p)
+                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                        : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}>
+                    {p.name}
+                  </button>
+                ))}
+                {overdue.length + dueSoon.length > 6 && (
+                  <span className="text-xs text-gray-400 self-center">+{overdue.length + dueSoon.length - 6} more</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
