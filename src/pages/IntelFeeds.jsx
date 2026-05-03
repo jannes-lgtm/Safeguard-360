@@ -2,20 +2,21 @@ import { useEffect, useState } from 'react'
 import {
   Radio, RefreshCw, ExternalLink, Key, Handshake,
   Clock, Plus, X, Plane, Ship, Rss,
-  Zap, Globe, Shield, MessageSquare, Crosshair, MapPin, CloudLightning, ChevronDown, ChevronUp,
-  Check, AlertCircle
+  Zap, Globe, Shield, MessageSquare, Crosshair, MapPin, CloudLightning,
+  Check, AlertCircle, Activity, ChevronDown, ChevronUp, Lightbulb, Star
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 
 // ── Categories ───────────────────────────────────────────────────────────────
 const CATEGORIES = [
-  { id: 'flight',       label: 'Flight Intelligence',  icon: Plane,         bg: 'bg-sky-100',    text: 'text-sky-800',    border: 'border-sky-200' },
-  { id: 'vessel',       label: 'Vessel Tracking',       icon: Ship,          bg: 'bg-cyan-100',   text: 'text-cyan-800',   border: 'border-cyan-200' },
-  { id: 'conflict',     label: 'Armed Conflict',        icon: Crosshair,     bg: 'bg-red-100',    text: 'text-red-800',    border: 'border-red-200' },
-  { id: 'loadshedding', label: 'Load Shedding',         icon: Zap,           bg: 'bg-amber-100',  text: 'text-amber-800',  border: 'border-amber-200' },
-  { id: 'country-risk', label: 'Country Risk',          icon: Globe,         bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200' },
-  { id: 'security',     label: 'Security Intelligence', icon: Shield,        bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' },
+  { id: 'flight',       label: 'Flight Intelligence',  icon: Plane,          bg: 'bg-sky-100',    text: 'text-sky-800',    border: 'border-sky-200' },
+  { id: 'vessel',       label: 'Vessel Tracking',       icon: Ship,           bg: 'bg-cyan-100',   text: 'text-cyan-800',   border: 'border-cyan-200' },
+  { id: 'conflict',     label: 'Armed Conflict',        icon: Crosshair,      bg: 'bg-red-100',    text: 'text-red-800',    border: 'border-red-200' },
+  { id: 'loadshedding', label: 'Load Shedding',         icon: Zap,            bg: 'bg-amber-100',  text: 'text-amber-800',  border: 'border-amber-200' },
+  { id: 'country-risk', label: 'Country Risk',          icon: Globe,          bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200' },
+  { id: 'security',     label: 'Security Intelligence', icon: Shield,         bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' },
+  { id: 'health',       label: 'Disease & Health',      icon: Activity,       bg: 'bg-rose-100',   text: 'text-rose-800',   border: 'border-rose-200' },
   { id: 'community',    label: 'Community Reports',     icon: MessageSquare,  bg: 'bg-green-100',  text: 'text-green-800',  border: 'border-green-200' },
   { id: 'weather',      label: 'Weather & Disasters',   icon: CloudLightning, bg: 'bg-teal-100',   text: 'text-teal-800',   border: 'border-teal-200' },
 ]
@@ -23,19 +24,59 @@ const getCat = (id) => CATEGORIES.find(c => c.id === id) || CATEGORIES[5]
 
 // ── Built-in feeds ───────────────────────────────────────────────────────────
 const BUILTIN_FEEDS = [
-  // International
+  // International — Flight
   { id: 'flightaware', name: 'FlightAware AeroAPI', category: 'flight', feedType: 'REST API', scope: 'international', countries: [],
     description: 'Live flight status, delays and cancellations for all tracked flights.', geography: 'Global', updateFrequency: 'Real-time',
     status: 'active', sourceUrl: 'https://flightaware.com/aeroapi/', builtin: true },
+
+  // International — Vessel
+  { id: 'aisstream', name: 'AISStream', category: 'vessel', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'Real-time maritime vessel tracking — Gulf of Aden, Red Sea, Strait of Hormuz, Gulf of Guinea, Mozambique Channel, Suez Canal.',
+    geography: 'Africa coastal + Middle East waters', updateFrequency: 'Real-time (15 min cache)',
+    status: 'pending_key', envVar: 'AISSTREAM_API_KEY', sourceUrl: 'https://aisstream.io', builtin: true },
+
+  // International — Conflict
   { id: 'acled', name: 'ACLED', category: 'conflict', feedType: 'REST API', scope: 'international', countries: [],
     description: 'Armed Conflict Location & Event Data — GPS-tagged security incidents and violence across Africa.', geography: 'Africa-wide', updateFrequency: 'Daily',
     status: 'pending_key', envVar: 'ACLED_API_KEY + ACLED_EMAIL', sourceUrl: 'https://acleddata.com/register/', builtin: true },
+  { id: 'ucdp', name: 'UCDP', category: 'conflict', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'Uppsala Conflict Data Program — geo-referenced armed conflict events with casualty data. Independent academic methodology, complements ACLED.',
+    geography: 'Africa + Middle East', updateFrequency: 'Ongoing (1 hr cache)',
+    status: 'active', sourceUrl: 'https://ucdpapi.pcr.uu.se', builtin: true },
+
+  // International — Country Risk
   { id: 'state-dept', name: 'US State Dept', category: 'country-risk', feedType: 'REST API', scope: 'international', countries: [],
     description: 'US State Department travel advisories — 4-level risk ratings for every country globally.', geography: 'Global', updateFrequency: 'As issued (1 hr cache)',
     status: 'active', sourceUrl: 'https://travel.state.gov', builtin: true },
   { id: 'fcdo', name: 'UK FCDO', category: 'country-risk', feedType: 'REST API', scope: 'international', countries: [],
     description: 'UK Foreign Commonwealth & Development Office travel advisories — detailed region-level risk ratings.', geography: 'Global', updateFrequency: 'As issued (1 hr cache)',
     status: 'active', sourceUrl: 'https://www.gov.uk/foreign-travel-advice', builtin: true },
+
+  // International — Security Intelligence
+  { id: 'ocha-hapi', name: 'UN OCHA HAPI', category: 'security', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'UN Humanitarian API — conflict events, refugees and displacement, food security crises across Africa and Middle East.',
+    geography: 'Africa + Middle East', updateFrequency: 'Daily (1 hr cache)',
+    status: 'pending_key', envVar: 'OCHA_HAPI_API_KEY', sourceUrl: 'https://hapi.humdata.org', builtin: true },
+
+  // International — Disease & Health
+  { id: 'who-outbreak', name: 'WHO Disease Outbreak News', category: 'health', feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'World Health Organization official disease outbreak news — confirmed outbreaks, alerts, and public health emergencies of international concern (PHEIC).',
+    geography: 'Global', updateFrequency: 'As issued',
+    status: 'active', sourceUrl: 'https://www.who.int/emergencies/disease-outbreak-news', builtin: true },
+  { id: 'cdc-travel-health', name: 'CDC Travel Health Notices', category: 'health', feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'US Centers for Disease Control travel health notices — Warning (Level 3), Alert (Level 2), Watch (Level 1) for infectious disease risks at destinations.',
+    geography: 'Global', updateFrequency: 'As issued',
+    status: 'active', sourceUrl: 'https://wwwnc.cdc.gov/travel/notices', builtin: true },
+  { id: 'ecdc-threats', name: 'ECDC Communicable Disease Threats', category: 'health', feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'European Centre for Disease Prevention and Control weekly communicable disease threats report — active outbreaks relevant to travellers.',
+    geography: 'Global (EU focus)', updateFrequency: 'Weekly',
+    status: 'active', sourceUrl: 'https://www.ecdc.europa.eu/en/threats-and-outbreaks/reports-and-data', builtin: true },
+  { id: 'promed', name: 'ProMED Mail', category: 'health', feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Expert-moderated global rapid reporting of infectious disease outbreaks and acute exposures. One of the world\'s largest disease surveillance systems.',
+    geography: 'Global', updateFrequency: 'Multiple daily',
+    status: 'active', sourceUrl: 'https://promedmail.org', builtin: true },
+
+  // International — Community
   { id: 'whatsapp', name: 'WhatsApp Community', category: 'community', feedType: 'Webhook', scope: 'international', countries: [],
     description: 'Ground-truth incident reports submitted by field contacts and travellers via WhatsApp.', geography: 'All regions', updateFrequency: 'Real-time',
     status: 'active', builtin: true },
@@ -61,18 +102,6 @@ const BUILTIN_FEEDS = [
     description: 'Free open-source weather API — current conditions and 3-day forecasts for 18 monitored African and Middle East cities. No API key required.',
     geography: 'Africa + Middle East (18 cities)', updateFrequency: 'Hourly (30 min cache)',
     status: 'active', sourceUrl: 'https://open-meteo.com', builtin: true },
-  { id: 'ucdp', name: 'UCDP', category: 'conflict', feedType: 'REST API', scope: 'international', countries: [],
-    description: 'Uppsala Conflict Data Program — geo-referenced armed conflict events with casualty data. Independent academic methodology, complements ACLED.',
-    geography: 'Africa + Middle East', updateFrequency: 'Ongoing (1 hr cache)',
-    status: 'active', sourceUrl: 'https://ucdpapi.pcr.uu.se', builtin: true },
-  { id: 'ocha-hapi', name: 'UN OCHA HAPI', category: 'security', feedType: 'REST API', scope: 'international', countries: [],
-    description: 'UN Humanitarian API — conflict events, refugees and displacement, food security crises across Africa and Middle East.',
-    geography: 'Africa + Middle East', updateFrequency: 'Daily (1 hr cache)',
-    status: 'pending_key', envVar: 'OCHA_HAPI_API_KEY', sourceUrl: 'https://hapi.humdata.org', builtin: true },
-  { id: 'aisstream', name: 'AISStream', category: 'vessel', feedType: 'REST API', scope: 'international', countries: [],
-    description: 'Real-time maritime vessel tracking — Gulf of Aden, Red Sea, Strait of Hormuz, Gulf of Guinea, Mozambique Channel, Suez Canal.',
-    geography: 'Africa coastal + Middle East waters', updateFrequency: 'Real-time (15 min cache)',
-    status: 'pending_key', envVar: 'AISSTREAM_API_KEY', sourceUrl: 'https://aisstream.io', builtin: true },
 
   // Local — South Africa
   { id: 'eskomsepush', name: 'EskomSePush', category: 'loadshedding', feedType: 'REST API', scope: 'local', countries: ['South Africa'],
@@ -110,6 +139,101 @@ const STATUS = {
   error:       { label: 'Error',               dot: 'bg-red-500',    text: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200' },
 }
 
+// ── Audit: feeds needing activation ──────────────────────────────────────────
+const ACTIVATION_GUIDE = {
+  acled: {
+    cost: 'Free — academic/non-commercial registration',
+    steps: [
+      'Register at acleddata.com/register (approval within 48 hrs)',
+      'Copy your API key and registered email from your ACLED dashboard',
+      'Add ACLED_API_KEY and ACLED_EMAIL to Vercel → Settings → Environment Variables',
+      'Redeploy to activate',
+    ],
+    url: 'https://acleddata.com/register/',
+  },
+  aisstream: {
+    cost: 'Free tier — 1,000 vessels / 5 zones',
+    steps: [
+      'Register at aisstream.io',
+      'Create an API key in your dashboard',
+      'Add AISSTREAM_API_KEY to Vercel Environment Variables',
+      'Redeploy to activate',
+    ],
+    url: 'https://aisstream.io',
+  },
+  eskomsepush: {
+    cost: '$14 / month (Professional plan)',
+    steps: [
+      'Purchase Professional plan at eskomsepush.gumroad.com/l/api',
+      'API key delivered by email after payment',
+      'Add ESKOMSEPUSH_API_KEY to Vercel Environment Variables',
+      'Redeploy to activate',
+    ],
+    url: 'https://eskomsepush.gumroad.com/l/api',
+  },
+  'ocha-hapi': {
+    cost: 'Free',
+    steps: [
+      'Register at hapi.humdata.org and request an API key',
+      'Add OCHA_HAPI_API_KEY to Vercel Environment Variables',
+      'Redeploy to activate',
+    ],
+    url: 'https://hapi.humdata.org',
+  },
+  openweathermap: {
+    cost: 'Free tier — 1,000 API calls/day',
+    steps: [
+      'Register at openweathermap.org/api',
+      'Subscribe to One Call API 3.0 (free tier available)',
+      'Copy your API key from the dashboard',
+      'Add OPENWEATHERMAP_API_KEY to Vercel Environment Variables',
+      'Redeploy to activate',
+    ],
+    url: 'https://openweathermap.org/api/one-call-3',
+  },
+}
+
+// ── Audit: suggested additions ────────────────────────────────────────────────
+const SUGGESTED_FEEDS = [
+  // Free
+  { name: 'OSAC', category: 'security', cost: 'Free (US-registered companies)', tier: 'free',
+    description: 'Overseas Security Advisory Council — detailed security reports for US business travellers. Comprehensive Africa and Middle East coverage.',
+    url: 'https://www.osac.gov', region: 'Africa + Middle East' },
+  { name: 'GDELT Project', category: 'conflict', cost: 'Free', tier: 'free',
+    description: 'Monitors world news in 100+ languages with 15-minute update cycles. Massive open dataset of global events, useful for Africa conflict monitoring.',
+    url: 'https://www.gdeltproject.org', region: 'Global' },
+  { name: 'NASA FIRMS', category: 'weather', cost: 'Free (API key)', tier: 'free',
+    description: 'Fire Information for Resource Management System — near real-time active fire detection. Critical for Africa dry-season wildfire monitoring.',
+    url: 'https://firms.modaps.eosdis.nasa.gov/api/', region: 'Africa + Global' },
+  { name: 'HealthMap', category: 'health', cost: 'Free (API key)', tier: 'free',
+    description: 'Automated disease surveillance from social media, news and official sources. Real-time intelligence on emerging infectious disease threats for travellers.',
+    url: 'https://healthmap.org/en/', region: 'Global' },
+  { name: 'African Arguments RSS', category: 'security', cost: 'Free', tier: 'free',
+    description: 'Expert analysis on African politics, security and society. Regular in-depth reporting on conflict zones, governance and elections across the continent.',
+    url: 'https://africanarguments.org/feed/', region: 'Africa' },
+
+  // Subscription / Paid
+  { name: 'Control Risks', category: 'security', cost: 'Enterprise subscription', tier: 'paid',
+    description: 'World-leading political risk and security intelligence. Real-time alerts, 180+ country profiles, analyst reports and 24/7 crisis response.',
+    url: 'https://www.controlrisks.com', region: 'Global' },
+  { name: 'Healix', category: 'health', cost: 'Enterprise subscription', tier: 'paid',
+    description: 'Medical and security travel risk management. Real-time health travel alerts, country medical risk profiles and 24/7 medical assistance.',
+    url: 'https://www.healix.com', region: 'Global' },
+  { name: 'International SOS', category: 'health', cost: 'Enterprise subscription', tier: 'paid',
+    description: 'Medical and security travel risk management. Alerts, country health briefings, 24/7 assistance and evacuation coordination.',
+    url: 'https://www.internationalsos.com', region: 'Global' },
+  { name: 'Crisis24 (Garda World)', category: 'security', cost: 'Enterprise subscription', tier: 'paid',
+    description: 'AI-powered global risk intelligence. Real-time threat feeds, analyst assessments and traveller tracking for enterprise clients.',
+    url: 'https://crisis24.garda.com', region: 'Global' },
+  { name: 'Dataminr', category: 'security', cost: 'Enterprise subscription', tier: 'paid',
+    description: 'AI real-time event detection from 500,000+ public data sources. First alerts 20–30 minutes ahead of traditional news — critical for fast-moving crises.',
+    url: 'https://www.dataminr.com', region: 'Global' },
+  { name: 'Stratfor (RANE)', category: 'security', cost: '~$599/year (individual) or enterprise',
+    tier: 'paid',
+    description: 'Geopolitical intelligence and forecasting. Country outlooks, threat assessments and strategic analysis — trusted by government and corporate security teams.',
+    url: 'https://worldview.stratfor.com', region: 'Global' },
+]
+
 // ── Status icon ───────────────────────────────────────────────────────────────
 function StatusIcon({ status }) {
   if (status === 'active') {
@@ -118,7 +242,6 @@ function StatusIcon({ status }) {
   if (status === 'error') {
     return <X size={15} className="text-red-500" strokeWidth={2.5} />
   }
-  // pending_key / partnership / pending
   return <Plus size={15} className="text-amber-400" strokeWidth={2.5} />
 }
 
@@ -148,7 +271,6 @@ function StatusLegend() {
 function FeedRow({ feed, onDelete }) {
   return (
     <tr className="border-b border-gray-100 hover:bg-[#0118A1]/[0.03] transition-colors group">
-      {/* Feed Name */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-gray-900">{feed.name}</span>
@@ -160,30 +282,20 @@ function FeedRow({ feed, onDelete }) {
           <span className="text-[10px] font-mono text-gray-400">{feed.envVar}</span>
         )}
       </td>
-
-      {/* Category */}
       <td className="px-4 py-3">
         <CategoryPill categoryId={feed.category} />
       </td>
-
-      {/* Description */}
       <td className="px-4 py-3 max-w-xs">
         <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{feed.description || '—'}</p>
       </td>
-
-      {/* Geography */}
       <td className="px-4 py-3 whitespace-nowrap">
         <span className="text-xs text-gray-700">{feed.geography || '—'}</span>
       </td>
-
-      {/* Status icon */}
       <td className="px-4 py-3 text-center">
         <div className="flex justify-center">
           <StatusIcon status={feed.status} />
         </div>
       </td>
-
-      {/* Source / delete */}
       <td className="px-4 py-3 text-right whitespace-nowrap">
         <div className="flex items-center gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
           {feed.sourceUrl && (
@@ -210,7 +322,6 @@ function FeedTable({ feeds, onDelete, emptyMsg }) {
     return <div className="text-xs text-gray-400 italic py-8 text-center">{emptyMsg}</div>
   }
 
-  // Group by category
   const grouped = CATEGORIES.map(cat => ({
     ...cat,
     feeds: feeds.filter(f => f.category === cat.id),
@@ -234,7 +345,6 @@ function FeedTable({ feeds, onDelete, emptyMsg }) {
             const GIcon = group.icon
             return (
               <>
-                {/* Category separator row */}
                 <tr key={`cat-${group.id}`}>
                   <td colSpan={6} className={`px-4 py-2 ${group.bg} border-y ${group.border}`}>
                     <div className="flex items-center gap-2">
@@ -252,6 +362,162 @@ function FeedTable({ feeds, onDelete, emptyMsg }) {
           })}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+// ── Audit Panel ───────────────────────────────────────────────────────────────
+function ActivationCard({ feed, guide }) {
+  const [open, setOpen] = useState(false)
+  if (!guide) return null
+  return (
+    <div className="bg-white border border-amber-200 rounded-[8px] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+      <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border-b border-amber-200 cursor-pointer"
+        onClick={() => setOpen(o => !o)}>
+        <div className="flex items-center gap-3">
+          <Plus size={14} className="text-amber-500" strokeWidth={2.5} />
+          <div>
+            <span className="text-sm font-semibold text-gray-900">{feed.name}</span>
+            <span className="text-xs text-gray-500 ml-2">{feed.description?.split('—')[0]?.trim()}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-amber-700 bg-amber-100 border border-amber-200 rounded px-2 py-0.5 font-medium">{guide.cost}</span>
+          {open ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+        </div>
+      </div>
+      {open && (
+        <div className="px-4 py-4">
+          <p className="text-xs font-semibold text-gray-600 mb-2 uppercase tracking-wide">Activation steps</p>
+          <ol className="space-y-1.5 mb-4">
+            {guide.steps.map((step, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs text-gray-700">
+                <span className="shrink-0 w-5 h-5 rounded-full bg-amber-100 text-amber-700 font-bold flex items-center justify-center text-[10px] mt-0.5">{i + 1}</span>
+                {step}
+              </li>
+            ))}
+          </ol>
+          <a href={guide.url} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold px-4 py-2 rounded-[6px] text-xs transition-colors">
+            <ExternalLink size={12} />
+            {guide.cost.startsWith('$') || guide.cost.toLowerCase().includes('month') ? 'Purchase & get key' : 'Register for free key'}
+          </a>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SuggestedCard({ suggestion }) {
+  const c = getCat(suggestion.category)
+  const Icon = c.icon
+  return (
+    <div className="bg-white border border-gray-200 rounded-[8px] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:border-gray-300 transition-colors">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-gray-900">{suggestion.name}</span>
+          {suggestion.tier === 'paid' && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] bg-violet-50 text-violet-700 border border-violet-200 rounded px-1.5 py-0.5 font-semibold">
+              <Star size={8} /> Premium
+            </span>
+          )}
+          {suggestion.tier === 'free' && (
+            <span className="text-[10px] bg-green-50 text-green-700 border border-green-200 rounded px-1.5 py-0.5 font-semibold">Free</span>
+          )}
+        </div>
+        <a href={suggestion.url} target="_blank" rel="noopener noreferrer"
+          className="shrink-0 text-[#0118A1] hover:text-[#0118A1]/70 transition-colors">
+          <ExternalLink size={13} />
+        </a>
+      </div>
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide border mb-2 ${c.bg} ${c.text} ${c.border}`}>
+        <Icon size={9} />{c.label}
+      </span>
+      <p className="text-xs text-gray-500 leading-relaxed mt-1">{suggestion.description}</p>
+      <p className="text-[10px] text-gray-400 mt-2 font-medium">{suggestion.region} · {suggestion.cost}</p>
+    </div>
+  )
+}
+
+function AuditPanel({ allFeeds }) {
+  const activeFeeds = allFeeds.filter(f => f.status === 'active')
+  const pendingFeeds = allFeeds.filter(f => ['pending_key', 'pending', 'partnership'].includes(f.status))
+  const pendingKeyFeeds = allFeeds.filter(f => f.status === 'pending_key')
+
+  const freesuggestions = SUGGESTED_FEEDS.filter(s => s.tier === 'free')
+  const paidSuggestions = SUGGESTED_FEEDS.filter(s => s.tier === 'paid')
+
+  return (
+    <div className="space-y-8">
+
+      {/* ── Section A: Active ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+          <h2 className="text-base font-bold text-gray-900">Active & Live</h2>
+          <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{activeFeeds.length} feeds</span>
+        </div>
+        <div className="bg-white border border-green-200 rounded-[8px] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          {activeFeeds.map((feed, i) => {
+            const c = getCat(feed.category)
+            const Icon = c.icon
+            return (
+              <div key={feed.id}
+                className={`flex items-center gap-3 px-4 py-3 ${i < activeFeeds.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                <Check size={14} className="text-green-500 shrink-0" strokeWidth={2.5} />
+                <span className="text-sm font-semibold text-gray-900 min-w-[160px]">{feed.name}</span>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
+                  <Icon size={9} />{c.label}
+                </span>
+                <span className="text-xs text-gray-500 flex-1 truncate">{feed.geography}</span>
+                <span className="text-[10px] text-gray-400">{feed.updateFrequency}</span>
+                {feed.sourceUrl && (
+                  <a href={feed.sourceUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-gray-300 hover:text-[#0118A1] transition-colors shrink-0">
+                    <ExternalLink size={12} />
+                  </a>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── Section B: Needs Activation ── */}
+      {pendingKeyFeeds.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+            <h2 className="text-base font-bold text-gray-900">Needs Activation</h2>
+            <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{pendingKeyFeeds.length} feeds</span>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">These feeds are built in — they just need API keys or subscriptions. Click a feed to see the activation steps.</p>
+          <div className="space-y-3">
+            {pendingKeyFeeds.map(feed => (
+              <ActivationCard key={feed.id} feed={feed} guide={ACTIVATION_GUIDE[feed.id]} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Section C: Suggested ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <Lightbulb size={16} className="text-[#0118A1]" />
+          <h2 className="text-base font-bold text-gray-900">Suggested Additions</h2>
+        </div>
+        <p className="text-xs text-gray-500 mb-5">Additional feeds recommended for a comprehensive duty-of-care programme. Mix of free and subscription options.</p>
+
+        <h3 className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Free / Self-Register</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
+          {freesuggestions.map(s => <SuggestedCard key={s.name} suggestion={s} />)}
+        </div>
+
+        <h3 className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-3">Premium / Enterprise</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {paidSuggestions.map(s => <SuggestedCard key={s.name} suggestion={s} />)}
+        </div>
+      </div>
     </div>
   )
 }
@@ -322,7 +588,6 @@ function AddFeedModal({ onClose, onSaved, defaultScope = 'international', defaul
             <input className={inputClass} placeholder="e.g. OSAC Security Reports" {...f('name')} />
           </div>
 
-          {/* Scope toggle — prominent */}
           <div>
             <label className={labelClass}>Scope</label>
             <div className="grid grid-cols-2 gap-2">
@@ -339,7 +604,6 @@ function AddFeedModal({ onClose, onSaved, defaultScope = 'international', defaul
             </div>
           </div>
 
-          {/* Country field — only shown for local */}
           {form.scope === 'local' && (
             <div>
               <label className={labelClass}>Country / Countries *</label>
@@ -410,8 +674,6 @@ function AddFeedModal({ onClose, onSaved, defaultScope = 'international', defaul
   )
 }
 
-// RSS components moved to Briefings.jsx
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function IntelFeeds() {
   const [customFeeds, setCustomFeeds] = useState([])
@@ -450,7 +712,6 @@ export default function IntelFeeds() {
 
   const openModal = (defaults = {}) => { setModalDefaults(defaults); setShowModal(true) }
 
-  // Override hardcoded statuses with live server-side check
   const allFeeds = [...BUILTIN_FEEDS.map(f => ({
     ...f,
     status: liveStatuses[f.id] ?? f.status,
@@ -458,13 +719,18 @@ export default function IntelFeeds() {
   const intlFeeds = allFeeds.filter(f => f.scope === 'international')
   const localFeeds = allFeeds.filter(f => f.scope === 'local')
 
-  // All countries that have at least one local feed
   const localCountries = [...new Set(localFeeds.flatMap(f => f.countries || []))].sort()
-  // Default to first country if none selected
   const selectedCountry = localCountry || localCountries[0] || null
   const countryFeeds = selectedCountry ? localFeeds.filter(f => (f.countries || []).includes(selectedCountry)) : []
 
   const liveCount = allFeeds.filter(f => f.status === 'active').length
+  const pendingCount = allFeeds.filter(f => f.status === 'pending_key').length
+
+  const TABS = [
+    { id: 'international', label: 'International', icon: Globe,       count: intlFeeds.length },
+    { id: 'local',         label: 'Local',         icon: MapPin,      count: localFeeds.length },
+    { id: 'audit',         label: 'Feed Audit',    icon: AlertCircle, count: null },
+  ]
 
   return (
     <Layout>
@@ -504,7 +770,7 @@ export default function IntelFeeds() {
         {[
           { label: 'Total Feeds', value: allFeeds.length },
           { label: 'Live & Active', value: liveCount, color: 'text-green-600' },
-          { label: 'Pending Setup', value: allFeeds.filter(f => f.status !== 'active').length, color: 'text-amber-600' },
+          { label: 'Needs Activation', value: pendingCount, color: 'text-amber-600' },
           { label: 'Custom Added', value: customFeeds.length, color: 'text-[#0118A1]' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-4 text-center">
@@ -514,28 +780,27 @@ export default function IntelFeeds() {
         ))}
       </div>
 
-      {/* Tabs: International / Local */}
+      {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-gray-100 rounded-[8px] p-1 w-fit">
-        <button onClick={() => setActiveTab('international')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors
-            ${activeTab === 'international' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-          <Globe size={14} />
-          International
-          <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-1.5">{intlFeeds.length}</span>
-        </button>
-        <button onClick={() => setActiveTab('local')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors
-            ${activeTab === 'local' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-          <MapPin size={14} />
-          Local
-          <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-1.5">{localFeeds.length}</span>
-        </button>
+        {TABS.map(tab => {
+          const Icon = tab.icon
+          return (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors
+                ${activeTab === tab.id ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              <Icon size={14} />
+              {tab.label}
+              {tab.count !== null && (
+                <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-1.5">{tab.count}</span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
       {loading ? (
         <div className="text-sm text-gray-400 text-center py-16">Loading feeds…</div>
       ) : activeTab === 'international' ? (
-        /* ── International tab ── */
         <div>
           <div className="flex items-center justify-between mb-3">
             <StatusLegend />
@@ -546,8 +811,8 @@ export default function IntelFeeds() {
           </div>
           <FeedTable feeds={intlFeeds} onDelete={handleDelete} emptyMsg="No international feeds configured." />
         </div>
-      ) : (
-        /* ── Local tab ── */
+
+      ) : activeTab === 'local' ? (
         <div>
           <div className="flex items-center justify-between mb-3">
             <StatusLegend />
@@ -569,7 +834,6 @@ export default function IntelFeeds() {
             </div>
           ) : (
             <>
-              {/* Country tabs */}
               <div className="flex gap-2 flex-wrap mb-6">
                 {localCountries.map(country => (
                   <button key={country}
@@ -591,7 +855,6 @@ export default function IntelFeeds() {
                 </button>
               </div>
 
-              {/* Feeds for selected country */}
               {selectedCountry && (
                 <div>
                   <div className="flex items-center gap-2 mb-4">
@@ -605,6 +868,10 @@ export default function IntelFeeds() {
             </>
           )}
         </div>
+
+      ) : (
+        /* ── Audit tab ── */
+        <AuditPanel allFeeds={allFeeds} />
       )}
 
       {lastRefresh && (
