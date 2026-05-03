@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import {
   Radio, RefreshCw, ExternalLink, Key, Handshake,
   Clock, Plus, X, Plane, Ship, Rss,
-  Zap, Globe, Shield, MessageSquare, Crosshair, MapPin, CloudLightning, ChevronDown, ChevronUp
+  Zap, Globe, Shield, MessageSquare, Crosshair, MapPin, CloudLightning, ChevronDown, ChevronUp,
+  Check, AlertCircle
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -109,14 +110,16 @@ const STATUS = {
   error:       { label: 'Error',               dot: 'bg-red-500',    text: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200' },
 }
 
-function StatusDot({ status }) {
-  const s = STATUS[status] || STATUS.pending
-  return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-      <span className={`w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
-      <span className={`text-xs font-medium ${s.text}`}>{s.label}</span>
-    </span>
-  )
+// ── Status icon ───────────────────────────────────────────────────────────────
+function StatusIcon({ status }) {
+  if (status === 'active') {
+    return <Check size={15} className="text-green-500" strokeWidth={2.5} />
+  }
+  if (status === 'error') {
+    return <X size={15} className="text-red-500" strokeWidth={2.5} />
+  }
+  // pending_key / partnership / pending
+  return <Plus size={15} className="text-amber-400" strokeWidth={2.5} />
 }
 
 function CategoryPill({ categoryId }) {
@@ -129,68 +132,69 @@ function CategoryPill({ categoryId }) {
   )
 }
 
-// ── Feed Table Row ────────────────────────────────────────────────────────────
-function FeedRow({ feed, onDelete, isEven }) {
-  const rowBg = isEven ? 'bg-white' : 'bg-gray-50/50'
-  const sourceLinkLabel = feed.status === 'partnership' ? 'Website' : feed.status === 'pending_key' ? 'Get key' : 'Source'
-
+// ── Legend ────────────────────────────────────────────────────────────────────
+function StatusLegend() {
   return (
-    <tr className={`${rowBg} border-b border-gray-100 hover:bg-blue-50/30 transition-colors group`}>
-      {/* Status */}
-      <td className="px-3 py-2.5 whitespace-nowrap">
-        <StatusDot status={feed.status} />
-      </td>
+    <div className="flex items-center gap-5 text-xs text-gray-500 mb-3">
+      <span className="font-medium text-gray-600">Status:</span>
+      <span className="flex items-center gap-1.5"><Check size={12} className="text-green-500" strokeWidth={2.5} /> Live</span>
+      <span className="flex items-center gap-1.5"><Plus size={12} className="text-amber-400" strokeWidth={2.5} /> Needs activation</span>
+      <span className="flex items-center gap-1.5"><X size={12} className="text-red-500" strokeWidth={2.5} /> Error</span>
+    </div>
+  )
+}
 
+// ── Feed Table Row ────────────────────────────────────────────────────────────
+function FeedRow({ feed, onDelete }) {
+  return (
+    <tr className="border-b border-gray-100 hover:bg-[#0118A1]/[0.03] transition-colors group">
       {/* Feed Name */}
-      <td className="px-3 py-2.5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-semibold text-gray-900 leading-tight">{feed.name}</span>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-gray-900">{feed.name}</span>
           {!feed.builtin && (
-            <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded font-medium leading-none">
-              Custom
-            </span>
-          )}
-          {feed.envVar && (
-            <span className="hidden sm:inline text-[10px] font-mono text-gray-400 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded leading-none">
-              {feed.envVar}
-            </span>
+            <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded font-medium">Custom</span>
           )}
         </div>
+        {feed.envVar && (
+          <span className="text-[10px] font-mono text-gray-400">{feed.envVar}</span>
+        )}
       </td>
 
       {/* Category */}
-      <td className="px-3 py-2.5 hidden md:table-cell">
+      <td className="px-4 py-3">
         <CategoryPill categoryId={feed.category} />
       </td>
 
       {/* Description */}
-      <td className="px-3 py-2.5 hidden lg:table-cell">
-        <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 max-w-xs">{feed.description || '—'}</p>
+      <td className="px-4 py-3 max-w-xs">
+        <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{feed.description || '—'}</p>
       </td>
 
       {/* Geography */}
-      <td className="px-3 py-2.5 hidden sm:table-cell whitespace-nowrap">
+      <td className="px-4 py-3 whitespace-nowrap">
         <span className="text-xs text-gray-700">{feed.geography || '—'}</span>
       </td>
 
-      {/* Update Frequency */}
-      <td className="px-3 py-2.5 hidden xl:table-cell whitespace-nowrap">
-        <span className="text-xs text-gray-500">{feed.updateFrequency || '—'}</span>
+      {/* Status icon */}
+      <td className="px-4 py-3 text-center">
+        <div className="flex justify-center">
+          <StatusIcon status={feed.status} />
+        </div>
       </td>
 
-      {/* Actions */}
-      <td className="px-3 py-2.5 whitespace-nowrap">
-        <div className="flex items-center gap-2 justify-end">
+      {/* Source / delete */}
+      <td className="px-4 py-3 text-right whitespace-nowrap">
+        <div className="flex items-center gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
           {feed.sourceUrl && (
             <a href={feed.sourceUrl} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-[#0118A1] hover:underline opacity-0 group-hover:opacity-100 transition-opacity font-medium">
+              className="text-xs text-[#0118A1] hover:underline font-medium flex items-center gap-1">
               <ExternalLink size={11} />
-              <span className="hidden sm:inline">{sourceLinkLabel}</span>
+              {feed.status === 'pending_key' ? 'Get key' : feed.status === 'partnership' ? 'Website' : 'Source'}
             </a>
           )}
           {!feed.builtin && (
-            <button onClick={() => onDelete(feed.id)}
-              className="text-gray-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 p-0.5 rounded">
+            <button onClick={() => onDelete(feed.id)} className="text-gray-300 hover:text-red-400 transition-colors">
               <X size={13} />
             </button>
           )}
@@ -203,9 +207,7 @@ function FeedRow({ feed, onDelete, isEven }) {
 // ── Feed Table ────────────────────────────────────────────────────────────────
 function FeedTable({ feeds, onDelete, emptyMsg }) {
   if (!feeds.length) {
-    return (
-      <div className="text-xs text-gray-400 italic py-8 text-center">{emptyMsg}</div>
-    )
+    return <div className="text-xs text-gray-400 italic py-8 text-center">{emptyMsg}</div>
   }
 
   // Group by category
@@ -214,29 +216,17 @@ function FeedTable({ feeds, onDelete, emptyMsg }) {
     feeds: feeds.filter(f => f.category === cat.id),
   })).filter(g => g.feeds.length > 0)
 
-  let rowIndex = 0
-
   return (
     <div className="bg-white rounded-[8px] border border-gray-200 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-      <table className="w-full table-fixed border-collapse">
-        <colgroup>
-          <col style={{ width: '140px' }} />
-          <col style={{ width: '220px' }} />
-          <col className="hidden md:table-column" style={{ width: '160px' }} />
-          <col className="hidden lg:table-column" style={{ width: 'auto' }} />
-          <col className="hidden sm:table-column" style={{ width: '160px' }} />
-          <col className="hidden xl:table-column" style={{ width: '160px' }} />
-          <col style={{ width: '80px' }} />
-        </colgroup>
+      <table className="w-full border-collapse">
         <thead>
-          <tr className="border-b border-gray-200 bg-gray-50">
-            <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-            <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Feed Name</th>
-            <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Category</th>
-            <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Description</th>
-            <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Geography</th>
-            <th className="px-3 py-2 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide hidden xl:table-cell">Frequency</th>
-            <th className="px-3 py-2 text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wide"></th>
+          <tr className="border-b-2 border-gray-200 bg-gray-50/80">
+            <th className="px-4 py-2.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Feed</th>
+            <th className="px-4 py-2.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Category</th>
+            <th className="px-4 py-2.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">What it provides</th>
+            <th className="px-4 py-2.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Geography</th>
+            <th className="px-4 py-2.5 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
+            <th className="px-4 py-2.5" />
           </tr>
         </thead>
         <tbody>
@@ -244,26 +234,19 @@ function FeedTable({ feeds, onDelete, emptyMsg }) {
             const GIcon = group.icon
             return (
               <>
-                {/* Category header row */}
-                <tr key={`cat-${group.id}`} className="border-b border-gray-100">
-                  <td colSpan={7} className="px-3 py-1.5 bg-gray-50/80">
+                {/* Category separator row */}
+                <tr key={`cat-${group.id}`}>
+                  <td colSpan={6} className={`px-4 py-2 ${group.bg} border-y ${group.border}`}>
                     <div className="flex items-center gap-2">
-                      <div className={`w-5 h-5 rounded flex items-center justify-center ${group.bg} border ${group.border}`}>
-                        <GIcon size={11} className={group.text} />
-                      </div>
-                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{group.label}</span>
-                      <span className="text-[10px] text-gray-400 bg-gray-200 rounded-full px-1.5 py-0.5 leading-none">{group.feeds.length}</span>
+                      <GIcon size={12} className={group.text} />
+                      <span className={`text-[11px] font-bold uppercase tracking-widest ${group.text}`}>{group.label}</span>
+                      <span className={`text-[10px] font-semibold ${group.text} opacity-60`}>{group.feeds.length}</span>
                     </div>
                   </td>
                 </tr>
-                {/* Feed rows */}
-                {group.feeds.map((feed) => {
-                  const isEven = rowIndex % 2 === 0
-                  rowIndex++
-                  return (
-                    <FeedRow key={feed.id} feed={feed} onDelete={onDelete} isEven={isEven} />
-                  )
-                })}
+                {group.feeds.map(feed => (
+                  <FeedRow key={feed.id} feed={feed} onDelete={onDelete} />
+                ))}
               </>
             )
           })}
@@ -770,10 +753,10 @@ export default function IntelFeeds() {
       ) : activeTab === 'international' ? (
         /* ── International tab ── */
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs text-gray-500">Feeds available to all offices and regions</p>
+          <div className="flex items-center justify-between mb-3">
+            <StatusLegend />
             <button onClick={() => openModal({ scope: 'international' })}
-              className="text-xs text-[#0118A1] hover:underline flex items-center gap-1">
+              className="text-xs text-[#0118A1] hover:underline flex items-center gap-1 shrink-0">
               <Plus size={11} /> Add international feed
             </button>
           </div>
@@ -782,10 +765,10 @@ export default function IntelFeeds() {
       ) : (
         /* ── Local tab ── */
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs text-gray-500">Country-specific feeds — each office sees only their relevant local sources</p>
+          <div className="flex items-center justify-between mb-3">
+            <StatusLegend />
             <button onClick={() => openModal({ scope: 'local', country: selectedCountry || '' })}
-              className="text-xs text-[#0118A1] hover:underline flex items-center gap-1">
+              className="text-xs text-[#0118A1] hover:underline flex items-center gap-1 shrink-0">
               <Plus size={11} /> Add local feed
             </button>
           </div>
