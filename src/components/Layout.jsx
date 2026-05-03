@@ -48,39 +48,45 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     const loadData = async () => {
-      // Force-refresh the JWT so app_metadata reflects latest DB values
-      await supabase.auth.refreshSession()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      // getUser() makes a live server request — always fresh
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) return
 
-      // Ask the server for the role — uses service role key, bypasses all RLS
-      let role = null
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        const res = await fetch('/api/my-role', {
-          headers: { Authorization: `Bearer ${session?.access_token}` }
-        })
-        if (res.ok) {
-          const json = await res.json()
-          if (json.role && json.role !== 'traveller') role = json.role
-        }
-      } catch (_) {}
-
-      // Also load the full profile row for display (name, etc.)
+      // Load full profile for display (name etc.)
       const { data: prof } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
 
-      // Priority: server API > profiles table > traveller
-      const finalRole = role || prof?.role || 'traveller'
+      // Try the server API (uses service role, bypasses RLS)
+      let apiRole = null
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.access_token) {
+          const res = await fetch('/api/my-role', {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          })
+          if (res.ok) {
+            const json = await res.json()
+            if (json.role && json.role !== 'traveller') apiRole = json.role
+          }
+        }
+      } catch (_) {}
+
+      // Priority: API (service role) > profiles table > JWT metadata > default
+      const finalRole =
+        apiRole ||
+        prof?.role ||
+        user.app_metadata?.role ||
+        user.user_metadata?.role ||
+        'traveller'
 
       setProfile({
         id: user.id,
         email: user.email,
         ...(prof || {}),
-        role: finalRole,   // always wins — never overridden by the spread
+        role: finalRole,
       })
 
       const { count } = await supabase
