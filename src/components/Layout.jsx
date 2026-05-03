@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutGrid, MapPin, Bell, FileText, CheckCircle,
-  Users, LogOut, UserCircle, Radio, Newspaper
+  Users, LogOut, UserCircle, Radio, Newspaper, Briefcase
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -115,6 +115,9 @@ export default function Layout({ children }) {
           {profile?.role === 'admin' && (
             <NavItem to="/intel-feeds" icon={Radio} label="Intel Feeds" />
           )}
+
+          <NavSection label="Services" />
+          <NavItem to="/services" icon={Briefcase} label="Service Providers" />
 
           <NavSection label="Compliance" />
           <NavItem to="/policies" icon={FileText} label="Policy Library" />

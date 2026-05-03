@@ -10,6 +10,7 @@ import Tracker from './pages/Tracker'
 import Profile from './pages/Profile'
 import IntelFeeds from './pages/IntelFeeds'
 import Briefings from './pages/Briefings'
+import Services from './pages/Services'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/intel-feeds" element={<ProtectedRoute adminOnly><IntelFeeds /></ProtectedRoute>} />
         <Route path="/briefings" element={<ProtectedRoute><Briefings /></ProtectedRoute>} />
+        <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )
