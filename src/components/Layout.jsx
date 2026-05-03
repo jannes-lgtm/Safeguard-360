@@ -48,19 +48,25 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     const loadData = async () => {
+      // Force-refresh the JWT so app_metadata reflects latest DB values
+      await supabase.auth.refreshSession()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Get role via SECURITY DEFINER RPC — bypasses RLS completely
-      const { data: roleFromRpc } = await supabase.rpc('get_my_role')
+      // Try 1: SECURITY DEFINER RPC (bypasses RLS entirely)
+      const { data: roleFromRpc } = await supabase.rpc('get_my_role').single().catch(() => ({ data: null }))
 
+      // Try 2: profiles table direct read
       const { data: prof } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
 
-      const role = roleFromRpc || prof?.role || user.app_metadata?.role || 'traveller'
+      // Try 3: freshly-refreshed JWT app_metadata
+      const metaRole = user.app_metadata?.role
+
+      const role = roleFromRpc || prof?.role || metaRole || 'traveller'
 
       setProfile({
         id: user.id,
