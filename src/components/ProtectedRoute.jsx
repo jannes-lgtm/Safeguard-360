@@ -8,9 +8,9 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { user } } = await supabase.auth.getUser()
 
-      if (!session) {
+      if (!user) {
         navigate('/login')
         return
       }
@@ -19,7 +19,7 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
-          .eq('id', session.user.id)
+          .eq('id', user.id)
           .single()
 
         if (!profile || profile.role !== 'admin') {

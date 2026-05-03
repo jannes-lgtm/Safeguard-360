@@ -48,17 +48,14 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     const loadData = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-      const { data: prof, error: profErr } = await supabase
+      const { data: prof } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single()
-      console.log('[Layout] session.user.id:', session.user.id)
-      console.log('[Layout] profile data:', prof)
-      console.log('[Layout] profile error:', profErr)
       setProfile(prof)
 
       const { count } = await supabase
