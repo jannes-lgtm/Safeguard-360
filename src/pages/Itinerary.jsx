@@ -37,6 +37,7 @@ export default function Itinerary() {
   const [userId, setUserId] = useState(null)
   const [profile, setProfile] = useState(null)
   const [editingId, setEditingId] = useState(null)
+  const [tripAlertMap, setTripAlertMap] = useState({}) // itinerary_id → alert[]
 
   const emptyForm = { trip_name: '', flight_number: '', departure_city: '', arrival_city: '', depart_date: '', return_date: '', hotel_name: '', meetings: '' }
   const [form, setForm] = useState(emptyForm)
@@ -86,6 +87,23 @@ export default function Itinerary() {
         setLoadError('Could not load your trips. Please refresh the page.')
       }
       setTrips(trips || [])
+
+      // Load personalised trip alerts for all user itineraries
+      const { data: taData } = await supabase
+        .from('trip_alerts')
+        .select('id, itinerary_id, alert_type, severity, title, is_read')
+        .eq('user_id', uid)
+        .eq('is_read', false)
+        .order('severity', { ascending: false })
+
+      if (taData) {
+        const map = {}
+        for (const ta of taData) {
+          if (!map[ta.itinerary_id]) map[ta.itinerary_id] = []
+          map[ta.itinerary_id].push(ta)
+        }
+        setTripAlertMap(map)
+      }
 
       const { data: prof } = await supabase
         .from('profiles')
@@ -262,6 +280,44 @@ export default function Itinerary() {
                               profile={profile}
                             />
                           )}
+                        </div>
+                      )}
+
+                      {/* Inline trip alerts */}
+                      {tripAlertMap[trip.id]?.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
+                            Trip Alerts ({tripAlertMap[trip.id].length})
+                          </p>
+                          <div className="space-y-1">
+                            {tripAlertMap[trip.id].slice(0, 3).map(ta => (
+                              <div key={ta.id} className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs ${
+                                ta.severity === 'Critical' ? 'bg-red-50 border-l-2 border-red-500' :
+                                ta.severity === 'High'     ? 'bg-amber-50 border-l-2 border-amber-500' :
+                                ta.severity === 'Medium'   ? 'bg-yellow-50 border-l-2 border-yellow-400' :
+                                'bg-gray-50 border-l-2 border-gray-300'
+                              }`}>
+                                <span className="shrink-0">
+                                  {ta.alert_type === 'disaster' ? '🌋' :
+                                   ta.alert_type === 'earthquake' ? '🔴' :
+                                   ta.alert_type === 'flight' ? '✈️' :
+                                   ta.alert_type === 'weather' ? '⛈️' :
+                                   ta.alert_type === 'security' ? '🛡️' : '⚠️'}
+                                </span>
+                                <span className="text-gray-700 truncate">{ta.title}</span>
+                                <span className={`ml-auto shrink-0 text-[10px] font-semibold ${
+                                  ta.severity === 'Critical' ? 'text-red-600' :
+                                  ta.severity === 'High' ? 'text-amber-600' :
+                                  'text-yellow-600'
+                                }`}>{ta.severity}</span>
+                              </div>
+                            ))}
+                            {tripAlertMap[trip.id].length > 3 && (
+                              <p className="text-[10px] text-gray-400 pl-1">
+                                +{tripAlertMap[trip.id].length - 3} more — check Dashboard
+                              </p>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

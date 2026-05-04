@@ -50,6 +50,7 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [activeAlertCount, setActiveAlertCount] = useState(0)
+  const [tripAlertCount, setTripAlertCount] = useState(0)
   useEffect(() => {
     const loadData = async () => {
       // getUser() makes a live server request — always fresh
@@ -79,11 +80,17 @@ export default function Layout({ children }) {
         role: finalRole,
       })
 
-      const { count } = await supabase
-        .from('alerts')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'Active')
+      const [{ count }, { count: taCount }] = await Promise.all([
+        supabase.from('alerts')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'Active'),
+        supabase.from('trip_alerts')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('is_read', false),
+      ])
       setActiveAlertCount(count || 0)
+      setTripAlertCount(taCount || 0)
     }
     loadData()
   }, [])
@@ -113,7 +120,7 @@ export default function Layout({ children }) {
 
           <NavSection label="My Travel" />
           <NavItem to="/itinerary" icon={MapPin} label="My Itinerary" />
-          <NavItem to="/alerts" icon={Bell} label="Risk Alerts" badge={activeAlertCount} />
+          <NavItem to="/alerts" icon={Bell} label="Risk Alerts" badge={activeAlertCount + tripAlertCount} />
           <NavItem to="/checkin" icon={CheckCircle} label="Check In" />
           <NavItem to="/live-map" icon={Navigation} label="Live Location" />
           <NavItem to="/sos" icon={AlertOctagon} label="SOS Emergency" red />

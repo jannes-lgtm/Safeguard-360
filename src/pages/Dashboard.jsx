@@ -12,6 +12,118 @@ import { cityToCountry, SEVERITY_STYLE } from '../data/intelData'
 const BRAND_BLUE  = '#0118A1'
 const BRAND_GREEN = '#AACC00'
 
+// ── Trip alert helpers ────────────────────────────────────────────────────────
+
+const SEVERITY_ORDER = { Critical: 0, High: 1, Medium: 2, Low: 3, Info: 4 }
+
+const TRIP_ALERT_STYLES = {
+  Critical: 'border-l-4 border-red-500 bg-red-50',
+  High:     'border-l-4 border-amber-500 bg-amber-50',
+  Medium:   'border-l-4 border-yellow-400 bg-yellow-50',
+  Low:      'border-l-4 border-gray-300 bg-gray-50',
+  Info:     'border-l-4 border-blue-300 bg-blue-50',
+}
+
+const ALERT_TYPE_ICON = {
+  disaster:   '🌋',
+  earthquake: '🔴',
+  flight:     '✈️',
+  weather:    '⛈️',
+  security:   '🛡️',
+  health:     '🏥',
+  political:  '🏛️',
+}
+
+function fmtEventDate(d) {
+  if (!d) return null
+  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function TripAlertsSection({ alerts, onMarkRead, onDismissAll }) {
+  // Sort by severity then date
+  const sorted = [...alerts].sort((a, b) => {
+    const so = (SEVERITY_ORDER[a.severity] ?? 5) - (SEVERITY_ORDER[b.severity] ?? 5)
+    if (so !== 0) return so
+    return new Date(b.created_at) - new Date(a.created_at)
+  })
+
+  return (
+    <div className="mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">⚠️</span>
+          <h2 className="text-sm font-bold text-gray-800">Trip Alerts</h2>
+          <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+            {alerts.length}
+          </span>
+        </div>
+        <button
+          onClick={onDismissAll}
+          className="text-xs text-gray-400 hover:text-gray-600 font-medium transition-colors"
+        >
+          Dismiss all
+        </button>
+      </div>
+
+      {/* Alert list */}
+      <div className="space-y-2">
+        {sorted.map(alert => (
+          <div
+            key={alert.id}
+            className={`rounded-[8px] p-3 flex items-start gap-3 shadow-[0_1px_3px_rgba(0,0,0,0.06)] ${TRIP_ALERT_STYLES[alert.severity] || TRIP_ALERT_STYLES.Low}`}
+          >
+            {/* Type icon */}
+            <span className="text-lg shrink-0 leading-none mt-0.5">
+              {ALERT_TYPE_ICON[alert.alert_type] || '⚠️'}
+            </span>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-1">
+                  {alert.title}
+                </p>
+                {/* Mark read X */}
+                <button
+                  onClick={() => onMarkRead(alert.id)}
+                  className="shrink-0 text-gray-400 hover:text-gray-600 text-xs font-bold leading-none mt-0.5"
+                  title="Dismiss"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {alert.description && (
+                <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{alert.description}</p>
+              )}
+
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                {/* Trip label */}
+                {alert.trip_name && (
+                  <span className="text-[10px] bg-white/70 border border-gray-200 text-gray-600 rounded px-1.5 py-0.5 font-medium">
+                    {alert.trip_name}
+                  </span>
+                )}
+                {/* Source badge */}
+                {alert.source && (
+                  <span className="text-[10px] bg-[#0118A1]/10 text-[#0118A1] rounded px-1.5 py-0.5 font-medium">
+                    {alert.source}
+                  </span>
+                )}
+                {/* Event date */}
+                {alert.event_date && (
+                  <span className="text-[10px] text-gray-400">{fmtEventDate(alert.event_date)}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const severityDot = {
   Critical: 'bg-red-500',
   High: 'bg-amber-500',
@@ -32,6 +144,8 @@ export default function Dashboard() {
   const [destAlerts, setDestAlerts]           = useState({})   // country → alert count
   const [selectedCountry, setSelectedCountry] = useState(null) // for IntelBrief drawer
   const [loading, setLoading]                 = useState(true)
+  const [tripAlerts, setTripAlerts]           = useState([])   // personalised trip alerts
+  const [scanLoading, setScanLoading]         = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -96,6 +210,23 @@ export default function Dashboard() {
         setDestRisk(riskMap)
         setDestAlerts(alertMap)
       }
+
+      // ── Trip alert scan (non-blocking fire-and-forget, then load results) ──
+      setScanLoading(true)
+      const token = session.access_token
+      fetch('/api/trip-alert-scan', {
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {})
+
+      const { data: ta } = await supabase
+        .from('trip_alerts')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('is_read', false)
+        .order('created_at', { ascending: false })
+        .limit(20)
+      setTripAlerts(ta || [])
+      setScanLoading(false)
 
       setLoading(false)
     }
@@ -202,6 +333,22 @@ export default function Dashboard() {
             })}
           </div>
         </div>
+      )}
+
+      {/* ── My Trip Alerts ── */}
+      {tripAlerts.length > 0 && (
+        <TripAlertsSection
+          alerts={tripAlerts}
+          onMarkRead={async (id) => {
+            await supabase.from('trip_alerts').update({ is_read: true }).eq('id', id)
+            setTripAlerts(prev => prev.filter(a => a.id !== id))
+          }}
+          onDismissAll={async () => {
+            const ids = tripAlerts.map(a => a.id)
+            await supabase.from('trip_alerts').update({ is_read: true }).in('id', ids)
+            setTripAlerts([])
+          }}
+        />
       )}
 
       {/* Two-panel row */}
