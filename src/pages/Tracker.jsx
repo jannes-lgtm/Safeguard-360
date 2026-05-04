@@ -1,34 +1,33 @@
 import { useEffect, useState } from 'react'
-import { X, MapPin, Plane, Hotel, Users, Bell, AlertTriangle, RefreshCw } from 'lucide-react'
+import { X, MapPin, Plane, Hotel, Users, Bell, AlertTriangle, RefreshCw, Globe, FileText } from 'lucide-react'
 import Layout from '../components/Layout'
 import MetricCard from '../components/MetricCard'
+import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
+import { cityToCountry, SEVERITY_STYLE } from '../data/intelData'
 
-const riskBadgeStyle = {
-  Safe:     'bg-green-100 text-green-700 border border-green-200',
-  Alert:    'bg-amber-100 text-amber-700 border border-amber-200',
-  High:     'bg-amber-100 text-amber-700 border border-amber-200',
-  Critical: 'bg-red-100 text-red-700 border border-red-200',
-  Overdue:  'bg-red-100 text-red-700 border border-red-200',
-  Medium:   'bg-yellow-100 text-yellow-700 border border-yellow-200',
-  Low:      'bg-green-100 text-green-700 border border-green-200',
-}
+const BRAND_BLUE = '#0118A1'
 
 function initials(name) {
   if (!name) return '?'
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 }
 
-function tripStatus(trip) {
-  const today = new Date().toISOString().split('T')[0]
-  if (!trip) return 'Safe'
-  if (trip.return_date < today) return 'Safe'
-  return 'Active'
+function RiskBadge({ severity }) {
+  if (!severity) return <span className="text-xs text-gray-300">—</span>
+  const style = SEVERITY_STYLE[severity] || SEVERITY_STYLE.Medium
+  return (
+    <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border ${style.bg} ${style.border} ${style.text}`}>
+      {severity}
+    </span>
+  )
 }
 
-function SlidePanel({ staff, onClose }) {
+function SlidePanel({ staff, countryRisk, onClose, onOpenIntel }) {
   if (!staff) return null
-  const trip = staff.trip
+  const trip    = staff.trip
+  const country = trip ? cityToCountry(trip.arrival_city) : null
+  const risk    = country ? countryRisk[country] : null
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -44,7 +43,8 @@ function SlidePanel({ staff, onClose }) {
         <div className="p-5 flex flex-col gap-5">
           {/* Staff info */}
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-[#1E2461] flex items-center justify-center text-white font-bold text-sm">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm"
+              style={{ background: BRAND_BLUE }}>
               {initials(staff.full_name || staff.email)}
             </div>
             <div>
@@ -75,6 +75,30 @@ function SlidePanel({ staff, onClose }) {
 
           {trip ? (
             <>
+              {/* Destination risk */}
+              {country && risk && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Destination Risk</div>
+                  <div className={`rounded-[8px] border p-3 ${(SEVERITY_STYLE[risk.severity] || SEVERITY_STYLE.Medium).bg} ${(SEVERITY_STYLE[risk.severity] || SEVERITY_STYLE.Medium).border}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-sm font-bold ${(SEVERITY_STYLE[risk.severity] || SEVERITY_STYLE.Medium).text}`}>
+                        {country} — {risk.severity} Risk
+                      </span>
+                    </div>
+                    {risk.sources && risk.sources.map((s, i) => (
+                      <p key={i} className={`text-xs ${(SEVERITY_STYLE[risk.severity] || SEVERITY_STYLE.Medium).text} opacity-80`}>
+                        {s.source}: {s.level}
+                      </p>
+                    ))}
+                  </div>
+                  <button onClick={() => { onClose(); onOpenIntel(country, staff.full_name || staff.email, trip.return_date) }}
+                    className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-[#0118A1] hover:underline">
+                    <FileText size={11}/>Full Country Intel Brief →
+                  </button>
+                </div>
+              )}
+
+              {/* Trip details */}
               <div className="bg-gray-50 rounded-[8px] p-4 border border-gray-100">
                 <h3 className="font-semibold text-gray-800 text-sm mb-3">{trip.trip_name}</h3>
                 <div className="space-y-2">
@@ -112,10 +136,14 @@ function SlidePanel({ staff, onClose }) {
 }
 
 export default function Tracker() {
-  const [staffList, setStaffList] = useState([])
+  const [staffList, setStaffList]           = useState([])
   const [activeAlertCount, setActiveAlertCount] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [selectedStaff, setSelectedStaff] = useState(null)
+  const [countryRisk, setCountryRisk]       = useState({})  // country → risk object
+  const [loading, setLoading]               = useState(true)
+  const [selectedStaff, setSelectedStaff]   = useState(null)
+  const [intelCountry, setIntelCountry]     = useState(null)
+  const [intelTraveler, setIntelTraveler]   = useState(null)
+  const [intelReturn, setIntelReturn]       = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -131,7 +159,6 @@ export default function Tracker() {
       supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
     ])
 
-    // Map trips to profiles
     const tripMap = {}
     for (const trip of activeTrips || []) {
       if (!tripMap[trip.user_id]) tripMap[trip.user_id] = trip
@@ -142,7 +169,6 @@ export default function Tracker() {
       trip: tripMap[p.id] || null,
     }))
 
-    // Sort: travelling first, then alphabetically
     staff.sort((a, b) => {
       if (a.trip && !b.trip) return -1
       if (!a.trip && b.trip) return 1
@@ -151,6 +177,24 @@ export default function Tracker() {
 
     setStaffList(staff)
     setActiveAlertCount(alertCount || 0)
+
+    // Fetch country risk for all active destinations
+    const countries = [...new Set(
+      (activeTrips || []).map(t => cityToCountry(t.arrival_city)).filter(Boolean)
+    )]
+
+    if (countries.length > 0) {
+      const results = await Promise.all(
+        countries.map(c =>
+          fetch(`/api/country-risk?country=${encodeURIComponent(c)}`)
+            .then(r => r.json())
+            .then(d => [c, d])
+            .catch(() => [c, null])
+        )
+      )
+      setCountryRisk(Object.fromEntries(results))
+    }
+
     setLoading(false)
   }
 
@@ -158,9 +202,31 @@ export default function Tracker() {
 
   const travelling = staffList.filter(s => s.trip).length
 
+  const openIntel = (country, traveler, returnDate) => {
+    setIntelCountry(country)
+    setIntelTraveler(traveler)
+    setIntelReturn(returnDate)
+  }
+  const closeIntel = () => { setIntelCountry(null); setIntelTraveler(null); setIntelReturn(null) }
+
   return (
     <Layout>
-      {selectedStaff && <SlidePanel staff={selectedStaff} onClose={() => setSelectedStaff(null)} />}
+      {selectedStaff && (
+        <SlidePanel
+          staff={selectedStaff}
+          countryRisk={countryRisk}
+          onClose={() => setSelectedStaff(null)}
+          onOpenIntel={openIntel}
+        />
+      )}
+      {intelCountry && (
+        <IntelBrief
+          country={intelCountry}
+          travelerName={intelTraveler}
+          returnDate={intelReturn}
+          onClose={closeIntel}
+        />
+      )}
 
       <div className="mb-6 flex items-center justify-between">
         <div>
@@ -176,9 +242,9 @@ export default function Tracker() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <MetricCard label="Currently Travelling" value={loading ? '–' : travelling} valueColor="text-[#2563EB]" icon={Users} />
-        <MetricCard label="Total Staff" value={loading ? '–' : staffList.length} valueColor="text-gray-700" icon={Users} />
-        <MetricCard label="Active Alerts" value={loading ? '–' : activeAlertCount} valueColor="text-[#D97706]" icon={Bell} />
+        <MetricCard label="Currently Travelling" value={loading ? '–' : travelling}            valueColor="text-[#2563EB]"  icon={Users} />
+        <MetricCard label="Total Staff"           value={loading ? '–' : staffList.length}     valueColor="text-gray-700"   icon={Users} />
+        <MetricCard label="Active Alerts"         value={loading ? '–' : activeAlertCount}     valueColor="text-[#D97706]"  icon={Bell}  />
       </div>
 
       {/* Staff table */}
@@ -189,8 +255,8 @@ export default function Tracker() {
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Staff Member</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Current Trip</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Destination</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Return Date</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Risk Level</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Return</th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
@@ -199,42 +265,69 @@ export default function Tracker() {
               <tr><td colSpan={6} className="px-5 py-8 text-center text-gray-400 text-sm">Loading staff…</td></tr>
             ) : staffList.length === 0 ? (
               <tr><td colSpan={6} className="px-5 py-8 text-center text-gray-400 text-sm">No staff found</td></tr>
-            ) : staffList.map(staff => (
-              <tr key={staff.id}
-                className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors ${staff.trip ? 'bg-blue-50/20' : ''}`}>
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#1E2461] flex items-center justify-center text-white text-xs font-bold shrink-0">
-                      {initials(staff.full_name || staff.email)}
+            ) : staffList.map(staff => {
+              const country = staff.trip ? cityToCountry(staff.trip.arrival_city) : null
+              const risk    = country ? countryRisk[country] : null
+
+              return (
+                <tr key={staff.id}
+                  className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors ${staff.trip ? 'bg-blue-50/20' : ''}`}>
+
+                  {/* Staff */}
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                        style={{ background: BRAND_BLUE }}>
+                        {initials(staff.full_name || staff.email)}
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">{staff.full_name || '—'}</div>
+                        <div className="text-xs text-gray-400">{staff.email}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-medium text-gray-900">{staff.full_name || '—'}</div>
-                      <div className="text-xs text-gray-400">{staff.email}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-5 py-3.5 text-gray-700">{staff.trip?.trip_name || <span className="text-gray-300 italic">Not travelling</span>}</td>
-                <td className="px-5 py-3.5 text-gray-700">{staff.trip?.arrival_city || '—'}</td>
-                <td className="px-5 py-3.5 text-gray-500 text-xs">{staff.trip?.return_date || '—'}</td>
-                <td className="px-5 py-3.5">
-                  {staff.trip ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
-                      Travelling
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-500 border border-gray-200">
-                      At Base
-                    </span>
-                  )}
-                </td>
-                <td className="px-5 py-3.5 text-right">
-                  <button onClick={() => setSelectedStaff(staff)}
-                    className="text-xs font-medium text-[#1E2461] hover:underline">
-                    View
-                  </button>
-                </td>
-              </tr>
-            ))}
+                  </td>
+
+                  {/* Trip name */}
+                  <td className="px-5 py-3.5 text-gray-700">
+                    {staff.trip?.trip_name || <span className="text-gray-300 italic">Not travelling</span>}
+                  </td>
+
+                  {/* Destination + country intel button */}
+                  <td className="px-5 py-3.5">
+                    {staff.trip?.arrival_city ? (
+                      <div>
+                        <div className="text-gray-700 text-sm">{staff.trip.arrival_city}</div>
+                        {country && (
+                          <button
+                            onClick={() => openIntel(country, staff.full_name || staff.email, staff.trip.return_date)}
+                            className="text-[10px] text-[#0118A1] hover:underline flex items-center gap-0.5 font-medium mt-0.5">
+                            <Globe size={9}/>{country} intel →
+                          </button>
+                        )}
+                      </div>
+                    ) : <span className="text-gray-300">—</span>}
+                  </td>
+
+                  {/* Risk badge */}
+                  <td className="px-5 py-3.5">
+                    {risk ? <RiskBadge severity={risk.severity}/> : staff.trip ? (
+                      <span className="text-[10px] text-gray-300 italic">Loading…</span>
+                    ) : <span className="text-gray-300">—</span>}
+                  </td>
+
+                  {/* Return date */}
+                  <td className="px-5 py-3.5 text-gray-500 text-xs">{staff.trip?.return_date || '—'}</td>
+
+                  {/* Actions */}
+                  <td className="px-5 py-3.5 text-right">
+                    <button onClick={() => setSelectedStaff(staff)}
+                      className="text-xs font-medium text-[#1E2461] hover:underline">
+                      View
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

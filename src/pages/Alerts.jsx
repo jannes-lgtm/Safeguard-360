@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Search, Plus, X } from 'lucide-react'
+import { Search, Plus, X, Globe, MapPin } from 'lucide-react'
 import Layout from '../components/Layout'
 import AlertCard from '../components/AlertCard'
+import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
+import { cityToCountry } from '../data/intelData'
 
 function AddAlertModal({ onClose, onAdded }) {
   const [form, setForm] = useState({
@@ -110,13 +112,16 @@ function AddAlertModal({ onClose, onAdded }) {
 }
 
 export default function Alerts() {
-  const [alerts, setAlerts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [alerts, setAlerts]               = useState([])
+  const [loading, setLoading]             = useState(true)
+  const [isAdmin, setIsAdmin]             = useState(false)
   const [severityFilter, setSeverityFilter] = useState('All')
-  const [statusFilter, setStatusFilter] = useState('All')
+  const [statusFilter, setStatusFilter]   = useState('All')
   const [countrySearch, setCountrySearch] = useState('')
-  const [showModal, setShowModal] = useState(false)
+  const [myDestinations, setMyDestinations] = useState([])  // countries from user's trips
+  const [myDestsOnly, setMyDestsOnly]     = useState(false) // toggle
+  const [showModal, setShowModal]         = useState(false)
+  const [intelCountry, setIntelCountry]   = useState(null)
 
   const loadAlerts = async () => {
     const { data } = await supabase
@@ -131,12 +136,17 @@ export default function Alerts() {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single()
+        const [{ data: prof }, { data: trips }] = await Promise.all([
+          supabase.from('profiles').select('role').eq('id', session.user.id).single(),
+          supabase.from('itineraries').select('arrival_city')
+            .eq('user_id', session.user.id)
+            .gte('return_date', new Date().toISOString().split('T')[0]),
+        ])
         setIsAdmin(prof?.role === 'admin')
+        const countries = [...new Set(
+          (trips || []).map(t => cityToCountry(t.arrival_city)).filter(Boolean)
+        )]
+        setMyDestinations(countries)
       }
       await loadAlerts()
     }
@@ -157,6 +167,10 @@ export default function Alerts() {
     if (severityFilter !== 'All' && a.severity !== severityFilter) return false
     if (statusFilter !== 'All' && a.status !== statusFilter) return false
     if (countrySearch && !a.country?.toLowerCase().includes(countrySearch.toLowerCase())) return false
+    if (myDestsOnly && myDestinations.length > 0) {
+      const country = (a.country || '').toLowerCase()
+      if (!myDestinations.some(d => country.includes(d.toLowerCase()))) return false
+    }
     return true
   })
 
@@ -169,6 +183,9 @@ export default function Alerts() {
           onClose={() => setShowModal(false)}
           onAdded={loadAlerts}
         />
+      )}
+      {intelCountry && (
+        <IntelBrief country={intelCountry} onClose={() => setIntelCountry(null)}/>
       )}
 
       <div className="flex items-center justify-between mb-6">
@@ -186,6 +203,31 @@ export default function Alerts() {
           </button>
         )}
       </div>
+
+      {/* My destinations banner */}
+      {myDestinations.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-[8px] px-4 py-3 mb-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <MapPin size={13} className="text-blue-500 shrink-0"/>
+            <span className="text-xs font-semibold text-blue-800">Your active travel:</span>
+            {myDestinations.map(c => (
+              <button key={c} onClick={() => setIntelCountry(c)}
+                className="text-xs px-2 py-0.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium transition-colors flex items-center gap-1">
+                <Globe size={9}/>{c}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setMyDestsOnly(p => !p)}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors border ${
+              myDestsOnly
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'
+            }`}>
+            {myDestsOnly ? '✓ My Destinations' : 'My Destinations only'}
+          </button>
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="flex flex-wrap gap-3 mb-5">
@@ -220,18 +262,27 @@ export default function Alerts() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-10 text-center">
-          <p className="text-gray-500 text-sm">No alerts match your filters.</p>
+          <p className="text-gray-500 text-sm">
+            {myDestsOnly ? `No alerts for your destinations (${myDestinations.join(', ')}).` : 'No alerts match your filters.'}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
           {filtered.map(alert => (
-            <AlertCard
-              key={alert.id}
-              alert={alert}
-              isAdmin={isAdmin}
-              onResolve={handleResolve}
-              onDelete={handleDelete}
-            />
+            <div key={alert.id}>
+              <AlertCard
+                alert={alert}
+                isAdmin={isAdmin}
+                onResolve={handleResolve}
+                onDelete={handleDelete}
+              />
+              {alert.country && (
+                <button onClick={() => setIntelCountry(alert.country)}
+                  className="ml-4 mb-1 text-[10px] text-[#0118A1] hover:underline flex items-center gap-1 font-medium">
+                  <Globe size={9}/>{alert.country} — view full intel brief →
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}
