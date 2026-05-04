@@ -111,16 +111,20 @@ export default async function handler(req, res) {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model: 'claude-3-5-haiku-latest',
         max_tokens: 2048,
         messages,
       }),
     })
 
     if (!claudeRes.ok) {
-      const errBody = await claudeRes.text()
-      console.error('Claude API error:', claudeRes.status, errBody)
-      return res.status(500).json({ error: 'Failed to contact AI service. Please try again.' })
+      let errMessage = `Claude API error ${claudeRes.status}`
+      try {
+        const errBody = await claudeRes.json()
+        errMessage = errBody?.error?.message || errMessage
+      } catch { /* ignore parse errors */ }
+      console.error('Claude API error:', claudeRes.status, errMessage)
+      return res.status(502).json({ error: errMessage })
     }
 
     const claudeData = await claudeRes.json()
