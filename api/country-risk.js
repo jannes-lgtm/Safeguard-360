@@ -1,21 +1,25 @@
 /**
  * /api/country-risk.js
  *
- * Returns live travel advisory data for a given country.
+ * Returns live travel advisory data + AI-synthesised security brief for a country.
  *
- * Primary source : UK FCDO (gov.uk public JSON API) — reliable, no key needed.
- * Secondary source: ISS Africa RSS — contextual articles for African countries.
- * AU DFAT        : link only (no machine-readable API without scraping).
- * US State Dept  : excluded — their JSON feed is CAPTCHA-blocked from servers.
+ * Primary sources:
+ *   UK FCDO (gov.uk public JSON API)
+ *   ISS Africa RSS
+ *   GDACS (UN disaster system)
+ *   USGS earthquake feed
  *
+ * Claude AI synthesises all feeds into an executive brief (cached 1 hour per country).
  * When no advisory data is available, severity is returned as null.
- * The caller must handle null and show "Check official sources" rather than
- * displaying a fabricated or hardcoded rating.
  */
 
-let issCache  = []
+import { synthesiseBrief, fetchGDACS, fetchUSGS } from './_claudeSynth.js'
+
+let issCache    = []
 let issCacheTime = 0
-const FCDO_CACHE     = {}      // { [slug]: { data, ts } }
+
+const FCDO_CACHE     = {}   // { [slug]: { data, ts } }
+const AI_BRIEF_CACHE = {}   // { [countryLower]: { data, ts } }
 const CACHE_TTL      = 60 * 60 * 1000       // 1 hour
 const ISS_CACHE_TTL  = 4  * 60 * 60 * 1000  // 4 hours
 
@@ -33,8 +37,6 @@ export default async function handler(req, res) {
 }
 
 // ── FCDO slug overrides ───────────────────────────────────────────────────────
-// toSlug() handles most countries correctly.  Entries here are only needed when
-// the GOV.UK slug differs from the naive kebab-case of the country name.
 const FCDO_SLUG_OVERRIDES = {
   'democratic republic of congo':         'democratic-republic-of-the-congo',
   'democratic republic of the congo':     'democratic-republic-of-the-congo',
@@ -106,8 +108,6 @@ async function fetchWithTimeout(url, options = {}, ms = 7000) {
 // ── FCDO ─────────────────────────────────────────────────────────────────────
 async function fetchFcdo(country) {
   const slug = fcdoSlug(country)
-
-  // Serve from cache if fresh
   const cached = FCDO_CACHE[slug]
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data
 
@@ -129,19 +129,14 @@ async function fetchFcdo(country) {
     }
 
     const text = warnings.body.toLowerCase()
-
-    // Determine level — check most severe first
     let level = 1
-    if (text.includes('fcdo advises against all travel to') &&
-        !text.includes('all but essential')) {
+    if (text.includes('fcdo advises against all travel to') && !text.includes('all but essential')) {
       level = 4
-    } else if (text.includes('advises against all travel') &&
-               !text.includes('all but essential')) {
+    } else if (text.includes('advises against all travel') && !text.includes('all but essential')) {
       level = 4
     } else if (text.includes('all but essential travel')) {
       level = 3
-    } else if (text.includes('advises against some travel') ||
-               text.includes('some parts of')) {
+    } else if (text.includes('advises against some travel') || text.includes('some parts of')) {
       level = 2
     }
 
@@ -179,12 +174,10 @@ async function fetchIssAlerts(country) {
   }
 
   if (!issCache?.length) return null
-
   const q = country.toLowerCase()
   const matches = issCache
     .filter(item => (item.title + ' ' + item.description).toLowerCase().includes(q))
     .slice(0, 3)
-
   if (!matches.length) return null
   return {
     headline: matches[0].title,
@@ -210,22 +203,41 @@ function parseRssItems(xml) {
   return items
 }
 
-// ── Combined risk ─────────────────────────────────────────────────────────────
+// ── Combined risk + AI synthesis ──────────────────────────────────────────────
 async function getCountryRisk(country) {
-  const [fcdo, iss] = await Promise.all([
+  // Fetch all live sources in parallel for speed
+  const [fcdo, iss, gdacs, usgs] = await Promise.all([
     fetchFcdo(country),
     fetchIssAlerts(country),
+    fetchGDACS(country),
+    fetchUSGS(country),
   ])
 
   const level    = fcdo?.level ?? null
   const severity = levelToSeverity(level)
-
   const dfatSlug = toSlug(country)
+
+  // ── AI synthesis (cached 1h per country) ──────────────────────────────────
+  let ai_brief = null
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (apiKey) {
+    const cacheKey = country.toLowerCase()
+    const cached   = AI_BRIEF_CACHE[cacheKey]
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+      ai_brief = cached.data
+    } else {
+      ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss }, apiKey)
+      AI_BRIEF_CACHE[cacheKey] = { data: ai_brief, ts: Date.now() }
+    }
+  }
 
   return {
     country,
     level,
-    severity,    // null when no live advisory data is available
+    severity,
+    ai_brief,        // null if no API key or Claude call failed
+    gdacs_count: gdacs.length,
+    usgs_count: usgs.length,
     sources: [
       fcdo
         ? { name: 'UK FCDO', level: fcdo.level, message: fcdo.message, url: fcdo.url }
@@ -235,12 +247,18 @@ async function getCountryRisk(country) {
       iss
         ? { name: 'ISS Africa', level: null, message: iss.headline, url: iss.url, articles: iss.articles }
         : null,
+      gdacs.length
+        ? { name: 'GDACS', level: null, message: `${gdacs.length} active event(s)`, url: 'https://gdacs.org' }
+        : null,
+      usgs.length
+        ? { name: 'USGS', level: null, message: `${usgs.length} M5+ earthquake(s) / 7d`, url: 'https://earthquake.usgs.gov' }
+        : null,
     ].filter(Boolean),
   }
 }
 
 function levelToSeverity(level) {
-  if (!level || level <= 0) return null   // honest — no data, not 'Unknown'
+  if (!level || level <= 0) return null
   if (level >= 4) return 'Critical'
   if (level >= 3) return 'High'
   if (level >= 2) return 'Medium'

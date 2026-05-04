@@ -1,9 +1,10 @@
 {
   "installCommand": "npm install --legacy-peer-deps",
   "functions": {
-    "api/parse-itinerary.js": {
-      "maxDuration": 30
-    }
+    "api/parse-itinerary.js":  { "maxDuration": 30 },
+    "api/country-risk.js":     { "maxDuration": 30 },
+    "api/trip-alert-scan.js":  { "maxDuration": 60 },
+    "api/ai-assistant.js":     { "maxDuration": 30 }
   },
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart2, Bell, Plane, Radio, Globe, AlertCircle, Calendar, ChevronRight } from 'lucide-react'
+import { BarChart2, Bell, Plane, Radio, Globe, AlertCircle, Calendar, ChevronRight, Brain, Zap, AlertTriangle, ListChecks, RefreshCw } from 'lucide-react'
 import Layout from '../components/Layout'
 import MetricCard from '../components/MetricCard'
 import SeverityBadge from '../components/SeverityBadge'
@@ -131,6 +131,112 @@ const severityDot = {
   Low: 'bg-gray-400',
 }
 
+// ── AI Morning Brief card ─────────────────────────────────────────────────────
+const BRIEF_SEV_STYLE = {
+  Critical: 'bg-red-50 border-red-200 text-red-700',
+  High:     'bg-orange-50 border-orange-200 text-orange-700',
+  Medium:   'bg-amber-50 border-amber-200 text-amber-700',
+  Low:      'bg-green-50 border-green-200 text-green-700',
+}
+
+function MorningBriefCard({ brief, loading }) {
+  const [expanded, setExpanded] = useState(true)
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-[8px] border border-[#0118A1]/20 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-5 mb-6 animate-pulse">
+        <div className="flex items-center gap-2 mb-3">
+          <Brain size={14} className="text-[#0118A1]"/>
+          <span className="text-sm font-bold text-[#0118A1]">Generating AI Intelligence Brief...</span>
+          <RefreshCw size={10} className="text-[#0118A1]/50 animate-spin ml-auto"/>
+        </div>
+        <div className="space-y-2">
+          <div className="h-3 bg-gray-100 rounded w-full"/>
+          <div className="h-3 bg-gray-100 rounded w-4/5"/>
+        </div>
+      </div>
+    )
+  }
+
+  if (!brief) return null
+
+  return (
+    <div className="bg-white rounded-[8px] border border-[#0118A1]/20 shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-6 overflow-hidden">
+      {/* Header */}
+      <button
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
+        onClick={() => setExpanded(e => !e)}
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#0118A1' }}>
+            <Brain size={15} color="white"/>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-gray-900">AI Intelligence Brief</span>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#0118A1]/10 text-[#0118A1] flex items-center gap-0.5">
+                <Zap size={7}/> LIVE
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5 text-left line-clamp-1">{brief.headline}</p>
+          </div>
+        </div>
+        <span className="text-xs text-gray-400">{expanded ? '▲' : '▼'}</span>
+      </button>
+
+      {expanded && (
+        <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-4">
+          {/* Headline */}
+          <p className="text-sm text-gray-700 font-medium">{brief.headline}</p>
+
+          {/* Per-country situations */}
+          {brief.situations?.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Active Situations</p>
+              <div className="space-y-2">
+                {brief.situations.map((s, i) => {
+                  const sevStyle = BRIEF_SEV_STYLE[s.severity] || BRIEF_SEV_STYLE.Medium
+                  return (
+                    <div key={i} className={`rounded-[6px] border px-3 py-2 ${sevStyle}`}>
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <span className="text-xs font-bold">{s.country}</span>
+                        <span className="text-[10px] font-bold opacity-70">{s.severity}</span>
+                      </div>
+                      <p className="text-xs opacity-90 leading-relaxed">{s.summary}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Priority actions */}
+          {brief.priority_actions?.length > 0 && (
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <ListChecks size={11} className="text-[#0118A1]"/>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Priority Actions</p>
+              </div>
+              <ul className="space-y-1">
+                {brief.priority_actions.map((a, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-gray-700">
+                    <span className="mt-1 w-4 h-4 rounded-full bg-[#0118A1]/10 text-[#0118A1] text-[9px] font-bold flex items-center justify-center shrink-0">
+                      {i + 1}
+                    </span>
+                    {a}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <p className="text-[10px] text-gray-400 text-right">Powered by Claude AI · Updates on each scan</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const [metrics, setMetrics] = useState({
     activeAlerts: 0,
@@ -146,6 +252,8 @@ export default function Dashboard() {
   const [loading, setLoading]                 = useState(true)
   const [tripAlerts, setTripAlerts]           = useState([])   // personalised trip alerts
   const [scanLoading, setScanLoading]         = useState(false)
+  const [morningBrief, setMorningBrief]       = useState(null) // AI morning brief
+  const [briefLoading, setBriefLoading]       = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -211,18 +319,27 @@ export default function Dashboard() {
         setDestAlerts(alertMap)
       }
 
-      // ── Trip alert scan (non-blocking fire-and-forget, then load results) ──
+      // ── Trip alert scan — fetch AI brief + alerts ────────────────────────
       setScanLoading(true)
+      setBriefLoading(true)
       const token = session.access_token
-      fetch('/api/trip-alert-scan', {
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {})
+      try {
+        const scanRes = await fetch('/api/trip-alert-scan', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (scanRes.ok) {
+          const scanData = await scanRes.json()
+          if (scanData.morning_brief) setMorningBrief(scanData.morning_brief)
+        }
+      } catch { /* non-critical */ }
+      setBriefLoading(false)
 
       const { data: ta } = await supabase
         .from('trip_alerts')
         .select('*')
         .eq('user_id', session.user.id)
         .eq('is_read', false)
+        .neq('alert_type', 'ai_brief')   // don't show AI brief records as regular alerts
         .order('created_at', { ascending: false })
         .limit(20)
       setTripAlerts(ta || [])
@@ -257,6 +374,11 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-sm text-gray-500 mt-0.5">Your duty of care overview</p>
       </div>
+
+      {/* AI Morning Brief */}
+      {(briefLoading || morningBrief) && (
+        <MorningBriefCard brief={morningBrief} loading={briefLoading}/>
+      )}
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

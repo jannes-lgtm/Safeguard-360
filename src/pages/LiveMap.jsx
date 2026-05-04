@@ -143,10 +143,15 @@ export default function LiveMap() {
 
   // Push location to DB (throttled — max once per minute)
   const pushLocation = useCallback(async (coords) => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const { data: { user, session } } = await supabase.auth.getSession()
+    if (!user && !session) {
+      const { data: { user: u } } = await supabase.auth.getUser()
+      if (!u) return
+    }
+    const { data: { session: sess } } = await supabase.auth.getSession()
+
     await supabase.from('staff_locations').insert({
-      user_id: user.id,
+      user_id: sess?.user?.id,
       full_name: profile?.full_name || profile?.email || 'Unknown',
       latitude: coords.latitude,
       longitude: coords.longitude,
@@ -156,6 +161,14 @@ export default function LiveMap() {
       is_sharing: true,
       recorded_at: new Date().toISOString(),
     })
+
+    // Fire-and-forget: trigger AI intel scan for current location/trip
+    if (sess?.access_token) {
+      fetch('/api/trip-alert-scan', {
+        headers: { Authorization: `Bearer ${sess.access_token}` },
+      }).catch(() => {/* non-critical */})
+    }
+
     await loadData()
   }, [profile, activeTrip])
 

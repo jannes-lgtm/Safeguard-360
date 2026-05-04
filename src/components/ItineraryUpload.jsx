@@ -145,6 +145,13 @@ export default function ItineraryUpload({ onClose, onSaved, userId, session }) {
       if (!error) count++
     }
 
+    // Fire-and-forget: trigger AI intel scan for all new trips
+    if (count > 0 && session?.access_token) {
+      fetch('/api/trip-alert-scan?force=true', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }).catch(() => {/* non-critical */})
+    }
+
     setSavedCount(count)
     setSaving(false)
     setSuccess(true)
