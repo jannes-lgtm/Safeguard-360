@@ -18,6 +18,83 @@ export default async function handler(req, res) {
   }
 }
 
+// ── Country name normalisation ────────────────────────────────────────────────
+// Maps how we store country names → official name used by US State Dept feed
+const STATE_DEPT_ALIASES = {
+  'democratic republic of congo':         'Congo, Democratic Republic of the',
+  'democratic republic of the congo':     'Congo, Democratic Republic of the',
+  'drc':                                  'Congo, Democratic Republic of the',
+  'republic of congo':                    'Congo, Republic of the',
+  'republic of the congo':                'Congo, Republic of the',
+  'tanzania':                             'Tanzania',
+  'united republic of tanzania':          'Tanzania',
+  'south korea':                          'Korea, South',
+  'north korea':                          'Korea, North',
+  'russia':                               'Russia',
+  'iran':                                 'Iran',
+  'syria':                                'Syria',
+  'laos':                                 "Laos",
+  'vietnam':                              'Vietnam',
+  'cabo verde':                           'Cabo Verde',
+  'cape verde':                           'Cabo Verde',
+  'ivory coast':                          "Cote d'Ivoire",
+  "côte d'ivoire":                        "Cote d'Ivoire",
+  'east timor':                           'Timor-Leste',
+  'swaziland':                            'Eswatini',
+  'burma':                                'Burma (Myanmar)',
+  'myanmar':                              'Burma (Myanmar)',
+  'micronesia':                           'Micronesia, Federated States of',
+  'palestine':                            'West Bank and Gaza',
+  'saudi arabia':                         'Saudi Arabia',
+  'united arab emirates':                 'United Arab Emirates',
+  'uae':                                  'United Arab Emirates',
+  'usa':                                  'United States',
+  'uk':                                   'United Kingdom',
+  'great britain':                        'United Kingdom',
+}
+
+// Maps our country name → FCDO URL slug when toSlug() gives wrong result
+const FCDO_SLUG_OVERRIDES = {
+  'democratic republic of congo':         'democratic-republic-congo',
+  'democratic republic of the congo':     'democratic-republic-congo',
+  'republic of congo':                    'congo',
+  'republic of the congo':                'congo',
+  'ivory coast':                          'ivory-coast',
+  "côte d'ivoire":                        'ivory-coast',
+  "cote d'ivoire":                        'ivory-coast',
+  'myanmar':                              'myanmar-burma',
+  'burma':                                'myanmar-burma',
+  'laos':                                 'laos',
+  'russia':                               'russia',
+  'south korea':                          'south-korea',
+  'north korea':                          'north-korea',
+  'east timor':                           'timor-leste',
+  'swaziland':                            'eswatini',
+  'cape verde':                           'cape-verde',
+  'cabo verde':                           'cape-verde',
+  'united arab emirates':                 'united-arab-emirates',
+  'uae':                                  'united-arab-emirates',
+  'uk':                                   'united-kingdom',
+  'great britain':                        'united-kingdom',
+  'palestine':                            'the-occupied-palestinian-territories',
+  'saudi arabia':                         'saudi-arabia',
+  'south africa':                         'south-africa',
+  'sierra leone':                         'sierra-leone',
+  'burkina faso':                         'burkina-faso',
+  'central african republic':             'central-african-republic',
+  'equatorial guinea':                    'equatorial-guinea',
+  'guinea-bissau':                        'guinea-bissau',
+  'sri lanka':                            'sri-lanka',
+  'new zealand':                          'new-zealand',
+  'costa rica':                           'costa-rica',
+  'dominican republic':                   'dominican-republic',
+  'el salvador':                          'el-salvador',
+  'trinidad and tobago':                  'trinidad-and-tobago',
+  'united states':                        'usa',
+  'south sudan':                          'south-sudan',
+  'western sahara':                       'western-sahara',
+}
+
 // Normalize country names to URL-safe slugs, handling accented characters
 function toSlug(str) {
   return str
@@ -26,6 +103,14 @@ function toSlug(str) {
     .toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '')
+}
+
+function stateDeptName(country) {
+  return STATE_DEPT_ALIASES[country.toLowerCase()] || country
+}
+
+function fcdoSlug(country) {
+  return FCDO_SLUG_OVERRIDES[country.toLowerCase()] || toSlug(country)
 }
 
 async function fetchWithTimeout(url, options = {}, ms = 6000) {
@@ -63,9 +148,11 @@ async function getCountryRisk(country) {
     }
   }
 
-  const entry = stateCache?.graph?.find(c =>
-    (c.name || c.countryName || '').toLowerCase() === country.toLowerCase()
-  )
+  const canonicalName = stateDeptName(country)
+  const entry = stateCache?.graph?.find(c => {
+    const n = (c.name || c.countryName || '').toLowerCase()
+    return n === canonicalName.toLowerCase() || n === country.toLowerCase()
+  })
   const usLevel = entry ? (entry.advisoryLevel ?? entry.level ?? null) : null
   const usMessage = entry ? (entry.advisoryText ?? entry.message ?? null) : null
   const usUrl = entry?.url ?? 'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html'
@@ -74,8 +161,7 @@ async function getCountryRisk(country) {
   const fcdo = await fetchFcdo(country)
 
   // --- Australian DFAT (link only) ---
-  const dfatSlug = toSlug(country)
-  const dfatUrl = `https://www.smartraveller.gov.au/destinations/${dfatSlug}`
+  const dfatUrl = `https://www.smartraveller.gov.au/destinations/${toSlug(country)}`
 
   // --- ISS Africa (Institute for Security Studies) ---
   const iss = await fetchIssAlerts(country)
@@ -155,7 +241,7 @@ function parseRssItems(xml) {
 }
 
 async function fetchFcdo(country) {
-  const slug = toSlug(country)
+  const slug = fcdoSlug(country)
   try {
     const r = await fetchWithTimeout(
       `https://www.gov.uk/api/content/foreign-travel-advice/${slug}`,
