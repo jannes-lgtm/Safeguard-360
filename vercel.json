@@ -1,4 +1,9 @@
 {
   "installCommand": "npm install --legacy-peer-deps",
+  "functions": {
+    "api/parse-itinerary.js": {
+      "maxDuration": 30
+    }
+  },
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

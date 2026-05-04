@@ -4,6 +4,7 @@ import Layout from '../components/Layout'
 import SeverityBadge from '../components/SeverityBadge'
 import FlightStatus from '../components/FlightStatus'
 import CountryRisk from '../components/CountryRisk'
+import ItineraryUpload from '../components/ItineraryUpload'
 import { supabase } from '../lib/supabase'
 import { toIcao, isKnownIata } from '../lib/airlineCodes'
 import { resolveCountry } from '../lib/cityToCountry'
@@ -35,9 +36,11 @@ export default function Itinerary() {
   const [submitting, setSubmitting] = useState(false)
   const [toast, setToast] = useState('')
   const [userId, setUserId] = useState(null)
+  const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [tripAlertMap, setTripAlertMap] = useState({}) // itinerary_id → alert[]
+  const [showUpload, setShowUpload] = useState(false)
 
   const emptyForm = { trip_name: '', flight_number: '', departure_city: '', arrival_city: '', depart_date: '', return_date: '', hotel_name: '', meetings: '' }
   const [form, setForm] = useState(emptyForm)
@@ -73,6 +76,7 @@ export default function Itinerary() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
+      setSession(session)
       const uid = session.user.id
       setUserId(uid)
 
@@ -174,9 +178,17 @@ export default function Itinerary() {
 
   return (
     <Layout>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">My Itinerary</h1>
-        <p className="text-sm text-gray-500 mt-0.5">View and manage your travel plans</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">My Itinerary</h1>
+          <p className="text-sm text-gray-500 mt-0.5">View and manage your travel plans</p>
+        </div>
+        <button
+          onClick={() => setShowUpload(true)}
+          className="flex items-center gap-2 bg-[#0118A1] hover:bg-[#0118A1]/90 text-white text-sm font-semibold px-4 py-2.5 rounded-[6px] transition-colors"
+        >
+          <span>↑</span> Upload Itinerary
+        </button>
       </div>
 
       {/* Toast */}
@@ -506,6 +518,14 @@ export default function Itinerary() {
           </div>
         </form>
       </div>
+      {showUpload && (
+        <ItineraryUpload
+          onClose={() => setShowUpload(false)}
+          onSaved={() => { setShowUpload(false); loadTrips() }}
+          userId={userId}
+          session={session}
+        />
+      )}
     </Layout>
   )
 }
