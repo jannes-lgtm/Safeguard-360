@@ -53,10 +53,42 @@ const STATE_DEPT_ALIASES = {
   'great britain':                        'United Kingdom',
 }
 
+// ── Hardcoded baseline risk levels ───────────────────────────────────────────
+// Used as fallback when live APIs are blocked/unavailable (e.g. State Dept CAPTCHA).
+// Levels: 4=Critical, 3=High, 2=Medium, 1=Low
+const BASELINE_RISK = {
+  // Level 4 — Do Not Travel
+  'afghanistan': 4, 'belarus': 4, 'burma': 4, 'myanmar': 4,
+  'central african republic': 4, 'democratic republic of congo': 4,
+  'democratic republic of the congo': 4, 'drc': 4,
+  'ethiopia': 4, 'haiti': 4, 'iran': 4, 'iraq': 4,
+  'libya': 4, 'mali': 4, 'north korea': 4, 'russia': 4,
+  'somalia': 4, 'south sudan': 4, 'sudan': 4, 'syria': 4,
+  'ukraine': 4, 'venezuela': 4, 'yemen': 4,
+  // Level 3 — Reconsider Travel
+  'burkina faso': 3, 'cameroon': 3, 'chad': 3, 'colombia': 3,
+  'egypt': 3, 'eritrea': 3, 'guinea': 3, 'guinea-bissau': 3,
+  'honduras': 3, 'kenya': 3, 'lebanon': 3, 'mauritania': 3,
+  'mexico': 3, 'mozambique': 3, 'myanmar': 3, 'nicaragua': 3,
+  'niger': 3, 'nigeria': 3, 'pakistan': 3, 'papua new guinea': 3,
+  'republic of congo': 3, 'republic of the congo': 3,
+  'saudi arabia': 3, 'senegal': 3, 'sierra leone': 3,
+  'tanzania': 3, 'uganda': 3, 'zimbabwe': 3,
+  // Level 2 — Exercise Increased Caution
+  'angola': 2, 'bangladesh': 2, 'botswana': 2, 'brazil': 2,
+  'el salvador': 2, 'ghana': 2, 'india': 2, 'indonesia': 2,
+  'jamaica': 2, 'jordan': 2, 'kazakhstan': 2, 'kosovo': 2,
+  'kyrgyzstan': 2, 'laos': 2, 'madagascar': 2, 'malawi': 2,
+  'morocco': 2, 'namibia': 2, 'nepal': 2, 'peru': 2,
+  'philippines': 2, 'rwanda': 2, 'south africa': 2, 'sri lanka': 2,
+  'tajikistan': 2, 'thailand': 2, 'turkey': 2, 'turkmenistan': 2,
+  'uzbekistan': 2, 'zambia': 2,
+}
+
 // Maps our country name → FCDO URL slug when toSlug() gives wrong result
 const FCDO_SLUG_OVERRIDES = {
-  'democratic republic of congo':         'democratic-republic-congo',
-  'democratic republic of the congo':     'democratic-republic-congo',
+  'democratic republic of congo':         'democratic-republic-of-the-congo',
+  'democratic republic of the congo':     'democratic-republic-of-the-congo',
   'republic of congo':                    'congo',
   'republic of the congo':                'congo',
   'ivory coast':                          'ivory-coast',
@@ -166,14 +198,18 @@ async function getCountryRisk(country) {
   // --- ISS Africa (Institute for Security Studies) ---
   const iss = await fetchIssAlerts(country)
 
-  // Combined risk level — if both sources return nothing, level is null → Unknown
+  // Baseline fallback (hardcoded) — used when live APIs return nothing
+  const baselineLevel = BASELINE_RISK[country.toLowerCase()] ?? null
+
+  // Combined risk level — live sources win; baseline fills gaps
   const rawMax = Math.max(usLevel ?? 0, fcdo?.level ?? 0)
-  const combinedLevel = rawMax > 0 ? rawMax : null
+  const combinedLevel = rawMax > 0 ? rawMax : baselineLevel
 
   return {
     country,
     level: combinedLevel,
     severity: levelToSeverity(combinedLevel),
+    usingBaseline: rawMax === 0 && baselineLevel !== null,
     sources: [
       usLevel != null ? { name: 'US State Dept', level: usLevel, message: usMessage, url: usUrl } : null,
       fcdo ? { name: 'UK FCDO', level: fcdo.level, message: fcdo.message, url: fcdo.url } : null,
