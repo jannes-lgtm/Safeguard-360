@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { BarChart2, Bell, Plane, Radio, Globe, AlertCircle, Calendar, ChevronRight, Brain, Zap, AlertTriangle, ListChecks, RefreshCw } from 'lucide-react'
 import Layout from '../components/Layout'
@@ -254,78 +254,86 @@ export default function Dashboard() {
   const [scanLoading, setScanLoading]         = useState(false)
   const [morningBrief, setMorningBrief]       = useState(null) // AI morning brief
   const [briefLoading, setBriefLoading]       = useState(false)
+  const loadingRef                             = useRef(false)  // prevent concurrent loads
 
-  useEffect(() => {
-    const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
+  // ── Main data loader (extracted so real-time subscription can re-call it) ──
+  const load = useCallback(async ({ scanAlerts = false } = {}) => {
+    if (loadingRef.current) return          // debounce concurrent calls
+    loadingRef.current = true
 
-      const today = new Date().toISOString().split('T')[0]
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { loadingRef.current = false; return }
 
-      const [
-        { count: alertCount },
-        { count: travelCount },
-        { data: alerts },
-        { data: training },
-        feedStatuses,
-        { data: trips },
-      ] = await Promise.all([
-        supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
-        supabase.from('itineraries').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
-        supabase.from('alerts').select('*').eq('status', 'Active').order('date_issued', { ascending: false }).limit(4),
-        supabase.from('training_progress').select('*').eq('user_id', session.user.id).order('module_order'),
-        fetch('/api/feed-status').then(r => r.json()).catch(() => ({})),
-        // Load user's current + upcoming trips
-        supabase.from('itineraries').select('*')
-          .eq('user_id', session.user.id)
-          .gte('return_date', today)
-          .order('depart_date'),
+    const today = new Date().toISOString().split('T')[0]
+
+    const [
+      { count: alertCount },
+      { count: travelCount },
+      { data: alerts },
+      { data: training },
+      feedStatuses,
+      { data: trips },
+    ] = await Promise.all([
+      supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
+      supabase.from('itineraries').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
+      supabase.from('alerts').select('*').eq('status', 'Active').order('date_issued', { ascending: false }).limit(4),
+      supabase.from('training_progress').select('*').eq('user_id', session.user.id).order('module_order'),
+      fetch('/api/feed-status').then(r => r.json()).catch(() => ({})),
+      // All upcoming + active trips for this user (no date filter so upload is instant)
+      supabase.from('itineraries').select('*')
+        .eq('user_id', session.user.id)
+        .gte('return_date', today)
+        .order('depart_date'),
+    ])
+
+    const activeFeeds = Object.values(feedStatuses || {}).filter(s => s === 'active').length
+    setMetrics({ activeAlerts: alertCount || 0, staffTravelling: travelCount || 0, activeFeeds })
+    setRecentAlerts(alerts || [])
+    setTrainingModules((training || []).slice(0, 5))
+
+    const tripList = trips || []
+    setMyTrips(tripList)
+
+    // Fetch live risk for mapped countries only (unknown cities use DB risk_level)
+    const countries = [...new Set(
+      tripList.map(t => cityToCountry(t.arrival_city)).filter(Boolean)
+    )]
+    if (countries.length > 0) {
+      const [riskResults, alertResults] = await Promise.all([
+        Promise.all(countries.map(c =>
+          fetch(`/api/country-risk?country=${encodeURIComponent(c)}`)
+            .then(r => r.json()).then(d => [c, d]).catch(() => [c, null])
+        )),
+        Promise.all(countries.map(c =>
+          supabase.from('alerts').select('*', { count: 'exact', head: true })
+            .eq('status', 'Active').ilike('country', `%${c}%`)
+            .then(({ count }) => [c, count || 0])
+        )),
       ])
+      setDestRisk(Object.fromEntries(riskResults))
+      setDestAlerts(Object.fromEntries(alertResults))
+    }
 
-      const activeFeeds = Object.values(feedStatuses || {}).filter(s => s === 'active').length
+    // Trip alerts from DB (fast, no API call needed for display)
+    const { data: ta } = await supabase
+      .from('trip_alerts').select('*')
+      .eq('user_id', session.user.id)
+      .eq('is_read', false)
+      .neq('alert_type', 'ai_brief')
+      .order('created_at', { ascending: false })
+      .limit(20)
+    setTripAlerts(ta || [])
 
-      setMetrics({ activeAlerts: alertCount || 0, staffTravelling: travelCount || 0, activeFeeds })
-      setRecentAlerts(alerts || [])
-      setTrainingModules((training || []).slice(0, 5))
+    setLoading(false)
+    loadingRef.current = false
 
-      // Map trips to countries
-      const tripList = trips || []
-      setMyTrips(tripList)
-
-      // Unique destination countries
-      const countries = [...new Set(
-        tripList.map(t => cityToCountry(t.arrival_city)).filter(Boolean)
-      )]
-
-      if (countries.length > 0) {
-        // Fetch risk levels + alert counts in parallel
-        const [riskResults, alertResults] = await Promise.all([
-          Promise.all(countries.map(c =>
-            fetch(`/api/country-risk?country=${encodeURIComponent(c)}`)
-              .then(r => r.json())
-              .then(d => [c, d])
-              .catch(() => [c, null])
-          )),
-          Promise.all(countries.map(c =>
-            supabase.from('alerts').select('*', { count: 'exact', head: true })
-              .eq('status', 'Active').ilike('country', `%${c}%`)
-              .then(({ count }) => [c, count || 0])
-          )),
-        ])
-
-        const riskMap  = Object.fromEntries(riskResults)
-        const alertMap = Object.fromEntries(alertResults)
-        setDestRisk(riskMap)
-        setDestAlerts(alertMap)
-      }
-
-      // ── Trip alert scan — fetch AI brief + alerts ────────────────────────
-      setScanLoading(true)
+    // AI scan runs separately so it doesn't block the initial render
+    if (scanAlerts) {
       setBriefLoading(true)
-      const token = session.access_token
+      setScanLoading(true)
       try {
         const scanRes = await fetch('/api/trip-alert-scan', {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${session.access_token}` },
         })
         if (scanRes.ok) {
           const scanData = await scanRes.json()
@@ -333,22 +341,29 @@ export default function Dashboard() {
         }
       } catch { /* non-critical */ }
       setBriefLoading(false)
-
-      const { data: ta } = await supabase
-        .from('trip_alerts')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .eq('is_read', false)
-        .neq('alert_type', 'ai_brief')   // don't show AI brief records as regular alerts
-        .order('created_at', { ascending: false })
-        .limit(20)
-      setTripAlerts(ta || [])
       setScanLoading(false)
-
-      setLoading(false)
     }
-    load()
   }, [])
+
+  useEffect(() => {
+    // Initial load with AI scan
+    load({ scanAlerts: true })
+
+    // Real-time subscription — re-fetch trips instantly when itineraries change
+    const channel = supabase
+      .channel('dashboard-itinerary-watch')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'itineraries' },
+        () => { load({ scanAlerts: false }) }   // quick refresh, skip slow AI scan
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'trip_alerts' },
+        () => { load({ scanAlerts: false }) }
+      )
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [load])
 
   const avgProgress = trainingModules.length
     ? Math.round(trainingModules.reduce((sum, m) => sum + (m.progress_pct || 0), 0) / trainingModules.length)
@@ -399,12 +414,12 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {myTrips.map(trip => {
-              const country = cityToCountry(trip.arrival_city)
-              if (!country) return null
-              const risk    = destRisk[country]
-              const sev     = risk?.severity || null
-              const style   = sev ? (SEVERITY_STYLE[sev] || SEVERITY_STYLE.Medium) : null
-              const alerts  = destAlerts[country] ?? null
+              // Use live risk if available, fall back to DB risk_level from parse/manual entry
+              const country  = cityToCountry(trip.arrival_city) || trip.arrival_city
+              const risk     = destRisk[country]
+              const sev      = risk?.severity || trip.risk_level || null
+              const style    = sev ? (SEVERITY_STYLE[sev] || SEVERITY_STYLE.Medium) : null
+              const alerts   = destAlerts[country] ?? null
               const isActive = trip.depart_date <= new Date().toISOString().split('T')[0]
 
               return (

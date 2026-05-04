@@ -40,8 +40,8 @@ Return ONLY a valid JSON array of trip objects, no explanation or markdown. Each
 For each trip extract:
 - trip_name: descriptive name e.g. "Nairobi Business Trip" or "Kinshasa Conference"
 - flight_number: outbound flight number e.g. "BA123", or null
-- departure_city: city they are departing FROM
-- arrival_city: destination city they are travelling TO
+- departure_city: departure city name ONLY — no country suffix (e.g. "London" not "London, UK")
+- arrival_city: destination city name ONLY — no country, no parentheses (e.g. "Nairobi" not "Nairobi, Kenya")
 - depart_date: departure date in YYYY-MM-DD format
 - return_date: return/end date in YYYY-MM-DD format
 - hotel_name: hotel name if mentioned, or null

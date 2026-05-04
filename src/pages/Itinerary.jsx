@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { MapPin, Plane, Hotel, AlertTriangle, Pencil } from 'lucide-react'
+import { MapPin, Plane, Hotel, AlertTriangle, Pencil, Trash2, X } from 'lucide-react'
 import Layout from '../components/Layout'
 import SeverityBadge from '../components/SeverityBadge'
 import FlightStatus from '../components/FlightStatus'
@@ -39,6 +39,7 @@ export default function Itinerary() {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [editingId, setEditingId] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)   // confirm-delete state
   const [tripAlertMap, setTripAlertMap] = useState({}) // itinerary_id → alert[]
   const [showUpload, setShowUpload] = useState(false)
 
@@ -66,12 +67,25 @@ export default function Itinerary() {
     setForm(emptyForm)
   }
 
+  const handleDelete = async (tripId) => {
+    const { error } = await supabase.from('itineraries').delete().eq('id', tripId)
+    if (!error) {
+      setDeletingId(null)
+      setToast('Trip deleted.')
+      await loadTrips()
+      setTimeout(() => setToast(''), 4000)
+    } else {
+      console.error('Delete error:', error)
+    }
+  }
+
   useEffect(() => {
     loadTrips()
   }, [])
 
-  const loadTrips = async () => {
+  const loadTrips = async ({ silent = false } = {}) => {
     setLoadError(null)
+    if (!silent) setLoading(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
@@ -239,10 +253,6 @@ export default function Itinerary() {
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="font-semibold text-gray-900">{trip.trip_name}</span>
                             <SeverityBadge severity={trip.risk_level} />
-                            <button onClick={() => startEdit(trip)}
-                              className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#1B3A6B] transition-colors ml-1">
-                              <Pencil size={11} /> Edit
-                            </button>
                             <span className={`text-xs px-2 py-0.5 rounded font-medium ${
                               trip.status === 'Active' ? 'bg-blue-100 text-blue-700' :
                               trip.status === 'Upcoming' ? 'bg-green-100 text-green-700' :
@@ -250,6 +260,28 @@ export default function Itinerary() {
                             }`}>
                               {trip.status}
                             </span>
+                          </div>
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-2 mb-2">
+                            <button onClick={() => startEdit(trip)}
+                              className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#0118A1] transition-colors">
+                              <Pencil size={11} /> Edit
+                            </button>
+                            <span className="text-gray-200">|</span>
+                            {deletingId === trip.id ? (
+                              <span className="inline-flex items-center gap-1.5 text-xs">
+                                <span className="text-red-600 font-medium">Delete trip?</span>
+                                <button onClick={() => handleDelete(trip.id)}
+                                  className="text-red-600 hover:text-red-700 font-semibold text-xs underline">Yes</button>
+                                <button onClick={() => setDeletingId(null)}
+                                  className="text-gray-400 hover:text-gray-600 text-xs underline">Cancel</button>
+                              </span>
+                            ) : (
+                              <button onClick={() => setDeletingId(trip.id)}
+                                className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors">
+                                <Trash2 size={11} /> Delete
+                              </button>
+                            )}
                           </div>
                           <div className="flex items-center gap-1.5 text-sm text-gray-600 mb-1">
                             <MapPin size={13} className="text-gray-400" />
@@ -521,7 +553,12 @@ export default function Itinerary() {
       {showUpload && (
         <ItineraryUpload
           onClose={() => setShowUpload(false)}
-          onSaved={() => { setShowUpload(false); loadTrips() }}
+          onSaved={() => {
+        setShowUpload(false)
+        setToast('Itinerary uploaded — trips added successfully.')
+        loadTrips()
+        setTimeout(() => setToast(''), 5000)
+      }}
           userId={userId}
           session={session}
         />
