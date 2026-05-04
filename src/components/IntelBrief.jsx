@@ -56,8 +56,33 @@ function RiskOverview({ country }) {
   )
   if (!data) return null
 
-  const sev = data.severity || 'Medium'
-  const style = SEVERITY_STYLE[sev] || SEVERITY_STYLE.Medium
+  const sev   = data.severity   // null = no live advisory data
+  const style = sev ? (SEVERITY_STYLE[sev] || SEVERITY_STYLE.Medium) : null
+
+  // No live advisory data — show honest "check official sources" panel
+  if (!sev) {
+    const fcdoSource = data.sources?.find(s => s.name === 'UK FCDO')
+    const usSource   = data.sources?.find(s => s.name === 'US State Dept')
+    return (
+      <div className="rounded-[8px] border border-gray-200 bg-gray-50 p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Shield size={14} className="text-gray-400"/>
+          <span className="text-sm font-semibold text-gray-600">Advisory data not available</span>
+        </div>
+        <p className="text-xs text-gray-500 mb-2">No machine-readable advisory could be retrieved for this country. Check official sources directly:</p>
+        <div className="flex flex-col gap-1">
+          {fcdoSource?.url && (
+            <a href={fcdoSource.url} target="_blank" rel="noopener noreferrer"
+              className="text-xs text-[#0118A1] hover:underline font-medium">→ UK FCDO travel advice</a>
+          )}
+          {usSource?.url && (
+            <a href={usSource.url} target="_blank" rel="noopener noreferrer"
+              className="text-xs text-[#0118A1] hover:underline font-medium">→ US State Dept advisory</a>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={`rounded-[8px] border p-4 ${style.bg} ${style.border}`}>
@@ -68,15 +93,11 @@ function RiskOverview({ country }) {
         </div>
         <Shield size={14} className={style.text}/>
       </div>
-      {data.sources && data.sources.length > 0 && (
-        <div className="space-y-1">
-          {data.sources.map((s, i) => (
-            <p key={i} className={`text-xs ${style.text} opacity-90`}>
-              <span className="font-semibold">{s.source}:</span> {s.level}
-            </p>
-          ))}
-        </div>
-      )}
+      {data.sources?.filter(s => s.level != null).map((s, i) => (
+        <p key={i} className={`text-xs ${style.text} opacity-90`}>
+          <a href={s.url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">{s.name}:</a> {s.message || `Level ${s.level}`}
+        </p>
+      ))}
     </div>
   )
 }
