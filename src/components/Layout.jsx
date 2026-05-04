@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutGrid, MapPin, Bell, FileText, CheckCircle,
-  Users, LogOut, UserCircle, Radio, Newspaper, Briefcase
+  Users, LogOut, UserCircle, Radio, Newspaper, Briefcase,
+  AlertOctagon, Navigation
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -18,13 +19,17 @@ function NavSection({ label }) {
   )
 }
 
-function NavItem({ to, icon: Icon, label, badge }) {
+function NavItem({ to, icon: Icon, label, badge, red }) {
   return (
     <NavLink
       to={to}
       className={({ isActive }) =>
         `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm font-medium transition-colors
-        ${isActive
+        ${red
+          ? isActive
+            ? 'bg-red-600 text-white'
+            : 'text-red-400 hover:bg-red-600/20 hover:text-red-300'
+          : isActive
           ? 'bg-white/15 text-white'
           : 'text-white/70 hover:bg-white/10 hover:text-white'
         }`
@@ -109,6 +114,9 @@ export default function Layout({ children }) {
           <NavSection label="My Travel" />
           <NavItem to="/itinerary" icon={MapPin} label="My Itinerary" />
           <NavItem to="/alerts" icon={Bell} label="Risk Alerts" badge={activeAlertCount} />
+          <NavItem to="/checkin" icon={CheckCircle} label="Check In" />
+          <NavItem to="/live-map" icon={Navigation} label="Live Location" />
+          <NavItem to="/sos" icon={AlertOctagon} label="SOS Emergency" red />
 
           <NavSection label="Intelligence" />
           <NavItem to="/briefings" icon={Newspaper} label="Briefings" />

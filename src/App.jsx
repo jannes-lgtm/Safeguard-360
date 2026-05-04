@@ -11,6 +11,9 @@ import Profile from './pages/Profile'
 import IntelFeeds from './pages/IntelFeeds'
 import Briefings from './pages/Briefings'
 import Services from './pages/Services'
+import SOS from './pages/SOS'
+import CheckIn from './pages/CheckIn'
+import LiveMap from './pages/LiveMap'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -29,6 +32,9 @@ export default function App() {
         <Route path="/intel-feeds" element={<ProtectedRoute adminOnly><IntelFeeds /></ProtectedRoute>} />
         <Route path="/briefings" element={<ProtectedRoute><Briefings /></ProtectedRoute>} />
         <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
+        <Route path="/sos" element={<ProtectedRoute><SOS /></ProtectedRoute>} />
+        <Route path="/checkin" element={<ProtectedRoute><CheckIn /></ProtectedRoute>} />
+        <Route path="/live-map" element={<ProtectedRoute><LiveMap /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )
