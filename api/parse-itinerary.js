@@ -54,6 +54,48 @@ Rules:
 - If only month/day given use 2026
 - Return ONLY the JSON array, nothing else`
 
+// Resolve the best available model from the Anthropic API at call time
+// so the code never breaks due to model deprecation.
+let _cachedModel = null
+let _cachedModelTs = 0
+
+async function resolveModel(apiKey) {
+  // Cache for 1 hour
+  if (_cachedModel && Date.now() - _cachedModelTs < 60 * 60 * 1000) {
+    return _cachedModel
+  }
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/models', {
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' }
+    })
+    if (r.ok) {
+      const { data } = await r.json()
+      // Prefer smallest/fastest model — haiku first, then sonnet, then anything
+      const sorted = (data || []).sort((a, b) => {
+        const rank = id => {
+          if (id.includes('haiku'))  return 0
+          if (id.includes('sonnet')) return 1
+          return 2
+        }
+        const r1 = rank(a.id), r2 = rank(b.id)
+        if (r1 !== r2) return r1 - r2
+        // Within same family, prefer newer (higher date string)
+        return b.id.localeCompare(a.id)
+      })
+      if (sorted.length > 0) {
+        _cachedModel = sorted[0].id
+        _cachedModelTs = Date.now()
+        console.log('Resolved model:', _cachedModel)
+        return _cachedModel
+      }
+    }
+  } catch (e) {
+    console.error('Model list fetch failed:', e.message)
+  }
+  // Hard fallback — try a sequence of known model IDs
+  return 'claude-3-haiku-20240307'
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -69,6 +111,8 @@ export default async function handler(req, res) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(200).json({ trips: MOCK_TRIPS })
   }
+
+  const model = await resolveModel(process.env.ANTHROPIC_API_KEY)
 
   let messages
   if (type === 'pdf') {
@@ -111,7 +155,7 @@ export default async function handler(req, res) {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model,
         max_tokens: 2048,
         messages,
       }),
