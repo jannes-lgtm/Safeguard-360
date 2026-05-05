@@ -16,6 +16,7 @@ import Services from './pages/Services'
 import SOS from './pages/SOS'
 import CheckIn from './pages/CheckIn'
 import LiveMap from './pages/LiveMap'
+import Incidents from './pages/Incidents'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
         <Route path="/policies" element={<ProtectedRoute><Policies /></ProtectedRoute>} />
         <Route path="/training" element={<ProtectedRoute><Training /></ProtectedRoute>} />
+        <Route path="/incidents" element={<ProtectedRoute><Incidents /></ProtectedRoute>} />
         <Route path="/tracker" element={<ProtectedRoute adminOnly><Tracker /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/intel-feeds" element={<ProtectedRoute adminOnly><IntelFeeds /></ProtectedRoute>} />

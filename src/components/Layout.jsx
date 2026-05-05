@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutGrid, MapPin, Bell, FileText, CheckCircle,
   Users, LogOut, UserCircle, Radio, Newspaper, Briefcase,
-  AlertOctagon, Navigation, Shield
+  AlertOctagon, Navigation, Shield, Siren
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -165,6 +165,7 @@ export default function Layout({ children }) {
           <NavSection label="Compliance" />
           <NavItem to="/policies" icon={FileText} label="Policy Library" />
           <NavItem to="/training" icon={CheckCircle} label="ISO Training" />
+          <NavItem to="/incidents" icon={Siren} label="Incident Reports" />
 
           <NavSection label="Account" />
           <NavItem to="/profile" icon={UserCircle} label="My Profile" />

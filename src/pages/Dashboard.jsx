@@ -301,7 +301,7 @@ function MorningBriefCard({ brief, loading }) {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [metrics, setMetrics]               = useState({ activeAlerts: 0, staffTravelling: 0, activeFeeds: 0 })
+  const [metrics, setMetrics]               = useState({ activeAlerts: 0, staffTravelling: 0, activeFeeds: 0, compliancePct: null })
   const [recentAlerts, setRecentAlerts]     = useState([])
   const [trainingModules, setTrainingModules] = useState([])
   const [myTrips, setMyTrips]               = useState([])
@@ -344,8 +344,27 @@ export default function Dashboard() {
         .order('depart_date'),
     ])
 
+    // Real compliance score: average of training completion + policy acknowledgement %
+    const [
+      { data: trainingRecs },
+      { data: pols },
+      { data: acks },
+    ] = await Promise.all([
+      supabase.from('training_records').select('completed').eq('user_id', session.user.id),
+      supabase.from('policies').select('id').eq('status', 'Active'),
+      supabase.from('policy_acknowledgements').select('policy_id').eq('user_id', session.user.id).catch(() => ({ data: [] })),
+    ])
+    const trainPct = trainingRecs?.length
+      ? Math.round(trainingRecs.filter(r => r.completed).length / trainingRecs.length * 100)
+      : null
+    const polPct = pols?.length
+      ? Math.round((acks?.data || acks || []).length / pols.length * 100)
+      : null
+    const scores = [trainPct, polPct].filter(x => x !== null)
+    const compliancePct = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
+
     const activeFeeds = Object.values(feedStatuses || {}).filter(s => s === 'active').length
-    setMetrics({ activeAlerts: alertCount || 0, staffTravelling: travelCount || 0, activeFeeds })
+    setMetrics({ activeAlerts: alertCount || 0, staffTravelling: travelCount || 0, activeFeeds, compliancePct })
     setRecentAlerts(alerts || [])
     setTrainingModules((training || []).slice(0, 5))
 
@@ -445,7 +464,9 @@ export default function Dashboard() {
       {/* ── Metric cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
         <MetricCard
-          label="Compliance Score" value="74%" icon={BarChart2}
+          label="Compliance Score"
+          value={loading ? '–' : metrics.compliancePct !== null ? `${metrics.compliancePct}%` : '–'}
+          icon={BarChart2}
           valueColor="text-[#0118A1]" accent="#0118A1"
         />
         <MetricCard
