@@ -54,28 +54,13 @@ export default function TermsAndConditions() {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) throw new Error('Session expired — please refresh and try again.')
 
-      const now = new Date().toISOString()
+      // Call SECURITY DEFINER function — bypasses RLS, handles profile + audit log
+      const { error: rpcError } = await supabase.rpc('accept_terms_v1')
 
-      // Profile update is the gate that ProtectedRoute checks — do this first
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ terms_accepted_at: now, terms_version: TERMS_VERSION })
-        .eq('id', user.id)
-
-      if (profileError) {
-        console.error('Profile update error:', profileError)
-        throw new Error('Could not save your acceptance. Please try again.')
+      if (rpcError) {
+        console.error('accept_terms_v1 RPC error:', rpcError)
+        throw new Error(`Could not save your acceptance: ${rpcError.message}`)
       }
-
-      // Audit log — best effort, don't block navigation if it fails
-      supabase.from('terms_acceptances').upsert({
-        user_id:     user.id,
-        version:     TERMS_VERSION,
-        accepted_at: now,
-        user_agent:  navigator.userAgent,
-      }, { onConflict: 'user_id,version' }).then(({ error }) => {
-        if (error) console.warn('terms_acceptances log failed (non-critical):', error)
-      })
 
       navigate('/dashboard')
     } catch (err) {
