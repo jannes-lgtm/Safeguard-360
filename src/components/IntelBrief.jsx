@@ -4,7 +4,8 @@ import {
   Briefcase, ExternalLink, RefreshCw, MapPin,
   Thermometer, Wind, Droplets, CheckCircle,
   Brain, Send, ChevronDown, ChevronUp, Zap,
-  AlertTriangle, TrendingUp, ListChecks
+  AlertTriangle, TrendingUp, ListChecks,
+  HeartPulse, Syringe, Activity
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { COUNTRY_META, SEVERITY_STYLE, INTEL_FEEDS, matchesCountry } from '../data/intelData'
@@ -361,6 +362,100 @@ function IntelFeedSection({ country }) {
   )
 }
 
+// ── Health & Disease section ──────────────────────────────────────────────────
+function HealthSection({ country, items = [], loading }) {
+  const [expanded, setExpanded] = useState(true)
+
+  const HEALTH_LINKS = [
+    { label: 'NHS Travel Health (Fit for Travel)', url: `https://www.fitfortravel.nhs.uk/destinations` },
+    { label: 'CDC Travelers Health', url: `https://wwwnc.cdc.gov/travel/destinations/list` },
+    { label: 'WHO Country Health Profile', url: `https://www.who.int/countries` },
+  ]
+
+  if (loading) {
+    return (
+      <div>
+        <SectionHeader label="Health & Disease" icon={HeartPulse}/>
+        <div className="h-16 bg-gray-50 rounded-[8px] animate-pulse border border-gray-200"/>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <SectionHeader label="Health & Disease" icon={HeartPulse}/>
+
+      {/* Outbreak alerts */}
+      {items.length > 0 ? (
+        <div className="rounded-[8px] border border-amber-200 bg-amber-50 mb-3">
+          <button
+            className="w-full flex items-center justify-between px-4 py-3 text-left"
+            onClick={() => setExpanded(e => !e)}
+          >
+            <div className="flex items-center gap-2">
+              <Activity size={12} className="text-amber-600"/>
+              <span className="text-xs font-bold text-amber-700">
+                {items.length} Health Alert{items.length !== 1 ? 's' : ''} Detected
+              </span>
+            </div>
+            {expanded ? <ChevronUp size={12} className="text-amber-400"/> : <ChevronDown size={12} className="text-amber-400"/>}
+          </button>
+          {expanded && (
+            <div className="px-4 pb-4 space-y-2.5 border-t border-amber-200/60 pt-3">
+              {items.map((item, i) => (
+                <div key={i} className="bg-white border border-amber-200 rounded-[6px] p-3">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="text-xs font-semibold text-gray-800 leading-snug flex-1">
+                      {item.title}
+                    </p>
+                    {item.link && (
+                      <a href={item.link} target="_blank" rel="noopener noreferrer"
+                        className="shrink-0 text-[#0118A1] hover:opacity-70">
+                        <ExternalLink size={10}/>
+                      </a>
+                    )}
+                  </div>
+                  {item.description && item.description !== item.title && (
+                    <p className="text-[11px] text-gray-500 leading-snug line-clamp-2">{item.description}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span className="text-[9px] font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded uppercase tracking-wide">
+                      {item.source}
+                    </span>
+                    {item.date && <span className="text-[10px] text-gray-400">{timeAgo(item.date)}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 rounded-[8px] px-3 py-2.5 mb-3">
+          <CheckCircle size={13}/>
+          <span className="text-xs font-medium">No active health outbreak alerts for {country}</span>
+        </div>
+      )}
+
+      {/* Vaccination / health resource links */}
+      <div className="bg-gray-50 border border-gray-200 rounded-[8px] p-3">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Syringe size={11} className="text-gray-400"/>
+          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Vaccination &amp; Health Resources</span>
+        </div>
+        <div className="space-y-1.5">
+          {HEALTH_LINKS.map((l, i) => (
+            <a key={i} href={l.url} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-[11px] text-[#0118A1] hover:underline">
+              <ExternalLink size={9} className="shrink-0"/>
+              {l.label}
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── AI Chat assistant ─────────────────────────────────────────────────────────
 function AiChatSection({ country, travelerName, tripName }) {
   const [messages, setMessages] = useState([
@@ -596,13 +691,20 @@ export default function IntelBrief({ country, travelerName, returnDate, tripName
           {/* 4. Active alerts */}
           <AlertsSection country={country}/>
 
-          {/* 5. Live intel feed */}
+          {/* 5. Health & Disease */}
+          <HealthSection
+            country={country}
+            items={riskData?.health_items || []}
+            loading={riskLoading}
+          />
+
+          {/* 6. Live intel feed */}
           <IntelFeedSection country={country}/>
 
-          {/* 6. AI Chat assistant */}
+          {/* 7. AI Chat assistant */}
           <AiChatSection country={country} travelerName={travelerName} tripName={tripName}/>
 
-          {/* 7. Service providers */}
+          {/* 8. Service providers */}
           <ProvidersSection country={country}/>
 
         </div>

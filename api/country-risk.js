@@ -248,6 +248,15 @@ async function getCountryRisk(country) {
     category: 'health',
   }))
 
+  // Full health items for the dedicated health section in IntelBrief
+  const healthItems = (health?.matches || []).map(a => ({
+    title:       a.title       || '',
+    description: a.description || '',
+    date:        a.pubDate     || a.date || null,
+    link:        a.link        || null,
+    source:      a.source      || 'Health Feed',
+  }))
+
   return {
     country,
     level,
@@ -256,6 +265,7 @@ async function getCountryRisk(country) {
     gdacs_count:   gdacs.length,
     usgs_count:    usgs.length,
     health_alerts: health?.matches?.length || 0,
+    health_items:  healthItems,
     sources: [
       fcdo
         ? { name: 'UK FCDO', level: fcdo.level, message: fcdo.message, url: fcdo.url }

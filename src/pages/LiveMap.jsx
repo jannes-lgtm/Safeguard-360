@@ -71,6 +71,16 @@ function myIcon(color) {
   })
 }
 
+// Haversine distance in km between two GPS coordinates
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 export default function LiveMap() {
   const [profile,       setProfile]       = useState(null)
   const [activeTrip,    setActiveTrip]    = useState(null)
@@ -83,6 +93,7 @@ export default function LiveMap() {
   const [intelCountry,  setIntelCountry]  = useState(null)
   const [mapReady,      setMapReady]      = useState(false)
   const [tripAlerts,    setTripAlerts]    = useState([])   // live risk alerts from AI scan
+  const [proximityWarnings, setProximityWarnings] = useState([])  // nearby risk zones
 
   const containerRef   = useRef(null)   // DOM div
   const mapRef         = useRef(null)   // L.Map instance
@@ -253,7 +264,6 @@ export default function LiveMap() {
         byCountry[country] = { meta, alerts: [], severity: alert.severity }
       }
       byCountry[country].alerts.push(alert)
-      // Escalate severity if needed
       const order = { Critical: 4, High: 3, Medium: 2, Low: 1 }
       if ((order[alert.severity] || 0) > (order[byCountry[country].severity] || 0)) {
         byCountry[country].severity = alert.severity
@@ -261,13 +271,21 @@ export default function LiveMap() {
     }
 
     for (const [country, { meta, alerts, severity }] of Object.entries(byCountry)) {
-      const color  = severity === 'Critical' ? '#dc2626' : '#f97316'  // red / orange
+      const color  = severity === 'Critical' ? '#dc2626' : '#f97316'
       const radius = severity === 'Critical' ? 18 : 14
 
       const safeName  = country.replace(/'/g, "\\'")
       const alertList = alerts.slice(0, 3).map(a =>
         `<li style="margin:2px 0;color:#374151">• <b>${a.alert_type}:</b> ${(a.title || '').slice(0, 60)}</li>`
       ).join('')
+
+      // Show distance from user if GPS is available
+      const distLine = myPos
+        ? (() => {
+            const km = Math.round(haversineKm(myPos.latitude, myPos.longitude, meta.lat, meta.lon))
+            return `<p style="font-size:10px;color:#6b7280;margin:0 0 6px">📍 ~${km.toLocaleString()} km from your position</p>`
+          })()
+        : ''
 
       const popupHtml = `
         <div style="font-family:sans-serif;font-size:12px;min-width:180px;max-width:220px">
@@ -277,6 +295,7 @@ export default function LiveMap() {
             <span style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;
               background:${color}20;color:${color};border:1px solid ${color}50">${severity}</span>
           </div>
+          ${distLine}
           <ul style="margin:0 0 6px;padding:0;list-style:none;font-size:11px">${alertList}</ul>
           ${alerts.length > 3 ? `<p style="font-size:10px;color:#9ca3af;margin:0 0 6px">+${alerts.length - 3} more alerts</p>` : ''}
           <button onclick="window.__livemapIntel('${safeName}')"
@@ -300,7 +319,47 @@ export default function LiveMap() {
 
       alertMarkers.current.push(marker)
     }
-  }, [tripAlerts, mapReady])
+  }, [tripAlerts, myPos, mapReady])
+
+  // ── Proximity warnings — how close is the user to active risk zones? ────────
+  useEffect(() => {
+    if (!myPos || tripAlerts.length === 0) {
+      setProximityWarnings([])
+      return
+    }
+
+    // Distance thresholds by severity (km)
+    const THRESHOLD = { Critical: 500, High: 300, Medium: 200 }
+
+    // Group by country, escalate to worst severity
+    const byCountry = {}
+    for (const alert of tripAlerts) {
+      const country = alert.country
+      if (!country) continue
+      const meta = COUNTRY_META[country]
+      if (!meta) continue
+      if (!byCountry[country]) {
+        byCountry[country] = { country, meta, severity: alert.severity, alerts: [] }
+      }
+      byCountry[country].alerts.push(alert)
+      const order = { Critical: 4, High: 3, Medium: 2, Low: 1 }
+      if ((order[alert.severity] || 0) > (order[byCountry[country].severity] || 0)) {
+        byCountry[country].severity = alert.severity
+      }
+    }
+
+    const warnings = []
+    for (const { country, meta, severity, alerts } of Object.values(byCountry)) {
+      const km = haversineKm(myPos.latitude, myPos.longitude, meta.lat, meta.lon)
+      const threshold = THRESHOLD[severity] || 300
+      if (km <= threshold) {
+        warnings.push({ country, severity, distanceKm: Math.round(km), alerts })
+      }
+    }
+
+    warnings.sort((a, b) => a.distanceKm - b.distanceKm)
+    setProximityWarnings(warnings)
+  }, [myPos, tripAlerts])
 
   // Register intel brief global handler
   useEffect(() => {
@@ -448,6 +507,39 @@ export default function LiveMap() {
               </div>
             )}
           </div>
+
+          {/* Proximity warnings — only when GPS is active and risks are nearby */}
+          {proximityWarnings.length > 0 && (
+            <div className="bg-white border-2 border-red-400 rounded-[12px] p-4 shadow-[0_2px_8px_rgba(220,38,38,0.15)]">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertCircle size={13} className="text-red-600" />
+                <p className="text-xs font-bold text-red-700 uppercase tracking-wider flex-1">Nearby Risk Zones</p>
+                <span className="text-[10px] font-bold bg-red-100 text-red-700 rounded-full px-2 py-0.5">{proximityWarnings.length}</span>
+              </div>
+              <div className="space-y-2">
+                {proximityWarnings.map((w, i) => (
+                  <div key={i}
+                    className={`p-2.5 rounded-[6px] border cursor-pointer hover:opacity-80 transition-opacity
+                      ${w.severity === 'Critical' ? 'bg-red-50 border-red-300' : 'bg-orange-50 border-orange-300'}`}
+                    onClick={() => setIntelCountry(w.country)}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase
+                        ${w.severity === 'Critical' ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'}`}>
+                        {w.severity}
+                      </span>
+                      <span className="text-[10px] font-semibold text-gray-700 flex-1">{w.country}</span>
+                      <span className="text-[10px] font-bold text-gray-500">~{w.distanceKm.toLocaleString()} km</span>
+                    </div>
+                    <p className="text-[11px] text-gray-600 leading-snug">
+                      {w.alerts[0]?.title?.slice(0, 65) || 'Active risk zone'}
+                      {w.alerts.length > 1 ? ` +${w.alerts.length - 1} more` : ''}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[9px] text-gray-400 mt-2 text-center">Based on your current GPS position · Click for full intel</p>
+            </div>
+          )}
 
           {/* Risk alerts panel */}
           {tripAlerts.length > 0 && (
