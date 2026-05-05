@@ -6,6 +6,288 @@
  * Imported by country-risk.js, trip-alert-scan.js, and ai-assistant.js.
  */
 
+// ── All-source risk feeds (conflict / security / weather + health) ────────────
+// Used by fetchArticlesForCountry() to build a comprehensive intelligence picture.
+const ALL_RISK_FEEDS = [
+  // Conflict & War
+  { url: 'https://feeds.bbci.co.uk/news/world/rss.xml',                          name: 'BBC World',            category: 'conflict'  },
+  { url: 'https://www.france24.com/en/rss',                                       name: 'France 24',            category: 'conflict'  },
+  { url: 'https://kyivindependent.com/feed/',                                     name: 'Kyiv Independent',     category: 'conflict'  },
+  { url: 'https://www.middleeasteye.net/rss',                                     name: 'Middle East Eye',      category: 'conflict'  },
+  { url: 'https://www.iranintl.com/en/rss',                                       name: 'Iran International',   category: 'conflict'  },
+  { url: 'https://www.aljazeera.com/xml/rss/all.xml',                             name: 'Al Jazeera',           category: 'conflict'  },
+  { url: 'https://news.un.org/feed/subscribe/en/news/region/africa/feed/rss.xml', name: 'UN News Africa',       category: 'conflict'  },
+  { url: 'https://news.un.org/feed/subscribe/en/news/region/middle-east/feed/rss.xml', name: 'UN News ME',     category: 'conflict'  },
+  { url: 'https://acleddata.com/feed/',                                            name: 'ACLED Blog',           category: 'conflict'  },
+  { url: 'https://thedefensepost.com/feed/',                                      name: 'The Defense Post',     category: 'conflict'  },
+  // Security analysis
+  { url: 'https://issafrica.org/rss/iss-today',                                   name: 'ISS Africa',           category: 'security'  },
+  { url: 'https://www.crisisgroup.org/rss/africa',                                name: 'Crisis Group Africa',  category: 'security'  },
+  { url: 'https://www.crisisgroup.org/rss/middle-east-north-africa',              name: 'Crisis Group MENA',    category: 'security'  },
+  { url: 'https://jamestown.org/feed/',                                           name: 'Jamestown Foundation', category: 'security'  },
+  { url: 'https://feeds.bbci.co.uk/news/world/africa/rss.xml',                   name: 'BBC Africa',           category: 'security'  },
+  { url: 'https://africanarguments.org/feed/',                                    name: 'African Arguments',    category: 'security'  },
+  // Health / disease outbreaks
+  { url: 'https://www.who.int/rss-feeds/news-english.xml',                        name: 'WHO',                  category: 'health'    },
+  { url: 'https://reliefweb.int/updates/rss.xml?source=WHO',                     name: 'ReliefWeb/WHO',        category: 'health'    },
+  { url: 'https://outbreaknewstoday.com/feed/',                                  name: 'Outbreak News Today',  category: 'health'    },
+  { url: 'https://www.cidrap.umn.edu/rss.xml',                                   name: 'CIDRAP',               category: 'health'    },
+  { url: 'https://www.paho.org/en/rss.xml',                                      name: 'PAHO',                 category: 'health'    },
+  { url: 'https://africacdc.org/feed/',                                           name: 'Africa CDC',           category: 'health'    },
+  // Weather & natural disasters
+  { url: 'https://reliefweb.int/disasters/rss.xml',                              name: 'ReliefWeb Disasters',  category: 'weather'   },
+]
+
+// ── Country aliases for better article matching ───────────────────────────────
+const COUNTRY_ALIASES = {
+  'ukraine':                      ['ukraine', 'ukrainian', 'kyiv', 'donbas', 'zelensky', 'crimea', 'kharkiv', 'kherson', 'zaporizhzhia', 'mariupol', 'dnipro'],
+  'russia':                       ['russia', 'russian', 'moscow', 'kremlin', 'putin', 'wagner', 'fsb', 'chechen', 'rosgvardia'],
+  'mali':                         ['mali', 'malian', 'bamako', 'sahel', 'jnim', 'azawad', 'gao', 'timbuktu', 'kidal'],
+  'burkina faso':                 ['burkina', 'ouagadougou', 'burkina faso', 'ansarul islam', 'sahel'],
+  'niger':                        ['niger', 'niamey', 'sahel', 'cnsp', 'jnim'],
+  'chad':                         ['chad', 'chadian', 'ndjamena', 'sahel', 'lake chad'],
+  'iran':                         ['iran', 'iranian', 'tehran', 'irgc', 'khamenei', 'persian', 'quds force'],
+  'iraq':                         ['iraq', 'iraqi', 'baghdad', 'isis', 'isil', 'pmu', 'erbil', 'kurdistan', 'mosul'],
+  'syria':                        ['syria', 'syrian', 'damascus', 'aleppo', 'hts', 'hayat tahrir', 'deir ez-zor'],
+  'israel':                       ['israel', 'israeli', 'tel aviv', 'hamas', 'hezbollah', 'idf', 'west bank', 'netanyahu', 'gaza'],
+  'palestine':                    ['palestine', 'palestinian', 'gaza', 'hamas', 'west bank', 'idf', 'rafah', 'jabalia'],
+  'yemen':                        ['yemen', 'yemeni', 'sanaa', 'houthi', 'ansar allah', 'aden', 'hudaydah'],
+  'libya':                        ['libya', 'libyan', 'tripoli', 'benghazi', 'haftar', 'gnu'],
+  'somalia':                      ['somalia', 'somali', 'mogadishu', 'al-shabaab', 'al shabaab', 'amisom', 'atmis'],
+  'ethiopia':                     ['ethiopia', 'ethiopian', 'addis ababa', 'tigray', 'amhara', 'oromia', 'tplf', 'fano'],
+  'sudan':                        ['sudan', 'sudanese', 'khartoum', 'rsf', 'rapid support forces', 'darfur', 'sat'],
+  'south sudan':                  ['south sudan', 'juba', 'splm', 'splm-io'],
+  'democratic republic of congo': ['congo', 'drc', 'kinshasa', 'goma', 'm23', 'ituri', 'kivu', 'adf', 'bunia'],
+  'democratic republic of the congo': ['congo', 'drc', 'kinshasa', 'goma', 'm23', 'ituri', 'kivu', 'adf'],
+  'central african republic':     ['central african republic', 'car', 'bangui', 'wagner', 'faca'],
+  'mozambique':                   ['mozambique', 'mozambican', 'maputo', 'cabo delgado', 'ansar al-sunna'],
+  'nigeria':                      ['nigeria', 'nigerian', 'lagos', 'abuja', 'boko haram', 'iswap', 'bandits', 'ipob'],
+  'cameroon':                     ['cameroon', 'cameroonian', 'yaounde', 'douala', 'anglophone', 'ambazonia'],
+  'kenya':                        ['kenya', 'kenyan', 'nairobi', 'al-shabaab', 'mombasa'],
+  'myanmar':                      ['myanmar', 'burma', 'burmese', 'yangon', 'naypyidaw', 'tatmadaw', 'nug', 'pdf', 'arakan army'],
+  'afghanistan':                  ['afghanistan', 'afghan', 'kabul', 'taliban', 'isis-k', 'iskp', 'kandahar'],
+  'pakistan':                     ['pakistan', 'pakistani', 'islamabad', 'karachi', 'ttp', 'balochistan', 'lahore'],
+  'haiti':                        ['haiti', 'haitian', 'port-au-prince', 'port au prince', 'gang violence', 'peyi lok'],
+  'venezuela':                    ['venezuela', 'venezuelan', 'caracas', 'maduro', 'eln', 'colectivos'],
+  'colombia':                     ['colombia', 'colombian', 'bogota', 'eln', 'farc', 'disidencias'],
+  'mexico':                       ['mexico', 'mexican', 'mexico city', 'cartel', 'jalisco', 'sinaloa', 'cjng'],
+  'north korea':                  ['north korea', 'north korean', 'pyongyang', 'dprk', 'kim jong'],
+  'united arab emirates':         ['uae', 'united arab emirates', 'dubai', 'abu dhabi'],
+  'saudi arabia':                 ['saudi', 'saudi arabia', 'riyadh', 'mbs'],
+  'israel':                       ['israel', 'israeli', 'idf', 'hamas', 'hezbollah', 'tel aviv', 'gaza', 'west bank'],
+}
+
+// ── Article feed cache (per URL, 20-min TTL) ──────────────────────────────────
+const ARTICLE_FEED_CACHE = {}
+const ARTICLE_FEED_TTL   = 20 * 60 * 1000
+
+async function fetchFeedItems(url, name) {
+  const cached = ARTICLE_FEED_CACHE[url]
+  if (cached && Date.now() - cached.ts < ARTICLE_FEED_TTL) return cached.items
+  try {
+    const r = await fetch(url, {
+      headers: { 'User-Agent': 'SafeGuard360/1.0 (travel risk platform)' },
+      signal: AbortSignal.timeout(6000),
+    })
+    if (!r?.ok) { ARTICLE_FEED_CACHE[url] = { items: [], ts: Date.now() }; return [] }
+    const items = parseHealthRss(await r.text())   // parseHealthRss handles all RSS/Atom
+    ARTICLE_FEED_CACHE[url] = { items, ts: Date.now() }
+    return items
+  } catch {
+    return ARTICLE_FEED_CACHE[url]?.items || []
+  }
+}
+
+/**
+ * Fetch recent articles from ALL configured risk feeds that mention the
+ * given country (or city), using alias matching for common abbreviations
+ * and armed-group names. Returns up to 30 unique articles sorted newest first.
+ */
+export async function fetchArticlesForCountry(country, city = null) {
+  const q       = country.toLowerCase().trim()
+  const aliases = new Set([q])
+
+  if (city) aliases.add(city.toLowerCase().trim())
+
+  // Add known aliases for this country
+  const knownAliases = COUNTRY_ALIASES[q] || []
+  knownAliases.forEach(a => aliases.add(a))
+
+  // Fetch all feeds in parallel (skip duplicate URLs)
+  const seenUrls = new Set()
+  const feedJobs = ALL_RISK_FEEDS.filter(f => {
+    if (seenUrls.has(f.url)) return false
+    seenUrls.add(f.url)
+    return true
+  })
+
+  const settled = await Promise.allSettled(
+    feedJobs.map(async feed => {
+      const items = await fetchFeedItems(feed.url, feed.name)
+      return items.map(i => ({ ...i, feedName: feed.name, feedCategory: feed.category }))
+    })
+  )
+
+  const allItems = settled
+    .filter(r => r.status === 'fulfilled')
+    .flatMap(r => r.value)
+
+  // Filter for country relevance
+  const matches = allItems.filter(item => {
+    const text = `${item.title} ${item.description}`.toLowerCase()
+    return [...aliases].some(a => text.includes(a))
+  })
+
+  // Sort newest first, deduplicate by title prefix
+  const seen = new Set()
+  return matches
+    .sort((a, b) => new Date(b.pubDate || 0) - new Date(a.pubDate || 0))
+    .filter(item => {
+      const key = (item.title || '').slice(0, 60).toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .slice(0, 30)
+}
+
+// ── Comprehensive risk scan cache ─────────────────────────────────────────────
+const COMPREHENSIVE_CACHE = {}
+const COMPREHENSIVE_TTL   = 60 * 60 * 1000  // 1 hour per country
+
+/**
+ * Full-spectrum travel risk assessment using ALL intelligence sources:
+ * conflict/security/health/weather RSS feeds + FCDO + GDACS + USGS + health feeds.
+ *
+ * Returns { overall_severity, summary, key_risks, recommendations,
+ *           risks: [{category, severity, title, description, recommendation}] }
+ */
+export async function comprehensiveRiskScan(country, city, liveData = {}, apiKey) {
+  if (!apiKey) return null
+
+  const cacheKey = `${country.toLowerCase()}:${(city || '').toLowerCase()}`
+  const cached   = COMPREHENSIVE_CACHE[cacheKey]
+  if (cached && Date.now() - cached.ts < COMPREHENSIVE_TTL) return cached.data
+
+  const { fcdo, gdacs = [], usgs = [], iss, health } = liveData
+  const location = city ? `${city}, ${country}` : country
+
+  // Fetch all RSS articles mentioning this country in parallel with the rest
+  const articles = await fetchArticlesForCountry(country, city)
+
+  // Group articles by feed category (max 8 per category for prompt efficiency)
+  const byCategory = {}
+  articles.forEach(a => {
+    const cat = a.feedCategory || 'security'
+    if (!byCategory[cat]) byCategory[cat] = []
+    if (byCategory[cat].length < 8) byCategory[cat].push(`[${a.feedName}] ${a.title}`)
+  })
+
+  const catText = (cat, label) =>
+    byCategory[cat]?.length
+      ? `${label}:\n${byCategory[cat].join('\n')}`
+      : `${label}: No recent articles`
+
+  const fcdoLine = fcdo
+    ? `UK FCDO Level ${fcdo.level}/4 — ${fcdo.message}`
+    : 'UK FCDO: data unavailable'
+
+  const gdacsText = gdacs.length
+    ? gdacs.slice(0, 4).map(e =>
+        `${e.properties?.eventname || e.properties?.eventtype || 'Event'} [${e.properties?.alertlevel || '?'}]`
+      ).join('; ')
+    : 'None'
+
+  const usgsText = usgs.length
+    ? usgs.slice(0, 4).map(e =>
+        `M${(e.properties?.mag || 0).toFixed(1)} – ${e.properties?.place || '?'}`
+      ).join('; ')
+    : 'None in past 7 days'
+
+  const healthMatches = health?.matches || []
+  const healthRecent  = health?.recent  || []
+  const healthText = healthMatches.length
+    ? healthMatches.map(a => `[${a.source}] ${a.title}`).join('; ')
+    : healthRecent.length
+    ? `No country-specific alerts. Global: ${healthRecent.slice(0, 3).map(a => a.title).join('; ')}`
+    : 'No recent outbreak data'
+
+  const prompt = `You are a senior corporate travel security analyst. Analyse ALL available intelligence for ${location} and produce a structured risk assessment for a client travelling to this destination.
+
+== OFFICIAL ADVISORIES ==
+${fcdoLine}
+Active disasters (GDACS): ${gdacsText}
+Earthquakes M5+ / 7d (USGS): ${usgsText}
+
+== LIVE INTELLIGENCE FEEDS ==
+${catText('conflict', 'Conflict & War news')}
+
+${catText('security', 'Security analysis')}
+
+${catText('health', 'Health & Disease alerts')}
+Disease/outbreak feeds (WHO/PAHO/CIDRAP): ${healthText}
+
+${catText('weather', 'Weather & Natural disasters')}
+
+== INSTRUCTIONS ==
+Produce a structured JSON risk assessment. Be specific — reference actual events from the feeds above. Do not invent risks. If feeds show no relevant threats for this location, reflect that accurately.
+
+Respond ONLY with valid JSON, no markdown:
+{
+  "overall_severity": "Low|Medium|High|Critical",
+  "summary": "2-3 sentence executive situation summary covering the most significant current threats",
+  "key_risks": ["specific risk 1 with detail", "specific risk 2", "specific risk 3"],
+  "recommendations": ["actionable rec 1", "actionable rec 2", "health precaution if relevant"],
+  "risks": [
+    {
+      "category": "conflict|security|health|weather|crime|political",
+      "severity": "Low|Medium|High|Critical",
+      "title": "Short risk title (max 60 chars)",
+      "description": "1-2 sentence description of the specific risk, citing the source feed or event",
+      "recommendation": "Specific actionable advice for the traveller"
+    }
+  ]
+}`
+
+  try {
+    const model = await resolveModel(apiKey)
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 1500,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+      signal: AbortSignal.timeout(25000),
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      console.error('[_claudeSynth] comprehensiveRiskScan HTTP error:', res.status, err?.error?.message)
+      return null
+    }
+
+    const data  = await res.json()
+    const raw   = (data?.content?.[0]?.text || '').replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim()
+    const match = raw.match(/\{[\s\S]*\}/)
+    if (!match) {
+      console.error('[_claudeSynth] no JSON in comprehensiveRiskScan response:', raw.slice(0, 200))
+      return null
+    }
+    const result = JSON.parse(match[0])
+    COMPREHENSIVE_CACHE[cacheKey] = { data: result, ts: Date.now() }
+    return result
+  } catch (e) {
+    console.error('[_claudeSynth] comprehensiveRiskScan failed:', e.message)
+    return null
+  }
+}
+
 // ── Model resolution (module-level cache survives warm invocations) ────────────
 let _cachedModel = null
 let _cachedModelTs = 0

@@ -13,7 +13,7 @@
  * When no advisory data is available, severity is returned as null.
  */
 
-import { synthesiseBrief, fetchGDACS, fetchUSGS, fetchHealthOutbreaks } from './_claudeSynth.js'
+import { comprehensiveRiskScan, synthesiseBrief, fetchGDACS, fetchUSGS, fetchHealthOutbreaks } from './_claudeSynth.js'
 
 let issCache    = []
 let issCacheTime = 0
@@ -218,16 +218,23 @@ async function getCountryRisk(country) {
   const severity = levelToSeverity(level)
   const dfatSlug = toSlug(country)
 
-  // ── AI synthesis (cached 1h per country) ──────────────────────────────────
+  // ── AI synthesis (comprehensive scan — cached 1h per country) ────────────
   let ai_brief = null
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (apiKey) {
+    // comprehensiveRiskScan manages its own cache internally; AI_BRIEF_CACHE here
+    // is kept for compatibility but the function deduplicates itself.
     const cacheKey = country.toLowerCase()
     const cached   = AI_BRIEF_CACHE[cacheKey]
     if (cached && Date.now() - cached.ts < CACHE_TTL) {
       ai_brief = cached.data
     } else {
-      ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
+      // Use comprehensive scan (all RSS feeds + FCDO + GDACS + USGS + health)
+      ai_brief = await comprehensiveRiskScan(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
+      // Fall back to basic synthesis if comprehensive scan fails
+      if (!ai_brief) {
+        ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
+      }
       AI_BRIEF_CACHE[cacheKey] = { data: ai_brief, ts: Date.now() }
     }
   }

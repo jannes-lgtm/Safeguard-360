@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutGrid, MapPin, Bell, FileText, CheckCircle,
   Users, LogOut, UserCircle, Radio, Newspaper, Briefcase,
-  AlertOctagon, Navigation, Shield, Layers
+  AlertOctagon, Navigation, Shield
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -126,7 +126,6 @@ export default function Layout({ children }) {
           <NavItem to="/sos" icon={AlertOctagon} label="SOS Emergency" red />
 
           <NavSection label="Intelligence" />
-          <NavItem to="/heat-map" icon={Layers} label="Heat Map" />
           <NavItem to="/country-risk" icon={Shield} label="Country Risk Reports" />
           <NavItem to="/news" icon={Newspaper} label="News Updates" />
           {profile?.role === 'admin' && (

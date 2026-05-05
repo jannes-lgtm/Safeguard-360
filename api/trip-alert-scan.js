@@ -16,7 +16,7 @@
  *   Returns: { scanned, inserted, alerts, ai_briefs }
  */
 
-import { synthesiseBrief, fetchGDACS, fetchUSGS, generateMorningBrief } from './_claudeSynth.js'
+import { comprehensiveRiskScan, fetchGDACS, fetchUSGS, fetchHealthOutbreaks, generateMorningBrief } from './_claudeSynth.js'
 import { notifyAlert } from './_notify.js'
 
 // ── In-memory cache: { [userId]: { ts, result } }
@@ -208,8 +208,8 @@ export default async function handler(req, res) {
       const country = cityToCountry(trip.arrival_city) || trip.arrival_city
       if (!country) continue
 
-      // Fetch all sources in parallel for this trip
-      const [gdacsEvents, quakes, internalAlerts] = await Promise.all([
+      // Fetch all sources in parallel for this trip (including health outbreak data)
+      const [gdacsEvents, quakes, internalAlerts, health] = await Promise.all([
         fetchGDACS(country),
         fetchUSGS(country),
         sbGet(SUPABASE_URL, SERVICE_KEY, 'alerts', {
@@ -217,6 +217,7 @@ export default async function handler(req, res) {
           country: `ilike.%${country}%`,
           select: 'id,title,description,severity,alert_type,country,source,date_issued',
         }).catch(() => []),
+        fetchHealthOutbreaks(country),
       ])
 
       // ── 4a. GDACS events ─────────────────────────────────────────────────
@@ -309,35 +310,62 @@ export default async function handler(req, res) {
         }
       }
 
-      // ── 4e. Claude AI synthesis for this destination ─────────────────────
+      // ── 4e. Comprehensive AI risk scan for this destination ──────────────
       if (AI_KEY) {
         try {
-          const brief = await synthesiseBrief(
+          const scan = await comprehensiveRiskScan(
             country, trip.arrival_city,
-            { fcdo: null, gdacs: gdacsEvents, usgs: quakes, iss: null },
+            { fcdo: null, gdacs: gdacsEvents, usgs: quakes, iss: null, health },
             AI_KEY
           )
-          if (brief) {
-            aiBriefs.push({ trip_id: trip.id, trip_name: trip.trip_name, country, city: trip.arrival_city, brief })
-            // Store as a trip_alert record so Dashboard can display it
+          if (scan) {
+            aiBriefs.push({ trip_id: trip.id, trip_name: trip.trip_name, country, city: trip.arrival_city, brief: scan })
+
+            // Store overall AI brief record (one per trip per day)
             allRows.push({
               itinerary_id: trip.id,
               user_id: userId,
               alert_type: 'ai_brief',
-              severity: brief.threat_level || 'Medium',
-              title: `AI Brief: ${trip.arrival_city || country}`,
-              description: JSON.stringify(brief),
+              severity: scan.overall_severity || 'Medium',
+              title: `AI Risk Brief: ${trip.arrival_city || country}`,
+              description: JSON.stringify({
+                summary: scan.summary,
+                key_risks: scan.key_risks,
+                recommendations: scan.recommendations,
+              }),
               source: 'Claude AI',
               source_url: null,
               country,
               arrival_city: trip.arrival_city,
               trip_name: trip.trip_name,
-              dedup_key: `ai-brief-${trip.id}-${today}`,  // one per trip per day
+              dedup_key: `ai-brief-${trip.id}-${today}`,
               event_date: new Date().toISOString(),
             })
+
+            // Store each individual risk as its own trip_alert row
+            if (scan.risks?.length) {
+              for (const risk of scan.risks) {
+                const titleKey = (risk.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 30)
+                allRows.push({
+                  itinerary_id: trip.id,
+                  user_id: userId,
+                  alert_type: risk.category || 'security',
+                  severity: risk.severity || 'Medium',
+                  title: risk.title,
+                  description: risk.description + (risk.recommendation ? ` — ${risk.recommendation}` : ''),
+                  source: 'Claude AI',
+                  source_url: null,
+                  country,
+                  arrival_city: trip.arrival_city,
+                  trip_name: trip.trip_name,
+                  dedup_key: `ai-risk-${titleKey}-${trip.id}-${today}`,
+                  event_date: new Date().toISOString(),
+                })
+              }
+            }
           }
         } catch (e) {
-          console.error(`AI synthesis failed for trip ${trip.id}:`, e.message)
+          console.error(`AI comprehensive scan failed for trip ${trip.id}:`, e.message)
         }
       }
 

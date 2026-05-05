@@ -20,12 +20,12 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import L from 'leaflet'
 import {
   Navigation, MapPin, RefreshCw, Radio,
-  EyeOff, Users, Clock, AlertCircle, CheckCircle
+  EyeOff, Users, Clock, AlertCircle, CheckCircle, AlertTriangle
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
-import { cityToCountry } from '../data/intelData'
+import { cityToCountry, COUNTRY_META } from '../data/intelData'
 
 const BRAND_BLUE  = '#0118A1'
 const BRAND_GREEN = '#AACC00'
@@ -82,13 +82,15 @@ export default function LiveMap() {
   const [loading,       setLoading]       = useState(true)
   const [intelCountry,  setIntelCountry]  = useState(null)
   const [mapReady,      setMapReady]      = useState(false)
+  const [tripAlerts,    setTripAlerts]    = useState([])   // live risk alerts from AI scan
 
-  const containerRef  = useRef(null)   // DOM div
-  const mapRef        = useRef(null)   // L.Map instance
-  const myMarkerRef   = useRef(null)   // my position marker
-  const staffMarkers  = useRef({})     // { user_id: L.Marker }
-  const watchRef      = useRef(null)
-  const updateRef     = useRef(null)
+  const containerRef   = useRef(null)   // DOM div
+  const mapRef         = useRef(null)   // L.Map instance
+  const myMarkerRef    = useRef(null)   // my position marker
+  const staffMarkers   = useRef({})     // { user_id: L.Marker }
+  const alertMarkers   = useRef([])     // L.CircleMarker[] for risk alerts
+  const watchRef       = useRef(null)
+  const updateRef      = useRef(null)
 
   // ── Data loading ────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -121,6 +123,29 @@ export default function LiveMap() {
     })
     setLocations(dedup)
     setLoading(false)
+
+    // Fetch trip alerts in the background (fire & forget)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        fetch('/api/trip-alert-scan', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data?.alerts) {
+              // Only show Critical / High severity alerts on the map
+              const mapAlerts = data.alerts.filter(a =>
+                ['Critical', 'High'].includes(a.severity) &&
+                a.alert_type !== 'ai_brief' &&
+                a.country
+              )
+              setTripAlerts(mapAlerts)
+            }
+          })
+          .catch(() => {})
+      }
+    } catch {}
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
@@ -144,9 +169,10 @@ export default function LiveMap() {
 
     return () => {
       map.remove()
-      mapRef.current  = null
-      myMarkerRef.current = null
+      mapRef.current       = null
+      myMarkerRef.current  = null
       staffMarkers.current = {}
+      alertMarkers.current = []
       setMapReady(false)
     }
   }, [])
@@ -207,6 +233,74 @@ export default function LiveMap() {
       }
     })
   }, [locations, profile, mapReady])
+
+  // ── Risk alert markers (trip_alerts → map) ─────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+
+    // Remove old alert markers
+    alertMarkers.current.forEach(m => m.remove())
+    alertMarkers.current = []
+
+    // Group alerts by country — show one marker per country (worst severity)
+    const byCountry = {}
+    for (const alert of tripAlerts) {
+      const country = alert.country
+      const meta    = COUNTRY_META[country]
+      if (!meta) continue
+      if (!byCountry[country]) {
+        byCountry[country] = { meta, alerts: [], severity: alert.severity }
+      }
+      byCountry[country].alerts.push(alert)
+      // Escalate severity if needed
+      const order = { Critical: 4, High: 3, Medium: 2, Low: 1 }
+      if ((order[alert.severity] || 0) > (order[byCountry[country].severity] || 0)) {
+        byCountry[country].severity = alert.severity
+      }
+    }
+
+    for (const [country, { meta, alerts, severity }] of Object.entries(byCountry)) {
+      const color  = severity === 'Critical' ? '#dc2626' : '#f97316'  // red / orange
+      const radius = severity === 'Critical' ? 18 : 14
+
+      const safeName  = country.replace(/'/g, "\\'")
+      const alertList = alerts.slice(0, 3).map(a =>
+        `<li style="margin:2px 0;color:#374151">• <b>${a.alert_type}:</b> ${(a.title || '').slice(0, 60)}</li>`
+      ).join('')
+
+      const popupHtml = `
+        <div style="font-family:sans-serif;font-size:12px;min-width:180px;max-width:220px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+            <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
+            <b style="font-size:13px;color:#111">${country}</b>
+            <span style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;
+              background:${color}20;color:${color};border:1px solid ${color}50">${severity}</span>
+          </div>
+          <ul style="margin:0 0 6px;padding:0;list-style:none;font-size:11px">${alertList}</ul>
+          ${alerts.length > 3 ? `<p style="font-size:10px;color:#9ca3af;margin:0 0 6px">+${alerts.length - 3} more alerts</p>` : ''}
+          <button onclick="window.__livemapIntel('${safeName}')"
+            style="width:100%;background:#0118A1;color:white;border:none;border-radius:4px;
+            padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer;text-align:center">
+            View ${country} Intel →
+          </button>
+        </div>`
+
+      const marker = L.circleMarker([meta.lat, meta.lon], {
+        radius,
+        color,
+        fillColor: color,
+        fillOpacity: 0.25,
+        weight: 2,
+        opacity: 0.8,
+        className: 'risk-pulse',
+      })
+        .bindPopup(popupHtml, { maxWidth: 240 })
+        .addTo(map)
+
+      alertMarkers.current.push(marker)
+    }
+  }, [tripAlerts, mapReady])
 
   // Register intel brief global handler
   useEffect(() => {
@@ -289,11 +383,12 @@ export default function LiveMap() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4 mb-5">
+      <div className="grid grid-cols-4 gap-4 mb-5">
         {[
-          { label: 'Sharing Location', value: locations.length,                                  color: 'text-[#0118A1]' },
-          { label: 'Active Trips',     value: locations.filter(l => l.trip_name).length,         color: 'text-green-600' },
-          { label: 'Last Updated',     value: locations[0] ? timeAgo(locations[0].recorded_at) : '—', color: 'text-gray-600' },
+          { label: 'Sharing Location', value: locations.length,                                         color: 'text-[#0118A1]' },
+          { label: 'Active Trips',     value: locations.filter(l => l.trip_name).length,                color: 'text-green-600' },
+          { label: 'Risk Alerts',      value: tripAlerts.length,                                        color: tripAlerts.some(a => a.severity === 'Critical') ? 'text-red-600' : tripAlerts.length > 0 ? 'text-orange-500' : 'text-gray-500' },
+          { label: 'Last Updated',     value: locations[0] ? timeAgo(locations[0].recorded_at) : '—',  color: 'text-gray-600' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-[8px] border border-gray-200 p-4 text-center shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
             <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
@@ -353,6 +448,34 @@ export default function LiveMap() {
               </div>
             )}
           </div>
+
+          {/* Risk alerts panel */}
+          {tripAlerts.length > 0 && (
+            <div className="bg-white border border-red-200 rounded-[12px] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle size={13} className="text-red-500" />
+                <p className="text-xs font-bold text-red-600 uppercase tracking-wider flex-1">Live Risk Alerts</p>
+                <span className="text-[10px] font-bold bg-red-100 text-red-600 rounded-full px-2 py-0.5">{tripAlerts.length}</span>
+              </div>
+              <div className="space-y-2 max-h-52 overflow-y-auto">
+                {tripAlerts.slice(0, 8).map((a, i) => (
+                  <div key={i}
+                    className={`p-2.5 rounded-[6px] border cursor-pointer hover:opacity-80 transition-opacity
+                      ${a.severity === 'Critical' ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'}`}
+                    onClick={() => a.country && setIntelCountry(a.country)}>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase
+                        ${a.severity === 'Critical' ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'}`}>
+                        {a.severity}
+                      </span>
+                      <span className="text-[10px] font-semibold text-gray-600">{a.country}</span>
+                    </div>
+                    <p className="text-[11px] text-gray-700 font-medium leading-snug line-clamp-2">{a.title}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Staff list */}
           <div className="bg-white border border-gray-200 rounded-[12px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
