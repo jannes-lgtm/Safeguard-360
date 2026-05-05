@@ -17,6 +17,7 @@
  */
 
 import { synthesiseBrief, fetchGDACS, fetchUSGS, generateMorningBrief } from './_claudeSynth.js'
+import { notifyAlert } from './_notify.js'
 
 // ── In-memory cache: { [userId]: { ts, result } }
 const userCache = {}
@@ -352,6 +353,51 @@ export default async function handler(req, res) {
       inserted = await sbUpsert(SUPABASE_URL, SERVICE_KEY, 'trip_alerts', allRows)
     } catch (e) {
       console.error('trip-alert-scan: upsert error:', e.message)
+    }
+  }
+
+  // ── 5a. Send notifications for new Critical / High alerts ─────────────────
+  // "New" = created_at within the last 5 minutes (upsert on existing rows
+  //  preserves the original created_at, so genuinely new rows stand out).
+  if (inserted.length > 0 && process.env.RESEND_API_KEY) {
+    try {
+      // Fetch user email + phone from Supabase
+      const [authRes, profileRows] = await Promise.all([
+        fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: { apikey: ANON_KEY, Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(4000),
+        }).then(r => r.ok ? r.json() : null).catch(() => null),
+        sbGet(SUPABASE_URL, SERVICE_KEY, 'profiles', {
+          id: `eq.${userId}`, select: 'phone,whatsapp_number', limit: 1,
+        }).catch(() => []),
+      ])
+
+      const userEmail = authRes?.email || null
+      const profile   = profileRows?.[0] || {}
+      const userPhone = profile.phone || profile.whatsapp_number || null
+
+      const fiveMinAgo = Date.now() - 5 * 60 * 1000
+      const newAlerts  = inserted.filter(a =>
+        a.alert_type !== 'ai_brief' &&
+        ['Critical', 'High'].includes(a.severity) &&
+        new Date(a.created_at).getTime() > fiveMinAgo
+      )
+
+      if (newAlerts.length > 0 && userEmail) {
+        // Group by trip so travellers get one email per trip, not per alert
+        const byTrip = {}
+        for (const a of newAlerts) {
+          const key = a.itinerary_id || 'general'
+          if (!byTrip[key]) byTrip[key] = { tripName: a.trip_name, city: a.arrival_city, alerts: [] }
+          byTrip[key].alerts.push(a)
+        }
+        for (const { tripName, city, alerts } of Object.values(byTrip)) {
+          await notifyAlert({ userEmail, userPhone, alerts, tripName, city })
+        }
+        console.log(`[trip-alert-scan] Notified ${userEmail} about ${newAlerts.length} new alert(s)`)
+      }
+    } catch (e) {
+      console.error('[trip-alert-scan] notification error:', e.message)
     }
   }
 

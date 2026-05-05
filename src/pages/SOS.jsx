@@ -166,7 +166,8 @@ export default function SOS() {
 
   const sendSOS = async () => {
     setStep('sending')
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
 
     const payload = {
       user_id: user.id,
@@ -183,6 +184,8 @@ export default function SOS() {
 
     const { error: sosErr } = await supabase.from('sos_events').insert(payload)
 
+    if (sosErr) { setError(sosErr.message); setStep('confirm'); return }
+
     // Also create a Critical alert so it appears in the alerts feed
     await supabase.from('alerts').insert({
       title: `🆘 SOS — ${payload.full_name}`,
@@ -194,7 +197,18 @@ export default function SOS() {
       date_issued: new Date().toISOString().split('T')[0],
     })
 
-    if (sosErr) { setError(sosErr.message); setStep('confirm'); return }
+    // Fire-and-forget: send email + SMS to admin and emergency contacts
+    if (session?.access_token) {
+      fetch('/api/notify', {
+        method: 'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ type: 'sos', ...payload }),
+      }).catch(e => console.warn('[SOS] notify failed:', e.message))
+    }
+
     setStep('sent')
     await loadData()
   }
