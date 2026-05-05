@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet'
+import { useEffect, useRef, useState } from 'react'
+import L from 'leaflet'
 import { useNavigate } from 'react-router-dom'
 import { Layers } from 'lucide-react'
 import Layout from '../components/Layout'
@@ -73,43 +73,121 @@ const COUNTRIES = {
   'United Arab Emirates':          { lat: 24.4539,  lon: 54.3773,  risk: 'Low',      region: 'Middle East' },
 }
 
-// ── Styling per risk level ────────────────────────────────────────────────────
 const RISK_STYLE = {
-  Critical: { color: '#dc2626', fillColor: '#dc2626', radius: 18, label: 'Critical',  bg: 'bg-red-600',    text: 'text-white' },
-  High:     { color: '#ea580c', fillColor: '#ea580c', radius: 14, label: 'High',      bg: 'bg-orange-500', text: 'text-white' },
-  Medium:   { color: '#ca8a04', fillColor: '#eab308', radius: 11, label: 'Medium',    bg: 'bg-yellow-400', text: 'text-gray-900' },
-  Low:      { color: '#16a34a', fillColor: '#22c55e', radius: 8,  label: 'Low',       bg: 'bg-green-500',  text: 'text-white' },
-  Unknown:  { color: '#9ca3af', fillColor: '#d1d5db', radius: 8,  label: 'Unknown',   bg: 'bg-gray-400',   text: 'text-white' },
+  Critical: { color: '#dc2626', fillColor: '#dc2626', radius: 18, bg: 'bg-red-600',    text: 'text-white' },
+  High:     { color: '#ea580c', fillColor: '#ea580c', radius: 14, bg: 'bg-orange-500', text: 'text-white' },
+  Medium:   { color: '#ca8a04', fillColor: '#eab308', radius: 11, bg: 'bg-yellow-400', text: 'text-gray-900' },
+  Low:      { color: '#16a34a', fillColor: '#22c55e', radius: 8,  bg: 'bg-green-500',  text: 'text-white' },
+  Unknown:  { color: '#9ca3af', fillColor: '#d1d5db', radius: 8,  bg: 'bg-gray-400',   text: 'text-white' },
 }
 const rs = (r) => RISK_STYLE[r] || RISK_STYLE.Unknown
 
-// Counts per risk level
 function riskCounts(data) {
   const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 }
   Object.values(data).forEach(c => { if (counts[c.risk] !== undefined) counts[c.risk]++ })
   return counts
 }
 
-// ── Fit-map helper ────────────────────────────────────────────────────────────
-function FitMap({ highlighted }) {
-  const map = useMap()
-  useEffect(() => {
-    if (highlighted) {
-      const c = COUNTRIES[highlighted]
-      if (c) map.flyTo([c.lat, c.lon], 5, { duration: 1.2 })
-    }
-  }, [highlighted, map])
-  return null
-}
+const REGIONS = ['All', 'Africa', 'Middle East', 'Europe', 'Asia', 'Americas', 'Oceania']
 
-// ── Main ─────────────────────────────────────────────────────────────────────
 export default function HeatMap() {
   const navigate = useNavigate()
-  const [highlighted, setHighlighted] = useState(null)
+  const containerRef  = useRef(null)   // DOM div for Leaflet
+  const mapRef        = useRef(null)   // L.Map instance
+  const markersRef    = useRef([])     // active L.CircleMarker instances
   const [regionFilter, setRegionFilter] = useState('All')
+  const [highlighted,  setHighlighted]  = useState(null)
+  const [mapReady,     setMapReady]     = useState(false)
 
-  const regions = ['All', 'Africa', 'Middle East', 'Europe', 'Asia', 'Americas', 'Oceania']
-  const counts  = riskCounts(COUNTRIES)
+  const counts = riskCounts(COUNTRIES)
+
+  // Register global goto handler for popup buttons (Leaflet popup HTML can't
+  // access React context, so we bridge via window)
+  useEffect(() => {
+    window.__heatmapGoto = (country) =>
+      navigate(`/country-risk?country=${encodeURIComponent(country)}`)
+    return () => { delete window.__heatmapGoto }
+  }, [navigate])
+
+  // Initialise Leaflet map once
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return
+
+    const map = L.map(containerRef.current, {
+      center:          [5, 20],
+      zoom:            3,
+      zoomControl:     true,
+      scrollWheelZoom: true,
+    })
+
+    L.tileLayer(
+      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+      { attribution: '&copy; <a href="https://carto.com">CARTO</a>', subdomains: 'abcd', maxZoom: 19 }
+    ).addTo(map)
+
+    mapRef.current = map
+    setMapReady(true)
+
+    return () => {
+      map.remove()
+      mapRef.current = null
+      setMapReady(false)
+    }
+  }, [])
+
+  // Add / refresh circle markers whenever filter or map readiness changes
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+
+    // Remove existing markers
+    markersRef.current.forEach(m => m.remove())
+    markersRef.current = []
+
+    const filtered = Object.entries(COUNTRIES).filter(([, c]) =>
+      regionFilter === 'All' || c.region === regionFilter
+    )
+
+    filtered.forEach(([name, c]) => {
+      const s = rs(c.risk)
+      const safeName = name.replace(/'/g, "\\'")
+
+      const marker = L.circleMarker([c.lat, c.lon], {
+        radius:      s.radius,
+        color:       s.color,
+        fillColor:   s.fillColor,
+        fillOpacity: 0.65,
+        weight:      1.5,
+      })
+
+      marker.bindPopup(`
+        <div style="font-family:sans-serif;padding:4px 0;min-width:170px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:6px">${name}</div>
+          <div style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;
+            background:${s.fillColor};color:${c.risk === 'Medium' ? '#1f2937' : '#fff'};margin-bottom:8px">
+            ${c.risk} Risk
+          </div>
+          <div style="font-size:11px;color:#6b7280;margin-bottom:10px">${c.region}</div>
+          <button
+            onclick="window.__heatmapGoto('${safeName}')"
+            style="display:block;width:100%;background:#0118A1;color:#fff;border:none;
+              border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">
+            View Full Report
+          </button>
+        </div>
+      `)
+
+      marker.addTo(map)
+      markersRef.current.push(marker)
+    })
+  }, [mapReady, regionFilter])
+
+  // Fly to highlighted country
+  useEffect(() => {
+    if (!mapRef.current || !highlighted) return
+    const c = COUNTRIES[highlighted]
+    if (c) mapRef.current.flyTo([c.lat, c.lon], 5, { duration: 1.2 })
+  }, [highlighted])
 
   const filtered = Object.entries(COUNTRIES).filter(([, c]) =>
     regionFilter === 'All' || c.region === regionFilter
@@ -122,12 +200,14 @@ export default function HeatMap() {
           <Layers size={20} className="text-[#0118A1]" />
           <h1 className="text-2xl font-bold text-gray-900">Global Risk Heat Map</h1>
         </div>
-        <p className="text-sm text-gray-500">Real-time risk levels across all monitored countries. Click a country to view the full risk report.</p>
+        <p className="text-sm text-gray-500">
+          Real-time risk levels across all monitored countries. Click a country to view the full risk report.
+        </p>
       </div>
 
       {/* Summary strip */}
       <div className="grid grid-cols-4 gap-3 mb-5">
-        {['Critical','High','Medium','Low'].map(level => {
+        {['Critical', 'High', 'Medium', 'Low'].map(level => {
           const s = RISK_STYLE[level]
           return (
             <div key={level} className="bg-white border border-gray-200 rounded-[8px] p-3 flex items-center gap-3 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
@@ -146,7 +226,7 @@ export default function HeatMap() {
         <div className="flex-1 min-w-0">
           {/* Region filter */}
           <div className="flex gap-1.5 mb-3 flex-wrap">
-            {regions.map(r => (
+            {REGIONS.map(r => (
               <button key={r} onClick={() => setRegionFilter(r)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
                   ${regionFilter === r
@@ -157,77 +237,20 @@ export default function HeatMap() {
             ))}
           </div>
 
-          <div className="rounded-[10px] overflow-hidden border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.08)]" style={{ height: 520 }}>
-            <MapContainer
-              center={[5, 20]}
-              zoom={3}
-              style={{ height: '100%', width: '100%' }}
-              scrollWheelZoom
-              zoomControl
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://carto.com">CARTO</a>'
-                url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-              />
-              <FitMap highlighted={highlighted} />
-              {filtered.map(([name, c]) => {
-                const s = rs(c.risk)
-                return (
-                  <CircleMarker
-                    key={name}
-                    center={[c.lat, c.lon]}
-                    radius={s.radius}
-                    color={s.color}
-                    fillColor={s.fillColor}
-                    fillOpacity={0.65}
-                    weight={highlighted === name ? 3 : 1.5}
-                    opacity={highlighted === name ? 1 : 0.85}
-                    eventHandlers={{ click: () => setHighlighted(name) }}
-                  >
-                    <Popup maxWidth={220}>
-                      <div style={{ fontFamily: 'sans-serif', padding: '4px 0' }}>
-                        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{name}</div>
-                        <div style={{
-                          display: 'inline-block',
-                          padding: '2px 10px',
-                          borderRadius: 20,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          background: s.fillColor,
-                          color: c.risk === 'Medium' ? '#1f2937' : '#fff',
-                          marginBottom: 10,
-                        }}>
-                          {c.risk} Risk
-                        </div>
-                        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>{c.region}</div>
-                        <button
-                          onClick={() => navigate(`/country-risk?country=${encodeURIComponent(name)}`)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 6,
-                            background: '#0118A1', color: '#fff',
-                            border: 'none', borderRadius: 6,
-                            padding: '7px 14px', fontSize: 12,
-                            fontWeight: 600, cursor: 'pointer', width: '100%',
-                            justifyContent: 'center',
-                          }}>
-                          View Full Report
-                        </button>
-                      </div>
-                    </Popup>
-                  </CircleMarker>
-                )
-              })}
-            </MapContainer>
+          <div className="rounded-[10px] overflow-hidden border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+            style={{ height: 520 }}>
+            <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
           </div>
 
           {/* Legend */}
           <div className="mt-3 flex items-center gap-5 bg-white border border-gray-200 rounded-[8px] px-4 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1">Risk Level</span>
-            {['Critical','High','Medium','Low'].map(level => {
+            {['Critical', 'High', 'Medium', 'Low'].map(level => {
               const s = RISK_STYLE[level]
               return (
                 <div key={level} className="flex items-center gap-1.5">
-                  <div className="rounded-full shrink-0" style={{ width: s.radius * 1.2, height: s.radius * 1.2, background: s.fillColor, opacity: 0.85 }} />
+                  <div className="rounded-full shrink-0"
+                    style={{ width: s.radius * 1.2, height: s.radius * 1.2, background: s.fillColor, opacity: 0.85 }} />
                   <span className="text-xs text-gray-600">{level}</span>
                 </div>
               )
@@ -243,8 +266,8 @@ export default function HeatMap() {
               <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Countries</span>
             </div>
             <div className="overflow-y-auto" style={{ maxHeight: 520 }}>
-              {['Critical','High','Medium','Low'].map(level => {
-                const group = filtered.filter(([,c]) => c.risk === level)
+              {['Critical', 'High', 'Medium', 'Low'].map(level => {
+                const group = filtered.filter(([, c]) => c.risk === level)
                 if (!group.length) return null
                 const s = RISK_STYLE[level]
                 return (
@@ -252,7 +275,7 @@ export default function HeatMap() {
                     <div className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider ${s.bg} ${s.text}`}>
                       {level} ({group.length})
                     </div>
-                    {group.map(([name, c]) => (
+                    {group.map(([name]) => (
                       <button key={name}
                         onClick={() => {
                           setHighlighted(name)
@@ -260,7 +283,8 @@ export default function HeatMap() {
                         }}
                         className={`w-full text-left flex items-center gap-2.5 px-3 py-2.5 border-b border-gray-50 text-sm transition-colors
                           ${highlighted === name ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: s.fillColor }} />
+                        <div className="w-2 h-2 rounded-full shrink-0"
+                          style={{ background: RISK_STYLE[level].fillColor }} />
                         <span className="text-gray-800 text-xs font-medium truncate">{name}</span>
                       </button>
                     ))}
