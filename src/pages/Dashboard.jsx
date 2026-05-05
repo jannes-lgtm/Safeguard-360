@@ -1,6 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart2, Bell, Plane, Radio, Globe, AlertCircle, Calendar, ChevronRight, Brain, Zap, AlertTriangle, ListChecks, RefreshCw } from 'lucide-react'
+import {
+  BarChart2, Bell, Plane, Radio, Globe, AlertCircle,
+  Calendar, ChevronRight, Brain, Zap, AlertTriangle,
+  ListChecks, RefreshCw, X, CheckCircle2,
+} from 'lucide-react'
 import Layout from '../components/Layout'
 import MetricCard from '../components/MetricCard'
 import SeverityBadge from '../components/SeverityBadge'
@@ -12,17 +16,9 @@ import { cityToCountry, SEVERITY_STYLE } from '../data/intelData'
 const BRAND_BLUE  = '#0118A1'
 const BRAND_GREEN = '#AACC00'
 
-// ── Trip alert helpers ────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const SEVERITY_ORDER = { Critical: 0, High: 1, Medium: 2, Low: 3, Info: 4 }
-
-const TRIP_ALERT_STYLES = {
-  Critical: 'border-l-4 border-red-500 bg-red-50',
-  High:     'border-l-4 border-amber-500 bg-amber-50',
-  Medium:   'border-l-4 border-yellow-400 bg-yellow-50',
-  Low:      'border-l-4 border-gray-300 bg-gray-50',
-  Info:     'border-l-4 border-blue-300 bg-blue-50',
-}
 
 const ALERT_TYPE_ICON = {
   disaster:   '🌋',
@@ -34,13 +30,35 @@ const ALERT_TYPE_ICON = {
   political:  '🏛️',
 }
 
+const SEVERITY_PILL = {
+  Critical: { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', bar: '#EF4444' },
+  High:     { bg: '#FFF7ED', color: '#C2410C', border: '#FED7AA', bar: '#F97316' },
+  Medium:   { bg: '#FEFCE8', color: '#A16207', border: '#FEF08A', bar: '#EAB308' },
+  Low:      { bg: '#F8FAFC', color: '#475569', border: '#E2E8F0', bar: '#94A3B8' },
+  Info:     { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE', bar: '#3B82F6' },
+}
+
 function fmtEventDate(d) {
   if (!d) return null
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+function greeting() {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+const severityDot = {
+  Critical: '#EF4444',
+  High:     '#F97316',
+  Medium:   '#EAB308',
+  Low:      '#94A3B8',
+}
+
+// ── Trip Alerts section ───────────────────────────────────────────────────────
 function TripAlertsSection({ alerts, onMarkRead, onDismissAll }) {
-  // Sort by severity then date
   const sorted = [...alerts].sort((a, b) => {
     const so = (SEVERITY_ORDER[a.severity] ?? 5) - (SEVERITY_ORDER[b.severity] ?? 5)
     if (so !== 0) return so
@@ -49,12 +67,14 @@ function TripAlertsSection({ alerts, onMarkRead, onDismissAll }) {
 
   return (
     <div className="mb-6">
-      {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm">⚠️</span>
+        <div className="flex items-center gap-2.5">
+          <AlertTriangle size={15} style={{ color: '#F97316' }} />
           <h2 className="text-sm font-bold text-gray-800">Trip Alerts</h2>
-          <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+          <span
+            className="text-[10px] font-bold rounded-full px-2 py-0.5"
+            style={{ background: '#FFF7ED', color: '#C2410C', border: '1px solid #FED7AA' }}
+          >
             {alerts.length}
           </span>
         </div>
@@ -66,77 +86,86 @@ function TripAlertsSection({ alerts, onMarkRead, onDismissAll }) {
         </button>
       </div>
 
-      {/* Alert list */}
       <div className="space-y-2">
-        {sorted.map(alert => (
-          <div
-            key={alert.id}
-            className={`rounded-[8px] p-3 flex items-start gap-3 shadow-[0_1px_3px_rgba(0,0,0,0.06)] ${TRIP_ALERT_STYLES[alert.severity] || TRIP_ALERT_STYLES.Low}`}
-          >
-            {/* Type icon */}
-            <span className="text-lg shrink-0 leading-none mt-0.5">
-              {ALERT_TYPE_ICON[alert.alert_type] || '⚠️'}
-            </span>
+        {sorted.map(alert => {
+          const pill = SEVERITY_PILL[alert.severity] || SEVERITY_PILL.Low
+          return (
+            <div
+              key={alert.id}
+              className="rounded-2xl flex items-start gap-3 p-4 transition-all"
+              style={{
+                background: pill.bg,
+                border: `1px solid ${pill.border}`,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              }}
+            >
+              {/* Left accent bar */}
+              <div className="w-0.5 self-stretch rounded-full shrink-0 mt-0.5" style={{ background: pill.bar }} />
 
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-1">
-                  {alert.title}
-                </p>
-                {/* Mark read X */}
-                <button
-                  onClick={() => onMarkRead(alert.id)}
-                  className="shrink-0 text-gray-400 hover:text-gray-600 text-xs font-bold leading-none mt-0.5"
-                  title="Dismiss"
-                >
-                  ✕
-                </button>
-              </div>
+              <span className="text-lg shrink-0 leading-none mt-0.5">
+                {ALERT_TYPE_ICON[alert.alert_type] || '⚠️'}
+              </span>
 
-              {alert.description && (
-                <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">{alert.description}</p>
-              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2 mb-0.5">
+                  <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-1">
+                    {alert.title}
+                  </p>
+                  <button
+                    onClick={() => onMarkRead(alert.id)}
+                    className="shrink-0 p-0.5 rounded-md transition-colors hover:bg-black/5"
+                    title="Dismiss"
+                    style={{ color: pill.color, opacity: 0.5 }}
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
 
-              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                {/* Trip label */}
-                {alert.trip_name && (
-                  <span className="text-[10px] bg-white/70 border border-gray-200 text-gray-600 rounded px-1.5 py-0.5 font-medium">
-                    {alert.trip_name}
+                {alert.description && (
+                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">
+                    {alert.description}
+                  </p>
+                )}
+
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                    style={{ background: pill.bar + '20', color: pill.color }}
+                  >
+                    {alert.severity}
                   </span>
-                )}
-                {/* Source badge */}
-                {alert.source && (
-                  <span className="text-[10px] bg-[#0118A1]/10 text-[#0118A1] rounded px-1.5 py-0.5 font-medium">
-                    {alert.source}
-                  </span>
-                )}
-                {/* Event date */}
-                {alert.event_date && (
-                  <span className="text-[10px] text-gray-400">{fmtEventDate(alert.event_date)}</span>
-                )}
+                  {alert.trip_name && (
+                    <span className="text-[10px] bg-white/80 border border-gray-200 text-gray-500 rounded-full px-2 py-0.5 font-medium">
+                      {alert.trip_name}
+                    </span>
+                  )}
+                  {alert.source && (
+                    <span
+                      className="text-[10px] rounded-full px-2 py-0.5 font-medium"
+                      style={{ background: `${BRAND_BLUE}10`, color: BRAND_BLUE }}
+                    >
+                      {alert.source}
+                    </span>
+                  )}
+                  {alert.event_date && (
+                    <span className="text-[10px] text-gray-400">{fmtEventDate(alert.event_date)}</span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
 }
 
-const severityDot = {
-  Critical: 'bg-red-500',
-  High: 'bg-amber-500',
-  Medium: 'bg-yellow-400',
-  Low: 'bg-gray-400',
-}
-
-// ── AI Morning Brief card ─────────────────────────────────────────────────────
+// ── AI Morning Brief ──────────────────────────────────────────────────────────
 const BRIEF_SEV_STYLE = {
-  Critical: 'bg-red-50 border-red-200 text-red-700',
-  High:     'bg-orange-50 border-orange-200 text-orange-700',
-  Medium:   'bg-amber-50 border-amber-200 text-amber-700',
-  Low:      'bg-green-50 border-green-200 text-green-700',
+  Critical: { bg: '#FEF2F2', border: '#FECACA', text: '#B91C1C' },
+  High:     { bg: '#FFF7ED', border: '#FED7AA', text: '#C2410C' },
+  Medium:   { bg: '#FEFCE8', border: '#FEF08A', text: '#A16207' },
+  Low:      { bg: '#F0FDF4', border: '#BBF7D0', text: '#15803D' },
 }
 
 function MorningBriefCard({ brief, loading }) {
@@ -144,15 +173,28 @@ function MorningBriefCard({ brief, loading }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-[8px] border border-[#0118A1]/20 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-5 mb-6 animate-pulse">
-        <div className="flex items-center gap-2 mb-3">
-          <Brain size={14} className="text-[#0118A1]"/>
-          <span className="text-sm font-bold text-[#0118A1]">Generating AI Intelligence Brief...</span>
-          <RefreshCw size={10} className="text-[#0118A1]/50 animate-spin ml-auto"/>
+      <div
+        className="rounded-2xl p-5 mb-6 animate-pulse"
+        style={{
+          background: 'linear-gradient(135deg, #EEF1FB 0%, #F4F6FD 100%)',
+          border: `1px solid ${BRAND_BLUE}20`,
+          boxShadow: `0 2px 12px ${BRAND_BLUE}10`,
+        }}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: BRAND_BLUE }}>
+            <Brain size={16} color="white" />
+          </div>
+          <div>
+            <div className="h-3.5 w-44 bg-blue-100 rounded-full mb-1.5" />
+            <div className="h-2.5 w-28 bg-blue-50 rounded-full" />
+          </div>
+          <RefreshCw size={12} className="ml-auto animate-spin" style={{ color: `${BRAND_BLUE}60` }} />
         </div>
         <div className="space-y-2">
-          <div className="h-3 bg-gray-100 rounded w-full"/>
-          <div className="h-3 bg-gray-100 rounded w-4/5"/>
+          <div className="h-2.5 bg-blue-50 rounded-full w-full" />
+          <div className="h-2.5 bg-blue-50 rounded-full w-4/5" />
+          <div className="h-2.5 bg-blue-50 rounded-full w-2/3" />
         </div>
       </div>
     )
@@ -161,48 +203,64 @@ function MorningBriefCard({ brief, loading }) {
   if (!brief) return null
 
   return (
-    <div className="bg-white rounded-[8px] border border-[#0118A1]/20 shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-6 overflow-hidden">
-      {/* Header */}
+    <div
+      className="rounded-2xl mb-6 overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, #EEF1FB 0%, #F4F6FD 100%)',
+        border: `1px solid ${BRAND_BLUE}20`,
+        boxShadow: `0 2px 16px ${BRAND_BLUE}12`,
+      }}
+    >
       <button
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50/50 transition-colors"
+        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-white/30 transition-colors"
         onClick={() => setExpanded(e => !e)}
       >
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#0118A1' }}>
-            <Brain size={15} color="white"/>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-gray-900">AI Intelligence Brief</span>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#0118A1]/10 text-[#0118A1] flex items-center gap-0.5">
-                <Zap size={7}/> LIVE
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-0.5 text-left line-clamp-1">{brief.headline}</p>
-          </div>
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: BRAND_BLUE }}
+        >
+          <Brain size={16} color="white" />
         </div>
-        <span className="text-xs text-gray-400">{expanded ? '▲' : '▼'}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-sm font-bold text-gray-900">AI Intelligence Brief</span>
+            <span
+              className="text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
+              style={{ background: `${BRAND_BLUE}15`, color: BRAND_BLUE }}
+            >
+              <Zap size={7} /> LIVE
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 truncate">{brief.headline}</p>
+        </div>
+        <ChevronRight
+          size={15}
+          className="shrink-0 text-gray-400 transition-transform duration-200"
+          style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+        />
       </button>
 
       {expanded && (
-        <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-4">
-          {/* Headline */}
-          <p className="text-sm text-gray-700 font-medium">{brief.headline}</p>
+        <div
+          className="px-5 pb-5 pt-4 space-y-4"
+          style={{ borderTop: `1px solid ${BRAND_BLUE}10` }}
+        >
+          <p className="text-sm text-gray-700 font-medium leading-relaxed">{brief.headline}</p>
 
-          {/* Per-country situations */}
           {brief.situations?.length > 0 && (
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Active Situations</p>
               <div className="space-y-2">
                 {brief.situations.map((s, i) => {
-                  const sevStyle = BRIEF_SEV_STYLE[s.severity] || BRIEF_SEV_STYLE.Medium
+                  const st = BRIEF_SEV_STYLE[s.severity] || BRIEF_SEV_STYLE.Medium
                   return (
-                    <div key={i} className={`rounded-[6px] border px-3 py-2 ${sevStyle}`}>
+                    <div key={i} className="rounded-xl px-3.5 py-2.5"
+                      style={{ background: st.bg, border: `1px solid ${st.border}` }}>
                       <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <span className="text-xs font-bold">{s.country}</span>
-                        <span className="text-[10px] font-bold opacity-70">{s.severity}</span>
+                        <span className="text-xs font-bold" style={{ color: st.text }}>{s.country}</span>
+                        <span className="text-[10px] font-semibold opacity-60" style={{ color: st.text }}>{s.severity}</span>
                       </div>
-                      <p className="text-xs opacity-90 leading-relaxed">{s.summary}</p>
+                      <p className="text-xs leading-relaxed" style={{ color: st.text, opacity: 0.85 }}>{s.summary}</p>
                     </div>
                   )
                 })}
@@ -210,17 +268,19 @@ function MorningBriefCard({ brief, loading }) {
             </div>
           )}
 
-          {/* Priority actions */}
           {brief.priority_actions?.length > 0 && (
             <div>
-              <div className="flex items-center gap-1.5 mb-2">
-                <ListChecks size={11} className="text-[#0118A1]"/>
+              <div className="flex items-center gap-1.5 mb-2.5">
+                <ListChecks size={11} style={{ color: BRAND_BLUE }} />
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Priority Actions</p>
               </div>
-              <ul className="space-y-1">
+              <ul className="space-y-1.5">
                 {brief.priority_actions.map((a, i) => (
-                  <li key={i} className="flex items-start gap-2 text-xs text-gray-700">
-                    <span className="mt-1 w-4 h-4 rounded-full bg-[#0118A1]/10 text-[#0118A1] text-[9px] font-bold flex items-center justify-center shrink-0">
+                  <li key={i} className="flex items-start gap-2.5 text-xs text-gray-700">
+                    <span
+                      className="mt-0.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center shrink-0"
+                      style={{ background: `${BRAND_BLUE}12`, color: BRAND_BLUE }}
+                    >
                       {i + 1}
                     </span>
                     {a}
@@ -230,36 +290,34 @@ function MorningBriefCard({ brief, loading }) {
             </div>
           )}
 
-          <p className="text-[10px] text-gray-400 text-right">Powered by Claude AI · Updates on each scan</p>
+          <p className="text-[10px] text-gray-400 text-right pt-1">
+            Powered by Claude AI · Updates on each scan
+          </p>
         </div>
       )}
     </div>
   )
 }
 
+// ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [metrics, setMetrics] = useState({
-    activeAlerts: 0,
-    staffTravelling: 0,
-    activeFeeds: 0,
-  })
-  const [recentAlerts, setRecentAlerts]       = useState([])
+  const [metrics, setMetrics]               = useState({ activeAlerts: 0, staffTravelling: 0, activeFeeds: 0 })
+  const [recentAlerts, setRecentAlerts]     = useState([])
   const [trainingModules, setTrainingModules] = useState([])
-  const [myTrips, setMyTrips]                 = useState([])
-  const [destRisk, setDestRisk]               = useState({})   // country → risk data
-  const [destAlerts, setDestAlerts]           = useState({})   // country → alert count
-  const [selectedCountry, setSelectedCountry] = useState(null) // for IntelBrief drawer
-  const [loading, setLoading]                 = useState(true)
-  const [tripAlerts, setTripAlerts]           = useState([])   // personalised trip alerts
-  const [dismissedIds, setDismissedIds]       = useState(() => new Set()) // local dismiss state
-  const [scanLoading, setScanLoading]         = useState(false)
-  const [morningBrief, setMorningBrief]       = useState(null) // AI morning brief
-  const [briefLoading, setBriefLoading]       = useState(false)
-  const loadingRef                             = useRef(false)  // prevent concurrent loads
+  const [myTrips, setMyTrips]               = useState([])
+  const [destRisk, setDestRisk]             = useState({})
+  const [destAlerts, setDestAlerts]         = useState({})
+  const [selectedCountry, setSelectedCountry] = useState(null)
+  const [loading, setLoading]               = useState(true)
+  const [tripAlerts, setTripAlerts]         = useState([])
+  const [dismissedIds, setDismissedIds]     = useState(() => new Set())
+  const [scanLoading, setScanLoading]       = useState(false)
+  const [morningBrief, setMorningBrief]     = useState(null)
+  const [briefLoading, setBriefLoading]     = useState(false)
+  const loadingRef                           = useRef(false)
 
-  // ── Main data loader (extracted so real-time subscription can re-call it) ──
   const load = useCallback(async ({ scanAlerts = false } = {}) => {
-    if (loadingRef.current) return          // debounce concurrent calls
+    if (loadingRef.current) return
     loadingRef.current = true
 
     const { data: { session } } = await supabase.auth.getSession()
@@ -280,7 +338,6 @@ export default function Dashboard() {
       supabase.from('alerts').select('*').eq('status', 'Active').order('date_issued', { ascending: false }).limit(4),
       supabase.from('training_progress').select('*').eq('user_id', session.user.id).order('module_order'),
       fetch('/api/feed-status').then(r => r.json()).catch(() => ({})),
-      // All upcoming + active trips for this user (no date filter so upload is instant)
       supabase.from('itineraries').select('*')
         .eq('user_id', session.user.id)
         .gte('return_date', today)
@@ -295,7 +352,6 @@ export default function Dashboard() {
     const tripList = trips || []
     setMyTrips(tripList)
 
-    // Fetch live risk for mapped countries only (unknown cities use DB risk_level)
     const countries = [...new Set(
       tripList.map(t => cityToCountry(t.arrival_city)).filter(Boolean)
     )]
@@ -315,8 +371,6 @@ export default function Dashboard() {
       setDestAlerts(Object.fromEntries(alertResults))
     }
 
-    // Trip alerts from DB — avoid filtering on is_read (column may not exist or be null);
-    // dismissed state is managed locally via dismissedIds Set
     const { data: ta } = await supabase
       .from('trip_alerts').select('*')
       .eq('user_id', session.user.id)
@@ -328,7 +382,6 @@ export default function Dashboard() {
     setLoading(false)
     loadingRef.current = false
 
-    // AI scan runs separately so it doesn't block the initial render
     if (scanAlerts) {
       setBriefLoading(true)
       setScanLoading(true)
@@ -347,33 +400,15 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
-    // Initial load with AI scan
     load({ scanAlerts: true })
-
-    // Auto-refresh every 5 minutes (catches cases where real-time drops)
     const interval = setInterval(() => load({ scanAlerts: false }), 5 * 60 * 1000)
-
-    // Real-time subscription — re-fetch when itineraries or trip_alerts change
     const channel = supabase
       .channel('dashboard-watch-v2')
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'itineraries' },
-        () => { load({ scanAlerts: false }) }
-      )
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'trip_alerts' },
-        () => { load({ scanAlerts: false }) }
-      )
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'alerts' },
-        () => { load({ scanAlerts: false }) }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'itineraries' }, () => load({ scanAlerts: false }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_alerts' }, () => load({ scanAlerts: false }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, () => load({ scanAlerts: false }))
       .subscribe()
-
-    return () => {
-      clearInterval(interval)
-      supabase.removeChannel(channel)
-    }
+    return () => { clearInterval(interval); supabase.removeChannel(channel) }
   }, [load])
 
   const avgProgress = trainingModules.length
@@ -382,99 +417,136 @@ export default function Dashboard() {
 
   const fmtDate = d => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'
 
-  // Unique countries with trips for intel section
   const travelCountries = [...new Set(
     myTrips.map(t => ({ trip: t, country: cityToCountry(t.arrival_city) }))
-      .filter(x => x.country)
-      .map(x => x.country)
+      .filter(x => x.country).map(x => x.country)
   )]
+
+  const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
     <Layout>
-      {/* IntelBrief drawer */}
       {selectedCountry && (
-        <IntelBrief country={selectedCountry} onClose={() => setSelectedCountry(null)}/>
+        <IntelBrief country={selectedCountry} onClose={() => setSelectedCountry(null)} />
       )}
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Your duty of care overview</p>
+      {/* ── Page header ── */}
+      <div className="mb-7">
+        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">{today}</p>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">{greeting()}</h1>
+        <p className="text-sm text-gray-400 mt-1">Your duty of care overview · SafeGuard360</p>
       </div>
 
-      {/* AI Morning Brief */}
+      {/* ── AI Morning Brief ── */}
       {(briefLoading || morningBrief) && (
-        <MorningBriefCard brief={morningBrief} loading={briefLoading}/>
+        <MorningBriefCard brief={morningBrief} loading={briefLoading} />
       )}
 
-      {/* Metric cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <MetricCard label="Compliance Score" value="74%"           valueColor="text-[#2563EB]"           icon={BarChart2} />
-        <MetricCard label="Active Alerts"    value={loading ? '–' : metrics.activeAlerts}
-          valueColor={metrics.activeAlerts > 0 ? 'text-[#DC2626]' : 'text-gray-900'} icon={Bell} />
-        <MetricCard label="Staff Travelling" value={loading ? '–' : metrics.staffTravelling} valueColor="text-[#2563EB]" icon={Plane} />
-        <MetricCard label="Active Feeds"     value={loading ? '–' : metrics.activeFeeds}     valueColor="text-[#16A34A]" icon={Radio} />
+      {/* ── Metric cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+        <MetricCard
+          label="Compliance Score" value="74%" icon={BarChart2}
+          valueColor="text-[#0118A1]" accent="#0118A1"
+        />
+        <MetricCard
+          label="Active Alerts" value={loading ? '–' : metrics.activeAlerts} icon={Bell}
+          valueColor={metrics.activeAlerts > 0 ? 'text-red-600' : 'text-gray-900'}
+          accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'}
+        />
+        <MetricCard
+          label="Staff Travelling" value={loading ? '–' : metrics.staffTravelling} icon={Plane}
+          valueColor="text-[#0118A1]" accent="#0118A1"
+        />
+        <MetricCard
+          label="Active Feeds" value={loading ? '–' : metrics.activeFeeds} icon={Radio}
+          valueColor="text-emerald-600" accent="#059669"
+        />
       </div>
 
-      {/* ── My Travel Intel (personal destinations) ── */}
+      {/* ── My Travel Intel ── */}
       {travelCountries.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <Globe size={14} className="text-[#0118A1]"/>
-            <h2 className="text-sm font-bold text-gray-800">My Travel Intel</h2>
-            <span className="text-xs text-gray-400">{myTrips.length} active / upcoming trip{myTrips.length !== 1 ? 's' : ''}</span>
+        <div className="mb-7">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center"
+                style={{ background: `${BRAND_BLUE}12` }}>
+                <Globe size={13} style={{ color: BRAND_BLUE }} />
+              </div>
+              <h2 className="text-base font-bold text-gray-900">My Travel Intel</h2>
+            </div>
+            <span className="text-xs text-gray-400 font-medium">
+              {myTrips.length} trip{myTrips.length !== 1 ? 's' : ''}
+            </span>
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {myTrips.map(trip => {
-              // Use live risk if available, fall back to DB risk_level from parse/manual entry
               const country  = cityToCountry(trip.arrival_city) || trip.arrival_city
               const risk     = destRisk[country]
               const sev      = risk?.severity || trip.risk_level || null
               const style    = sev ? (SEVERITY_STYLE[sev] || SEVERITY_STYLE.Medium) : null
               const alerts   = destAlerts[country] ?? null
               const isActive = trip.depart_date <= new Date().toISOString().split('T')[0]
+              const pill     = sev ? SEVERITY_PILL[sev] : null
 
               return (
                 <button key={trip.id}
                   onClick={() => setSelectedCountry(country)}
-                  className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 text-left hover:shadow-[0_2px_8px_rgba(0,0,0,0.1)] hover:border-[#0118A1]/30 transition-all group">
-
-                  {/* Top: status + risk */}
-                  <div className="flex items-center justify-between mb-3">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                  className="bg-white rounded-2xl p-5 text-left transition-all duration-200 hover:-translate-y-0.5 group"
+                  style={{
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
+                    border: '1px solid rgba(0,0,0,0.06)',
+                  }}
+                >
+                  {/* Top row */}
+                  <div className="flex items-center justify-between mb-4">
+                    <span
+                      className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                      style={isActive
+                        ? { background: `${BRAND_BLUE}12`, color: BRAND_BLUE }
+                        : { background: '#F1F5F9', color: '#64748B' }
+                      }
+                    >
                       {isActive ? '✈️ Active' : '📅 Upcoming'}
                     </span>
-                    {sev && style && (
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${style.bg} ${style.border} ${style.text}`}>
+                    {pill && (
+                      <span
+                        className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                        style={{ background: pill.bg, color: pill.color, border: `1px solid ${pill.border}` }}
+                      >
                         {sev}
                       </span>
                     )}
                   </div>
 
-                  {/* Trip name */}
+                  {/* Trip info */}
                   <h3 className="text-sm font-bold text-gray-900 truncate mb-1">{trip.trip_name}</h3>
-
-                  {/* Destination */}
-                  <p className="text-xs text-gray-500 mb-3">
+                  <p className="text-xs text-gray-400 mb-4">
                     {trip.arrival_city}{country !== trip.arrival_city ? ` · ${country}` : ''}
                   </p>
 
                   {/* Dates */}
                   <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mb-3">
-                    <Calendar size={10}/>
+                    <Calendar size={10} />
                     {fmtDate(trip.depart_date)} — {fmtDate(trip.return_date)}
                   </div>
 
                   {/* Alert count */}
                   {alerts !== null && (
-                    <div className={`flex items-center gap-1.5 text-[11px] font-medium ${alerts > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      <AlertCircle size={11}/>
-                      {alerts > 0 ? `${alerts} active alert${alerts !== 1 ? 's' : ''}` : 'No active alerts'}
+                    <div className={`flex items-center gap-1.5 text-[11px] font-semibold mb-4 ${alerts > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                      {alerts > 0
+                        ? <><AlertCircle size={11} />{alerts} active alert{alerts !== 1 ? 's' : ''}</>
+                        : <><CheckCircle2 size={11} />No active alerts</>
+                      }
                     </div>
                   )}
 
                   {/* CTA */}
-                  <div className="flex items-center gap-1 text-[11px] text-[#0118A1] font-semibold mt-3 pt-3 border-t border-gray-100 group-hover:underline">
-                    View Full Intel Brief <ChevronRight size={11}/>
+                  <div
+                    className="flex items-center gap-1 text-[11px] font-semibold pt-3 transition-all group-hover:gap-1.5"
+                    style={{ borderTop: '1px solid #F1F5F9', color: BRAND_BLUE }}
+                  >
+                    View Full Intel Brief <ChevronRight size={11} />
                   </div>
                 </button>
               )
@@ -483,7 +555,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── My Trip Alerts ── */}
+      {/* ── Trip Alerts ── */}
       {(() => {
         const visibleAlerts = tripAlerts.filter(a => !dismissedIds.has(a.id))
         if (!visibleAlerts.length) return null
@@ -492,7 +564,6 @@ export default function Dashboard() {
             alerts={visibleAlerts}
             onMarkRead={(id) => {
               setDismissedIds(prev => new Set([...prev, id]))
-              // Best-effort update to DB if column exists
               supabase.from('trip_alerts').update({ is_read: true }).eq('id', id).then(() => {})
             }}
             onDismissAll={() => {
@@ -504,36 +575,55 @@ export default function Dashboard() {
         )
       })()}
 
-      {/* Two-panel row */}
+      {/* ── Two-panel row ── */}
       <div className="flex flex-col lg:flex-row gap-5">
-        {/* Live alerts panel — 60% */}
-        <div className="lg:w-3/5 bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-5">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">Live risk alerts</h2>
+
+        {/* Live alerts — 60% */}
+        <div
+          className="lg:w-3/5 bg-white rounded-2xl p-6"
+          style={{
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
+            border: '1px solid rgba(0,0,0,0.06)',
+          }}
+        >
+          <div className="flex items-center gap-2.5 mb-5">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center"
+              style={{ background: '#FEF2F2' }}>
+              <Bell size={13} style={{ color: '#EF4444' }} />
+            </div>
+            <h2 className="text-sm font-bold text-gray-900">Live Risk Alerts</h2>
+          </div>
 
           {loading ? (
             <div className="space-y-3">
-              {[1,2,3].map(i => (
-                <div key={i} className="h-14 bg-gray-100 rounded animate-pulse" />
-              ))}
+              {[1, 2, 3].map(i => <div key={i} className="h-14 bg-gray-50 rounded-xl animate-pulse" />)}
             </div>
           ) : recentAlerts.length === 0 ? (
-            <p className="text-sm text-gray-500 py-4">No active alerts. All clear.</p>
+            <div className="flex flex-col items-center py-8 gap-2">
+              <CheckCircle2 size={28} className="text-emerald-400" />
+              <p className="text-sm text-gray-400 font-medium">All clear — no active alerts</p>
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-0 divide-y divide-gray-50">
               {recentAlerts.map(alert => (
-                <div key={alert.id} className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0">
-                  <div className={`mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 ${severityDot[alert.severity] || 'bg-gray-400'}`} />
+                <div key={alert.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                  <div
+                    className="mt-2 w-2 h-2 rounded-full shrink-0"
+                    style={{ background: severityDot[alert.severity] || '#94A3B8' }}
+                  />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-gray-900">{alert.title}</span>
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="text-sm font-semibold text-gray-900">{alert.title}</span>
                       <SeverityBadge severity={alert.severity} />
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5 truncate">{alert.description}</p>
+                    <p className="text-xs text-gray-400 truncate">{alert.description}</p>
                     {alert.country && (
                       <button
                         onClick={() => setSelectedCountry(alert.country)}
-                        className="text-[10px] text-[#0118A1] hover:underline mt-0.5 flex items-center gap-0.5 font-medium">
-                        <Globe size={9}/>{alert.country} intel →
+                        className="text-[11px] font-semibold flex items-center gap-1 mt-1 hover:underline"
+                        style={{ color: BRAND_BLUE }}
+                      >
+                        <Globe size={9} /> {alert.country} intel →
                       </button>
                     )}
                   </div>
@@ -542,40 +632,60 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="mt-4 pt-3 border-t border-gray-100">
-            <Link to="/alerts" className="text-sm text-[#2563EB] font-medium hover:underline">
-              View all alerts →
+          <div className="mt-5 pt-4" style={{ borderTop: '1px solid #F1F5F9' }}>
+            <Link to="/alerts"
+              className="text-xs font-semibold hover:underline flex items-center gap-1"
+              style={{ color: BRAND_BLUE }}>
+              View all alerts <ChevronRight size={11} />
             </Link>
           </div>
         </div>
 
-        {/* ISO compliance panel — 40% */}
-        <div className="lg:w-2/5 bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-5">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">ISO 31000 compliance</h2>
+        {/* ISO compliance — 40% */}
+        <div
+          className="lg:w-2/5 bg-white rounded-2xl p-6"
+          style={{
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
+            border: '1px solid rgba(0,0,0,0.06)',
+          }}
+        >
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center"
+                style={{ background: `${BRAND_BLUE}12` }}>
+                <BarChart2 size={13} style={{ color: BRAND_BLUE }} />
+              </div>
+              <h2 className="text-sm font-bold text-gray-900">ISO 31000 Compliance</h2>
+            </div>
+            {!loading && trainingModules.length > 0 && (
+              <span
+                className="text-xs font-bold px-2.5 py-1 rounded-full"
+                style={{ background: `${BRAND_BLUE}10`, color: BRAND_BLUE }}
+              >
+                {avgProgress}% avg
+              </span>
+            )}
+          </div>
 
           {loading ? (
             <div className="space-y-4">
-              {[1,2,3,4,5].map(i => (
-                <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />
-              ))}
+              {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-8 bg-gray-50 rounded-xl animate-pulse" />)}
             </div>
           ) : trainingModules.length === 0 ? (
-            <p className="text-sm text-gray-500 py-4">No training data found.</p>
+            <p className="text-sm text-gray-400 py-4">No training data found.</p>
           ) : (
             <div className="space-y-4">
               {trainingModules.map(module => (
-                <ProgressBar
-                  key={module.id}
-                  label={module.module_name}
-                  value={module.progress_pct || 0}
-                />
+                <ProgressBar key={module.id} label={module.module_name} value={module.progress_pct || 0} />
               ))}
             </div>
           )}
 
-          <div className="mt-4 pt-3 border-t border-gray-100">
-            <Link to="/training" className="text-sm text-[#2563EB] font-medium hover:underline">
-              Go to training →
+          <div className="mt-5 pt-4" style={{ borderTop: '1px solid #F1F5F9' }}>
+            <Link to="/training"
+              className="text-xs font-semibold hover:underline flex items-center gap-1"
+              style={{ color: BRAND_BLUE }}>
+              Go to training <ChevronRight size={11} />
             </Link>
           </div>
         </div>
