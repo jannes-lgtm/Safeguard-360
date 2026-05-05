@@ -251,6 +251,7 @@ export default function Dashboard() {
   const [selectedCountry, setSelectedCountry] = useState(null) // for IntelBrief drawer
   const [loading, setLoading]                 = useState(true)
   const [tripAlerts, setTripAlerts]           = useState([])   // personalised trip alerts
+  const [dismissedIds, setDismissedIds]       = useState(() => new Set()) // local dismiss state
   const [scanLoading, setScanLoading]         = useState(false)
   const [morningBrief, setMorningBrief]       = useState(null) // AI morning brief
   const [briefLoading, setBriefLoading]       = useState(false)
@@ -314,14 +315,14 @@ export default function Dashboard() {
       setDestAlerts(Object.fromEntries(alertResults))
     }
 
-    // Trip alerts from DB (fast, no API call needed for display)
+    // Trip alerts from DB — avoid filtering on is_read (column may not exist or be null);
+    // dismissed state is managed locally via dismissedIds Set
     const { data: ta } = await supabase
       .from('trip_alerts').select('*')
       .eq('user_id', session.user.id)
-      .eq('is_read', false)
       .neq('alert_type', 'ai_brief')
       .order('created_at', { ascending: false })
-      .limit(20)
+      .limit(30)
     setTripAlerts(ta || [])
 
     setLoading(false)
@@ -349,20 +350,30 @@ export default function Dashboard() {
     // Initial load with AI scan
     load({ scanAlerts: true })
 
-    // Real-time subscription — re-fetch trips instantly when itineraries change
+    // Auto-refresh every 5 minutes (catches cases where real-time drops)
+    const interval = setInterval(() => load({ scanAlerts: false }), 5 * 60 * 1000)
+
+    // Real-time subscription — re-fetch when itineraries or trip_alerts change
     const channel = supabase
-      .channel('dashboard-itinerary-watch')
+      .channel('dashboard-watch-v2')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'itineraries' },
-        () => { load({ scanAlerts: false }) }   // quick refresh, skip slow AI scan
+        () => { load({ scanAlerts: false }) }
       )
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'trip_alerts' },
         () => { load({ scanAlerts: false }) }
       )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'alerts' },
+        () => { load({ scanAlerts: false }) }
+      )
       .subscribe()
 
-    return () => supabase.removeChannel(channel)
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(channel)
+    }
   }, [load])
 
   const avgProgress = trainingModules.length
@@ -473,20 +484,25 @@ export default function Dashboard() {
       )}
 
       {/* ── My Trip Alerts ── */}
-      {tripAlerts.length > 0 && (
-        <TripAlertsSection
-          alerts={tripAlerts}
-          onMarkRead={async (id) => {
-            await supabase.from('trip_alerts').update({ is_read: true }).eq('id', id)
-            setTripAlerts(prev => prev.filter(a => a.id !== id))
-          }}
-          onDismissAll={async () => {
-            const ids = tripAlerts.map(a => a.id)
-            await supabase.from('trip_alerts').update({ is_read: true }).in('id', ids)
-            setTripAlerts([])
-          }}
-        />
-      )}
+      {(() => {
+        const visibleAlerts = tripAlerts.filter(a => !dismissedIds.has(a.id))
+        if (!visibleAlerts.length) return null
+        return (
+          <TripAlertsSection
+            alerts={visibleAlerts}
+            onMarkRead={(id) => {
+              setDismissedIds(prev => new Set([...prev, id]))
+              // Best-effort update to DB if column exists
+              supabase.from('trip_alerts').update({ is_read: true }).eq('id', id).then(() => {})
+            }}
+            onDismissAll={() => {
+              const ids = tripAlerts.map(a => a.id)
+              setDismissedIds(prev => new Set([...prev, ...ids]))
+              supabase.from('trip_alerts').update({ is_read: true }).in('id', ids).then(() => {})
+            }}
+          />
+        )
+      })()}
 
       {/* Two-panel row */}
       <div className="flex flex-col lg:flex-row gap-5">

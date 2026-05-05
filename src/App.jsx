@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
 import ComingSoon from './pages/ComingSoon'
 import Dashboard from './pages/Dashboard'
@@ -35,6 +35,7 @@ export default function App() {
         <Route path="/briefings" element={<ProtectedRoute><Briefings /></ProtectedRoute>} />
         <Route path="/news" element={<ProtectedRoute><NewsUpdates /></ProtectedRoute>} />
         <Route path="/country-risk" element={<ProtectedRoute><CountryRiskReport /></ProtectedRoute>} />
+        <Route path="/heat-map" element={<Navigate to="/country-risk" replace />} />
         <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
         <Route path="/sos" element={<ProtectedRoute><SOS /></ProtectedRoute>} />
         <Route path="/checkin" element={<ProtectedRoute><CheckIn /></ProtectedRoute>} />

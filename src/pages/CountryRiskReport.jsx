@@ -610,9 +610,10 @@ export default function CountryRiskReport() {
   const [regionFilter,  setRegionFilter]  = useState('All')
   const [mapReady,      setMapReady]      = useState(false)
 
-  const containerRef = useRef(null)
-  const mapRef       = useRef(null)
-  const markersRef   = useRef([])
+  const containerRef       = useRef(null)
+  const mapRef             = useRef(null)
+  const markersRef         = useRef([])
+  const selectCountryRef   = useRef(null)  // always-current ref for map popup callbacks
 
   const selectedParam = searchParams.get('country') || ''
   const [selected, setSelected] = useState(
@@ -638,9 +639,12 @@ export default function CountryRiskReport() {
     setSearchParams({})
   }
 
-  // Register map popup button handler (Leaflet popup HTML can't access React)
+  // Keep the ref current on every render so map popup buttons always call the latest version
+  selectCountryRef.current = selectCountry
+
+  // Register map popup button handler once — uses ref to avoid stale closure
   useEffect(() => {
-    window.__riskReportGoto = (country) => selectCountry(country)
+    window.__riskReportGoto = (country) => selectCountryRef.current?.(country)
     return () => { delete window.__riskReportGoto }
   }, [])
 
