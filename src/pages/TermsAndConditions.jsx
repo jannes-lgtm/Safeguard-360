@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle2, ChevronDown, Shield, MapPin, Lock, FileText } from 'lucide-react'
+import { CheckCircle2, ChevronDown, Shield, MapPin, Lock, FileText, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 const BRAND_BLUE  = '#0118A1'
@@ -21,6 +21,7 @@ export default function TermsAndConditions() {
   const [accepting, setAccepting] = useState(false)
   const [checked, setChecked]     = useState(false)
   const [profile, setProfile]     = useState(null)
+  const [acceptError, setAcceptError] = useState(null)
 
   useEffect(() => {
     const load = async () => {
@@ -47,28 +48,41 @@ export default function TermsAndConditions() {
   const accept = async () => {
     if (!checked || !scrolled) return
     setAccepting(true)
+    setAcceptError(null)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    const now = new Date().toISOString()
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) throw new Error('Session expired — please refresh and try again.')
 
-    await Promise.all([
-      // Store full acceptance record
+      const now = new Date().toISOString()
+
+      // Profile update is the gate that ProtectedRoute checks — do this first
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ terms_accepted_at: now, terms_version: TERMS_VERSION })
+        .eq('id', user.id)
+
+      if (profileError) {
+        console.error('Profile update error:', profileError)
+        throw new Error('Could not save your acceptance. Please try again.')
+      }
+
+      // Audit log — best effort, don't block navigation if it fails
       supabase.from('terms_acceptances').upsert({
-        user_id:    user.id,
-        version:    TERMS_VERSION,
+        user_id:     user.id,
+        version:     TERMS_VERSION,
         accepted_at: now,
-        user_agent: navigator.userAgent,
-      }, { onConflict: 'user_id,version' }),
+        user_agent:  navigator.userAgent,
+      }, { onConflict: 'user_id,version' }).then(({ error }) => {
+        if (error) console.warn('terms_acceptances log failed (non-critical):', error)
+      })
 
-      // Fast-lookup columns on profile
-      supabase.from('profiles').update({
-        terms_accepted_at: now,
-        terms_version:     TERMS_VERSION,
-      }).eq('id', user.id),
-    ])
-
-    setAccepting(false)
-    navigate('/dashboard')
+      navigate('/dashboard')
+    } catch (err) {
+      console.error('Accept error:', err)
+      setAcceptError(err.message || 'Something went wrong. Please try again.')
+      setAccepting(false)
+    }
   }
 
   return (
@@ -281,6 +295,14 @@ export default function TermsAndConditions() {
               passive location updates during active travel periods.
             </span>
           </label>
+
+          {/* Error message */}
+          {acceptError && (
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+              <AlertTriangle size={14} className="shrink-0" />
+              {acceptError}
+            </div>
+          )}
 
           {/* Accept button */}
           <button
