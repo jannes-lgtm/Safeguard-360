@@ -10,6 +10,9 @@ import Tracker from './pages/Tracker'
 import Profile from './pages/Profile'
 import IntelFeeds from './pages/IntelFeeds'
 import Briefings from './pages/Briefings'
+import NewsUpdates from './pages/NewsUpdates'
+import CountryRiskReport from './pages/CountryRiskReport'
+import HeatMap from './pages/HeatMap'
 import Services from './pages/Services'
 import SOS from './pages/SOS'
 import CheckIn from './pages/CheckIn'
@@ -31,6 +34,9 @@ export default function App() {
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/intel-feeds" element={<ProtectedRoute adminOnly><IntelFeeds /></ProtectedRoute>} />
         <Route path="/briefings" element={<ProtectedRoute><Briefings /></ProtectedRoute>} />
+        <Route path="/news" element={<ProtectedRoute><NewsUpdates /></ProtectedRoute>} />
+        <Route path="/country-risk" element={<ProtectedRoute><CountryRiskReport /></ProtectedRoute>} />
+        <Route path="/heat-map" element={<ProtectedRoute><HeatMap /></ProtectedRoute>} />
         <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
         <Route path="/sos" element={<ProtectedRoute><SOS /></ProtectedRoute>} />
         <Route path="/checkin" element={<ProtectedRoute><CheckIn /></ProtectedRoute>} />
