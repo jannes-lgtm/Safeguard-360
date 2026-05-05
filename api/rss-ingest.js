@@ -3,7 +3,7 @@
 // No API key needed — all feeds listed below are free and public
 
 const cache = {}
-const CACHE_TTL = 60 * 60 * 1000 // 1 hour
+const CACHE_TTL = 30 * 60 * 1000 // 30 minutes — shorter TTL so outbreak news surfaces faster
 
 // ── Pre-configured Africa + Middle East risk/security RSS feeds ───────────────
 export const PRECONFIGURED_FEEDS = [
@@ -15,6 +15,46 @@ export const PRECONFIGURED_FEEDS = [
     geography: 'Global',
     url: 'https://www.who.int/feeds/entity/csr/don/en/rss.xml',
     description: 'World Health Organization official disease outbreak news — confirmed outbreaks, alerts and public health emergencies (PHEIC).',
+  },
+  {
+    id: 'promed',
+    name: 'ProMED Mail',
+    category: 'health',
+    geography: 'Global',
+    url: 'https://promedmail.org/feed/',
+    description: 'Expert-moderated global rapid reporting of infectious disease outbreaks including hantavirus, mpox, cholera, Ebola and novel pathogens — one of the world\'s fastest outbreak alert systems.',
+  },
+  {
+    id: 'outbreak-news-today',
+    name: 'Outbreak News Today',
+    category: 'health',
+    geography: 'Global',
+    url: 'https://outbreaknewstoday.com/feed/',
+    description: 'Dedicated outbreak tracking news service — covers individual disease events in near real time including hantavirus, dengue, cholera, Ebola, mpox and respiratory illness clusters.',
+  },
+  {
+    id: 'cidrap',
+    name: 'CIDRAP News',
+    category: 'health',
+    geography: 'Global',
+    url: 'https://www.cidrap.umn.edu/rss.xml',
+    description: 'University of Minnesota Center for Infectious Disease Research and Policy — expert analysis of emerging infectious disease events, pandemic preparedness and outbreak epidemiology.',
+  },
+  {
+    id: 'paho-alerts',
+    name: 'PAHO — Epidemiological Alerts',
+    category: 'health',
+    geography: 'Americas',
+    url: 'https://www.paho.org/en/epidemiological-alerts-and-updates/rss.xml',
+    description: 'Pan American Health Organization epidemiological alerts — primary source for hantavirus, dengue, cholera and other disease outbreaks across Latin America and the Caribbean.',
+  },
+  {
+    id: 'africa-cdc',
+    name: 'Africa CDC — Outbreak Briefs',
+    category: 'health',
+    geography: 'Africa',
+    url: 'https://africacdc.org/feed/',
+    description: 'Africa Centres for Disease Control and Prevention official outbreak briefs and public health alerts for the African continent.',
   },
   {
     id: 'cdc-travel-health',
@@ -33,12 +73,20 @@ export const PRECONFIGURED_FEEDS = [
     description: 'European Centre for Disease Prevention and Control weekly threats report — active outbreaks relevant to international travellers.',
   },
   {
-    id: 'promed',
-    name: 'ProMED Mail',
+    id: 'reliefweb-health',
+    name: 'ReliefWeb — Health Emergencies',
     category: 'health',
     geography: 'Global',
-    url: 'https://promedmail.org/feed/',
-    description: 'Expert-moderated global rapid reporting of infectious disease outbreaks and acute exposures. One of the world\'s largest disease surveillance systems.',
+    url: 'https://reliefweb.int/updates/rss.xml?theme=3&source=WHO',
+    description: 'UN OCHA ReliefWeb health emergency situation reports from WHO — epidemics, outbreaks and humanitarian health crises worldwide.',
+  },
+  {
+    id: 'global-health-now',
+    name: 'Global Health Now (Johns Hopkins)',
+    category: 'health',
+    geography: 'Global',
+    url: 'https://www.globalhealthnow.org/rss.xml',
+    description: 'Johns Hopkins Bloomberg School of Public Health daily global health briefing — outbreaks, policy and epidemiology from one of the world\'s leading public health institutions.',
   },
 
   // ── Security / Africa ─────────────────────────────────────────────────────

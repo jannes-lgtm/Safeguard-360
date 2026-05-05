@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Shield, Search, RefreshCw, ExternalLink, Wind, Thermometer,
   ChevronRight, AlertTriangle, MapPin, Brain, Zap, Clock,
-  ChevronDown, ChevronUp, FileText, Layers
+  ChevronDown, ChevronUp, FileText, Layers, HeartPulse
 } from 'lucide-react'
 import Layout from '../components/Layout'
 
@@ -325,11 +325,47 @@ function CountryReport({ country }) {
       {/* ── AI Assessment ── */}
       <AiBrief brief={aiBrief} loading={aiLoading && loading} />
 
+      {/* ── Health & Disease Alerts ── */}
+      {!loading && (() => {
+        const healthSrcs = (risk?.sources || []).filter(s => s.category === 'health')
+        if (!healthSrcs.length) return null
+        return (
+          <Section title="Health & Disease Alerts" icon={HeartPulse} accent="text-rose-600" count={healthSrcs.length}>
+            <div className="mb-3 bg-rose-50 border border-rose-200 rounded-[8px] px-3 py-2.5">
+              <p className="text-xs text-rose-700 font-medium">
+                Live outbreak intelligence from WHO, ProMED, PAHO, CIDRAP and Outbreak News Today.
+                Always verify with official travel health advisories before departure.
+              </p>
+            </div>
+            <div className="space-y-2">
+              {healthSrcs.map((src, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-[8px] border border-rose-100 bg-rose-50/40">
+                  <HeartPulse size={14} className="text-rose-500 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wide">{src.name}</span>
+                    </div>
+                    <p className="text-sm text-gray-800 leading-snug">{src.message}</p>
+                  </div>
+                  {src.url && (
+                    <a href={src.url} target="_blank" rel="noopener noreferrer"
+                      className="text-rose-300 hover:text-rose-600 shrink-0 mt-0.5">
+                      <ExternalLink size={13} />
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Section>
+        )
+      })()}
+
       {/* ── Official Advisories ── */}
-      {!loading && risk?.sources?.length > 0 && (
-        <Section title="Official Advisories" icon={Shield} accent="text-[#0118A1]" count={risk.sources.length}>
+      {!loading && risk?.sources?.filter(s => !s.category).length > 0 && (
+        <Section title="Official Advisories" icon={Shield} accent="text-[#0118A1]"
+          count={risk.sources.filter(s => !s.category).length}>
           <div className="space-y-2">
-            {risk.sources.map((src, i) => (
+            {risk.sources.filter(s => !s.category).map((src, i) => (
               <a key={i} href={src.url} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-3 p-3 rounded-[8px] border border-gray-100 hover:border-[#0118A1]/30 hover:bg-blue-50/30 transition-colors group">
                 <div className="flex-1 min-w-0">

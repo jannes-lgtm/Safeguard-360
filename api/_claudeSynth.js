@@ -41,6 +41,103 @@ export async function resolveModel(apiKey) {
   return 'claude-3-haiku-20240307'
 }
 
+// ── Health outbreak feeds ─────────────────────────────────────────────────────
+const HEALTH_FEED_CACHE = {}
+const HEALTH_CACHE_TTL  = 30 * 60 * 1000   // 30 min — faster refresh for outbreaks
+
+const HEALTH_FEEDS = [
+  { id: 'who',       url: 'https://www.who.int/feeds/entity/csr/don/en/rss.xml',                                      name: 'WHO Disease Outbreak News' },
+  { id: 'promed',    url: 'https://promedmail.org/feed/',                                                              name: 'ProMED Mail' },
+  { id: 'paho',      url: 'https://www.paho.org/en/epidemiological-alerts-and-updates/rss.xml',                       name: 'PAHO' },
+  { id: 'outbreak',  url: 'https://outbreaknewstoday.com/feed/',                                                      name: 'Outbreak News Today' },
+  { id: 'cidrap',    url: 'https://www.cidrap.umn.edu/rss.xml',                                                       name: 'CIDRAP' },
+  { id: 'africacdc', url: 'https://africacdc.org/feed/',                                                              name: 'Africa CDC' },
+]
+
+function parseHealthRss(xml) {
+  const items = []
+  const re = /<(?:item|entry)>([\s\S]*?)<\/(?:item|entry)>/g
+  let m
+  while ((m = re.exec(xml)) !== null) {
+    const b   = m[1]
+    const get = tag => {
+      const x = b.match(new RegExp(
+        `<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([^<]*)<\\/${tag}>`
+      ))
+      return x ? (x[1] || x[2] || '').trim() : ''
+    }
+    let link = get('link')
+    if (!link) { const la = b.match(/<link[^>]+href=["']([^"']+)["']/); if (la) link = la[1] }
+    const title = get('title')
+    if (title) items.push({
+      title,
+      link,
+      description: get('description') || get('summary') || '',
+      pubDate:     get('pubDate') || get('published') || get('updated') || '',
+    })
+  }
+  return items
+}
+
+async function fetchHealthFeed(feed) {
+  const cached = HEALTH_FEED_CACHE[feed.id]
+  if (cached && Date.now() - cached.ts < HEALTH_CACHE_TTL) return cached.items
+
+  try {
+    const r = await fetch(feed.url, {
+      headers: { 'User-Agent': 'SafeGuard360/1.0 (travel risk platform)' },
+      signal: AbortSignal.timeout(6000),
+    })
+    if (!r?.ok) { HEALTH_FEED_CACHE[feed.id] = { items: [], ts: Date.now() }; return [] }
+    const items = parseHealthRss(await r.text())
+    HEALTH_FEED_CACHE[feed.id] = { items, ts: Date.now() }
+    return items
+  } catch {
+    return HEALTH_FEED_CACHE[feed.id]?.items || []
+  }
+}
+
+/**
+ * Fetch disease outbreak headlines relevant to a given country.
+ * Returns up to 5 matching articles from WHO, ProMED, PAHO, Outbreak News Today,
+ * CIDRAP and Africa CDC. Also returns global outbreak headlines (last 5)
+ * so the AI brief always has current disease context even if no country match.
+ */
+export async function fetchHealthOutbreaks(country) {
+  try {
+    // Fetch all health feeds in parallel
+    const allItems = await Promise.all(HEALTH_FEEDS.map(async feed => {
+      const items = await fetchHealthFeed(feed)
+      return items.map(i => ({ ...i, source: feed.name }))
+    }))
+    const flat = allItems.flat()
+
+    const q       = country.toLowerCase()
+    const aliases = [q]
+    // Add common aliases
+    if (q === 'democratic republic of congo') aliases.push('drc', 'dr congo', 'congo')
+    if (q === 'united states')               aliases.push('usa', 'us ')
+    if (q === 'united kingdom')              aliases.push('uk ', 'britain', 'england')
+    if (q === 'united arab emirates')        aliases.push('uae')
+    if (q === 'south africa')                aliases.push('south african')
+
+    const matches = flat.filter(i => {
+      const text = (i.title + ' ' + i.description).toLowerCase()
+      return aliases.some(a => text.includes(a))
+    }).slice(0, 5)
+
+    // Always include recent global outbreak headlines for AI context
+    const recent = flat
+      .filter(i => i.pubDate)
+      .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
+      .slice(0, 5)
+
+    return { matches, recent }
+  } catch {
+    return { matches: [], recent: [] }
+  }
+}
+
 // ── GDACS live disaster events ────────────────────────────────────────────────
 export async function fetchGDACS(country) {
   try {
@@ -106,7 +203,7 @@ export async function fetchUSGS(country) {
 export async function synthesiseBrief(country, city, sources, apiKey) {
   if (!apiKey) return null
 
-  const { fcdo, gdacs = [], usgs = [], iss } = sources
+  const { fcdo, gdacs = [], usgs = [], iss, health } = sources
   const location = city ? `${city}, ${country}` : country
 
   const fcdoLine = fcdo
@@ -129,6 +226,15 @@ export async function synthesiseBrief(country, city, sources, apiKey) {
     ? iss.articles.slice(0, 3).map(a => a.title).join('; ')
     : 'No recent articles'
 
+  // Health outbreak context — country-specific matches first, then global headlines
+  const healthMatches = health?.matches || []
+  const healthRecent  = health?.recent  || []
+  const healthText = healthMatches.length
+    ? healthMatches.map(a => `[${a.source}] ${a.title}`).join('; ')
+    : healthRecent.length
+    ? `No country-specific alerts. Recent global: ${healthRecent.slice(0, 3).map(a => a.title).join('; ')}`
+    : 'No recent outbreak data available'
+
   const prompt = `You are a corporate travel security analyst briefing a risk manager.
 Analyse live intelligence for ${location} and give a concise assessment.
 
@@ -136,9 +242,10 @@ Advisory: ${fcdoLine}
 Active disasters (GDACS): ${gdacsText}
 Earthquakes M5+ / 7d (USGS): ${usgsText}
 Security news (ISS Africa): ${issText}
+Disease & health outbreaks (WHO/ProMED/PAHO/CIDRAP): ${healthText}
 
 Respond ONLY with valid JSON, no markdown:
-{"summary":"2-3 sentence executive situation summary","threat_level":"Low|Medium|High|Critical","key_risks":["specific risk 1","specific risk 2","specific risk 3"],"recommendations":["actionable rec 1","actionable rec 2"]}`
+{"summary":"2-3 sentence executive situation summary including any active health risks","threat_level":"Low|Medium|High|Critical","key_risks":["specific risk 1","specific risk 2","specific risk 3","health/disease risk if relevant"],"recommendations":["actionable rec 1","actionable rec 2","health precaution if relevant"]}`
 
   try {
     const model = await resolveModel(apiKey)

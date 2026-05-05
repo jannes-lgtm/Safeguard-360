@@ -179,7 +179,9 @@ export default function NewsUpdates() {
     setLoadedCount(0)
 
     rssFeeds.forEach(feed => {
-      fetch(`/api/rss-ingest?id=${feed.id}&limit=10`)
+      // Fetch more articles from health feeds so outbreak events aren't cut off
+      const limit = feed.category === 'health' ? 20 : 10
+      fetch(`/api/rss-ingest?id=${feed.id}&limit=${limit}`)
         .then(r => r.json())
         .then(d => {
           if (d.articles?.length) {

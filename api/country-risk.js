@@ -13,7 +13,7 @@
  * When no advisory data is available, severity is returned as null.
  */
 
-import { synthesiseBrief, fetchGDACS, fetchUSGS } from './_claudeSynth.js'
+import { synthesiseBrief, fetchGDACS, fetchUSGS, fetchHealthOutbreaks } from './_claudeSynth.js'
 
 let issCache    = []
 let issCacheTime = 0
@@ -206,11 +206,12 @@ function parseRssItems(xml) {
 // ── Combined risk + AI synthesis ──────────────────────────────────────────────
 async function getCountryRisk(country) {
   // Fetch all live sources in parallel for speed
-  const [fcdo, iss, gdacs, usgs] = await Promise.all([
+  const [fcdo, iss, gdacs, usgs, health] = await Promise.all([
     fetchFcdo(country),
     fetchIssAlerts(country),
     fetchGDACS(country),
     fetchUSGS(country),
+    fetchHealthOutbreaks(country),
   ])
 
   const level    = fcdo?.level ?? null
@@ -226,18 +227,28 @@ async function getCountryRisk(country) {
     if (cached && Date.now() - cached.ts < CACHE_TTL) {
       ai_brief = cached.data
     } else {
-      ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss }, apiKey)
+      ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
       AI_BRIEF_CACHE[cacheKey] = { data: ai_brief, ts: Date.now() }
     }
   }
+
+  // Health outbreak sources for the sources panel
+  const healthSources = (health?.matches || []).slice(0, 3).map(a => ({
+    name: a.source,
+    level: null,
+    message: a.title,
+    url: a.link || null,
+    category: 'health',
+  }))
 
   return {
     country,
     level,
     severity,
-    ai_brief,        // null if no API key or Claude call failed
-    gdacs_count: gdacs.length,
-    usgs_count: usgs.length,
+    ai_brief,
+    gdacs_count:   gdacs.length,
+    usgs_count:    usgs.length,
+    health_alerts: health?.matches?.length || 0,
     sources: [
       fcdo
         ? { name: 'UK FCDO', level: fcdo.level, message: fcdo.message, url: fcdo.url }
@@ -253,6 +264,7 @@ async function getCountryRisk(country) {
       usgs.length
         ? { name: 'USGS', level: null, message: `${usgs.length} M5+ earthquake(s) / 7d`, url: 'https://earthquake.usgs.gov' }
         : null,
+      ...healthSources,
     ].filter(Boolean),
   }
 }
