@@ -1,9 +1,8 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet'
 import { useNavigate } from 'react-router-dom'
-import { Layers, RefreshCw, ExternalLink } from 'lucide-react'
+import { Layers } from 'lucide-react'
 import Layout from '../components/Layout'
-import 'leaflet/dist/leaflet.css'
 
 // ── Country data: capital coordinates + static base risk ─────────────────────
 const COUNTRIES = {

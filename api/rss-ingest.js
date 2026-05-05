@@ -107,6 +107,40 @@ export const PRECONFIGURED_FEEDS = [
     description: 'BBC Africa news feed — breaking news, security incidents, political developments.',
   },
 
+  // ── Weather & Natural Disasters ───────────────────────────────────────────
+  {
+    id: 'reliefweb-disasters',
+    name: 'ReliefWeb — Disasters',
+    category: 'weather',
+    geography: 'Global',
+    url: 'https://reliefweb.int/disasters/rss.xml',
+    description: 'UN OCHA ReliefWeb official disaster declarations — floods, cyclones, earthquakes, droughts across all regions.',
+  },
+  {
+    id: 'gdelt-weather',
+    name: 'GDELT — Weather & Natural Hazards',
+    category: 'weather',
+    geography: 'Global',
+    url: 'https://api.gdeltproject.org/api/v2/doc/doc?query=flood+OR+cyclone+OR+earthquake+OR+drought+OR+wildfire+africa+OR+%22middle+east%22&mode=ArtList&maxrecords=10&format=atom',
+    description: 'GDELT real-time weather and natural hazard events — floods, cyclones, earthquakes and droughts in monitored regions.',
+  },
+  {
+    id: 'noaa-alerts',
+    name: 'NOAA — International Weather Alerts',
+    category: 'weather',
+    geography: 'Global',
+    url: 'https://www.nhc.noaa.gov/nhc_at1.xml',
+    description: 'NOAA National Hurricane Center — Atlantic tropical storm and cyclone advisories affecting Africa and the Middle East coastal areas.',
+  },
+  {
+    id: 'emsc-quakes',
+    name: 'EMSC — Significant Earthquakes',
+    category: 'weather',
+    geography: 'Global',
+    url: 'https://www.seismicportal.eu/fdsnws/event/1/query?format=xml&limit=10&minmagnitude=5&orderby=time',
+    description: 'European-Mediterranean Seismological Centre — significant earthquakes magnitude 5.0+ globally in real time.',
+  },
+
   // ── Conflict ──────────────────────────────────────────────────────────────
   {
     id: 'acled-blog',
