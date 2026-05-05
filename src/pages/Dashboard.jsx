@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom'
 import {
   BarChart2, Bell, Plane, Radio, Globe, AlertCircle,
   Calendar, ChevronRight, Brain, Zap, AlertTriangle,
-  ListChecks, RefreshCw, X, CheckCircle2,
+  ListChecks, RefreshCw, X, CheckCircle2, BookOpen,
+  FileText, CheckSquare, Award,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import MetricCard from '../components/MetricCard'
 import SeverityBadge from '../components/SeverityBadge'
-import ProgressBar from '../components/ProgressBar'
 import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
 import { cityToCountry, SEVERITY_STYLE } from '../data/intelData'
@@ -160,6 +160,159 @@ function TripAlertsSection({ alerts, onMarkRead, onDismissAll }) {
   )
 }
 
+// ── ISO Compliance Score card ─────────────────────────────────────────────────
+function ComplianceScoreCard({ breakdown, loading }) {
+  if (loading && !breakdown) {
+    return (
+      <div className="bg-white rounded-2xl p-6 animate-pulse"
+        style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-6 h-6 rounded-lg bg-gray-100" />
+          <div className="h-4 w-40 bg-gray-100 rounded-full" />
+        </div>
+        <div className="flex items-center gap-6">
+          <div className="w-24 h-24 rounded-full bg-gray-100 shrink-0" />
+          <div className="flex-1 space-y-3">
+            <div className="h-3 bg-gray-100 rounded-full" />
+            <div className="h-3 bg-gray-100 rounded-full w-4/5" />
+            <div className="h-3 bg-gray-100 rounded-full w-3/5" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const score = breakdown?.total ?? 0
+
+  // Rating
+  const rating =
+    score >= 90 ? { label: 'Excellent',       color: '#059669', bg: '#ECFDF5', border: '#BBF7D0' } :
+    score >= 70 ? { label: 'Good',             color: BRAND_BLUE, bg: `${BRAND_BLUE}0D`, border: `${BRAND_BLUE}25` } :
+    score >= 50 ? { label: 'Needs Attention',  color: '#D97706', bg: '#FFFBEB', border: '#FDE68A' } :
+                  { label: 'At Risk',           color: '#DC2626', bg: '#FEF2F2', border: '#FECACA' }
+
+  // SVG ring
+  const R   = 38
+  const C   = 2 * Math.PI * R          // ~238.76
+  const fill = (score / 100) * C
+
+  const components = breakdown ? [
+    {
+      label: 'ISO Training',
+      icon:  BookOpen,
+      pct:   breakdown.training.pct,
+      sub:   `${breakdown.training.done} of ${breakdown.training.total} modules`,
+      link:  '/training',
+      color: BRAND_BLUE,
+    },
+    {
+      label: 'Policy Sign-offs',
+      icon:  FileText,
+      pct:   breakdown.policies.pct,
+      sub:   `${breakdown.policies.done} of ${breakdown.policies.total} policies`,
+      link:  '/policies',
+      color: '#7C3AED',
+    },
+    {
+      label: 'Travel Check-ins',
+      icon:  CheckSquare,
+      pct:   breakdown.checkin.pct,
+      sub:   breakdown.checkin.hasTrips
+        ? breakdown.checkin.done > 0 ? 'Recent check-in on file' : 'No check-ins in 90 days'
+        : 'No active trips',
+      link:  '/checkin',
+      color: '#059669',
+    },
+  ] : []
+
+  return (
+    <div className="bg-white rounded-2xl p-6"
+      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}12` }}>
+            <Award size={13} style={{ color: BRAND_BLUE }} />
+          </div>
+          <h2 className="text-sm font-bold text-gray-900">ISO 31030 Compliance</h2>
+        </div>
+        {breakdown && (
+          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+            style={{ background: rating.bg, color: rating.color, border: `1px solid ${rating.border}` }}>
+            {rating.label}
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-6">
+        {/* Ring gauge */}
+        <div className="shrink-0 relative w-24 h-24">
+          <svg width="96" height="96" viewBox="0 0 96 96">
+            {/* Track */}
+            <circle cx="48" cy="48" r={R} fill="none" stroke="#EEF0F6" strokeWidth="8" />
+            {/* Fill */}
+            <circle
+              cx="48" cy="48" r={R}
+              fill="none"
+              stroke={rating.color}
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeDasharray={`${fill} ${C}`}
+              strokeDashoffset={C * 0.25}   /* start at top */
+              style={{ transition: 'stroke-dasharray 0.8s ease' }}
+            />
+          </svg>
+          {/* Score label */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-xl font-black leading-none" style={{ color: rating.color }}>{score}%</span>
+            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mt-0.5">Score</span>
+          </div>
+        </div>
+
+        {/* Component breakdown */}
+        <div className="flex-1 space-y-3 min-w-0">
+          {components.map(c => {
+            const Icon = c.icon
+            return (
+              <Link key={c.label} to={c.link} className="flex items-center gap-2.5 group">
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: `${c.color}12` }}>
+                  <Icon size={11} style={{ color: c.color }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[11px] font-semibold text-gray-700 group-hover:text-gray-900 transition-colors">
+                      {c.label}
+                    </span>
+                    <span className="text-[11px] font-bold tabular-nums" style={{ color: c.color }}>{c.pct}%</span>
+                  </div>
+                  {/* Mini bar */}
+                  <div className="h-1 rounded-full w-full" style={{ background: '#EEF0F6' }}>
+                    <div className="h-1 rounded-full transition-all duration-700"
+                      style={{ width: `${c.pct}%`, background: c.color }} />
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{c.sub}</p>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="mt-4 pt-4 flex items-center justify-between" style={{ borderTop: '1px solid #F1F5F9' }}>
+        <p className="text-[10px] text-gray-400">
+          Weighted: training 40% · policies 40% · check-ins 20%
+        </p>
+        <Link to="/training" className="text-xs font-semibold hover:underline flex items-center gap-1"
+          style={{ color: BRAND_BLUE }}>
+          Improve score <ChevronRight size={11} />
+        </Link>
+      </div>
+    </div>
+  )
+}
+
 // ── AI Morning Brief ──────────────────────────────────────────────────────────
 const BRIEF_SEV_STYLE = {
   Critical: { bg: '#FEF2F2', border: '#FECACA', text: '#B91C1C' },
@@ -302,8 +455,8 @@ function MorningBriefCard({ brief, loading }) {
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [metrics, setMetrics]               = useState({ activeAlerts: 0, staffTravelling: 0, activeFeeds: 0, compliancePct: null })
+  const [complianceBreakdown, setComplianceBreakdown] = useState(null) // { total, training, policies, checkin }
   const [recentAlerts, setRecentAlerts]     = useState([])
-  const [trainingModules, setTrainingModules] = useState([])
   const [myTrips, setMyTrips]               = useState([])
   const [destRisk, setDestRisk]             = useState({})
   const [destAlerts, setDestAlerts]         = useState({})
@@ -311,7 +464,6 @@ export default function Dashboard() {
   const [loading, setLoading]               = useState(true)
   const [tripAlerts, setTripAlerts]         = useState([])
   const [dismissedIds, setDismissedIds]     = useState(() => new Set())
-  const [scanLoading, setScanLoading]       = useState(false)
   const [morningBrief, setMorningBrief]     = useState(null)
   const [briefLoading, setBriefLoading]     = useState(false)
   const loadingRef                           = useRef(false)
@@ -329,14 +481,12 @@ export default function Dashboard() {
       { count: alertCount },
       { count: travelCount },
       { data: alerts },
-      { data: training },
       feedStatuses,
       { data: trips },
     ] = await Promise.all([
       supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
       supabase.from('itineraries').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
       supabase.from('alerts').select('*').eq('status', 'Active').order('date_issued', { ascending: false }).limit(4),
-      supabase.from('training_progress').select('*').eq('user_id', session.user.id).order('module_order'),
       fetch('/api/feed-status').then(r => r.json()).catch(() => ({})),
       supabase.from('itineraries').select('*')
         .eq('user_id', session.user.id)
@@ -344,29 +494,47 @@ export default function Dashboard() {
         .order('depart_date'),
     ])
 
-    // Real compliance score: average of training completion + policy acknowledgement %
+    // ── ISO compliance score (weighted) ───────────────────────────────────────
     const [
       { data: trainingRecs },
       { data: pols },
-      { data: acks },
+      acksResult,
+      { data: checkins },
     ] = await Promise.all([
       supabase.from('training_records').select('completed').eq('user_id', session.user.id),
       supabase.from('policies').select('id').eq('status', 'Active'),
-      supabase.from('policy_acknowledgements').select('policy_id').eq('user_id', session.user.id).catch(() => ({ data: [] })),
+      supabase.from('policy_acknowledgements').select('policy_id').eq('user_id', session.user.id).then(r => r).catch(() => ({ data: [] })),
+      supabase.from('check_ins').select('id').eq('user_id', session.user.id)
+        .gte('checked_in_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
+        .then(r => r).catch(() => ({ data: [] })),
     ])
+
+    const acks = acksResult?.data || []
+
+    // Component scores (each 0-100)
     const trainPct = trainingRecs?.length
       ? Math.round(trainingRecs.filter(r => r.completed).length / trainingRecs.length * 100)
-      : null
+      : 0
     const polPct = pols?.length
-      ? Math.round((acks?.data || acks || []).length / pols.length * 100)
-      : null
-    const scores = [trainPct, polPct].filter(x => x !== null)
-    const compliancePct = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null
+      ? Math.round(acks.length / pols.length * 100)
+      : 0
+    // Check-in score: 100 if ≥1 check-in in last 90 days (or no active trips = N/A → treat as 100)
+    const hasActiveTrips = (trips || []).length > 0
+    const checkinPct = !hasActiveTrips ? 100 : (checkins?.length || 0) > 0 ? 100 : 0
+
+    // Weighted total: training 40%, policies 40%, check-ins 20%
+    const compliancePct = Math.round(trainPct * 0.4 + polPct * 0.4 + checkinPct * 0.2)
+
+    setComplianceBreakdown({
+      total:    compliancePct,
+      training: { pct: trainPct,   done: trainingRecs?.filter(r => r.completed).length ?? 0, total: trainingRecs?.length ?? 0 },
+      policies: { pct: polPct,     done: acks.length,                                          total: pols?.length ?? 0 },
+      checkin:  { pct: checkinPct, done: checkins?.length ?? 0,                                hasTrips: hasActiveTrips },
+    })
 
     const activeFeeds = Object.values(feedStatuses || {}).filter(s => s === 'active').length
     setMetrics({ activeAlerts: alertCount || 0, staffTravelling: travelCount || 0, activeFeeds, compliancePct })
     setRecentAlerts(alerts || [])
-    setTrainingModules((training || []).slice(0, 5))
 
     const tripList = trips || []
     setMyTrips(tripList)
@@ -403,7 +571,6 @@ export default function Dashboard() {
 
     if (scanAlerts) {
       setBriefLoading(true)
-      setScanLoading(true)
       try {
         const scanRes = await fetch('/api/trip-alert-scan', {
           headers: { Authorization: `Bearer ${session.access_token}` },
@@ -414,7 +581,6 @@ export default function Dashboard() {
         }
       } catch { /* non-critical */ }
       setBriefLoading(false)
-      setScanLoading(false)
     }
   }, [])
 
@@ -429,10 +595,6 @@ export default function Dashboard() {
       .subscribe()
     return () => { clearInterval(interval); supabase.removeChannel(channel) }
   }, [load])
-
-  const avgProgress = trainingModules.length
-    ? Math.round(trainingModules.reduce((sum, m) => sum + (m.progress_pct || 0), 0) / trainingModules.length)
-    : 0
 
   const fmtDate = d => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'
 
@@ -662,53 +824,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ISO compliance — 40% */}
-        <div
-          className="lg:w-2/5 bg-white rounded-2xl p-6"
-          style={{
-            boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
-            border: '1px solid rgba(0,0,0,0.06)',
-          }}
-        >
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2.5">
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center"
-                style={{ background: `${BRAND_BLUE}12` }}>
-                <BarChart2 size={13} style={{ color: BRAND_BLUE }} />
-              </div>
-              <h2 className="text-sm font-bold text-gray-900">ISO 31000 Compliance</h2>
-            </div>
-            {!loading && trainingModules.length > 0 && (
-              <span
-                className="text-xs font-bold px-2.5 py-1 rounded-full"
-                style={{ background: `${BRAND_BLUE}10`, color: BRAND_BLUE }}
-              >
-                {avgProgress}% avg
-              </span>
-            )}
-          </div>
-
-          {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-8 bg-gray-50 rounded-xl animate-pulse" />)}
-            </div>
-          ) : trainingModules.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4">No training data found.</p>
-          ) : (
-            <div className="space-y-4">
-              {trainingModules.map(module => (
-                <ProgressBar key={module.id} label={module.module_name} value={module.progress_pct || 0} />
-              ))}
-            </div>
-          )}
-
-          <div className="mt-5 pt-4" style={{ borderTop: '1px solid #F1F5F9' }}>
-            <Link to="/training"
-              className="text-xs font-semibold hover:underline flex items-center gap-1"
-              style={{ color: BRAND_BLUE }}>
-              Go to training <ChevronRight size={11} />
-            </Link>
-          </div>
+        {/* ISO compliance score — 40% */}
+        <div className="lg:w-2/5">
+          <ComplianceScoreCard breakdown={complianceBreakdown} loading={loading} />
         </div>
       </div>
     </Layout>
