@@ -54,30 +54,18 @@ export default function TermsAndConditions() {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) throw new Error('Session expired — please refresh and try again.')
 
-      // Call SECURITY DEFINER function — bypasses RLS, handles profile + audit log
-      const { error: rpcError } = await supabase.rpc('accept_terms_v1')
+      // Call SECURITY DEFINER function — bypasses RLS, updates profile + returns it
+      const { data: updatedProf, error: rpcError } = await supabase.rpc('accept_terms_v1')
 
       if (rpcError) {
         console.error('accept_terms_v1 RPC error:', rpcError)
-        throw new Error(`RPC failed: ${rpcError.message}`)
+        throw new Error(`Could not save your acceptance: ${rpcError.message}`)
       }
 
-      // Verify the profile was actually updated before navigating
-      const { data: updatedProf, error: verifyError } = await supabase
-        .from('profiles')
-        .select('id, terms_version, terms_accepted_at')
-        .eq('id', user.id)
-        .single()
-
-      console.log('Profile after accept:', updatedProf, verifyError)
-
-      if (verifyError) {
-        // No profile row exists — this is a setup issue
-        throw new Error(`No profile found for your account (${verifyError.message}). Please contact support.`)
-      }
-
+      // Function returns the updated profile — verify terms_version was set
       if (updatedProf?.terms_version !== TERMS_VERSION) {
-        throw new Error(`Profile not updated — terms_version is "${updatedProf?.terms_version}" (expected "${TERMS_VERSION}"). The terms_version column may be missing. Please run the full terms-and-location.sql migration.`)
+        console.error('Profile after accept:', updatedProf)
+        throw new Error(`Acceptance saved but profile not updated correctly. Please contact support.`)
       }
 
       navigate('/dashboard')
