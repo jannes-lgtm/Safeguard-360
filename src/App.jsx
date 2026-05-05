@@ -17,6 +17,13 @@ import SOS from './pages/SOS'
 import CheckIn from './pages/CheckIn'
 import LiveMap from './pages/LiveMap'
 import Incidents from './pages/Incidents'
+import TravelApprovals from './pages/TravelApprovals'
+import Organisations from './pages/Organisations'
+import OrgUsers from './pages/OrgUsers'
+import OrgTraining from './pages/OrgTraining'
+import ControlRoom from './pages/ControlRoom'
+import Assistance from './pages/Assistance'
+import TermsAndConditions from './pages/TermsAndConditions'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -25,6 +32,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<ComingSoon />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/itinerary" element={<ProtectedRoute><Itinerary /></ProtectedRoute>} />
         <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
@@ -42,6 +50,12 @@ export default function App() {
         <Route path="/sos" element={<ProtectedRoute><SOS /></ProtectedRoute>} />
         <Route path="/checkin" element={<ProtectedRoute><CheckIn /></ProtectedRoute>} />
         <Route path="/live-map" element={<ProtectedRoute><LiveMap /></ProtectedRoute>} />
+        <Route path="/approvals"      element={<ProtectedRoute adminOnly><TravelApprovals /></ProtectedRoute>} />
+        <Route path="/organisations"   element={<ProtectedRoute adminOnly><Organisations /></ProtectedRoute>} />
+        <Route path="/org/users"       element={<ProtectedRoute><OrgUsers /></ProtectedRoute>} />
+        <Route path="/org/training"    element={<ProtectedRoute><OrgTraining /></ProtectedRoute>} />
+        <Route path="/control-room"    element={<ProtectedRoute adminOnly><ControlRoom /></ProtectedRoute>} />
+        <Route path="/assistance"      element={<ProtectedRoute><Assistance /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

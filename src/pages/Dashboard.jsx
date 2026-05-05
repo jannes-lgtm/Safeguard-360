@@ -4,7 +4,9 @@ import {
   BarChart2, Bell, Plane, Radio, Globe, AlertCircle,
   Calendar, ChevronRight, Brain, Zap, AlertTriangle,
   ListChecks, RefreshCw, X, CheckCircle2, BookOpen,
-  FileText, CheckSquare, Award,
+  FileText, CheckSquare, Award, Users, ClipboardList,
+  Clock, Building2, Headphones, Shield, GraduationCap,
+  Pencil, Navigation, MapPin,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import MetricCard from '../components/MetricCard'
@@ -16,20 +18,11 @@ import { cityToCountry, SEVERITY_STYLE } from '../data/intelData'
 const BRAND_BLUE  = '#0118A1'
 const BRAND_GREEN = '#AACC00'
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 const SEVERITY_ORDER = { Critical: 0, High: 1, Medium: 2, Low: 3, Info: 4 }
-
 const ALERT_TYPE_ICON = {
-  disaster:   '🌋',
-  earthquake: '🔴',
-  flight:     '✈️',
-  weather:    '⛈️',
-  security:   '🛡️',
-  health:     '🏥',
-  political:  '🏛️',
+  disaster: '🌋', earthquake: '🔴', flight: '✈️',
+  weather: '⛈️', security: '🛡️', health: '🏥', political: '🏛️',
 }
-
 const SEVERITY_PILL = {
   Critical: { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', bar: '#EF4444' },
   High:     { bg: '#FFF7ED', color: '#C2410C', border: '#FED7AA', bar: '#F97316' },
@@ -37,118 +30,70 @@ const SEVERITY_PILL = {
   Low:      { bg: '#F8FAFC', color: '#475569', border: '#E2E8F0', bar: '#94A3B8' },
   Info:     { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE', bar: '#3B82F6' },
 }
+const severityDot = { Critical: '#EF4444', High: '#F97316', Medium: '#EAB308', Low: '#94A3B8' }
 
 function fmtEventDate(d) {
   if (!d) return null
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
-
 function greeting() {
   const h = new Date().getHours()
   if (h < 12) return 'Good morning'
   if (h < 17) return 'Good afternoon'
   return 'Good evening'
 }
-
-const severityDot = {
-  Critical: '#EF4444',
-  High:     '#F97316',
-  Medium:   '#EAB308',
-  Low:      '#94A3B8',
+function fmtDate(d) {
+  return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'
 }
 
-// ── Trip Alerts section ───────────────────────────────────────────────────────
+// ── Trip Alerts ───────────────────────────────────────────────────────────────
 function TripAlertsSection({ alerts, onMarkRead, onDismissAll }) {
   const sorted = [...alerts].sort((a, b) => {
     const so = (SEVERITY_ORDER[a.severity] ?? 5) - (SEVERITY_ORDER[b.severity] ?? 5)
-    if (so !== 0) return so
-    return new Date(b.created_at) - new Date(a.created_at)
+    return so !== 0 ? so : new Date(b.created_at) - new Date(a.created_at)
   })
-
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <AlertTriangle size={15} style={{ color: '#F97316' }} />
           <h2 className="text-sm font-bold text-gray-800">Trip Alerts</h2>
-          <span
-            className="text-[10px] font-bold rounded-full px-2 py-0.5"
-            style={{ background: '#FFF7ED', color: '#C2410C', border: '1px solid #FED7AA' }}
-          >
+          <span className="text-[10px] font-bold rounded-full px-2 py-0.5"
+            style={{ background: '#FFF7ED', color: '#C2410C', border: '1px solid #FED7AA' }}>
             {alerts.length}
           </span>
         </div>
-        <button
-          onClick={onDismissAll}
-          className="text-xs text-gray-400 hover:text-gray-600 font-medium transition-colors"
-        >
+        <button onClick={onDismissAll} className="text-xs text-gray-400 hover:text-gray-600 font-medium">
           Dismiss all
         </button>
       </div>
-
       <div className="space-y-2">
         {sorted.map(alert => {
           const pill = SEVERITY_PILL[alert.severity] || SEVERITY_PILL.Low
           return (
-            <div
-              key={alert.id}
-              className="rounded-2xl flex items-start gap-3 p-4 transition-all"
-              style={{
-                background: pill.bg,
-                border: `1px solid ${pill.border}`,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-              }}
-            >
-              {/* Left accent bar */}
+            <div key={alert.id} className="rounded-2xl flex items-start gap-3 p-4 transition-all"
+              style={{ background: pill.bg, border: `1px solid ${pill.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
               <div className="w-0.5 self-stretch rounded-full shrink-0 mt-0.5" style={{ background: pill.bar }} />
-
-              <span className="text-lg shrink-0 leading-none mt-0.5">
-                {ALERT_TYPE_ICON[alert.alert_type] || '⚠️'}
-              </span>
-
+              <span className="text-lg shrink-0 leading-none mt-0.5">{ALERT_TYPE_ICON[alert.alert_type] || '⚠️'}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2 mb-0.5">
-                  <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-1">
-                    {alert.title}
-                  </p>
-                  <button
-                    onClick={() => onMarkRead(alert.id)}
+                  <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-1">{alert.title}</p>
+                  <button onClick={() => onMarkRead(alert.id)}
                     className="shrink-0 p-0.5 rounded-md transition-colors hover:bg-black/5"
-                    title="Dismiss"
-                    style={{ color: pill.color, opacity: 0.5 }}
-                  >
+                    style={{ color: pill.color, opacity: 0.5 }}>
                     <X size={13} />
                   </button>
                 </div>
-
                 {alert.description && (
-                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">
-                    {alert.description}
-                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">{alert.description}</p>
                 )}
-
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <span
-                    className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
-                    style={{ background: pill.bar + '20', color: pill.color }}
-                  >
-                    {alert.severity}
-                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                    style={{ background: pill.bar + '20', color: pill.color }}>{alert.severity}</span>
                   {alert.trip_name && (
                     <span className="text-[10px] bg-white/80 border border-gray-200 text-gray-500 rounded-full px-2 py-0.5 font-medium">
                       {alert.trip_name}
                     </span>
-                  )}
-                  {alert.source && (
-                    <span
-                      className="text-[10px] rounded-full px-2 py-0.5 font-medium"
-                      style={{ background: `${BRAND_BLUE}10`, color: BRAND_BLUE }}
-                    >
-                      {alert.source}
-                    </span>
-                  )}
-                  {alert.event_date && (
-                    <span className="text-[10px] text-gray-400">{fmtEventDate(alert.event_date)}</span>
                   )}
                 </div>
               </div>
@@ -160,16 +105,12 @@ function TripAlertsSection({ alerts, onMarkRead, onDismissAll }) {
   )
 }
 
-// ── ISO Compliance Score card ─────────────────────────────────────────────────
+// ── ISO Compliance Score ──────────────────────────────────────────────────────
 function ComplianceScoreCard({ breakdown, loading }) {
   if (loading && !breakdown) {
     return (
       <div className="bg-white rounded-2xl p-6 animate-pulse"
-        style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-6 h-6 rounded-lg bg-gray-100" />
-          <div className="h-4 w-40 bg-gray-100 rounded-full" />
-        </div>
+        style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.06)' }}>
         <div className="flex items-center gap-6">
           <div className="w-24 h-24 rounded-full bg-gray-100 shrink-0" />
           <div className="flex-1 space-y-3">
@@ -181,61 +122,30 @@ function ComplianceScoreCard({ breakdown, loading }) {
       </div>
     )
   }
-
-  const score = breakdown?.total ?? 0
-
-  // Rating
+  const score  = breakdown?.total ?? 0
   const rating =
-    score >= 90 ? { label: 'Excellent',       color: '#059669', bg: '#ECFDF5', border: '#BBF7D0' } :
-    score >= 70 ? { label: 'Good',             color: BRAND_BLUE, bg: `${BRAND_BLUE}0D`, border: `${BRAND_BLUE}25` } :
-    score >= 50 ? { label: 'Needs Attention',  color: '#D97706', bg: '#FFFBEB', border: '#FDE68A' } :
-                  { label: 'At Risk',           color: '#DC2626', bg: '#FEF2F2', border: '#FECACA' }
-
-  // SVG ring
-  const R   = 38
-  const C   = 2 * Math.PI * R          // ~238.76
+    score >= 90 ? { label: 'Excellent',      color: '#059669', bg: '#ECFDF5', border: '#BBF7D0' } :
+    score >= 70 ? { label: 'Good',            color: BRAND_BLUE, bg: `${BRAND_BLUE}0D`, border: `${BRAND_BLUE}25` } :
+    score >= 50 ? { label: 'Needs Attention', color: '#D97706', bg: '#FFFBEB', border: '#FDE68A' } :
+                  { label: 'At Risk',         color: '#DC2626', bg: '#FEF2F2', border: '#FECACA' }
+  const R    = 38
+  const C    = 2 * Math.PI * R
   const fill = (score / 100) * C
-
   const components = breakdown ? [
-    {
-      label: 'ISO Training',
-      icon:  BookOpen,
-      pct:   breakdown.training.pct,
-      sub:   `${breakdown.training.done} of ${breakdown.training.total} modules`,
-      link:  '/training',
-      color: BRAND_BLUE,
-    },
-    {
-      label: 'Policy Sign-offs',
-      icon:  FileText,
-      pct:   breakdown.policies.pct,
-      sub:   `${breakdown.policies.done} of ${breakdown.policies.total} policies`,
-      link:  '/policies',
-      color: '#7C3AED',
-    },
-    {
-      label: 'Travel Check-ins',
-      icon:  CheckSquare,
-      pct:   breakdown.checkin.pct,
-      sub:   breakdown.checkin.hasTrips
-        ? breakdown.checkin.done > 0 ? 'Recent check-in on file' : 'No check-ins in 90 days'
-        : 'No active trips',
-      link:  '/checkin',
-      color: '#059669',
-    },
+    { label: 'ISO Training',     icon: BookOpen,    pct: breakdown.training.pct, sub: `${breakdown.training.done}/${breakdown.training.total} modules`, link: '/training', color: BRAND_BLUE },
+    { label: 'Policy Sign-offs', icon: FileText,    pct: breakdown.policies.pct, sub: `${breakdown.policies.done}/${breakdown.policies.total} policies`, link: '/policies', color: '#7C3AED' },
+    { label: 'Travel Check-ins', icon: CheckSquare, pct: breakdown.checkin.pct,  sub: breakdown.checkin.hasTrips ? (breakdown.checkin.done > 0 ? 'Recent check-in on file' : 'No check-ins yet') : 'No active trips', link: '/checkin', color: '#059669' },
   ] : []
 
   return (
     <div className="bg-white rounded-2xl p-6"
       style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
-
-      {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2.5">
           <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}12` }}>
             <Award size={13} style={{ color: BRAND_BLUE }} />
           </div>
-          <h2 className="text-sm font-bold text-gray-900">ISO 31030 Compliance</h2>
+          <h2 className="text-sm font-bold text-gray-900">My ISO Compliance</h2>
         </div>
         {breakdown && (
           <span className="text-[10px] font-bold px-2.5 py-1 rounded-full"
@@ -244,33 +154,19 @@ function ComplianceScoreCard({ breakdown, loading }) {
           </span>
         )}
       </div>
-
       <div className="flex items-center gap-6">
-        {/* Ring gauge */}
         <div className="shrink-0 relative w-24 h-24">
           <svg width="96" height="96" viewBox="0 0 96 96">
-            {/* Track */}
             <circle cx="48" cy="48" r={R} fill="none" stroke="#EEF0F6" strokeWidth="8" />
-            {/* Fill */}
-            <circle
-              cx="48" cy="48" r={R}
-              fill="none"
-              stroke={rating.color}
-              strokeWidth="8"
-              strokeLinecap="round"
-              strokeDasharray={`${fill} ${C}`}
-              strokeDashoffset={C * 0.25}   /* start at top */
-              style={{ transition: 'stroke-dasharray 0.8s ease' }}
-            />
+            <circle cx="48" cy="48" r={R} fill="none" stroke={rating.color} strokeWidth="8"
+              strokeLinecap="round" strokeDasharray={`${fill} ${C}`} strokeDashoffset={C * 0.25}
+              style={{ transition: 'stroke-dasharray 0.8s ease' }} />
           </svg>
-          {/* Score label */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-xl font-black leading-none" style={{ color: rating.color }}>{score}%</span>
             <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mt-0.5">Score</span>
           </div>
         </div>
-
-        {/* Component breakdown */}
         <div className="flex-1 space-y-3 min-w-0">
           {components.map(c => {
             const Icon = c.icon
@@ -282,15 +178,11 @@ function ComplianceScoreCard({ breakdown, loading }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[11px] font-semibold text-gray-700 group-hover:text-gray-900 transition-colors">
-                      {c.label}
-                    </span>
+                    <span className="text-[11px] font-semibold text-gray-700 group-hover:text-gray-900 transition-colors">{c.label}</span>
                     <span className="text-[11px] font-bold tabular-nums" style={{ color: c.color }}>{c.pct}%</span>
                   </div>
-                  {/* Mini bar */}
                   <div className="h-1 rounded-full w-full" style={{ background: '#EEF0F6' }}>
-                    <div className="h-1 rounded-full transition-all duration-700"
-                      style={{ width: `${c.pct}%`, background: c.color }} />
+                    <div className="h-1 rounded-full transition-all duration-700" style={{ width: `${c.pct}%`, background: c.color }} />
                   </div>
                   <p className="text-[10px] text-gray-400 mt-0.5">{c.sub}</p>
                 </div>
@@ -299,13 +191,9 @@ function ComplianceScoreCard({ breakdown, loading }) {
           })}
         </div>
       </div>
-
       <div className="mt-4 pt-4 flex items-center justify-between" style={{ borderTop: '1px solid #F1F5F9' }}>
-        <p className="text-[10px] text-gray-400">
-          Weighted: training 40% · policies 40% · check-ins 20%
-        </p>
-        <Link to="/training" className="text-xs font-semibold hover:underline flex items-center gap-1"
-          style={{ color: BRAND_BLUE }}>
+        <p className="text-[10px] text-gray-400">Training 40% · Policies 40% · Check-ins 20%</p>
+        <Link to="/training" className="text-xs font-semibold hover:underline flex items-center gap-1" style={{ color: BRAND_BLUE }}>
           Improve score <ChevronRight size={11} />
         </Link>
       </div>
@@ -313,93 +201,334 @@ function ComplianceScoreCard({ breakdown, loading }) {
   )
 }
 
-// ── AI Morning Brief ──────────────────────────────────────────────────────────
+// ── Corporate Admin: org compliance panel ─────────────────────────────────────
+function OrgCompliancePanel({ orgStats, loading }) {
+  if (loading) return (
+    <div className="bg-white rounded-2xl p-6 animate-pulse border border-gray-100">
+      <div className="h-4 bg-gray-100 rounded-full w-40 mb-4" />
+      <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-10 bg-gray-50 rounded-xl"/>)}</div>
+    </div>
+  )
+  if (!orgStats) return null
+
+  const items = [
+    { label: 'Training Completion',  pct: orgStats.trainPct,  color: BRAND_BLUE,   icon: BookOpen,    link: '/org/users' },
+    { label: 'Policy Sign-offs',     pct: orgStats.polPct,    color: '#7C3AED',    icon: FileText,    link: '/org/users' },
+    { label: 'Check-in Compliance',  pct: orgStats.checkinPct, color: '#059669',   icon: CheckSquare, link: '/tracker' },
+  ]
+  const overall = Math.round(orgStats.trainPct * 0.4 + orgStats.polPct * 0.4 + orgStats.checkinPct * 0.2)
+  const rating  =
+    overall >= 90 ? { label: 'Excellent',      color: '#059669' } :
+    overall >= 70 ? { label: 'Good',            color: BRAND_BLUE } :
+    overall >= 50 ? { label: 'Needs Attention', color: '#D97706' } :
+                    { label: 'At Risk',         color: '#DC2626' }
+
+  return (
+    <div className="bg-white rounded-2xl p-6"
+      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}12` }}>
+            <Shield size={13} style={{ color: BRAND_BLUE }} />
+          </div>
+          <h2 className="text-sm font-bold text-gray-900">Organisation Compliance</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xl font-black" style={{ color: rating.color }}>{overall}%</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{rating.label}</span>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {items.map(item => {
+          const Icon = item.icon
+          return (
+            <Link key={item.label} to={item.link} className="flex items-center gap-3 group">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: `${item.color}12` }}>
+                <Icon size={12} style={{ color: item.color }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold text-gray-700 group-hover:text-gray-900 transition-colors">{item.label}</span>
+                  <span className="text-xs font-bold" style={{ color: item.color }}>{item.pct}%</span>
+                </div>
+                <div className="h-1.5 rounded-full w-full bg-gray-100">
+                  <div className="h-1.5 rounded-full transition-all duration-700" style={{ width: `${item.pct}%`, background: item.color }} />
+                </div>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+      <div className="mt-4 pt-3 border-t border-gray-50">
+        <Link to="/org/users" className="text-xs font-semibold hover:underline flex items-center gap-1" style={{ color: BRAND_BLUE }}>
+          View individual scores <ChevronRight size={11} />
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+// ── Quick Actions ─────────────────────────────────────────────────────────────
+function QuickActions({ role, hasActiveTrip }) {
+  const travellerActions = [
+    {
+      icon: Plane,
+      label: 'Book Travel',
+      desc: 'Add a new trip to your itinerary',
+      to: '/itinerary',
+      color: BRAND_BLUE,
+      bg: `${BRAND_BLUE}0F`,
+    },
+    {
+      icon: GraduationCap,
+      label: 'Start Training',
+      desc: 'Complete your ISO safety modules',
+      to: '/training',
+      color: '#7C3AED',
+      bg: '#F5F3FF',
+    },
+    {
+      icon: Shield,
+      label: 'Country Risk Report',
+      desc: 'Get destination safety intelligence',
+      to: '/country-risk',
+      color: '#059669',
+      bg: '#ECFDF5',
+    },
+    {
+      icon: Pencil,
+      label: hasActiveTrip ? 'Update My Trip' : 'My Trips',
+      desc: hasActiveTrip ? 'Edit your current travel plans' : 'View and manage your upcoming trips',
+      to: '/itinerary',
+      color: '#D97706',
+      bg: '#FFF7ED',
+    },
+  ]
+
+  const adminActions = [
+    {
+      icon: ClipboardList,
+      label: 'Travel Approvals',
+      desc: 'Review and approve pending trips',
+      to: '/approvals',
+      color: '#D97706',
+      bg: '#FFF7ED',
+    },
+    {
+      icon: Navigation,
+      label: 'Staff Tracker',
+      desc: 'See where your travellers are now',
+      to: '/tracker',
+      color: BRAND_BLUE,
+      bg: `${BRAND_BLUE}0F`,
+    },
+    {
+      icon: GraduationCap,
+      label: 'Company Training',
+      desc: 'Manage team training & compliance',
+      to: '/org/training',
+      color: '#7C3AED',
+      bg: '#F5F3FF',
+    },
+    {
+      icon: Shield,
+      label: 'Country Risk Report',
+      desc: 'Check destination risk levels',
+      to: '/country-risk',
+      color: '#059669',
+      bg: '#ECFDF5',
+    },
+  ]
+
+  const actions = role === 'admin' ? adminActions : travellerActions
+
+  return (
+    <div className="mb-7">
+      <div className="flex items-center gap-2.5 mb-3">
+        <h2 className="text-sm font-bold text-gray-900">Quick Actions</h2>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {actions.map(action => {
+          const Icon = action.icon
+          return (
+            <Link
+              key={action.label}
+              to={action.to}
+              className="bg-white rounded-2xl p-4 flex flex-col gap-3 transition-all duration-200 hover:-translate-y-0.5 group"
+              style={{
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.03)',
+                border: '1px solid rgba(0,0,0,0.06)',
+              }}
+            >
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: action.bg }}
+              >
+                <Icon size={17} style={{ color: action.color }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-gray-900 group-hover:text-[#0118A1] transition-colors leading-tight mb-0.5">
+                  {action.label}
+                </p>
+                <p className="text-[11px] text-gray-400 leading-snug">{action.desc}</p>
+              </div>
+              <div className="flex items-center gap-1 text-[11px] font-semibold transition-all"
+                style={{ color: action.color }}>
+                Go <ChevronRight size={11} className="transition-transform group-hover:translate-x-0.5" />
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// Module name lookup (mirrors Training.jsx static list, keyed by module_order)
+const MODULE_NAMES = {
+  1: 'Introduction to Travel Safety',
+  2: 'Risk Assessment & Planning',
+  3: 'Emergency Response Procedures',
+  4: 'Cultural Awareness & Local Laws',
+  5: 'Health & Medical Preparedness',
+  6: 'Digital Security Abroad',
+  7: 'Kidnap & Ransom Awareness',
+  8: 'Duty of Care & Reporting',
+}
+
+// ── Overdue Check-in Banner ───────────────────────────────────────────────────
+function OverdueCheckinBanner({ checkin }) {
+  if (!checkin) return null
+  const hoursOverdue = Math.round((Date.now() - new Date(checkin.due_at).getTime()) / 3600000)
+  return (
+    <Link to="/checkin"
+      className="flex items-center gap-4 rounded-2xl px-5 py-4 mb-6 transition-all hover:brightness-95 group"
+      style={{ background: 'linear-gradient(135deg, #FEF2F2 0%, #FFF1F1 100%)', border: '1px solid #FECACA', boxShadow: '0 2px 12px rgba(239,68,68,0.12)' }}>
+      {/* Pulsing dot */}
+      <div className="relative shrink-0">
+        <span className="absolute inline-flex h-4 w-4 rounded-full bg-red-400 opacity-75 animate-ping" />
+        <span className="relative inline-flex h-4 w-4 rounded-full bg-red-500" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-red-700 leading-tight">
+          Check-in overdue{checkin.label ? ` · ${checkin.label}` : ''}
+        </p>
+        <p className="text-xs text-red-400 mt-0.5">
+          {hoursOverdue < 1 ? 'Due a few minutes ago' : `${hoursOverdue}h overdue`} — tap to confirm you're safe
+        </p>
+      </div>
+      <div className="flex items-center gap-1.5 text-sm font-bold text-red-600 shrink-0 group-hover:gap-2 transition-all">
+        Check in now <ChevronRight size={15} />
+      </div>
+    </Link>
+  )
+}
+
+// ── Assistance CTA ────────────────────────────────────────────────────────────
+function AssistanceCTA() {
+  return (
+    <Link to="/assistance"
+      className="flex items-center gap-4 rounded-2xl px-5 py-4 mb-6 mt-1 transition-all hover:brightness-98 group"
+      style={{ background: `linear-gradient(135deg, ${BRAND_BLUE}0A 0%, ${BRAND_BLUE}05 100%)`, border: `1px solid ${BRAND_BLUE}18` }}>
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: BRAND_BLUE }}>
+        <Headphones size={16} color="white" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-gray-900 leading-tight">24/7 Emergency Support</p>
+        <p className="text-xs text-gray-400 mt-0.5">
+          Operators standing by · Medical, security, evacuation & more
+        </p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full"
+          style={{ background: '#ECFDF5', color: '#059669', border: '1px solid #BBF7D0' }}>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+          Live
+        </span>
+        <ChevronRight size={15} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+      </div>
+    </Link>
+  )
+}
+
+// ── Training Nudge ────────────────────────────────────────────────────────────
+function TrainingNudge({ module: mod, score }) {
+  if (!mod || score >= 70) return null
+  const name = mod.module_name || MODULE_NAMES[mod.module_order] || `Module ${mod.module_order}`
+  // Rough estimate: each module is worth ~12.5% of training (40% of total / 8 modules)
+  const gainEst = Math.round(12.5 * 0.4)
+  return (
+    <Link to="/training"
+      className="flex items-center gap-4 rounded-2xl px-5 py-4 mb-6 transition-all hover:brightness-97 group"
+      style={{ background: 'linear-gradient(135deg, #F5F3FF 0%, #FAF8FF 100%)', border: '1px solid #DDD6FE', boxShadow: '0 2px 12px rgba(124,58,237,0.06)' }}>
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#7C3AED' }}>
+        <GraduationCap size={16} color="white" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-purple-900 leading-tight">Complete your next training module</p>
+        <p className="text-xs text-purple-500 mt-0.5 truncate">
+          <span className="font-semibold">{name}</span> — raises your compliance score by ~{gainEst}%
+        </p>
+      </div>
+      <div className="flex items-center gap-1.5 text-sm font-bold text-purple-600 shrink-0 group-hover:gap-2 transition-all">
+        Start <ChevronRight size={15} />
+      </div>
+    </Link>
+  )
+}
+
+// ── Morning Brief ─────────────────────────────────────────────────────────────
 const BRIEF_SEV_STYLE = {
   Critical: { bg: '#FEF2F2', border: '#FECACA', text: '#B91C1C' },
   High:     { bg: '#FFF7ED', border: '#FED7AA', text: '#C2410C' },
   Medium:   { bg: '#FEFCE8', border: '#FEF08A', text: '#A16207' },
   Low:      { bg: '#F0FDF4', border: '#BBF7D0', text: '#15803D' },
 }
-
 function MorningBriefCard({ brief, loading }) {
   const [expanded, setExpanded] = useState(true)
-
   if (loading) {
     return (
-      <div
-        className="rounded-2xl p-5 mb-6 animate-pulse"
-        style={{
-          background: 'linear-gradient(135deg, #EEF1FB 0%, #F4F6FD 100%)',
-          border: `1px solid ${BRAND_BLUE}20`,
-          boxShadow: `0 2px 12px ${BRAND_BLUE}10`,
-        }}
-      >
+      <div className="rounded-2xl p-5 mb-6 animate-pulse"
+        style={{ background: 'linear-gradient(135deg, #EEF1FB 0%, #F4F6FD 100%)', border: `1px solid ${BRAND_BLUE}20` }}>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: BRAND_BLUE }}>
             <Brain size={16} color="white" />
           </div>
-          <div>
-            <div className="h-3.5 w-44 bg-blue-100 rounded-full mb-1.5" />
-            <div className="h-2.5 w-28 bg-blue-50 rounded-full" />
-          </div>
+          <div className="h-3.5 w-44 bg-blue-100 rounded-full" />
           <RefreshCw size={12} className="ml-auto animate-spin" style={{ color: `${BRAND_BLUE}60` }} />
         </div>
         <div className="space-y-2">
-          <div className="h-2.5 bg-blue-50 rounded-full w-full" />
-          <div className="h-2.5 bg-blue-50 rounded-full w-4/5" />
-          <div className="h-2.5 bg-blue-50 rounded-full w-2/3" />
+          {[1,2,3].map(i => <div key={i} className="h-2.5 bg-blue-50 rounded-full" style={{ width: i === 3 ? '65%' : i === 2 ? '80%' : '100%' }} />)}
         </div>
       </div>
     )
   }
-
   if (!brief) return null
-
   return (
-    <div
-      className="rounded-2xl mb-6 overflow-hidden"
-      style={{
-        background: 'linear-gradient(135deg, #EEF1FB 0%, #F4F6FD 100%)',
-        border: `1px solid ${BRAND_BLUE}20`,
-        boxShadow: `0 2px 16px ${BRAND_BLUE}12`,
-      }}
-    >
-      <button
-        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-white/30 transition-colors"
-        onClick={() => setExpanded(e => !e)}
-      >
-        <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: BRAND_BLUE }}
-        >
+    <div className="rounded-2xl mb-6 overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #EEF1FB 0%, #F4F6FD 100%)', border: `1px solid ${BRAND_BLUE}20`, boxShadow: `0 2px 16px ${BRAND_BLUE}12` }}>
+      <button className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-white/30 transition-colors"
+        onClick={() => setExpanded(e => !e)}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: BRAND_BLUE }}>
           <Brain size={16} color="white" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
             <span className="text-sm font-bold text-gray-900">AI Intelligence Brief</span>
-            <span
-              className="text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
-              style={{ background: `${BRAND_BLUE}15`, color: BRAND_BLUE }}
-            >
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
+              style={{ background: `${BRAND_BLUE}15`, color: BRAND_BLUE }}>
               <Zap size={7} /> LIVE
             </span>
           </div>
           <p className="text-xs text-gray-500 truncate">{brief.headline}</p>
         </div>
-        <ChevronRight
-          size={15}
-          className="shrink-0 text-gray-400 transition-transform duration-200"
-          style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
-        />
+        <ChevronRight size={15} className="shrink-0 text-gray-400 transition-transform duration-200"
+          style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }} />
       </button>
-
       {expanded && (
-        <div
-          className="px-5 pb-5 pt-4 space-y-4"
-          style={{ borderTop: `1px solid ${BRAND_BLUE}10` }}
-        >
+        <div className="px-5 pb-5 pt-4 space-y-4" style={{ borderTop: `1px solid ${BRAND_BLUE}10` }}>
           <p className="text-sm text-gray-700 font-medium leading-relaxed">{brief.headline}</p>
-
           {brief.situations?.length > 0 && (
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Active Situations</p>
@@ -420,7 +549,6 @@ function MorningBriefCard({ brief, loading }) {
               </div>
             </div>
           )}
-
           {brief.priority_actions?.length > 0 && (
             <div>
               <div className="flex items-center gap-1.5 mb-2.5">
@@ -430,22 +558,15 @@ function MorningBriefCard({ brief, loading }) {
               <ul className="space-y-1.5">
                 {brief.priority_actions.map((a, i) => (
                   <li key={i} className="flex items-start gap-2.5 text-xs text-gray-700">
-                    <span
-                      className="mt-0.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center shrink-0"
-                      style={{ background: `${BRAND_BLUE}12`, color: BRAND_BLUE }}
-                    >
-                      {i + 1}
-                    </span>
+                    <span className="mt-0.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center shrink-0"
+                      style={{ background: `${BRAND_BLUE}12`, color: BRAND_BLUE }}>{i + 1}</span>
                     {a}
                   </li>
                 ))}
               </ul>
             </div>
           )}
-
-          <p className="text-[10px] text-gray-400 text-right pt-1">
-            Powered by Claude AI · Updates on each scan
-          </p>
+          <p className="text-[10px] text-gray-400 text-right pt-1">Powered by Claude AI · Updates on each scan</p>
         </div>
       )}
     </div>
@@ -454,19 +575,35 @@ function MorningBriefCard({ brief, loading }) {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [metrics, setMetrics]               = useState({ activeAlerts: 0, staffTravelling: 0, activeFeeds: 0, compliancePct: null })
-  const [complianceBreakdown, setComplianceBreakdown] = useState(null) // { total, training, policies, checkin }
-  const [recentAlerts, setRecentAlerts]     = useState([])
-  const [myTrips, setMyTrips]               = useState([])
-  const [destRisk, setDestRisk]             = useState({})
-  const [destAlerts, setDestAlerts]         = useState({})
+  const [role, setRole]                 = useState(null)
+  const [profile, setProfile]           = useState(null)
+
+  // Shared
+  const [loading, setLoading]           = useState(true)
+  const [recentAlerts, setRecentAlerts] = useState([])
   const [selectedCountry, setSelectedCountry] = useState(null)
-  const [loading, setLoading]               = useState(true)
-  const [tripAlerts, setTripAlerts]         = useState([])
-  const [dismissedIds, setDismissedIds]     = useState(() => new Set())
-  const [morningBrief, setMorningBrief]     = useState(null)
-  const [briefLoading, setBriefLoading]     = useState(false)
-  const loadingRef                           = useRef(false)
+  const [morningBrief, setMorningBrief] = useState(null)
+  const [briefLoading, setBriefLoading] = useState(false)
+
+  // Traveller / Solo
+  const [complianceBreakdown, setComplianceBreakdown] = useState(null)
+  const [myTrips, setMyTrips]           = useState([])
+  const [destRisk, setDestRisk]         = useState({})
+  const [destAlerts, setDestAlerts]     = useState({})
+  const [tripAlerts, setTripAlerts]     = useState([])
+  const [dismissedIds, setDismissedIds] = useState(() => new Set())
+  const [metrics, setMetrics]           = useState({ activeAlerts: 0, staffTravelling: 0, activeFeeds: 0 })
+  const [overdueCheckin, setOverdueCheckin] = useState(null)   // { id, due_at, label }
+  const [nudgeModule, setNudgeModule]   = useState(null)       // { module_order, module_name }
+
+  // Corporate Admin
+  const [orgStats, setOrgStats]         = useState(null)
+  const [adminMetrics, setAdminMetrics] = useState({ travellers: 0, travelling: 0, pendingApprovals: 0, overdueCheckins: 0 })
+
+  // Developer
+  const [devMetrics, setDevMetrics]     = useState({ orgs: 0, travellers: 0, activeTrips: 0, controlRoom: 0 })
+
+  const loadingRef = useRef(false)
 
   const load = useCallback(async ({ scanAlerts = false } = {}) => {
     if (loadingRef.current) return
@@ -475,95 +612,189 @@ export default function Dashboard() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { loadingRef.current = false; return }
 
+    const uid   = session.user.id
     const today = new Date().toISOString().split('T')[0]
 
+    // Load profile + role first
+    const { data: prof } = await supabase.from('profiles').select('*, organisations(name)').eq('id', uid).single()
+    const userRole = prof?.role || session.user.app_metadata?.role || 'traveller'
+    setRole(userRole)
+    setProfile({ ...prof, id: uid, email: session.user.email })
+
+    // Always load recent global alerts
+    const { data: alerts } = await supabase.from('alerts').select('*')
+      .eq('status', 'Active').order('date_issued', { ascending: false }).limit(4)
+    setRecentAlerts(alerts || [])
+
+    // ── DEVELOPER ─────────────────────────────────────────────────────────────
+    if (userRole === 'developer') {
+      const [
+        { count: orgCount },
+        { count: travellerCount },
+        { count: tripCount },
+        { count: crCount },
+        { count: alertCount },
+        feedStatuses,
+      ] = await Promise.all([
+        supabase.from('organisations').select('*', { count: 'exact', head: true }),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'developer'),
+        supabase.from('itineraries').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
+        supabase.from('control_room_requests').select('*', { count: 'exact', head: true }).in('status', ['pending', 'in_progress']),
+        supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
+        fetch('/api/feed-status').then(r => r.json()).catch(() => ({})),
+      ])
+      const activeFeeds = Object.values(feedStatuses || {}).filter(s => s === 'active').length
+      setDevMetrics({ orgs: orgCount || 0, travellers: travellerCount || 0, activeTrips: tripCount || 0, controlRoom: crCount || 0 })
+      setMetrics({ activeAlerts: alertCount || 0, activeFeeds })
+      setLoading(false)
+      loadingRef.current = false
+      return
+    }
+
+    // ── CORPORATE ADMIN ───────────────────────────────────────────────────────
+    if (userRole === 'admin' && prof?.org_id) {
+      const orgId = prof.org_id
+
+      // Get org travellers
+      const { data: orgTravellers } = await supabase.from('profiles')
+        .select('id').eq('org_id', orgId).eq('role', 'traveller')
+      const orgIds = (orgTravellers || []).map(t => t.id)
+
+      const [
+        { count: alertCount },
+        { count: travellingCount },
+        { count: pendingCount },
+        { data: overdueCheckins },
+        { data: trainingRecs },
+        { data: pols },
+        acksResult,
+        { data: allCheckins },
+        feedStatuses,
+      ] = await Promise.all([
+        supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
+        orgIds.length
+          ? supabase.from('itineraries').select('*', { count: 'exact', head: true })
+              .in('user_id', orgIds).eq('status', 'Active')
+          : Promise.resolve({ count: 0 }),
+        orgIds.length
+          ? supabase.from('itineraries').select('*', { count: 'exact', head: true })
+              .in('user_id', orgIds).eq('approval_status', 'pending')
+          : Promise.resolve({ count: 0 }),
+        orgIds.length
+          ? supabase.from('scheduled_checkins').select('id')
+              .in('user_id', orgIds).eq('completed', false)
+              .lt('due_at', new Date().toISOString())
+          : Promise.resolve({ data: [] }),
+        orgIds.length
+          ? supabase.from('training_records').select('completed').in('user_id', orgIds)
+          : Promise.resolve({ data: [] }),
+        supabase.from('policies').select('id').eq('status', 'Active'),
+        orgIds.length
+          ? supabase.from('policy_acknowledgements').select('policy_id').in('user_id', orgIds)
+          : Promise.resolve({ data: [] }),
+        orgIds.length
+          ? supabase.from('scheduled_checkins').select('id, completed').in('user_id', orgIds)
+          : Promise.resolve({ data: [] }),
+        fetch('/api/feed-status').then(r => r.json()).catch(() => ({})),
+      ])
+
+      const acks      = acksResult?.data || []
+      const trainPct  = trainingRecs?.length ? Math.round(trainingRecs.filter(r => r.completed).length / trainingRecs.length * 100) : 0
+      const polPct    = pols?.length && acks.length ? Math.round(acks.length / (pols.length * Math.max(orgIds.length, 1)) * 100) : 0
+      const totalSch  = allCheckins?.length || 0
+      const doneSch   = (allCheckins || []).filter(c => c.completed).length
+      const checkinPct = totalSch > 0 ? Math.round(doneSch / totalSch * 100) : 100
+
+      const activeFeeds = Object.values(feedStatuses || {}).filter(s => s === 'active').length
+      setMetrics({ activeAlerts: alertCount || 0, activeFeeds })
+      setAdminMetrics({
+        travellers:       orgIds.length,
+        travelling:       travellingCount || 0,
+        pendingApprovals: pendingCount || 0,
+        overdueCheckins:  overdueCheckins?.length || 0,
+      })
+      setOrgStats({ trainPct, polPct, checkinPct })
+      setLoading(false)
+      loadingRef.current = false
+      return
+    }
+
+    // ── TRAVELLER / SOLO ──────────────────────────────────────────────────────
     const [
       { count: alertCount },
       { count: travelCount },
-      { data: alerts },
       feedStatuses,
       { data: trips },
     ] = await Promise.all([
       supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
       supabase.from('itineraries').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
-      supabase.from('alerts').select('*').eq('status', 'Active').order('date_issued', { ascending: false }).limit(4),
       fetch('/api/feed-status').then(r => r.json()).catch(() => ({})),
-      supabase.from('itineraries').select('*')
-        .eq('user_id', session.user.id)
-        .gte('return_date', today)
-        .order('depart_date'),
+      supabase.from('itineraries').select('*').eq('user_id', uid).gte('return_date', today).order('depart_date'),
     ])
 
-    // ── ISO compliance score (weighted) ───────────────────────────────────────
     const [
       { data: trainingRecs },
       { data: pols },
       acksResult,
       { data: checkins },
+      { data: overdueCheckins },
+      { data: incompleteModules },
     ] = await Promise.all([
-      supabase.from('training_records').select('completed').eq('user_id', session.user.id),
+      supabase.from('training_records').select('completed, module_order, module_name').eq('user_id', uid),
       supabase.from('policies').select('id').eq('status', 'Active'),
-      supabase.from('policy_acknowledgements').select('policy_id').eq('user_id', session.user.id).then(r => r).catch(() => ({ data: [] })),
-      supabase.from('check_ins').select('id').eq('user_id', session.user.id)
-        .gte('checked_in_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
+      supabase.from('policy_acknowledgements').select('policy_id').eq('user_id', uid).then(r => r).catch(() => ({ data: [] })),
+      supabase.from('staff_checkins').select('id').eq('user_id', uid)
+        .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
+        .then(r => r).catch(() => ({ data: [] })),
+      supabase.from('scheduled_checkins').select('id, due_at, label')
+        .eq('user_id', uid).eq('completed', false)
+        .lt('due_at', new Date().toISOString())
+        .order('due_at').limit(1)
+        .then(r => r).catch(() => ({ data: [] })),
+      supabase.from('training_records').select('id, module_order, module_name')
+        .eq('user_id', uid).eq('completed', false)
+        .order('module_order').limit(1)
         .then(r => r).catch(() => ({ data: [] })),
     ])
 
-    const acks = acksResult?.data || []
-
-    // Component scores (each 0-100)
-    const trainPct = trainingRecs?.length
-      ? Math.round(trainingRecs.filter(r => r.completed).length / trainingRecs.length * 100)
-      : 0
-    const polPct = pols?.length
-      ? Math.round(acks.length / pols.length * 100)
-      : 0
-    // Check-in score: 100 if ≥1 check-in in last 90 days (or no active trips = N/A → treat as 100)
-    const hasActiveTrips = (trips || []).length > 0
-    const checkinPct = !hasActiveTrips ? 100 : (checkins?.length || 0) > 0 ? 100 : 0
-
-    // Weighted total: training 40%, policies 40%, check-ins 20%
+    const acks        = acksResult?.data || []
+    const trainPct    = trainingRecs?.length ? Math.round(trainingRecs.filter(r => r.completed).length / trainingRecs.length * 100) : 0
+    const polPct      = pols?.length ? Math.round(acks.length / pols.length * 100) : 0
+    const hasActive   = (trips || []).length > 0
+    const checkinPct  = !hasActive ? 100 : (checkins?.length || 0) > 0 ? 100 : 0
     const compliancePct = Math.round(trainPct * 0.4 + polPct * 0.4 + checkinPct * 0.2)
 
     setComplianceBreakdown({
       total:    compliancePct,
-      training: { pct: trainPct,   done: trainingRecs?.filter(r => r.completed).length ?? 0, total: trainingRecs?.length ?? 0 },
-      policies: { pct: polPct,     done: acks.length,                                          total: pols?.length ?? 0 },
-      checkin:  { pct: checkinPct, done: checkins?.length ?? 0,                                hasTrips: hasActiveTrips },
+      training: { pct: trainPct, done: trainingRecs?.filter(r => r.completed).length ?? 0, total: trainingRecs?.length ?? 0 },
+      policies: { pct: polPct,   done: acks.length,                                          total: pols?.length ?? 0 },
+      checkin:  { pct: checkinPct, done: checkins?.length ?? 0,                              hasTrips: hasActive },
     })
 
     const activeFeeds = Object.values(feedStatuses || {}).filter(s => s === 'active').length
     setMetrics({ activeAlerts: alertCount || 0, staffTravelling: travelCount || 0, activeFeeds, compliancePct })
-    setRecentAlerts(alerts || [])
+    setMyTrips(trips || [])
+    setOverdueCheckin(overdueCheckins?.[0] || null)
+    setNudgeModule(incompleteModules?.[0] || null)
 
-    const tripList = trips || []
-    setMyTrips(tripList)
-
-    const countries = [...new Set(
-      tripList.map(t => cityToCountry(t.arrival_city)).filter(Boolean)
-    )]
+    const countries = [...new Set((trips || []).map(t => cityToCountry(t.arrival_city)).filter(Boolean))]
     if (countries.length > 0) {
       const [riskResults, alertResults] = await Promise.all([
         Promise.all(countries.map(c =>
-          fetch(`/api/country-risk?country=${encodeURIComponent(c)}`)
-            .then(r => r.json()).then(d => [c, d]).catch(() => [c, null])
+          fetch(`/api/country-risk?country=${encodeURIComponent(c)}`).then(r => r.json()).then(d => [c, d]).catch(() => [c, null])
         )),
         Promise.all(countries.map(c =>
           supabase.from('alerts').select('*', { count: 'exact', head: true })
-            .eq('status', 'Active').ilike('country', `%${c}%`)
-            .then(({ count }) => [c, count || 0])
+            .eq('status', 'Active').ilike('country', `%${c}%`).then(({ count }) => [c, count || 0])
         )),
       ])
       setDestRisk(Object.fromEntries(riskResults))
       setDestAlerts(Object.fromEntries(alertResults))
     }
 
-    const { data: ta } = await supabase
-      .from('trip_alerts').select('*')
-      .eq('user_id', session.user.id)
-      .neq('alert_type', 'ai_brief')
-      .order('created_at', { ascending: false })
-      .limit(30)
+    const { data: ta } = await supabase.from('trip_alerts').select('*')
+      .eq('user_id', uid).neq('alert_type', 'ai_brief')
+      .order('created_at', { ascending: false }).limit(30)
     setTripAlerts(ta || [])
 
     setLoading(false)
@@ -572,9 +803,7 @@ export default function Dashboard() {
     if (scanAlerts) {
       setBriefLoading(true)
       try {
-        const scanRes = await fetch('/api/trip-alert-scan', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        })
+        const scanRes = await fetch('/api/trip-alert-scan', { headers: { Authorization: `Bearer ${session.access_token}` } })
         if (scanRes.ok) {
           const scanData = await scanRes.json()
           if (scanData.morning_brief) setMorningBrief(scanData.morning_brief)
@@ -587,164 +816,163 @@ export default function Dashboard() {
   useEffect(() => {
     load({ scanAlerts: true })
     const interval = setInterval(() => load({ scanAlerts: false }), 5 * 60 * 1000)
-    const channel = supabase
-      .channel('dashboard-watch-v2')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'itineraries' }, () => load({ scanAlerts: false }))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_alerts' }, () => load({ scanAlerts: false }))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, () => load({ scanAlerts: false }))
+    const channel = supabase.channel('dashboard-watch-v3')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'itineraries' }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_alerts' }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, () => load())
       .subscribe()
     return () => { clearInterval(interval); supabase.removeChannel(channel) }
   }, [load])
 
-  const fmtDate = d => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'
+  const travelCountries = [...new Set(myTrips.map(t => cityToCountry(t.arrival_city)).filter(Boolean))]
+  const todayStr = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+  const todayISO = new Date().toISOString().split('T')[0]
 
-  const travelCountries = [...new Set(
-    myTrips.map(t => ({ trip: t, country: cityToCountry(t.arrival_city) }))
-      .filter(x => x.country).map(x => x.country)
-  )]
+  // Next upcoming trip countdown
+  const nextTrip = myTrips.find(t => t.depart_date >= todayISO && t.status !== 'Completed')
+  const daysToTrip = nextTrip
+    ? Math.max(0, Math.ceil((new Date(nextTrip.depart_date) - new Date()) / (1000 * 60 * 60 * 24)))
+    : null
 
-  const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+  const subtitles = {
+    developer: 'Platform overview · SafeGuard360',
+    admin:     `${profile?.organisations?.name || 'Your organisation'} · Duty of care dashboard`,
+    traveller: 'Your duty of care overview · SafeGuard360',
+    solo:      'Your personal travel safety dashboard',
+  }
 
   return (
     <Layout>
-      {selectedCountry && (
-        <IntelBrief country={selectedCountry} onClose={() => setSelectedCountry(null)} />
-      )}
+      {selectedCountry && <IntelBrief country={selectedCountry} onClose={() => setSelectedCountry(null)} />}
 
-      {/* ── Page header ── */}
+      {/* Header */}
       <div className="mb-7">
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">{today}</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">{todayStr}</p>
         <h1 className="text-3xl font-bold tracking-tight text-gray-900">{greeting()}</h1>
-        <p className="text-sm text-gray-400 mt-1">Your duty of care overview · SafeGuard360</p>
+        <div className="flex items-center gap-3 mt-1 flex-wrap">
+          <p className="text-sm text-gray-400">{subtitles[role] || subtitles.traveller}</p>
+          {/* Next trip pill — only for traveller/solo with an upcoming trip */}
+          {(role === 'traveller' || role === 'solo') && nextTrip && daysToTrip !== null && (
+            <Link to="/itinerary"
+              className="flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors hover:opacity-80"
+              style={{ background: daysToTrip === 0 ? `${BRAND_BLUE}15` : '#F1F5F9', color: daysToTrip === 0 ? BRAND_BLUE : '#64748B', border: `1px solid ${daysToTrip === 0 ? BRAND_BLUE + '30' : '#E2E8F0'}` }}>
+              <Plane size={9} />
+              {daysToTrip === 0
+                ? `✈️ Travelling today · ${nextTrip.trip_name}`
+                : daysToTrip === 1
+                  ? `Trip tomorrow · ${nextTrip.trip_name}`
+                  : `${nextTrip.trip_name} in ${daysToTrip} days`}
+            </Link>
+          )}
+        </div>
       </div>
 
-      {/* ── AI Morning Brief ── */}
-      {(briefLoading || morningBrief) && (
+      {/* ── Overdue check-in banner (traveller / solo only) — top priority ── */}
+      {(role === 'traveller' || role === 'solo') && !loading && (
+        <OverdueCheckinBanner checkin={overdueCheckin} />
+      )}
+
+      {/* Morning brief (traveller + solo + developer) */}
+      {role !== 'admin' && (briefLoading || morningBrief) && (
         <MorningBriefCard brief={morningBrief} loading={briefLoading} />
       )}
 
-      {/* ── Metric cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
-        <MetricCard
-          label="Compliance Score"
-          value={loading ? '–' : metrics.compliancePct !== null ? `${metrics.compliancePct}%` : '–'}
-          icon={BarChart2}
-          valueColor="text-[#0118A1]" accent="#0118A1"
-        />
-        <MetricCard
-          label="Active Alerts" value={loading ? '–' : metrics.activeAlerts} icon={Bell}
-          valueColor={metrics.activeAlerts > 0 ? 'text-red-600' : 'text-gray-900'}
-          accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'}
-        />
-        <MetricCard
-          label="Staff Travelling" value={loading ? '–' : metrics.staffTravelling} icon={Plane}
-          valueColor="text-[#0118A1]" accent="#0118A1"
-        />
-        <MetricCard
-          label="Active Feeds" value={loading ? '–' : metrics.activeFeeds} icon={Radio}
-          valueColor="text-emerald-600" accent="#059669"
-        />
-      </div>
-
-      {/* ── My Travel Intel ── */}
-      {travelCountries.length > 0 && (
-        <div className="mb-7">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center"
-                style={{ background: `${BRAND_BLUE}12` }}>
-                <Globe size={13} style={{ color: BRAND_BLUE }} />
-              </div>
-              <h2 className="text-base font-bold text-gray-900">My Travel Intel</h2>
-            </div>
-            <span className="text-xs text-gray-400 font-medium">
-              {myTrips.length} trip{myTrips.length !== 1 ? 's' : ''}
-            </span>
+      {/* ── DEVELOPER METRICS ── */}
+      {role === 'developer' && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+            <MetricCard label="Organisations"    value={loading ? '–' : devMetrics.orgs}        icon={Building2}    valueColor="text-[#0118A1]" accent="#0118A1" />
+            <MetricCard label="Total Travellers" value={loading ? '–' : devMetrics.travellers}  icon={Users}        valueColor="text-[#0118A1]" accent="#0118A1" />
+            <MetricCard label="Active Trips"     value={loading ? '–' : devMetrics.activeTrips} icon={Plane}        valueColor="text-blue-600"  accent="#2563EB" />
+            <MetricCard label="Control Room"     value={loading ? '–' : devMetrics.controlRoom} icon={Headphones}
+              valueColor={devMetrics.controlRoom > 0 ? 'text-red-600' : 'text-emerald-600'}
+              accent={devMetrics.controlRoom > 0 ? '#EF4444' : '#059669'} />
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {myTrips.map(trip => {
-              const country  = cityToCountry(trip.arrival_city) || trip.arrival_city
-              const risk     = destRisk[country]
-              const sev      = risk?.severity || trip.risk_level || null
-              const style    = sev ? (SEVERITY_STYLE[sev] || SEVERITY_STYLE.Medium) : null
-              const alerts   = destAlerts[country] ?? null
-              const isActive = trip.depart_date <= new Date().toISOString().split('T')[0]
-              const pill     = sev ? SEVERITY_PILL[sev] : null
-
-              return (
-                <button key={trip.id}
-                  onClick={() => setSelectedCountry(country)}
-                  className="bg-white rounded-2xl p-5 text-left transition-all duration-200 hover:-translate-y-0.5 group"
-                  style={{
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
-                    border: '1px solid rgba(0,0,0,0.06)',
-                  }}
-                >
-                  {/* Top row */}
-                  <div className="flex items-center justify-between mb-4">
-                    <span
-                      className="text-[10px] font-bold px-2.5 py-1 rounded-full"
-                      style={isActive
-                        ? { background: `${BRAND_BLUE}12`, color: BRAND_BLUE }
-                        : { background: '#F1F5F9', color: '#64748B' }
-                      }
-                    >
-                      {isActive ? '✈️ Active' : '📅 Upcoming'}
-                    </span>
-                    {pill && (
-                      <span
-                        className="text-[10px] font-bold px-2.5 py-1 rounded-full"
-                        style={{ background: pill.bg, color: pill.color, border: `1px solid ${pill.border}` }}
-                      >
-                        {sev}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Trip info */}
-                  <h3 className="text-sm font-bold text-gray-900 truncate mb-1">{trip.trip_name}</h3>
-                  <p className="text-xs text-gray-400 mb-4">
-                    {trip.arrival_city}{country !== trip.arrival_city ? ` · ${country}` : ''}
-                  </p>
-
-                  {/* Dates */}
-                  <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mb-3">
-                    <Calendar size={10} />
-                    {fmtDate(trip.depart_date)} — {fmtDate(trip.return_date)}
-                  </div>
-
-                  {/* Alert count */}
-                  {alerts !== null && (
-                    <div className={`flex items-center gap-1.5 text-[11px] font-semibold mb-4 ${alerts > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
-                      {alerts > 0
-                        ? <><AlertCircle size={11} />{alerts} active alert{alerts !== 1 ? 's' : ''}</>
-                        : <><CheckCircle2 size={11} />No active alerts</>
-                      }
-                    </div>
-                  )}
-
-                  {/* CTA */}
-                  <div
-                    className="flex items-center gap-1 text-[11px] font-semibold pt-3 transition-all group-hover:gap-1.5"
-                    style={{ borderTop: '1px solid #F1F5F9', color: BRAND_BLUE }}
-                  >
-                    View Full Intel Brief <ChevronRight size={11} />
-                  </div>
-                </button>
-              )
-            })}
+          <div className="grid grid-cols-2 gap-4 mb-7">
+            <MetricCard label="Active Alerts" value={loading ? '–' : metrics.activeAlerts} icon={Bell}
+              valueColor={metrics.activeAlerts > 0 ? 'text-red-600' : 'text-gray-900'}
+              accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'} />
+            <MetricCard label="Active Feeds"  value={loading ? '–' : metrics.activeFeeds}  icon={Radio} valueColor="text-emerald-600" accent="#059669" />
           </div>
-        </div>
+        </>
       )}
 
-      {/* ── Trip Alerts ── */}
-      {(() => {
-        const visibleAlerts = tripAlerts.filter(a => !dismissedIds.has(a.id))
-        if (!visibleAlerts.length) return null
+      {/* ── CORPORATE ADMIN METRICS ── */}
+      {role === 'admin' && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+            <MetricCard label="Our Travellers"    value={loading ? '–' : adminMetrics.travellers}       icon={Users}         valueColor="text-[#0118A1]" accent="#0118A1" />
+            <MetricCard label="Currently Travelling" value={loading ? '–' : adminMetrics.travelling}   icon={Plane}         valueColor="text-blue-600"  accent="#2563EB" />
+            <MetricCard label="Pending Approvals" value={loading ? '–' : adminMetrics.pendingApprovals} icon={ClipboardList}
+              valueColor={adminMetrics.pendingApprovals > 0 ? 'text-amber-600' : 'text-gray-900'}
+              accent={adminMetrics.pendingApprovals > 0 ? '#D97706' : '#0118A1'} />
+            <MetricCard label="Overdue Check-ins" value={loading ? '–' : adminMetrics.overdueCheckins} icon={Clock}
+              valueColor={adminMetrics.overdueCheckins > 0 ? 'text-red-600' : 'text-emerald-600'}
+              accent={adminMetrics.overdueCheckins > 0 ? '#EF4444' : '#059669'} />
+          </div>
+
+          {/* Urgent action banners — only shown when there's something that needs attention */}
+          {!loading && (adminMetrics.pendingApprovals > 0 || adminMetrics.overdueCheckins > 0) && (
+            <div className="flex gap-3 mb-6 flex-wrap">
+              {adminMetrics.pendingApprovals > 0 && (
+                <Link to="/approvals"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors">
+                  <ClipboardList size={14} />
+                  {adminMetrics.pendingApprovals} trip{adminMetrics.pendingApprovals !== 1 ? 's' : ''} awaiting approval
+                  <ChevronRight size={13} />
+                </Link>
+              )}
+              {adminMetrics.overdueCheckins > 0 && (
+                <Link to="/tracker"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-colors">
+                  <Clock size={14} />
+                  {adminMetrics.overdueCheckins} overdue check-in{adminMetrics.overdueCheckins !== 1 ? 's' : ''}
+                  <ChevronRight size={13} />
+                </Link>
+              )}
+            </div>
+          )}
+
+          {/* Quick actions grid */}
+          <QuickActions role="admin" hasActiveTrip={false} />
+        </>
+      )}
+
+      {/* ── TRAVELLER / SOLO METRICS ── */}
+      {(role === 'traveller' || role === 'solo') && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+            <MetricCard label="My Compliance"  value={loading ? '–' : complianceBreakdown ? `${complianceBreakdown.total}%` : '–'} icon={BarChart2} valueColor="text-[#0118A1]" accent="#0118A1" />
+            <MetricCard label="Active Alerts"  value={loading ? '–' : metrics.activeAlerts} icon={Bell}
+              valueColor={metrics.activeAlerts > 0 ? 'text-red-600' : 'text-gray-900'}
+              accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'} />
+            <MetricCard label="My Trips"       value={loading ? '–' : myTrips.length}       icon={Plane}  valueColor="text-[#0118A1]" accent="#0118A1" />
+            <MetricCard label="Active Feeds"   value={loading ? '–' : metrics.activeFeeds}  icon={Radio}  valueColor="text-emerald-600" accent="#059669" />
+          </div>
+
+          {/* Quick action shortcuts */}
+          <QuickActions role={role} hasActiveTrip={myTrips.some(t => t.status === 'Active')} />
+
+          {/* Training nudge — only when score is below 70% and there's a next module */}
+          {!loading && (
+            <TrainingNudge
+              module={nudgeModule}
+              score={complianceBreakdown?.total ?? 100}
+            />
+          )}
+
+          {/* 24/7 Assistance CTA — always visible for travellers */}
+          <AssistanceCTA />
+        </>
+      )}
+
+      {/* ── TRIP ALERTS (traveller / solo) ── */}
+      {(role === 'traveller' || role === 'solo') && (() => {
+        const visible = tripAlerts.filter(a => !dismissedIds.has(a.id))
+        if (!visible.length) return null
         return (
           <TripAlertsSection
-            alerts={visibleAlerts}
+            alerts={visible}
             onMarkRead={(id) => {
               setDismissedIds(prev => new Set([...prev, id]))
               supabase.from('trip_alerts').update({ is_read: true }).eq('id', id).then(() => {})
@@ -758,29 +986,81 @@ export default function Dashboard() {
         )
       })()}
 
-      {/* ── Two-panel row ── */}
+      {/* ── TRAVEL INTEL (traveller / solo) ── */}
+      {(role === 'traveller' || role === 'solo') && travelCountries.length > 0 && (
+        <div className="mb-7">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}12` }}>
+                <Globe size={13} style={{ color: BRAND_BLUE }} />
+              </div>
+              <h2 className="text-base font-bold text-gray-900">My Travel Intel</h2>
+            </div>
+            <span className="text-xs text-gray-400 font-medium">{myTrips.length} trip{myTrips.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {myTrips.map(trip => {
+              const country  = cityToCountry(trip.arrival_city) || trip.arrival_city
+              const risk     = destRisk[country]
+              const sev      = risk?.severity || trip.risk_level || null
+              const alerts   = destAlerts[country] ?? null
+              const isActive = trip.depart_date <= new Date().toISOString().split('T')[0]
+              const pill     = sev ? SEVERITY_PILL[sev] : null
+              return (
+                <button key={trip.id} onClick={() => setSelectedCountry(country)}
+                  className="bg-white rounded-2xl p-5 text-left transition-all duration-200 hover:-translate-y-0.5 group"
+                  style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                      style={isActive ? { background: `${BRAND_BLUE}12`, color: BRAND_BLUE } : { background: '#F1F5F9', color: '#64748B' }}>
+                      {isActive ? '✈️ Active' : '📅 Upcoming'}
+                    </span>
+                    {pill && (
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                        style={{ background: pill.bg, color: pill.color, border: `1px solid ${pill.border}` }}>{sev}</span>
+                    )}
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900 truncate mb-1">{trip.trip_name}</h3>
+                  <p className="text-xs text-gray-400 mb-4">{trip.arrival_city}{country !== trip.arrival_city ? ` · ${country}` : ''}</p>
+                  <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mb-3">
+                    <Calendar size={10} />{fmtDate(trip.depart_date)} — {fmtDate(trip.return_date)}
+                  </div>
+                  {alerts !== null && (
+                    <div className={`flex items-center gap-1.5 text-[11px] font-semibold mb-4 ${alerts > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                      {alerts > 0 ? <><AlertCircle size={11} />{alerts} active alert{alerts !== 1 ? 's' : ''}</> : <><CheckCircle2 size={11} />No active alerts</>}
+                    </div>
+                  )}
+                  {/* Approval status */}
+                  {trip.approval_status === 'pending' && (
+                    <div className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100 mb-3">
+                      ⏳ Awaiting approval
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1 text-[11px] font-semibold pt-3 transition-all group-hover:gap-1.5"
+                    style={{ borderTop: '1px solid #F1F5F9', color: BRAND_BLUE }}>
+                    View Full Intel Brief <ChevronRight size={11} />
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── BOTTOM PANELS ── */}
       <div className="flex flex-col lg:flex-row gap-5">
 
-        {/* Live alerts — 60% */}
-        <div
-          className="lg:w-3/5 bg-white rounded-2xl p-6"
-          style={{
-            boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
-            border: '1px solid rgba(0,0,0,0.06)',
-          }}
-        >
+        {/* Live alerts — shown to all roles */}
+        <div className={`${role === 'traveller' || role === 'solo' ? 'lg:w-3/5' : 'lg:w-full'} bg-white rounded-2xl p-6`}
+          style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
           <div className="flex items-center gap-2.5 mb-5">
-            <div className="w-6 h-6 rounded-lg flex items-center justify-center"
-              style={{ background: '#FEF2F2' }}>
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: '#FEF2F2' }}>
               <Bell size={13} style={{ color: '#EF4444' }} />
             </div>
             <h2 className="text-sm font-bold text-gray-900">Live Risk Alerts</h2>
           </div>
-
           {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-14 bg-gray-50 rounded-xl animate-pulse" />)}
-            </div>
+            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-14 bg-gray-50 rounded-xl animate-pulse"/>)}</div>
           ) : recentAlerts.length === 0 ? (
             <div className="flex flex-col items-center py-8 gap-2">
               <CheckCircle2 size={28} className="text-emerald-400" />
@@ -790,10 +1070,7 @@ export default function Dashboard() {
             <div className="space-y-0 divide-y divide-gray-50">
               {recentAlerts.map(alert => (
                 <div key={alert.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
-                  <div
-                    className="mt-2 w-2 h-2 rounded-full shrink-0"
-                    style={{ background: severityDot[alert.severity] || '#94A3B8' }}
-                  />
+                  <div className="mt-2 w-2 h-2 rounded-full shrink-0" style={{ background: severityDot[alert.severity] || '#94A3B8' }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
                       <span className="text-sm font-semibold text-gray-900">{alert.title}</span>
@@ -801,11 +1078,8 @@ export default function Dashboard() {
                     </div>
                     <p className="text-xs text-gray-400 truncate">{alert.description}</p>
                     {alert.country && (
-                      <button
-                        onClick={() => setSelectedCountry(alert.country)}
-                        className="text-[11px] font-semibold flex items-center gap-1 mt-1 hover:underline"
-                        style={{ color: BRAND_BLUE }}
-                      >
+                      <button onClick={() => setSelectedCountry(alert.country)}
+                        className="text-[11px] font-semibold flex items-center gap-1 mt-1 hover:underline" style={{ color: BRAND_BLUE }}>
                         <Globe size={9} /> {alert.country} intel →
                       </button>
                     )}
@@ -814,20 +1088,24 @@ export default function Dashboard() {
               ))}
             </div>
           )}
-
           <div className="mt-5 pt-4" style={{ borderTop: '1px solid #F1F5F9' }}>
-            <Link to="/alerts"
-              className="text-xs font-semibold hover:underline flex items-center gap-1"
-              style={{ color: BRAND_BLUE }}>
+            <Link to="/alerts" className="text-xs font-semibold hover:underline flex items-center gap-1" style={{ color: BRAND_BLUE }}>
               View all alerts <ChevronRight size={11} />
             </Link>
           </div>
         </div>
 
-        {/* ISO compliance score — 40% */}
-        <div className="lg:w-2/5">
-          <ComplianceScoreCard breakdown={complianceBreakdown} loading={loading} />
-        </div>
+        {/* Compliance panel — traveller gets personal score, admin gets org score */}
+        {(role === 'traveller' || role === 'solo') && (
+          <div className="lg:w-2/5">
+            <ComplianceScoreCard breakdown={complianceBreakdown} loading={loading} />
+          </div>
+        )}
+        {role === 'admin' && (
+          <div className="lg:w-2/5">
+            <OrgCompliancePanel orgStats={orgStats} loading={loading} />
+          </div>
+        )}
       </div>
     </Layout>
   )

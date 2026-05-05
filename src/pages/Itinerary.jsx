@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { MapPin, Plane, Hotel, AlertTriangle, Pencil, Trash2, X } from 'lucide-react'
+import { MapPin, Plane, Hotel, AlertTriangle, Pencil, Trash2, X, ClipboardList, CheckCircle2, BookOpen, Lock, ChevronDown, ChevronUp } from 'lucide-react'
 import Layout from '../components/Layout'
 import SeverityBadge from '../components/SeverityBadge'
 import FlightStatus from '../components/FlightStatus'
@@ -42,6 +42,9 @@ export default function Itinerary() {
   const [deletingId, setDeletingId] = useState(null)   // confirm-delete state
   const [tripAlertMap, setTripAlertMap] = useState({}) // itinerary_id → alert[]
   const [showUpload, setShowUpload] = useState(false)
+  const [trainingMap, setTrainingMap] = useState({})   // trip_id → assignments[]
+  const [expandedTraining, setExpandedTraining] = useState({}) // trip_id → bool
+  const [submittingApproval, setSubmittingApproval] = useState(null) // trip_id
 
   const emptyForm = { trip_name: '', flight_number: '', departure_city: '', arrival_city: '', depart_date: '', return_date: '', hotel_name: '', meetings: '' }
   const [form, setForm] = useState(emptyForm)
@@ -123,6 +126,24 @@ export default function Itinerary() {
         setTripAlertMap(map)
       }
 
+      // Load training assignments for approved trips
+      const tripIds = (trips || []).map(t => t.id)
+      if (tripIds.length) {
+        const { data: asgs } = await supabase
+          .from('trip_training_assignments')
+          .select('*')
+          .in('trip_id', tripIds)
+          .order('module_order', { ascending: true })
+        if (asgs) {
+          const tmap = {}
+          for (const a of asgs) {
+            if (!tmap[a.trip_id]) tmap[a.trip_id] = []
+            tmap[a.trip_id].push(a)
+          }
+          setTrainingMap(tmap)
+        }
+      }
+
       const { data: prof } = await supabase
         .from('profiles')
         .select('*')
@@ -167,17 +188,86 @@ export default function Itinerary() {
     const { data: { session } } = await supabase.auth.getSession()
     const currentUserId = session?.user?.id
 
-    const { error } = editingId
-      ? await supabase.from('itineraries').update(tripData).eq('id', editingId)
-      : await supabase.from('itineraries').insert({ ...tripData, user_id: currentUserId })
+    // Solo travellers are auto-approved — no corporate admin to approve them
+    const isSolo = profile?.role === 'solo'
 
-    if (!error) {
-      setToast(editingId ? 'Trip updated successfully.' : 'Trip saved. We will monitor your journey and alert you to any disruptions.')
-      setEditingId(null)
-      setForm(emptyForm)
-      await loadTrips()
-      setTimeout(() => setToast(''), 5000)
+    let savedTripId = null
+
+    if (editingId) {
+      const { error } = await supabase.from('itineraries').update(tripData).eq('id', editingId)
+      if (error) { setSubmitting(false); return }
+    } else {
+      const approvalFields = isSolo
+        ? { approval_status: 'approved', approval_required: false, submitted_at: new Date().toISOString() }
+        : { approval_status: 'pending', approval_required: true, submitted_at: new Date().toISOString() }
+
+      const { data: inserted, error } = await supabase
+        .from('itineraries')
+        .insert({ ...tripData, user_id: currentUserId, ...approvalFields })
+        .select('id')
+        .single()
+
+      if (error) { setSubmitting(false); return }
+      savedTripId = inserted?.id
+
+      // Auto-create check-in schedule for solo travellers (normally done by admin on approval)
+      if (isSolo && savedTripId) {
+        const tripDurationMs = returnDate.getTime() - departDate.getTime()
+        const midDate = new Date(departDate.getTime() + tripDurationMs / 2)
+
+        const checkins = [
+          {
+            trip_id: savedTripId,
+            user_id: currentUserId,
+            checkin_type: 'arrival',
+            due_at: departDate.toISOString(),
+            window_hours: 24,
+            label: 'Arrival check-in',
+            completed: false,
+          },
+        ]
+
+        // Add mid-trip check-in for trips longer than 2 days
+        if (tripDurationMs > 2 * 24 * 3600 * 1000) {
+          checkins.push({
+            trip_id: savedTripId,
+            user_id: currentUserId,
+            checkin_type: 'random',
+            due_at: midDate.toISOString(),
+            window_hours: 12,
+            label: 'Mid-trip check-in',
+            completed: false,
+          })
+        }
+
+        // Return check-in for trips longer than 1 day
+        if (tripDurationMs > 24 * 3600 * 1000) {
+          checkins.push({
+            trip_id: savedTripId,
+            user_id: currentUserId,
+            checkin_type: 'random',
+            due_at: returnDate.toISOString(),
+            window_hours: 12,
+            label: 'Return check-in',
+            completed: false,
+          })
+        }
+
+        await supabase.from('scheduled_checkins').insert(checkins)
+      }
     }
+
+    const successMsg = editingId
+      ? 'Trip updated successfully.'
+      : isSolo
+        ? 'Trip saved! Your check-in schedule has been set up. Stay safe out there.'
+        : 'Trip saved and submitted for approval. We will monitor your journey and alert you to any disruptions.'
+
+    setToast(successMsg)
+    setEditingId(null)
+    setForm(emptyForm)
+    await loadTrips()
+    setTimeout(() => setToast(''), 5000)
 
     setSubmitting(false)
   }
@@ -194,8 +284,14 @@ export default function Itinerary() {
     <Layout>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Itinerary</h1>
-          <p className="text-sm text-gray-500 mt-0.5">View and manage your travel plans</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {profile?.role === 'solo' ? 'My Trips' : 'My Itinerary'}
+          </h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {profile?.role === 'solo'
+              ? 'Plan your trips and track your safety on the go'
+              : 'View and manage your travel plans'}
+          </p>
         </div>
         <button
           onClick={() => setShowUpload(true)}
@@ -260,6 +356,22 @@ export default function Itinerary() {
                             }`}>
                               {trip.status}
                             </span>
+                            {/* Approval badge — only shown when approval is relevant */}
+                            {trip.approval_required !== false && trip.approval_status === 'pending' && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 border border-amber-200 text-amber-700">
+                                ⏳ Pending approval
+                              </span>
+                            )}
+                            {trip.approval_required !== false && trip.approval_status === 'approved' && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 border border-green-200 text-green-700">
+                                ✓ Approved
+                              </span>
+                            )}
+                            {trip.approval_status === 'rejected' && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 border border-red-200 text-red-700">
+                                ✗ Rejected
+                              </span>
+                            )}
                           </div>
                           {/* Action buttons */}
                           <div className="flex items-center gap-2 mb-2">
@@ -327,6 +439,61 @@ export default function Itinerary() {
                         </div>
                       )}
 
+                      {/* Rejection reason */}
+                      {trip.approval_status === 'rejected' && trip.approval_notes && (
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <div className="px-3 py-2 bg-red-50 border border-red-100 rounded-lg text-xs text-red-700">
+                            <span className="font-semibold">Rejected: </span>{trip.approval_notes}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Pre-travel training checklist (approved trips) */}
+                      {trip.approval_status === 'approved' && trainingMap[trip.id]?.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <button
+                            onClick={() => setExpandedTraining(p => ({ ...p, [trip.id]: !p[trip.id] }))}
+                            className="w-full flex items-center justify-between text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 hover:text-gray-700"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <BookOpen size={10} />
+                              Pre-travel Training ({trainingMap[trip.id].filter(a => a.completed).length}/{trainingMap[trip.id].length})
+                            </span>
+                            {expandedTraining[trip.id] ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                          </button>
+                          {/* Progress bar */}
+                          <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2">
+                            <div
+                              className="h-1.5 rounded-full transition-all"
+                              style={{
+                                width: `${Math.round(trainingMap[trip.id].filter(a => a.completed).length / trainingMap[trip.id].length * 100)}%`,
+                                background: trainingMap[trip.id].every(a => a.completed) ? '#AACC00' : '#0118A1',
+                              }}
+                            />
+                          </div>
+                          {expandedTraining[trip.id] && (
+                            <div className="space-y-1">
+                              {trainingMap[trip.id].map(mod => (
+                                <div key={mod.id} className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs ${
+                                  mod.completed ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'
+                                }`}>
+                                  {mod.completed
+                                    ? <CheckCircle2 size={11} className="text-green-500 shrink-0" />
+                                    : <Lock size={11} className="text-gray-300 shrink-0" />
+                                  }
+                                  <span className={mod.completed ? 'line-through text-green-600' : ''}>
+                                    {mod.module_name}
+                                  </span>
+                                  {!mod.completed && mod.required_before_travel && (
+                                    <span className="ml-auto text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Required</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Inline trip alerts */}
                       {tripAlertMap[trip.id]?.length > 0 && (
                         <div className="mt-2 pt-2 border-t border-gray-100">
@@ -377,7 +544,7 @@ export default function Itinerary() {
       <div id="trip-form" className="bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-gray-900">
-            {editingId ? 'Edit trip' : 'Add a trip'}
+            {editingId ? 'Edit trip' : profile?.role === 'solo' ? 'Plan a trip' : 'Add a trip'}
           </h2>
           {editingId && (
             <button onClick={cancelEdit} className="text-xs text-gray-400 hover:text-gray-600">
@@ -545,7 +712,7 @@ export default function Itinerary() {
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Saving...
                 </>
-              ) : editingId ? 'Update trip' : 'Save trip'}
+              ) : editingId ? 'Update trip' : profile?.role === 'solo' ? 'Save trip' : 'Submit for approval'}
             </button>
           </div>
         </form>
@@ -554,13 +721,14 @@ export default function Itinerary() {
         <ItineraryUpload
           onClose={() => setShowUpload(false)}
           onSaved={() => {
-        setShowUpload(false)
-        setToast('Itinerary uploaded — trips added successfully.')
-        loadTrips()
-        setTimeout(() => setToast(''), 5000)
-      }}
+            setShowUpload(false)
+            setToast('Itinerary uploaded — trips added successfully.')
+            loadTrips()
+            setTimeout(() => setToast(''), 5000)
+          }}
           userId={userId}
           session={session}
+          profile={profile}
         />
       )}
     </Layout>

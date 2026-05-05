@@ -23,7 +23,7 @@ import { useEffect, useState } from 'react'
 import {
   CheckCircle, Clock, AlertCircle, MapPin, Navigation,
   RefreshCw, User, ChevronDown, ChevronUp, Calendar,
-  Shield
+  Shield, Bell, CheckCircle2, Lock
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -130,6 +130,9 @@ export default function CheckIn() {
   const [staffList, setStaffList]   = useState([])      // admin view
   const [loading, setLoading]       = useState(true)
 
+  // Scheduled check-ins
+  const [scheduledCheckins, setScheduledCheckins] = useState([])
+
   // Check-in flow
   const [checking, setChecking]     = useState(false)
   const [message, setMessage]       = useState('')
@@ -155,7 +158,7 @@ export default function CheckIn() {
     if (!user) return
 
     const today = new Date().toISOString().split('T')[0]
-    const [{ data: prof }, { data: trip }, { data: myCheckins }, { data: allCheckins }, { data: profiles }] = await Promise.all([
+    const [{ data: prof }, { data: trip }, { data: myCheckins }, { data: allCheckins }, { data: profiles }, { data: scheduled }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('itineraries').select('*')
         .eq('user_id', user.id).lte('depart_date', today).gte('return_date', today)
@@ -164,6 +167,11 @@ export default function CheckIn() {
         .eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
       supabase.from('staff_checkins').select('*').order('created_at', { ascending: false }),
       supabase.from('profiles').select('*'),
+      supabase.from('scheduled_checkins').select('*')
+        .eq('user_id', user.id)
+        .eq('completed', false)
+        .order('due_at', { ascending: true })
+        .limit(10),
     ])
 
     const role = prof?.role || user.app_metadata?.role || 'traveller'
@@ -171,6 +179,7 @@ export default function CheckIn() {
     setProfile({ ...prof, id: user.id, email: user.email })
     setActiveTrip(trip || null)
     setCheckins(myCheckins || [])
+    setScheduledCheckins(scheduled || [])
 
     // Build staff list with last check-in
     if (role === 'admin' && profiles) {
@@ -203,6 +212,7 @@ export default function CheckIn() {
     setChecking(true)
     const { data: { user } } = await supabase.auth.getUser()
     const nextDue = new Date(Date.now() + interval * 3600000).toISOString()
+    const now = new Date().toISOString()
 
     await supabase.from('staff_checkins').insert({
       user_id: user.id,
@@ -217,6 +227,20 @@ export default function CheckIn() {
       interval_hours: interval,
       next_checkin_due: nextDue,
     })
+
+    // Auto-mark nearest scheduled check-in (within ±24h window) as complete
+    if (scheduledCheckins.length > 0) {
+      const nearest = scheduledCheckins.find(sc => {
+        const diff = Math.abs(new Date(sc.due_at).getTime() - Date.now())
+        return diff < sc.window_hours * 3600000
+      })
+      if (nearest) {
+        await supabase.from('scheduled_checkins').update({
+          completed: true,
+          completed_at: now,
+        }).eq('id', nearest.id)
+      }
+    }
 
     setChecking(false)
     setSuccess(true)
@@ -263,6 +287,60 @@ export default function CheckIn() {
                   </p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Scheduled check-ins panel */}
+          {scheduledCheckins.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-[12px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+              <div className="flex items-center gap-2 mb-3">
+                <Bell size={14} className="text-[#0118A1]" />
+                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Scheduled Check-ins</p>
+              </div>
+              <div className="space-y-2">
+                {scheduledCheckins.map((sc, idx) => {
+                  const isOverdue = new Date(sc.due_at) < new Date()
+                  const isDueSoon = !isOverdue && (new Date(sc.due_at) - Date.now()) < 6 * 3600000
+                  const isArrival = sc.checkin_type === 'arrival'
+                  return (
+                    <div key={sc.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border text-xs ${
+                      isOverdue
+                        ? 'bg-red-50 border-red-200'
+                        : isDueSoon
+                        ? 'bg-amber-50 border-amber-200'
+                        : 'bg-gray-50 border-gray-100'
+                    }`}>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                        isOverdue ? 'bg-red-100' : isDueSoon ? 'bg-amber-100' : 'bg-gray-100'
+                      }`}>
+                        {isArrival
+                          ? <MapPin size={10} className={isOverdue ? 'text-red-600' : 'text-gray-500'} />
+                          : <Bell size={10} className={isOverdue ? 'text-red-600' : isDueSoon ? 'text-amber-600' : 'text-gray-400'} />
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-semibold ${isOverdue ? 'text-red-700' : isDueSoon ? 'text-amber-700' : 'text-gray-700'}`}>
+                          {sc.label || `Check-in ${idx + 1}`}
+                        </p>
+                        <p className="text-gray-400">Due: {fmtDate(sc.due_at)}</p>
+                      </div>
+                      {isOverdue && (
+                        <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full shrink-0">
+                          Overdue
+                        </span>
+                      )}
+                      {isDueSoon && !isOverdue && (
+                        <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full shrink-0">
+                          Due soon
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-3">
+                Check-ins auto-complete when you use the button below within the window period.
+              </p>
             </div>
           )}
 

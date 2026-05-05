@@ -35,7 +35,7 @@ function RiskBadge({ level }) {
   )
 }
 
-export default function ItineraryUpload({ onClose, onSaved, userId, session }) {
+export default function ItineraryUpload({ onClose, onSaved, userId, session, profile }) {
   const [mode, setMode] = useState('upload')
   const [file, setFile] = useState(null)
   const [dragOver, setDragOver] = useState(false)
@@ -127,9 +127,15 @@ export default function ItineraryUpload({ onClose, onSaved, userId, session }) {
     if (!parsedTrips || parsedTrips.length === 0) return
     setSaving(true)
 
+    const isSolo = profile?.role === 'solo'
+
     let count = 0
     for (const trip of parsedTrips) {
-      const { error } = await supabase.from('itineraries').insert({
+      const approvalFields = isSolo
+        ? { approval_status: 'approved', approval_required: false, submitted_at: new Date().toISOString() }
+        : { approval_status: 'pending', approval_required: true, submitted_at: new Date().toISOString() }
+
+      const { data: inserted, error } = await supabase.from('itineraries').insert({
         user_id: userId,
         trip_name: trip.trip_name,
         flight_number: trip.flight_number || null,
@@ -141,8 +147,30 @@ export default function ItineraryUpload({ onClose, onSaved, userId, session }) {
         meetings: trip.meetings || null,
         risk_level: trip.risk_level || 'Medium',
         status: trip.status || 'Upcoming',
-      })
-      if (!error) count++
+        ...approvalFields,
+      }).select('id').single()
+
+      if (!error) {
+        count++
+        // Auto-create check-ins for solo travellers
+        if (isSolo && inserted?.id) {
+          const departDate = new Date(trip.depart_date)
+          const returnDate = new Date(trip.return_date || trip.depart_date)
+          const tripDurationMs = returnDate.getTime() - departDate.getTime()
+          const midDate = new Date(departDate.getTime() + tripDurationMs / 2)
+
+          const checkins = [
+            { trip_id: inserted.id, user_id: userId, checkin_type: 'arrival', due_at: departDate.toISOString(), window_hours: 24, label: 'Arrival check-in', completed: false },
+          ]
+          if (tripDurationMs > 2 * 24 * 3600 * 1000) {
+            checkins.push({ trip_id: inserted.id, user_id: userId, checkin_type: 'random', due_at: midDate.toISOString(), window_hours: 12, label: 'Mid-trip check-in', completed: false })
+          }
+          if (tripDurationMs > 24 * 3600 * 1000) {
+            checkins.push({ trip_id: inserted.id, user_id: userId, checkin_type: 'random', due_at: returnDate.toISOString(), window_hours: 12, label: 'Return check-in', completed: false })
+          }
+          await supabase.from('scheduled_checkins').insert(checkins)
+        }
+      }
     }
 
     // Fire-and-forget: trigger AI intel scan for all new trips

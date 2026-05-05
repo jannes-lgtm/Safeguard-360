@@ -3,13 +3,17 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutGrid, MapPin, Bell, FileText, CheckCircle,
   Users, LogOut, UserCircle, Radio, Newspaper, Briefcase,
-  AlertOctagon, Navigation, Shield, Siren
+  AlertOctagon, Navigation, Shield, Siren, ClipboardList,
+  Building2, GraduationCap, BookOpen, Globe, Settings,
+  BarChart2, Code2, Headphones,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import usePassiveLocation from '../hooks/usePassiveLocation'
 
 const BRAND_BLUE  = '#0118A1'
 const BRAND_GREEN = '#AACC00'
 
+// ── Nav primitives ────────────────────────────────────────────────────────────
 function NavSection({ label }) {
   return (
     <div className="px-4 pt-6 pb-1.5">
@@ -39,21 +43,16 @@ function NavItem({ to, icon: Icon, label, badge, red }) {
     >
       {({ isActive }) => (
         <>
-          {/* Active pill indicator */}
           {isActive && !red && (
             <span
               className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full"
               style={{ background: BRAND_GREEN }}
             />
           )}
-
-          {/* Icon with subtle glow when active */}
           <span className={`shrink-0 transition-all ${isActive && !red ? 'drop-shadow-[0_0_6px_rgba(170,204,0,0.5)]' : ''}`}>
             <Icon size={16} />
           </span>
-
           <span className="flex-1 leading-none">{label}</span>
-
           {badge > 0 && (
             <span className="ml-auto text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"
               style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
@@ -66,11 +65,151 @@ function NavItem({ to, icon: Icon, label, badge, red }) {
   )
 }
 
+// ── Role pill shown in the user footer ───────────────────────────────────────
+const ROLE_LABELS = {
+  developer:  { label: 'Developer',        color: '#a78bfa' },
+  admin:      { label: 'Corporate Admin',  color: BRAND_GREEN },
+  traveller:  { label: 'Traveller',        color: '#60a5fa' },
+  solo:       { label: 'Solo Traveller',   color: '#f472b6' },
+}
+
+// ── Nav configs per role ──────────────────────────────────────────────────────
+
+function DeveloperNav({ alertCount }) {
+  return (
+    <>
+      <NavSection label="Platform" />
+      <NavItem to="/dashboard"      icon={LayoutGrid}   label="Dashboard" />
+      <NavItem to="/organisations"  icon={Building2}    label="Organisations" />
+      <NavItem to="/tracker"        icon={Users}        label="All Users" />
+
+      <NavSection label="Intelligence" />
+      <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
+      <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
+      <NavItem to="/intel-feeds"    icon={Radio}        label="Intel Feeds" />
+
+      <NavSection label="Operations" />
+      <NavItem to="/control-room"   icon={Headphones}   label="Live Control Room" />
+      <NavItem to="/approvals"      icon={ClipboardList} label="Travel Approvals" />
+      <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount} />
+      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
+
+      <NavSection label="Compliance" />
+      <NavItem to="/policies"       icon={FileText}     label="Policy Library" />
+      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
+      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
+
+      <NavSection label="Account" />
+      <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
+    </>
+  )
+}
+
+function CorporateAdminNav({ alertCount, pendingApprovals }) {
+  return (
+    <>
+      <NavSection label="Overview" />
+      <NavItem to="/dashboard"      icon={LayoutGrid}   label="Dashboard" />
+
+      <NavSection label="My Company" />
+      <NavItem to="/org/users"      icon={Users}        label="Our Travellers" />
+      <NavItem to="/approvals"      icon={ClipboardList} label="Travel Approvals" badge={pendingApprovals} />
+      <NavItem to="/tracker"        icon={Navigation}   label="Staff Tracker" />
+
+      <NavSection label="Training" />
+      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
+      <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
+
+      <NavSection label="Intelligence" />
+      <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
+      <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
+      <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount} />
+
+      <NavSection label="Compliance" />
+      <NavItem to="/policies"       icon={FileText}     label="Policy Library" />
+      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
+      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
+
+      <NavSection label="24/7 Support" />
+      <NavItem to="/assistance"     icon={Headphones}   label="Live Control Room" />
+
+      <NavSection label="Account" />
+      <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
+    </>
+  )
+}
+
+function TravellerNav({ alertCount, tripAlertCount }) {
+  return (
+    <>
+      <NavSection label="Overview" />
+      <NavItem to="/dashboard"      icon={LayoutGrid}   label="Dashboard" />
+
+      <NavSection label="My Travel" />
+      <NavItem to="/itinerary"      icon={MapPin}       label="My Itinerary" />
+      <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount + tripAlertCount} />
+      <NavItem to="/checkin"        icon={CheckCircle}  label="Check In" />
+      <NavItem to="/live-map"       icon={Navigation}   label="Live Location" />
+      <NavItem to="/sos"            icon={AlertOctagon} label="SOS Emergency" red />
+
+      <NavSection label="Intelligence" />
+      <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
+      <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
+
+      <NavSection label="Compliance" />
+      <NavItem to="/policies"       icon={FileText}     label="Policy Library" />
+      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
+      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
+
+      <NavSection label="24/7 Support" />
+      <NavItem to="/assistance"     icon={Headphones}   label="Live Control Room" />
+
+      <NavSection label="Account" />
+      <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
+    </>
+  )
+}
+
+function SoloTravellerNav({ alertCount, tripAlertCount }) {
+  return (
+    <>
+      <NavSection label="Overview" />
+      <NavItem to="/dashboard"      icon={LayoutGrid}   label="Dashboard" />
+
+      <NavSection label="My Travel" />
+      <NavItem to="/itinerary"      icon={MapPin}       label="My Trips" />
+      <NavItem to="/alerts"         icon={Bell}         label="Travel Alerts" badge={alertCount + tripAlertCount} />
+      <NavItem to="/checkin"        icon={CheckCircle}  label="Check In" />
+      <NavItem to="/live-map"       icon={Navigation}   label="Live Location" />
+      <NavItem to="/sos"            icon={AlertOctagon} label="SOS Emergency" red />
+
+      <NavSection label="Destination Intel" />
+      <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
+      <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
+
+      <NavSection label="Safety" />
+      <NavItem to="/training"       icon={GraduationCap} label="Travel Safety Training" />
+      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
+
+      <NavSection label="24/7 Support" />
+      <NavItem to="/assistance"     icon={Headphones}   label="Live Control Room" />
+
+      <NavSection label="Account" />
+      <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
+    </>
+  )
+}
+
+// ── Main layout ───────────────────────────────────────────────────────────────
 export default function Layout({ children }) {
   const navigate = useNavigate()
-  const [profile, setProfile] = useState(null)
+  const [profile, setProfile]                   = useState(null)
   const [activeAlertCount, setActiveAlertCount] = useState(0)
-  const [tripAlertCount, setTripAlertCount] = useState(0)
+  const [tripAlertCount, setTripAlertCount]     = useState(0)
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0)
+
+  // Passive location tracking — fires silently on every page, once per 15 min
+  usePassiveLocation(profile)
 
   useEffect(() => {
     const loadData = async () => {
@@ -79,7 +218,7 @@ export default function Layout({ children }) {
 
       const { data: prof } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, organisations(name)')
         .eq('id', user.id)
         .single()
 
@@ -94,9 +233,10 @@ export default function Layout({ children }) {
         email: user.email,
         ...(prof || {}),
         role: finalRole,
+        org_name: prof?.organisations?.name || null,
       })
 
-      const [{ count }, { count: taCount }] = await Promise.all([
+      const queries = [
         supabase.from('alerts')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'Active'),
@@ -104,9 +244,22 @@ export default function Layout({ children }) {
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
           .eq('is_read', false),
-      ])
-      setActiveAlertCount(count || 0)
-      setTripAlertCount(taCount || 0)
+      ]
+
+      if (finalRole === 'admin' || finalRole === 'developer') {
+        queries.push(
+          supabase.from('itineraries')
+            .select('*', { count: 'exact', head: true })
+            .eq('approval_status', 'pending')
+        )
+      }
+
+      const results = await Promise.all(queries)
+      setActiveAlertCount(results[0].count || 0)
+      setTripAlertCount(results[1].count || 0)
+      if (finalRole === 'admin' || finalRole === 'developer') {
+        setPendingApprovalsCount(results[2]?.count || 0)
+      }
     }
     loadData()
   }, [])
@@ -119,6 +272,9 @@ export default function Layout({ children }) {
   const initials = profile?.full_name
     ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : profile?.email?.[0]?.toUpperCase() || '?'
+
+  const role = profile?.role || 'traveller'
+  const roleInfo = ROLE_LABELS[role] || ROLE_LABELS.traveller
 
   return (
     <div className="flex min-h-screen" style={{ background: '#F0F2F8' }}>
@@ -137,44 +293,48 @@ export default function Layout({ children }) {
           <img src="/logo-transparent.png" alt="SafeGuard360" className="w-full object-contain" />
         </div>
 
-        {/* Subtle divider */}
+        {/* Divider */}
         <div className="mx-4 mb-1" style={{ height: '1px', background: 'rgba(255,255,255,0.07)' }} />
 
-        {/* Nav */}
+        {/* Role indicator strip */}
+        {profile && (
+          <div className="mx-3 mb-2 px-3 py-1.5 rounded-lg flex items-center gap-2"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            {role === 'developer'  && <Code2 size={11} style={{ color: roleInfo.color }} />}
+            {role === 'admin'      && <Building2 size={11} style={{ color: roleInfo.color }} />}
+            {role === 'traveller'  && <UserCircle size={11} style={{ color: roleInfo.color }} />}
+            {role === 'solo'       && <UserCircle size={11} style={{ color: roleInfo.color }} />}
+            <span className="text-[10px] font-bold" style={{ color: roleInfo.color }}>
+              {roleInfo.label}
+            </span>
+            {profile.org_name && (
+              <span className="text-[10px] text-white/30 truncate ml-auto">{profile.org_name}</span>
+            )}
+          </div>
+        )}
+
+        {/* Nav — role-based */}
         <nav className="flex-1 py-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-          <NavSection label="Overview" />
-          <NavItem to="/dashboard" icon={LayoutGrid} label="Dashboard" />
-
-          <NavSection label="My Travel" />
-          <NavItem to="/itinerary" icon={MapPin} label="My Itinerary" />
-          <NavItem to="/alerts" icon={Bell} label="Risk Alerts" badge={activeAlertCount + tripAlertCount} />
-          <NavItem to="/checkin" icon={CheckCircle} label="Check In" />
-          <NavItem to="/live-map" icon={Navigation} label="Live Location" />
-          <NavItem to="/sos" icon={AlertOctagon} label="SOS Emergency" red />
-
-          <NavSection label="Intelligence" />
-          <NavItem to="/country-risk" icon={Shield} label="Country Risk Reports" />
-          <NavItem to="/news" icon={Newspaper} label="News Updates" />
-          {profile?.role === 'admin' && (
-            <NavItem to="/intel-feeds" icon={Radio} label="Intel Feeds" />
+          {role === 'developer' && (
+            <DeveloperNav alertCount={activeAlertCount} />
           )}
-
-          <NavSection label="Services" />
-          <NavItem to="/services" icon={Briefcase} label="Service Providers" />
-
-          <NavSection label="Compliance" />
-          <NavItem to="/policies" icon={FileText} label="Policy Library" />
-          <NavItem to="/training" icon={CheckCircle} label="ISO Training" />
-          <NavItem to="/incidents" icon={Siren} label="Incident Reports" />
-
-          <NavSection label="Account" />
-          <NavItem to="/profile" icon={UserCircle} label="My Profile" />
-
-          {profile?.role === 'admin' && (
-            <>
-              <NavSection label="Admin" />
-              <NavItem to="/tracker" icon={Users} label="Staff Tracker" />
-            </>
+          {role === 'admin' && (
+            <CorporateAdminNav
+              alertCount={activeAlertCount}
+              pendingApprovals={pendingApprovalsCount}
+            />
+          )}
+          {role === 'traveller' && (
+            <TravellerNav
+              alertCount={activeAlertCount}
+              tripAlertCount={tripAlertCount}
+            />
+          )}
+          {role === 'solo' && (
+            <SoloTravellerNav
+              alertCount={activeAlertCount}
+              tripAlertCount={tripAlertCount}
+            />
           )}
         </nav>
 
@@ -182,7 +342,6 @@ export default function Layout({ children }) {
         <div className="mx-3 mb-3 rounded-xl p-3"
           style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.09)' }}>
           <div className="flex items-center gap-3">
-            {/* Avatar */}
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
               style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
@@ -193,9 +352,8 @@ export default function Layout({ children }) {
               <p className="text-white text-xs font-semibold truncate leading-tight">
                 {profile?.full_name || profile?.email || 'User'}
               </p>
-              <p className="text-[10px] capitalize mt-0.5"
-                style={{ color: 'rgba(170,204,0,0.7)' }}>
-                {profile?.role || 'traveller'}
+              <p className="text-[10px] mt-0.5" style={{ color: roleInfo.color }}>
+                {roleInfo.label}
               </p>
             </div>
             <button
