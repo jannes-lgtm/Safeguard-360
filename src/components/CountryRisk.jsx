@@ -1,98 +1,28 @@
 import { useState } from 'react'
-import { Shield, ExternalLink, RefreshCw, Globe, Bell } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Shield, ExternalLink, RefreshCw, Globe, Bell, HeartPulse, ChevronRight } from 'lucide-react'
 
 const SEVERITY_CONFIG = {
-  'Critical': { color: 'text-red-700 bg-red-100 border-red-200', label: 'Do Not Travel' },
-  'High':     { color: 'text-amber-700 bg-amber-100 border-amber-200', label: 'Reconsider Travel' },
+  'Critical': { color: 'text-red-700 bg-red-100 border-red-200',       label: 'Do Not Travel'       },
+  'High':     { color: 'text-amber-700 bg-amber-100 border-amber-200', label: 'Reconsider Travel'   },
   'Medium':   { color: 'text-yellow-700 bg-yellow-100 border-yellow-200', label: 'Exercise Caution' },
-  'Low':      { color: 'text-green-700 bg-green-100 border-green-200', label: 'Normal Precautions' },
-  'Unknown':  { color: 'text-gray-600 bg-gray-100 border-gray-200', label: 'No advisory data' },
-}
-
-function toSeverity(level) {
-  if (!level) return 'Unknown'
-  if (level >= 4) return 'Critical'
-  if (level >= 3) return 'High'
-  if (level >= 2) return 'Medium'
-  return 'Low'
-}
-
-// Fetch UK FCDO advisory directly (CORS-enabled public API)
-async function fetchFcdo(country) {
-  const slug = country.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z-]/g, '')
-  try {
-    const r = await fetch(`https://www.gov.uk/api/content/foreign-travel-advice/${slug}`, {
-      headers: { Accept: 'application/json' }
-    })
-    if (!r.ok) return null
-    const data = await r.json()
-    const part = data.details?.parts?.find(p => p.slug === 'warnings-and-insurance')
-    if (!part?.body) return null
-    const t = part.body.toLowerCase()
-    let level = 1
-    // Check most severe first — "all but essential" is a subset of "all travel"
-    if (t.includes('advises against all travel') && !t.includes('all but essential')) level = 4
-    else if (t.includes('all but essential travel')) level = 3
-    else if (t.includes('advises against some travel') || t.includes('some parts')) level = 2
-    const labels = ['', 'Normal precautions', 'Exercise caution', 'All but essential travel', 'Do not travel']
-    return { level, message: labels[Math.min(level, 4)], url: `https://www.gov.uk/foreign-travel-advice/${slug}` }
-  } catch { return null }
-}
-
-// Fetch US State Dept advisory
-async function fetchStateAdvisory(country) {
-  try {
-    const r = await fetch(
-      'https://travel.state.gov/content/dam/traveladvisories/Feeds/TravelAdvisoryJSON.json'
-    )
-    if (!r.ok) return null
-    const data = await r.json()
-    const entry = data.graph?.find(c =>
-      (c.name || c.countryName || '').toLowerCase() === country.toLowerCase()
-    )
-    if (!entry) return null
-    const level = entry.advisoryLevel ?? entry.level ?? null
-    return {
-      level,
-      message: entry.advisoryText ?? entry.message ?? null,
-      url: entry.url ?? 'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories.html',
-    }
-  } catch { return null }
-}
-
-async function getCountryRisk(country) {
-  if (!country) throw new Error('No country provided')
-  const [fcdo, us] = await Promise.allSettled([fetchFcdo(country), fetchStateAdvisory(country)])
-  const fcdoData = fcdo.status === 'fulfilled' ? fcdo.value : null
-  const usData = us.status === 'fulfilled' ? us.value : null
-
-  const rawMax = Math.max(fcdoData?.level ?? 0, usData?.level ?? 0)
-  const combinedLevel = rawMax > 0 ? rawMax : null
-  const dfatSlug = country.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-
-  return {
-    country,
-    severity: toSeverity(combinedLevel),
-    sources: [
-      usData?.level != null ? { name: 'US State Dept', url: usData.url, message: usData.message } : null,
-      fcdoData ? { name: 'UK FCDO', url: fcdoData.url, message: fcdoData.message } : null,
-      { name: 'AU DFAT', url: `https://www.smartraveller.gov.au/destinations/${dfatSlug}` },
-    ].filter(Boolean),
-  }
+  'Low':      { color: 'text-green-700 bg-green-100 border-green-200', label: 'Normal Precautions'  },
+  'Unknown':  { color: 'text-gray-600 bg-gray-100 border-gray-200',    label: 'No advisory data'    },
 }
 
 function getRecipients(profile) {
   const emails = []
-  if (profile?.email) emails.push(profile.email)
-  if (profile?.emergency_contact_1_email) emails.push(profile.emergency_contact_1_email)
-  if (profile?.emergency_contact_2_email) emails.push(profile.emergency_contact_2_email)
+  if (profile?.email)                       emails.push(profile.email)
+  if (profile?.emergency_contact_1_email)   emails.push(profile.emergency_contact_1_email)
+  if (profile?.emergency_contact_2_email)   emails.push(profile.emergency_contact_2_email)
   return emails
 }
 
 export default function CountryRisk({ country, tripName, profile }) {
-  const [risk, setRisk] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const navigate  = useNavigate()
+  const [risk,     setRisk]     = useState(null)
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState(null)
   const [notified, setNotified] = useState(false)
 
   const sendNotification = async (riskData) => {
@@ -117,7 +47,11 @@ export default function CountryRisk({ country, tripName, profile }) {
     setError(null)
     setNotified(false)
     try {
-      const result = await getCountryRisk(country)
+      // Use the server-side country-risk API — it includes health outbreaks,
+      // GDACS disasters, USGS seismic, FCDO advisory and AI synthesis
+      const r = await fetch(`/api/country-risk?country=${encodeURIComponent(country)}`)
+      if (!r.ok) throw new Error(`Risk check failed (${r.status})`)
+      const result = await r.json()
       setRisk(result)
       if (['Critical', 'High'].includes(result.severity)) {
         await sendNotification(result)
@@ -146,28 +80,74 @@ export default function CountryRisk({ country, tripName, profile }) {
     </button>
   )
 
-  const config = SEVERITY_CONFIG[risk.severity] ?? SEVERITY_CONFIG['Unknown']
+  const config       = SEVERITY_CONFIG[risk.severity] ?? SEVERITY_CONFIG['Unknown']
+  const healthAlerts = (risk.sources || []).filter(s => s.category === 'health')
+  const advisories   = (risk.sources || []).filter(s => !s.category)
 
   return (
-    <div className="mt-1 flex items-center gap-2 flex-wrap">
-      <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border ${config.color}`}>
-        <Shield size={10} />
-        {risk.severity} — {config.label}
-      </span>
-      {risk.sources?.map(s => (
-        <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer"
-          className="inline-flex items-center gap-0.5 text-xs text-gray-400 hover:text-[#1B3A6B] transition-colors">
-          {s.name} <ExternalLink size={9} />
-        </a>
-      ))}
-      {notified && (
-        <span className="inline-flex items-center gap-1 text-xs text-green-600">
-          <Bell size={10} /> Contacts notified
+    <div className="mt-2 space-y-2">
+
+      {/* ── Severity badge + advisory links ── */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border ${config.color}`}>
+          <Shield size={10} />
+          {risk.severity} — {config.label}
         </span>
+
+        {advisories.map(s => (
+          <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-0.5 text-xs text-gray-400 hover:text-[#1B3A6B] transition-colors">
+            {s.name} <ExternalLink size={9} />
+          </a>
+        ))}
+
+        {notified && (
+          <span className="inline-flex items-center gap-1 text-xs text-green-600">
+            <Bell size={10} /> Contacts notified
+          </span>
+        )}
+
+        <button onClick={check} disabled={loading} title="Refresh risk data"
+          className="text-gray-400 hover:text-gray-600 disabled:opacity-40">
+          <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
+        </button>
+      </div>
+
+      {/* ── Health alerts (if any) ── */}
+      {healthAlerts.length > 0 && (
+        <div className="border border-rose-200 bg-rose-50 rounded-[6px] px-3 py-2">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <HeartPulse size={11} className="text-rose-600 shrink-0" />
+            <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider">
+              Health Alerts — {healthAlerts.length} active
+            </span>
+          </div>
+          <div className="space-y-1">
+            {healthAlerts.slice(0, 2).map((s, i) => (
+              <div key={i} className="flex items-start gap-1.5">
+                <span className="text-rose-400 text-[10px] shrink-0 mt-0.5">●</span>
+                <p className="text-xs text-rose-800 leading-snug line-clamp-2">
+                  <span className="font-semibold">[{s.name}]</span> {s.message}
+                </p>
+                {s.url && (
+                  <a href={s.url} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5">
+                    <ExternalLink size={9} className="text-rose-400 hover:text-rose-700" />
+                  </a>
+                )}
+              </div>
+            ))}
+            {healthAlerts.length > 2 && (
+              <p className="text-[10px] text-rose-500 pl-3">+{healthAlerts.length - 2} more alerts</p>
+            )}
+          </div>
+        </div>
       )}
-      <button onClick={check} disabled={loading} title="Refresh"
-        className="text-gray-400 hover:text-gray-600 disabled:opacity-40">
-        <RefreshCw size={11} className={loading ? 'animate-spin' : ''} />
+
+      {/* ── Link to full report ── */}
+      <button
+        onClick={() => navigate(`/country-risk?country=${encodeURIComponent(country)}`)}
+        className="inline-flex items-center gap-1 text-xs text-[#0118A1] hover:underline font-medium">
+        View full risk report <ChevronRight size={10} />
       </button>
     </div>
   )

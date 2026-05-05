@@ -10,19 +10,19 @@ export const PRECONFIGURED_FEEDS = [
   // ── Disease & Health ──────────────────────────────────────────────────────
   {
     id: 'who-outbreak',
-    name: 'WHO Disease Outbreak News',
+    name: 'WHO News',
     category: 'health',
     geography: 'Global',
-    url: 'https://www.who.int/feeds/entity/csr/don/en/rss.xml',
-    description: 'World Health Organization official disease outbreak news — confirmed outbreaks, alerts and public health emergencies (PHEIC).',
+    url: 'https://www.who.int/rss-feeds/news-english.xml',
+    description: 'World Health Organization official news — disease outbreaks, health emergencies, public health emergency of international concern (PHEIC) declarations.',
   },
   {
-    id: 'promed',
-    name: 'ProMED Mail',
+    id: 'reliefweb-who',
+    name: 'ReliefWeb / WHO Health Emergencies',
     category: 'health',
     geography: 'Global',
-    url: 'https://promedmail.org/feed/',
-    description: 'Expert-moderated global rapid reporting of infectious disease outbreaks including hantavirus, mpox, cholera, Ebola and novel pathogens — one of the world\'s fastest outbreak alert systems.',
+    url: 'https://reliefweb.int/updates/rss.xml?source=WHO',
+    description: 'WHO situation reports via ReliefWeb — epidemic and outbreak situation reports from the World Health Organization covering all regions.',
   },
   {
     id: 'outbreak-news-today',
@@ -42,11 +42,11 @@ export const PRECONFIGURED_FEEDS = [
   },
   {
     id: 'paho-alerts',
-    name: 'PAHO — Epidemiological Alerts',
+    name: 'PAHO — Pan American Health Organization',
     category: 'health',
     geography: 'Americas',
-    url: 'https://www.paho.org/en/epidemiological-alerts-and-updates/rss.xml',
-    description: 'Pan American Health Organization epidemiological alerts — primary source for hantavirus, dengue, cholera and other disease outbreaks across Latin America and the Caribbean.',
+    url: 'https://www.paho.org/en/rss.xml',
+    description: 'Pan American Health Organization news — primary source for hantavirus, dengue, cholera and other disease outbreaks across Latin America and the Caribbean.',
   },
   {
     id: 'africa-cdc',
@@ -81,12 +81,12 @@ export const PRECONFIGURED_FEEDS = [
     description: 'UN OCHA ReliefWeb health emergency situation reports from WHO — epidemics, outbreaks and humanitarian health crises worldwide.',
   },
   {
-    id: 'global-health-now',
-    name: 'Global Health Now (Johns Hopkins)',
+    id: 'ecdc-threats',
+    name: 'ECDC — Communicable Disease Threats',
     category: 'health',
-    geography: 'Global',
-    url: 'https://www.globalhealthnow.org/rss.xml',
-    description: 'Johns Hopkins Bloomberg School of Public Health daily global health briefing — outbreaks, policy and epidemiology from one of the world\'s leading public health institutions.',
+    geography: 'Global (EU focus)',
+    url: 'https://www.ecdc.europa.eu/en/rss-feed/ecdc-communicable-disease-threats-report',
+    description: 'European Centre for Disease Prevention and Control weekly threats report — active outbreaks relevant to international travellers including hantavirus, mpox and respiratory illness.',
   },
 
   // ── Security / Africa ─────────────────────────────────────────────────────

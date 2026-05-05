@@ -46,12 +46,13 @@ const HEALTH_FEED_CACHE = {}
 const HEALTH_CACHE_TTL  = 30 * 60 * 1000   // 30 min — faster refresh for outbreaks
 
 const HEALTH_FEEDS = [
-  { id: 'who',       url: 'https://www.who.int/feeds/entity/csr/don/en/rss.xml',                                      name: 'WHO Disease Outbreak News' },
-  { id: 'promed',    url: 'https://promedmail.org/feed/',                                                              name: 'ProMED Mail' },
-  { id: 'paho',      url: 'https://www.paho.org/en/epidemiological-alerts-and-updates/rss.xml',                       name: 'PAHO' },
-  { id: 'outbreak',  url: 'https://outbreaknewstoday.com/feed/',                                                      name: 'Outbreak News Today' },
-  { id: 'cidrap',    url: 'https://www.cidrap.umn.edu/rss.xml',                                                       name: 'CIDRAP' },
-  { id: 'africacdc', url: 'https://africacdc.org/feed/',                                                              name: 'Africa CDC' },
+  // URLs verified working (200 OK, correct content-type)
+  { id: 'who',       url: 'https://www.who.int/rss-feeds/news-english.xml',                 name: 'WHO' },
+  { id: 'reliefweb', url: 'https://reliefweb.int/updates/rss.xml?source=WHO',               name: 'ReliefWeb / WHO' },
+  { id: 'paho',      url: 'https://www.paho.org/en/rss.xml',                                name: 'PAHO' },
+  { id: 'outbreak',  url: 'https://outbreaknewstoday.com/feed/',                            name: 'Outbreak News Today' },
+  { id: 'cidrap',    url: 'https://www.cidrap.umn.edu/rss.xml',                             name: 'CIDRAP' },
+  { id: 'africacdc', url: 'https://africacdc.org/feed/',                                    name: 'Africa CDC' },
 ]
 
 function parseHealthRss(xml) {
