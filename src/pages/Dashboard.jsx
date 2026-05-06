@@ -740,7 +740,7 @@ export default function Dashboard() {
       { data: overdueCheckins },
       { data: incompleteModules },
     ] = await Promise.all([
-      supabase.from('training_records').select('completed, module_order, module_name').eq('user_id', uid),
+      supabase.from('training_records').select('completed, training_modules(module_order, title)').eq('user_id', uid),
       supabase.from('policies').select('id').eq('status', 'Active'),
       supabase.from('policy_acknowledgements').select('policy_id').eq('user_id', uid).then(r => r).catch(() => ({ data: [] })),
       supabase.from('staff_checkins').select('id').eq('user_id', uid)
@@ -751,14 +751,15 @@ export default function Dashboard() {
         .lt('due_at', new Date().toISOString())
         .order('due_at').limit(1)
         .then(r => r).catch(() => ({ data: [] })),
-      supabase.from('training_records').select('id, module_order, module_name')
+      supabase.from('training_records').select('id, training_modules(module_order, title)')
         .eq('user_id', uid).eq('completed', false)
-        .order('module_order').limit(1)
+        .order('module_order', { referencedTable: 'training_modules' }).limit(1)
         .then(r => r).catch(() => ({ data: [] })),
     ])
 
     const acks        = acksResult?.data || []
-    const trainPct    = trainingRecs?.length ? Math.round(trainingRecs.filter(r => r.completed).length / trainingRecs.length * 100) : 0
+    const trainList   = trainingRecs || []
+    const trainPct    = trainList.length ? Math.round(trainList.filter(r => r.completed).length / trainList.length * 100) : 0
     const polPct      = pols?.length ? Math.round(acks.length / pols.length * 100) : 0
     const hasActive   = (trips || []).length > 0
     const checkinPct  = !hasActive ? 100 : (checkins?.length || 0) > 0 ? 100 : 0
@@ -766,7 +767,7 @@ export default function Dashboard() {
 
     setComplianceBreakdown({
       total:    compliancePct,
-      training: { pct: trainPct, done: trainingRecs?.filter(r => r.completed).length ?? 0, total: trainingRecs?.length ?? 0 },
+      training: { pct: trainPct, done: trainList.filter(r => r.completed).length, total: trainList.length },
       policies: { pct: polPct,   done: acks.length,                                          total: pols?.length ?? 0 },
       checkin:  { pct: checkinPct, done: checkins?.length ?? 0,                              hasTrips: hasActive },
     })
@@ -775,7 +776,13 @@ export default function Dashboard() {
     setMetrics({ activeAlerts: alertCount || 0, staffTravelling: travelCount || 0, activeFeeds, compliancePct })
     setMyTrips(trips || [])
     setOverdueCheckin(overdueCheckins?.[0] || null)
-    setNudgeModule(incompleteModules?.[0] || null)
+    // Normalise nudge module — join puts module info under training_modules key
+    const rawNudge = incompleteModules?.[0] || null
+    setNudgeModule(rawNudge ? {
+      id:           rawNudge.id,
+      module_order: rawNudge.training_modules?.module_order,
+      module_name:  rawNudge.training_modules?.title,
+    } : null)
 
     const countries = [...new Set((trips || []).map(t => cityToCountry(t.arrival_city)).filter(Boolean))]
     if (countries.length > 0) {
