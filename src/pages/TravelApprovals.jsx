@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import {
   ClipboardList, CheckCircle2, XCircle, RefreshCw,
   User, MapPin, Calendar, BookOpen, Clock,
+  ChevronDown, ChevronUp, Plane, Hotel, FileText, Phone,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import SeverityBadge from '../components/SeverityBadge'
@@ -33,132 +34,221 @@ function tripDuration(depart, ret) {
 
 // ── Trip card ─────────────────────────────────────────────────────────────────
 function TripCard({ trip, tab, assignments, onApprove, onReject }) {
+  const [expanded, setExpanded] = useState(false)
   const traveller      = trip.profiles
   const completedCount = assignments.filter(a => a.completed).length
   const totalModules   = assignments.length
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
 
-        {/* Left: trip info */}
-        <div className="flex-1 min-w-0">
-          {/* Title row */}
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <span className="font-semibold text-gray-900">{trip.trip_name}</span>
-            <SeverityBadge severity={trip.risk_level} />
-            {tab === 'pending' && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 border border-amber-200 text-amber-700">
-                ⏳ Awaiting approval
+      {/* ── Main row ── */}
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+
+          {/* Left: trip info */}
+          <div className="flex-1 min-w-0">
+            {/* Title row */}
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <span className="font-semibold text-gray-900">{trip.trip_name}</span>
+              <SeverityBadge severity={trip.risk_level} />
+              {tab === 'pending' && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 border border-amber-200 text-amber-700">
+                  ⏳ Awaiting approval
+                </span>
+              )}
+              {tab === 'approved' && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 border border-green-200 text-green-700">
+                  ✓ Approved
+                </span>
+              )}
+              {tab === 'rejected' && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 border border-red-200 text-red-700">
+                  ✗ Rejected
+                </span>
+              )}
+            </div>
+
+            {/* Meta row */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mb-3">
+              <span className="flex items-center gap-1">
+                <User size={11} />
+                {traveller?.full_name || traveller?.email || 'Unknown traveller'}
               </span>
+              <span className="flex items-center gap-1">
+                <MapPin size={11} />
+                {trip.departure_city} → {trip.arrival_city}
+              </span>
+              <span className="flex items-center gap-1">
+                <Calendar size={11} />
+                {fmtDateShort(trip.depart_date)} — {fmtDateShort(trip.return_date)}
+                <span className="text-gray-400 ml-1">({tripDuration(trip.depart_date, trip.return_date)})</span>
+              </span>
+              {trip.submitted_at && (
+                <span className="flex items-center gap-1">
+                  <Clock size={11} />
+                  Submitted {fmtDate(trip.submitted_at)}
+                </span>
+              )}
+            </div>
+
+            {/* Rejection reason */}
+            {tab === 'rejected' && trip.approval_notes && (
+              <div className="mb-3 px-3 py-2 bg-red-50 border border-red-100 rounded-lg">
+                <p className="text-xs text-red-700">
+                  <span className="font-semibold">Reason: </span>{trip.approval_notes}
+                </p>
+              </div>
+            )}
+
+            {/* Approval notes */}
+            {tab === 'approved' && trip.approval_notes && (
+              <div className="mb-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+                <p className="text-xs text-blue-700">
+                  <span className="font-semibold">Notes: </span>{trip.approval_notes}
+                </p>
+              </div>
+            )}
+
+            {/* Training progress (approved) */}
+            {tab === 'approved' && totalModules > 0 && (
+              <div className="mt-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <BookOpen size={11} className="text-gray-400" />
+                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Pre-travel Training</span>
+                  <span className="text-[10px] text-gray-400">{completedCount}/{totalModules} modules complete</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-1.5">
+                  <div
+                    className="h-1.5 rounded-full transition-all"
+                    style={{
+                      width: `${totalModules ? Math.round(completedCount / totalModules * 100) : 0}%`,
+                      background: completedCount === totalModules ? '#AACC00' : '#0118A1',
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right: actions or status */}
+          <div className="shrink-0 flex flex-col items-end gap-2">
+            {tab === 'pending' && (
+              <div className="flex gap-2">
+                <button
+                  onClick={onReject}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  <XCircle size={13} /> Reject
+                </button>
+                <button
+                  onClick={onApprove}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors"
+                  style={{ background: '#AACC00', color: '#0118A1' }}
+                >
+                  <CheckCircle2 size={13} /> Approve
+                </button>
+              </div>
             )}
             {tab === 'approved' && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 border border-green-200 text-green-700">
-                ✓ Approved
-              </span>
+              <div className="text-right">
+                <p className="text-[10px] text-gray-400">Approved</p>
+                <p className="text-xs font-semibold text-green-700">{fmtDate(trip.approved_at)}</p>
+              </div>
             )}
             {tab === 'rejected' && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 border border-red-200 text-red-700">
-                ✗ Rejected
-              </span>
+              <div className="text-right">
+                <p className="text-[10px] text-gray-400">Rejected</p>
+                <p className="text-xs font-semibold text-red-600">{fmtDate(trip.approved_at)}</p>
+              </div>
             )}
           </div>
-
-          {/* Meta row */}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mb-3">
-            <span className="flex items-center gap-1">
-              <User size={11} />
-              {traveller?.full_name || traveller?.email || 'Unknown traveller'}
-            </span>
-            <span className="flex items-center gap-1">
-              <MapPin size={11} />
-              {trip.departure_city} → {trip.arrival_city}
-            </span>
-            <span className="flex items-center gap-1">
-              <Calendar size={11} />
-              {fmtDateShort(trip.depart_date)} — {fmtDateShort(trip.return_date)}
-              <span className="text-gray-400 ml-1">({tripDuration(trip.depart_date, trip.return_date)})</span>
-            </span>
-            {trip.submitted_at && (
-              <span className="flex items-center gap-1">
-                <Clock size={11} />
-                Submitted {fmtDate(trip.submitted_at)}
-              </span>
-            )}
-          </div>
-
-          {/* Rejection reason */}
-          {tab === 'rejected' && trip.approval_notes && (
-            <div className="mb-3 px-3 py-2 bg-red-50 border border-red-100 rounded-lg">
-              <p className="text-xs text-red-700">
-                <span className="font-semibold">Reason: </span>{trip.approval_notes}
-              </p>
-            </div>
-          )}
-
-          {/* Approval notes */}
-          {tab === 'approved' && trip.approval_notes && (
-            <div className="mb-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
-              <p className="text-xs text-blue-700">
-                <span className="font-semibold">Notes: </span>{trip.approval_notes}
-              </p>
-            </div>
-          )}
-
-          {/* Training progress (approved) */}
-          {tab === 'approved' && totalModules > 0 && (
-            <div className="mt-1">
-              <div className="flex items-center gap-2 mb-1">
-                <BookOpen size={11} className="text-gray-400" />
-                <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Pre-travel Training</span>
-                <span className="text-[10px] text-gray-400">{completedCount}/{totalModules} modules complete</span>
-              </div>
-              <div className="w-full bg-gray-100 rounded-full h-1.5">
-                <div
-                  className="h-1.5 rounded-full transition-all"
-                  style={{
-                    width: `${totalModules ? Math.round(completedCount / totalModules * 100) : 0}%`,
-                    background: completedCount === totalModules ? '#AACC00' : '#0118A1',
-                  }}
-                />
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Right: actions or status */}
-        <div className="shrink-0 flex flex-col items-end gap-2">
-          {tab === 'pending' && (
-            <div className="flex gap-2">
-              <button
-                onClick={onReject}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-              >
-                <XCircle size={13} /> Reject
-              </button>
-              <button
-                onClick={onApprove}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors"
-                style={{ background: '#AACC00', color: '#0118A1' }}
-              >
-                <CheckCircle2 size={13} /> Approve
-              </button>
-            </div>
-          )}
-          {tab === 'approved' && (
-            <div className="text-right">
-              <p className="text-[10px] text-gray-400">Approved</p>
-              <p className="text-xs font-semibold text-green-700">{fmtDate(trip.approved_at)}</p>
-            </div>
-          )}
-          {tab === 'rejected' && (
-            <div className="text-right">
-              <p className="text-[10px] text-gray-400">Rejected</p>
-              <p className="text-xs font-semibold text-red-600">{fmtDate(trip.approved_at)}</p>
-            </div>
-          )}
-        </div>
+        {/* Expand toggle */}
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="mt-3 flex items-center gap-1 text-[11px] text-[#0118A1] font-medium hover:underline"
+        >
+          {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          {expanded ? 'Hide details' : 'View full trip details'}
+        </button>
       </div>
+
+      {/* ── Expanded details panel ── */}
+      {expanded && (
+        <div className="border-t border-gray-100 bg-gray-50 px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          {/* Flight */}
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Plane size={10} /> Flight Details
+            </p>
+            <div className="space-y-1 text-xs text-gray-700">
+              <div className="flex gap-2">
+                <span className="text-gray-400 w-24 shrink-0">Flight No.</span>
+                <span className="font-medium">{trip.flight_number || '—'}</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-gray-400 w-24 shrink-0">From</span>
+                <span className="font-medium">{trip.departure_city || '—'}</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-gray-400 w-24 shrink-0">To</span>
+                <span className="font-medium">{trip.arrival_city || '—'}</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-gray-400 w-24 shrink-0">Depart</span>
+                <span className="font-medium">{fmtDate(trip.depart_date)}</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-gray-400 w-24 shrink-0">Return</span>
+                <span className="font-medium">{fmtDate(trip.return_date)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Accommodation */}
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Hotel size={10} /> Accommodation
+            </p>
+            <div className="space-y-1 text-xs text-gray-700">
+              <div className="flex gap-2">
+                <span className="text-gray-400 w-24 shrink-0">Hotel</span>
+                <span className="font-medium">{trip.hotel_name || '—'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Traveller */}
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <User size={10} /> Traveller
+            </p>
+            <div className="space-y-1 text-xs text-gray-700">
+              <div className="flex gap-2">
+                <span className="text-gray-400 w-24 shrink-0">Name</span>
+                <span className="font-medium">{traveller?.full_name || '—'}</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-gray-400 w-24 shrink-0">Email</span>
+                <span className="font-medium">{traveller?.email || '—'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Purpose / meetings */}
+          {trip.meetings && (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <FileText size={10} /> Purpose / Meetings
+              </p>
+              <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-line">{trip.meetings}</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
