@@ -239,7 +239,7 @@ async function getCountryRisk(country) {
     }
   }
 
-  // Health outbreak sources for the sources panel
+  // Country-specific health advisories (title must mention the country)
   const healthSources = (health?.matches || []).slice(0, 3).map(a => ({
     name: a.source,
     level: null,
@@ -248,7 +248,7 @@ async function getCountryRisk(country) {
     category: 'health',
   }))
 
-  // Full health items for the dedicated health section in IntelBrief
+  // Full country-matched health items for IntelBrief
   const healthItems = (health?.matches || []).map(a => ({
     title:       a.title       || '',
     description: a.description || '',
@@ -257,15 +257,27 @@ async function getCountryRisk(country) {
     source:      a.source      || 'Health Feed',
   }))
 
+  // Recent global health news (not country-specific — shown as "Latest News")
+  const latestHealthNews = (health?.recent || [])
+    .filter(a => !(health?.matches || []).some(m => m.title === a.title))
+    .slice(0, 3)
+    .map(a => ({
+      title:  a.title  || '',
+      date:   a.pubDate || a.date || null,
+      link:   a.link   || null,
+      source: a.source || 'Health Feed',
+    }))
+
   return {
     country,
     level,
     severity,
     ai_brief,
-    gdacs_count:   gdacs.length,
-    usgs_count:    usgs.length,
-    health_alerts: health?.matches?.length || 0,
-    health_items:  healthItems,
+    gdacs_count:        gdacs.length,
+    usgs_count:         usgs.length,
+    health_alerts:      health?.matches?.length || 0,
+    health_items:       healthItems,
+    latest_health_news: latestHealthNews,
     sources: [
       fcdo
         ? { name: 'UK FCDO', level: fcdo.level, message: fcdo.message, url: fcdo.url }

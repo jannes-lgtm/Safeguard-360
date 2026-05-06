@@ -83,6 +83,7 @@ export default function CountryRisk({ country, tripName, profile }) {
   const config       = SEVERITY_CONFIG[risk.severity] ?? SEVERITY_CONFIG['Unknown']
   const healthAlerts = (risk.sources || []).filter(s => s.category === 'health')
   const advisories   = (risk.sources || []).filter(s => !s.category)
+  const latestNews   = risk.latest_health_news || []
 
   return (
     <div className="mt-2 space-y-2">
@@ -113,13 +114,13 @@ export default function CountryRisk({ country, tripName, profile }) {
         </button>
       </div>
 
-      {/* ── Health alerts (if any) ── */}
+      {/* ── Travel health advisories — destination-specific only ── */}
       {healthAlerts.length > 0 && (
         <div className="border border-rose-200 bg-rose-50 rounded-[6px] px-3 py-2">
           <div className="flex items-center gap-1.5 mb-1.5">
             <HeartPulse size={11} className="text-rose-600 shrink-0" />
             <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wider">
-              Health Alerts — {healthAlerts.length} active
+              Travel Health Advisory — {country}
             </span>
           </div>
           <div className="space-y-1">
@@ -139,6 +140,32 @@ export default function CountryRisk({ country, tripName, profile }) {
             {healthAlerts.length > 2 && (
               <p className="text-[10px] text-rose-500 pl-3">+{healthAlerts.length - 2} more alerts</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Latest global health news ── */}
+      {latestNews.length > 0 && (
+        <div className="border border-gray-100 bg-gray-50 rounded-[6px] px-3 py-2">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Latest Health News</span>
+          </div>
+          <div className="space-y-1">
+            {latestNews.map((item, i) => (
+              <div key={i} className="flex items-start gap-1.5">
+                <span className="text-gray-300 text-[10px] shrink-0 mt-0.5">●</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-600 leading-snug line-clamp-2">
+                    <span className="font-semibold text-gray-500">[{item.source}]</span> {item.title}
+                  </p>
+                </div>
+                {item.link && (
+                  <a href={item.link} target="_blank" rel="noopener noreferrer" className="shrink-0 mt-0.5">
+                    <ExternalLink size={9} className="text-gray-300 hover:text-gray-500" />
+                  </a>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -397,16 +397,18 @@ export async function fetchHealthOutbreaks(country) {
 
     const q       = country.toLowerCase()
     const aliases = [q]
-    // Add common aliases
+    // Add specific aliases — avoid short ambiguous ones like 'us ' or 'uk '
     if (q === 'democratic republic of congo') aliases.push('drc', 'dr congo', 'congo')
-    if (q === 'united states')               aliases.push('usa', 'us ')
-    if (q === 'united kingdom')              aliases.push('uk ', 'britain', 'england')
-    if (q === 'united arab emirates')        aliases.push('uae')
+    if (q === 'united states')               aliases.push('usa', 'u.s.', 'american', 'america')
+    if (q === 'united kingdom')              aliases.push('britain', 'england', 'scotland', 'wales')
+    if (q === 'united arab emirates')        aliases.push('uae', 'dubai', 'abu dhabi')
     if (q === 'south africa')                aliases.push('south african')
+    if (q === 'new zealand')                 aliases.push('aotearoa')
 
+    // Match only on the title for precision — descriptions contain too much noise
     const matches = flat.filter(i => {
-      const text = (i.title + ' ' + i.description).toLowerCase()
-      return aliases.some(a => text.includes(a))
+      const title = i.title.toLowerCase()
+      return aliases.some(a => title.includes(a))
     }).slice(0, 5)
 
     // Always include recent global outbreak headlines for AI context
