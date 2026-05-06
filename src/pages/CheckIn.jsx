@@ -175,7 +175,7 @@ export default function CheckIn() {
     ])
 
     const role = prof?.role || user.app_metadata?.role || 'traveller'
-    setIsAdmin(role === 'admin')
+    setIsAdmin(role === 'admin' || role === 'developer')
     setProfile({ ...prof, id: user.id, email: user.email })
     setActiveTrip(trip || null)
     setCheckins(myCheckins || [])

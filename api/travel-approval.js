@@ -159,7 +159,7 @@ export default async function handler(req, res) {
   if (authErr || !user) return res.status(401).json({ error: 'Invalid token' })
 
   const { data: prof } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single()
-  if (prof?.role !== 'admin') return res.status(403).json({ error: 'Admin only' })
+  if (!['admin', 'developer'].includes(prof?.role)) return res.status(403).json({ error: 'Admin or developer only' })
 
   const { action, trip_id, notes } = req.body
   if (!trip_id || !['approve', 'reject'].includes(action)) {

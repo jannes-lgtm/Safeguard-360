@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, MapPin, Plane, Hotel, Users, Bell, AlertTriangle, RefreshCw, Globe, FileText } from 'lucide-react'
+import { X, MapPin, Plane, Hotel, Users, Bell, AlertTriangle, RefreshCw, Globe, FileText, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
 import Layout from '../components/Layout'
 import MetricCard from '../components/MetricCard'
 import IntelBrief from '../components/IntelBrief'
@@ -138,12 +138,14 @@ function SlidePanel({ staff, countryRisk, onClose, onOpenIntel }) {
 export default function Tracker() {
   const [staffList, setStaffList]           = useState([])
   const [activeAlertCount, setActiveAlertCount] = useState(0)
-  const [countryRisk, setCountryRisk]       = useState({})  // country → risk object
+  const [countryRisk, setCountryRisk]       = useState({})
   const [loading, setLoading]               = useState(true)
   const [selectedStaff, setSelectedStaff]   = useState(null)
   const [intelCountry, setIntelCountry]     = useState(null)
   const [intelTraveler, setIntelTraveler]   = useState(null)
   const [intelReturn, setIntelReturn]       = useState(null)
+  const [recentCheckins, setRecentCheckins] = useState([])   // last 20 check-ins across all staff
+  const [checkinMap, setCheckinMap]         = useState({})   // user_id → latest check-in
 
   const load = async () => {
     setLoading(true)
@@ -153,11 +155,21 @@ export default function Tracker() {
       { data: profiles },
       { data: activeTrips },
       { count: alertCount },
+      { data: allCheckins },
     ] = await Promise.all([
       supabase.from('profiles').select('*'),
       supabase.from('itineraries').select('*').lte('depart_date', today).gte('return_date', today),
       supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
+      supabase.from('staff_checkins').select('*').order('created_at', { ascending: false }).limit(50),
     ])
+
+    // Build latest check-in per user
+    const latestCheckin = {}
+    for (const c of allCheckins || []) {
+      if (!latestCheckin[c.user_id]) latestCheckin[c.user_id] = c
+    }
+    setCheckinMap(latestCheckin)
+    setRecentCheckins((allCheckins || []).slice(0, 20))
 
     const tripMap = {}
     for (const trip of activeTrips || []) {
@@ -256,6 +268,7 @@ export default function Tracker() {
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Current Trip</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Destination</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Risk Level</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Check-in</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Return</th>
               <th className="px-5 py-3" />
             </tr>
@@ -315,6 +328,34 @@ export default function Tracker() {
                     ) : <span className="text-gray-300">—</span>}
                   </td>
 
+                  {/* Last check-in */}
+                  <td className="px-5 py-3.5">
+                    {(() => {
+                      const ci = checkinMap[staff.id]
+                      if (!ci) return <span className="text-xs text-gray-300 italic">Never</span>
+                      const minsAgo = Math.floor((Date.now() - new Date(ci.created_at)) / 60000)
+                      const label = minsAgo < 60 ? `${minsAgo}m ago`
+                        : minsAgo < 1440 ? `${Math.floor(minsAgo/60)}h ago`
+                        : `${Math.floor(minsAgo/1440)}d ago`
+                      const isOverdue = ci.next_checkin_due && new Date(ci.next_checkin_due) < new Date()
+                      return (
+                        <div className="flex items-center gap-1.5">
+                          {isOverdue
+                            ? <AlertCircle size={11} className="text-red-500 shrink-0" />
+                            : <CheckCircle2 size={11} className="text-green-500 shrink-0" />}
+                          <span className={`text-xs font-medium ${isOverdue ? 'text-red-600' : 'text-gray-600'}`}>
+                            {label}
+                          </span>
+                          {isOverdue && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 border border-red-200">
+                              Overdue
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </td>
+
                   {/* Return date */}
                   <td className="px-5 py-3.5 text-gray-500 text-xs">{staff.trip?.return_date || '—'}</td>
 
@@ -330,6 +371,79 @@ export default function Tracker() {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* ── Recent Check-ins Panel ── */}
+      <div className="mt-6 bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={14} className="text-green-600" />
+            <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Recent Check-ins</span>
+          </div>
+          <span className="text-[10px] text-gray-400">{recentCheckins.length} most recent</span>
+        </div>
+
+        {loading ? (
+          <div className="px-5 py-8 text-center text-sm text-gray-400">Loading…</div>
+        ) : recentCheckins.length === 0 ? (
+          <div className="px-5 py-8 text-center text-sm text-gray-400">No check-ins recorded yet</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-50">
+                <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Staff Member</th>
+                <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+                <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Location</th>
+                <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Message</th>
+                <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Time</th>
+                <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Next Due</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentCheckins.map(ci => {
+                const isOverdue = ci.next_checkin_due && new Date(ci.next_checkin_due) < new Date()
+                const minsAgo = Math.floor((Date.now() - new Date(ci.created_at)) / 60000)
+                const timeLabel = minsAgo < 60 ? `${minsAgo}m ago`
+                  : minsAgo < 1440 ? `${Math.floor(minsAgo/60)}h ago`
+                  : `${Math.floor(minsAgo/1440)}d ago`
+
+                return (
+                  <tr key={ci.id} className={`border-b border-gray-50 last:border-0 ${ci.status === 'distress' ? 'bg-red-50' : ''}`}>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                          style={{ background: BRAND_BLUE }}>
+                          {(ci.full_name || '?').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
+                        </div>
+                        <span className="text-xs font-medium text-gray-800">{ci.full_name || '—'}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3">
+                      {ci.status === 'distress'
+                        ? <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 border border-red-200 text-red-700"><AlertCircle size={9}/>DISTRESS</span>
+                        : <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 border border-green-200 text-green-700"><CheckCircle2 size={9}/>Safe</span>
+                      }
+                    </td>
+                    <td className="px-5 py-3 text-xs text-gray-500">
+                      {ci.arrival_city || ci.location_label || '—'}
+                    </td>
+                    <td className="px-5 py-3 text-xs text-gray-400 max-w-[180px] truncate">
+                      {ci.message || <span className="italic">No message</span>}
+                    </td>
+                    <td className="px-5 py-3 text-xs text-gray-500">{timeLabel}</td>
+                    <td className="px-5 py-3">
+                      {ci.next_checkin_due ? (
+                        <span className={`text-xs font-medium ${isOverdue ? 'text-red-600' : 'text-gray-500'}`}>
+                          {isOverdue ? '⚠ ' : ''}{new Date(ci.next_checkin_due).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
+                        </span>
+                      ) : <span className="text-gray-300">—</span>}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </Layout>
   )
