@@ -659,8 +659,22 @@ export default function CountryRiskReport() {
     return () => { delete window.__riskReportGoto }
   }, [])
 
-  // Initialise Leaflet map once (container stays in DOM — just hidden when report is open)
+  // Initialise Leaflet map only when the map section is visible (selected === null).
+  // Initialising on a display:none container produces a 0×0 map and can crash the effect.
+  // When a country report is open, tear the map down cleanly so it re-inits fresh on return.
   useEffect(() => {
+    if (selected) {
+      // Report is open — tear down the map if it exists
+      if (mapRef.current) {
+        mapRef.current.remove()
+        mapRef.current = null
+        markersRef.current = []
+        setMapReady(false)
+      }
+      return
+    }
+
+    // Map section is visible — initialise if not already done
     if (!containerRef.current || mapRef.current) return
 
     const map = L.map(containerRef.current, {
@@ -679,16 +693,10 @@ export default function CountryRiskReport() {
     return () => {
       map.remove()
       mapRef.current = null
+      markersRef.current = []
       setMapReady(false)
     }
-  }, [])
-
-  // Invalidate map size when switching back to map view
-  useEffect(() => {
-    if (!selected && mapRef.current && mapReady) {
-      setTimeout(() => mapRef.current?.invalidateSize(), 50)
-    }
-  }, [selected, mapReady])
+  }, [selected])
 
   // Add / refresh risk markers whenever region filter or map readiness changes
   useEffect(() => {

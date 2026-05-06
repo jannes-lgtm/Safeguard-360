@@ -398,17 +398,26 @@ export async function fetchHealthOutbreaks(country) {
     const q       = country.toLowerCase()
     const aliases = [q]
     // Add specific aliases — avoid short ambiguous ones like 'us ' or 'uk '
+    // NOTE: 'america'/'american' removed from US aliases — they match 'Americas' (PAHO region
+    // covering all of North/South America) and 'pan-american', causing false positives for
+    // Chile, Canada etc. 'usa' is matched with a word-boundary regex instead.
     if (q === 'democratic republic of congo') aliases.push('drc', 'dr congo', 'congo')
-    if (q === 'united states')               aliases.push('usa', 'u.s.', 'american', 'america')
-    if (q === 'united kingdom')              aliases.push('britain', 'england', 'scotland', 'wales')
+    if (q === 'united states')               aliases.push('u.s.', 'u.s.a.')
+    if (q === 'united kingdom')              aliases.push('britain', 'england', 'scotland', 'wales', 'uk')
     if (q === 'united arab emirates')        aliases.push('uae', 'dubai', 'abu dhabi')
     if (q === 'south africa')                aliases.push('south african')
     if (q === 'new zealand')                 aliases.push('aotearoa')
 
+    // Word-boundary regex patterns for aliases that would otherwise match substrings
+    // e.g. 'usa' must not match inside 'jerusalem', 'usa' must not match 'cause'
+    const wbMatchers = []
+    if (q === 'united states') wbMatchers.push(/\busa\b/i)
+    if (q === 'united kingdom') wbMatchers.push(/\buk\b/i)
+
     // Match only on the title for precision — descriptions contain too much noise
     const matches = flat.filter(i => {
       const title = i.title.toLowerCase()
-      return aliases.some(a => title.includes(a))
+      return aliases.some(a => title.includes(a)) || wbMatchers.some(rx => rx.test(i.title))
     }).slice(0, 5)
 
     // Always include recent global outbreak headlines for AI context
