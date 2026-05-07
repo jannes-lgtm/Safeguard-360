@@ -24,7 +24,7 @@ async function fetchESP(path, apiKey) {
   }
 }
 
-export default async function handler(req, res) {
+async function _handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   const apiKey = process.env.ESKOMSEPUSH_API_KEY
@@ -88,3 +88,7 @@ export default async function handler(req, res) {
 export async function searchAreas(query, apiKey) {
   return await fetchESP(`/areas_search?text=${encodeURIComponent(query)}`, apiKey)
 }
+
+import { adapt } from './_adapter.js'
+export const handler = adapt(_handler)
+export default handler

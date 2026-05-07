@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+async function _handler(req, res) {
   const { flight } = req.query
   if (!flight) return res.status(400).json({ error: 'flight parameter required' })
 
@@ -80,3 +80,7 @@ export default async function handler(req, res) {
     res.status(500).json({ error: 'Internal error fetching flight data' })
   }
 }
+
+import { adapt } from './_adapter.js'
+export const handler = adapt(_handler)
+export default handler

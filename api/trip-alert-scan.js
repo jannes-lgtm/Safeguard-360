@@ -140,7 +140,7 @@ async function fetchFlightStatus(flightNumber, apiKey) {
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
-export default async function handler(req, res) {
+async function _handler(req, res) {
   const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
   const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
   const ANON_KEY     = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
@@ -456,3 +456,7 @@ export default async function handler(req, res) {
 
   return res.status(200).json(result)
 }
+
+import { adapt } from './_adapter.js'
+export const handler = adapt(_handler)
+export default handler

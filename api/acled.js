@@ -20,7 +20,7 @@ async function fetchWithTimeout(url, ms = 8000) {
   }
 }
 
-export default async function handler(req, res) {
+async function _handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   const apiKey = process.env.ACLED_API_KEY
@@ -94,3 +94,7 @@ export default async function handler(req, res) {
 
   res.json(result)
 }
+
+import { adapt } from './_adapter.js'
+export const handler = adapt(_handler)
+export default handler

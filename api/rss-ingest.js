@@ -354,7 +354,7 @@ function parseRss(xml) {
   return items
 }
 
-export default async function handler(req, res) {
+async function _handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   const { url, id, limit = 5 } = req.query
@@ -401,3 +401,7 @@ export default async function handler(req, res) {
   cache[feedUrl] = { data: result, time: Date.now() }
   res.json(result)
 }
+
+import { adapt } from './_adapter.js'
+export const handler = adapt(_handler)
+export default handler

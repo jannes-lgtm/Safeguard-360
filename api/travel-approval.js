@@ -148,7 +148,7 @@ async function getCompletedModules(userId) {
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
-export default async function handler(req, res) {
+async function _handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   // Verify caller is authenticated admin
@@ -237,3 +237,7 @@ export default async function handler(req, res) {
     schedule:    checkinRows.map(c => ({ type: c.checkin_type, due: c.due_at, label: c.label })),
   })
 }
+
+import { adapt } from './_adapter.js'
+export const handler = adapt(_handler)
+export default handler

@@ -23,7 +23,7 @@
 
 import { askAssistant, resolveModel } from './_claudeSynth.js'
 
-export default async function handler(req, res) {
+async function _handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -67,3 +67,7 @@ export default async function handler(req, res) {
   const model = await resolveModel(ANTHROPIC_API_KEY)
   return res.status(200).json({ reply, model })
 }
+
+import { adapt } from './_adapter.js'
+export const handler = adapt(_handler)
+export default handler

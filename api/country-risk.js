@@ -23,7 +23,7 @@ const AI_BRIEF_CACHE = {}   // { [countryLower]: { data, ts } }
 const CACHE_TTL      = 60 * 60 * 1000       // 1 hour
 const ISS_CACHE_TTL  = 4  * 60 * 60 * 1000  // 4 hours
 
-export default async function handler(req, res) {
+async function _handler(req, res) {
   const { country } = req.query
   if (!country) return res.status(400).json({ error: 'country required' })
 
@@ -307,3 +307,7 @@ function levelToSeverity(level) {
 }
 
 export { getCountryRisk }
+
+import { adapt } from './_adapter.js'
+export const handler = adapt(_handler)
+export default handler

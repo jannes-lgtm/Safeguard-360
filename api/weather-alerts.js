@@ -165,7 +165,7 @@ async function fetchOwmAlerts({ lat, lon, locationName } = {}) {
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
-export default async function handler(req, res) {
+async function _handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   const { source, country, lat, lon, location, days, minMag } = req.query
@@ -213,3 +213,7 @@ function alertToSeverity(level) {
   if (level === 'Green') return 'Low'
   return 'Unknown'
 }
+
+import { adapt } from './_adapter.js'
+export const handler = adapt(_handler)
+export default handler

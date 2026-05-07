@@ -1,7 +1,7 @@
 // Returns live status for all built-in feeds based on configured env vars
 // Called by Intel Feeds page on load to override hardcoded statuses
 
-export default function handler(req, res) {
+function _handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   const has = (key) => !!process.env[key]
@@ -45,3 +45,7 @@ export default function handler(req, res) {
     // (not listed here so they fall back to 'partnership' status in the UI)
   })
 }
+
+import { adapt } from './_adapter.js'
+export const handler = adapt(_handler)
+export default handler
