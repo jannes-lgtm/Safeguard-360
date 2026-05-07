@@ -26,6 +26,7 @@ import {
   MessageSquare, User, ChevronDown, ChevronUp
 } from 'lucide-react'
 import Layout from '../components/Layout'
+import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
 
 const BRAND_BLUE  = '#0118A1'
@@ -87,15 +88,8 @@ function SosRow({ event, isAdmin, onResolve }) {
           {event.arrival_city && (
             <p className="text-xs text-gray-600"><span className="font-medium">Destination:</span> {event.arrival_city}</p>
           )}
-          {event.location_label && (
-            <p className="text-xs text-gray-600 flex items-center gap-1"><MapPin size={10}/>{event.location_label}</p>
-          )}
-          {event.latitude && (
-            <a href={`https://maps.google.com/?q=${event.latitude},${event.longitude}`}
-              target="_blank" rel="noopener noreferrer"
-              className="text-xs text-[#0118A1] hover:underline flex items-center gap-1 font-medium">
-              <Navigation size={10}/>View on Google Maps
-            </a>
+          {event.latitude && event.longitude && (
+            <W3WAddress lat={event.latitude} lng={event.longitude} />
           )}
           {event.message && (
             <p className="text-xs text-gray-600 bg-white/60 rounded p-2 border border-black/5 italic">"{event.message}"</p>
@@ -257,11 +251,9 @@ export default function SOS() {
             <h2 className="text-xl font-bold text-red-800 mb-2">SOS Alert Sent</h2>
             <p className="text-sm text-red-600 mb-1">Your emergency team has been notified.</p>
             {pos && (
-              <a href={`https://maps.google.com/?q=${pos.latitude},${pos.longitude}`}
-                target="_blank" rel="noopener noreferrer"
-                className="text-xs text-[#0118A1] hover:underline flex items-center gap-1 justify-center mt-3 font-medium">
-                <Navigation size={11}/>Your location has been shared
-              </a>
+              <div className="mt-3 flex justify-center">
+                <W3WAddress lat={pos.latitude} lng={pos.longitude} />
+              </div>
             )}
             <button onClick={() => setStep('idle')} className="mt-5 text-sm text-red-600 underline">
               Back

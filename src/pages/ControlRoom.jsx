@@ -11,6 +11,7 @@ import {
   Phone, Mail, MessageSquare, Circle, Filter,
 } from 'lucide-react'
 import Layout from '../components/Layout'
+import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
 
 const BRAND_BLUE  = '#0118A1'
@@ -163,13 +164,9 @@ function RequestCard({ req, onUpdate }) {
             </div>
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Location</p>
-              {req.location_label
-                ? <a href={`https://maps.google.com/?q=${req.latitude},${req.longitude}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="text-[#0118A1] hover:underline font-medium flex items-center gap-1">
-                    <MapPin size={10} />{req.location_label}
-                  </a>
-                : <p className="text-gray-400 italic">No GPS</p>
+              {req.latitude && req.longitude
+                ? <W3WAddress lat={req.latitude} lng={req.longitude} />
+                : <p className="text-gray-400 italic text-xs">No GPS</p>
               }
             </div>
             <div>
@@ -264,25 +261,51 @@ export default function ControlRoom() {
   const [requests, setRequests]   = useState([])
   const [loading, setLoading]     = useState(true)
   const [filter, setFilter]       = useState('active')  // active | all | resolved
-  const [liveCount, setLiveCount] = useState(0)
+  const [profile, setProfile]     = useState(null)  // current user role + org
+
+  // Load current user profile once
+  useEffect(() => {
+    const loadProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('role, org_id, full_name, organisations(name)')
+        .eq('id', user.id)
+        .single()
+      setProfile(prof || null)
+    }
+    loadProfile()
+  }, [])
 
   const loadRequests = async () => {
+    if (profile === null) return   // wait for profile before querying
+
     let query = supabase
       .from('control_room_requests')
       .select('*, profiles:user_id(full_name, email)')
       .order('created_at', { ascending: false })
 
+    // Corporate admin: scope to their org only
+    if (profile?.role === 'admin' && profile?.org_id) {
+      query = query.eq('org_id', profile.org_id)
+    }
+
     if (filter === 'active') query = query.in('status', ['pending', 'in_progress'])
     if (filter === 'resolved') query = query.in('status', ['resolved', 'cancelled'])
 
-    const { data } = await query
+    const { data, error } = await query
+    if (error) console.error('Control room load error:', error)
     setRequests(data || [])
     setLoading(false)
   }
 
   useEffect(() => {
-    loadRequests()
+    if (profile !== null) loadRequests()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, profile])
 
+  useEffect(() => {
     // Real-time subscription
     const channel = supabase
       .channel('control-room')
@@ -296,7 +319,8 @@ export default function ControlRoom() {
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [filter])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile])
 
   // Counts
   const pending    = requests.filter(r => r.status === 'pending').length
@@ -314,10 +338,16 @@ export default function ControlRoom() {
               <Headphones size={20} color="white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Live Control Room</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {profile?.role === 'admin' ? 'Assistance Requests' : 'Live Control Room'}
+              </h1>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-xs text-gray-500">24/7 Monitoring Active</span>
+                <span className="text-xs text-gray-500">
+                  {profile?.role === 'admin'
+                    ? `${profile?.organisations?.name || 'Your organisation'} · staff assistance requests`
+                    : '24/7 Global Monitoring Active'}
+                </span>
               </div>
             </div>
           </div>

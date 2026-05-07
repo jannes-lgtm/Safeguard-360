@@ -26,6 +26,7 @@ import {
   Shield, Bell, CheckCircle2, Lock
 } from 'lucide-react'
 import Layout from '../components/Layout'
+import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
 
 const BRAND_BLUE  = '#0118A1'
@@ -106,12 +107,8 @@ function StaffCheckinRow({ staff }) {
       {open && last && (
         <div className="px-4 pb-3 space-y-1.5 border-t border-gray-100 pt-3">
           {last.trip_name && <p className="text-xs text-gray-600"><span className="font-medium">Trip:</span> {last.trip_name} · {last.arrival_city}</p>}
-          {last.location_label && (
-            <a href={`https://maps.google.com/?q=${last.latitude},${last.longitude}`}
-              target="_blank" rel="noopener noreferrer"
-              className="text-xs text-[#0118A1] flex items-center gap-1 hover:underline font-medium">
-              <Navigation size={9}/>View on map
-            </a>
+          {last.latitude && last.longitude && (
+            <W3WAddress lat={last.latitude} lng={last.longitude} />
           )}
           {last.message && <p className="text-xs text-gray-500 italic">"{last.message}"</p>}
           {due && <p className="text-xs text-gray-500 flex items-center gap-1"><Clock size={9}/>Next due: {fmtDate(due)}</p>}
@@ -359,13 +356,19 @@ export default function CheckIn() {
               <h2 className="text-base font-bold text-gray-900">I'm Safe — Check In</h2>
 
               {/* GPS status */}
-              <div className={`flex items-center gap-2 text-xs rounded-[6px] p-2.5 ${
-                gpsPos ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'}`}>
-                <Navigation size={11}/>
-                {gpsLoading ? 'Capturing location…' :
-                 gpsPos ? `Location ready (±${Math.round(gpsPos.accuracy || 0)}m)` :
-                 gpsErr ? 'Location unavailable — check-in will proceed without GPS' :
-                 'Awaiting GPS…'}
+              <div className={`rounded-[6px] p-2.5 ${gpsPos ? 'bg-green-50' : 'bg-gray-50'}`}>
+                <div className={`flex items-center gap-2 text-xs ${gpsPos ? 'text-green-700' : 'text-gray-500'}`}>
+                  <Navigation size={11}/>
+                  {gpsLoading ? 'Capturing location…' :
+                   gpsPos ? `Location ready (±${Math.round(gpsPos.accuracy || 0)}m)` :
+                   gpsErr ? 'Location unavailable — check-in will proceed without GPS' :
+                   'Awaiting GPS…'}
+                </div>
+                {gpsPos && (
+                  <div className="mt-1.5 ml-4">
+                    <W3WAddress lat={gpsPos.latitude} lng={gpsPos.longitude} />
+                  </div>
+                )}
               </div>
 
               {/* Active trip */}
@@ -426,12 +429,8 @@ export default function CheckIn() {
                         {c.arrival_city && <span className="text-[10px] text-gray-400 flex items-center gap-0.5"><MapPin size={8}/>{c.arrival_city}</span>}
                       </div>
                       {c.message && <p className="text-[11px] text-gray-500 mt-0.5 italic">"{c.message}"</p>}
-                      {c.location_label && (
-                        <a href={`https://maps.google.com/?q=${c.latitude},${c.longitude}`}
-                          target="_blank" rel="noopener noreferrer"
-                          className="text-[10px] text-[#0118A1] hover:underline flex items-center gap-0.5 font-medium">
-                          <Navigation size={8}/>Map
-                        </a>
+                      {c.latitude && c.longitude && (
+                        <W3WAddress lat={c.latitude} lng={c.longitude} />
                       )}
                     </div>
                     <span className="text-[10px] text-gray-400 shrink-0">{fmtDate(c.created_at).split(',')[0]}</span>

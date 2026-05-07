@@ -11,6 +11,7 @@ import {
   Clock, AlertCircle, ChevronDown, ChevronUp, Plus, X,
 } from 'lucide-react'
 import Layout from '../components/Layout'
+import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
 
 const BRAND_BLUE  = '#0118A1'
@@ -399,13 +400,18 @@ export default function Assistance() {
           </div>
 
           {/* GPS status */}
-          <div className={`flex items-center gap-2 text-xs rounded-lg p-2.5 ${
-            gpsPos ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-gray-50 text-gray-500'
-          }`}>
-            <Navigation size={11} />
-            {gpsLoading ? 'Capturing location…' :
-             gpsPos ? `Location captured (±${Math.round(gpsPos.accuracy || 0)}m) — will be shared with operator` :
-             'Location unavailable — request will proceed without GPS'}
+          <div className={`rounded-lg p-2.5 ${gpsPos ? 'bg-green-50 border border-green-100' : 'bg-gray-50'}`}>
+            <div className={`flex items-center gap-2 text-xs ${gpsPos ? 'text-green-700' : 'text-gray-500'}`}>
+              <Navigation size={11} />
+              {gpsLoading ? 'Capturing location…' :
+               gpsPos ? `Location captured (±${Math.round(gpsPos.accuracy || 0)}m) — will be shared with operator` :
+               'Location unavailable — request will proceed without GPS'}
+            </div>
+            {gpsPos && (
+              <div className="mt-1.5 ml-4">
+                <W3WAddress lat={gpsPos.latitude} lng={gpsPos.longitude} />
+              </div>
+            )}
           </div>
 
           {/* Contact preference */}

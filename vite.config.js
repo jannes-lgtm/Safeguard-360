@@ -1,10 +1,55 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
-function devApiPlugin(apiKey) {
+function devApiPlugin(env) {
   return {
     name: 'dev-api',
     configureServer(server) {
+
+      // ── Proxy all /api/* routes to the Netlify function handlers ──────────────
+      // Uses Vite's ssrLoadModule so any function in /api/*.js works automatically
+      // in dev without extra config — add a new function, it just works.
+      server.middlewares.use('/api/', async (req, res) => {
+        const url   = new URL(req.url, 'http://localhost')
+        // req.url is relative to the /api/ mount point, so pathname is e.g. "/country-risk"
+        const name  = url.pathname.replace(/^\/+/, '')   // "country-risk"
+
+        // Skip routes handled by the inline flight-status middleware below
+        if (name === 'flight-status') return
+
+        try {
+          // Inject all .env vars into process.env for the function
+          Object.assign(process.env, env)
+
+          const mod     = await server.ssrLoadModule(`/api/${name}.js`)
+          const handler = mod.default
+          if (typeof handler !== 'function') throw new Error(`No default export in ${route}.js`)
+
+          const query   = Object.fromEntries(url.searchParams)
+          const shimReq = { ...req, query, url: req.url }
+          const shimRes = {
+            statusCode: 200,
+            _headers: { 'Content-Type': 'application/json' },
+            status(code)    { this.statusCode = code; return this },
+            setHeader(k, v) { this._headers[k] = v; return this },
+            json(data) {
+              res.statusCode = this.statusCode
+              Object.entries(this._headers).forEach(([k, v]) => res.setHeader(k, v))
+              res.end(JSON.stringify(data))
+            },
+            send(data) { this.json(data) },
+          }
+
+          await handler(shimReq, shimRes)
+        } catch (e) {
+          console.error(`[dev-api] ${route} error:`, e.message)
+          res.statusCode = 500
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ error: e.message }))
+        }
+      })
+
+      // ── Flight status (kept inline for mock fallback support) ─────────────────
       server.middlewares.use('/api/flight-status', async (req, res) => {
         const qs = new URLSearchParams(req.url.split('?')[1] ?? '')
         const flight = qs.get('flight')
@@ -49,7 +94,13 @@ function devApiPlugin(apiKey) {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   return {
-    plugins: [react(), devApiPlugin(env.FLIGHTAWARE_API_KEY)],
-    server: { port: 5174 },
+    plugins: [react(), devApiPlugin(env)],
+    server: {
+      port: 5174,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+      },
+    },
   }
 })

@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
-import { X, MapPin, Plane, Hotel, Users, Bell, AlertTriangle, RefreshCw, Globe, FileText, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { X, MapPin, Plane, Hotel, Users, Bell, AlertTriangle, RefreshCw, Globe, FileText, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import L from 'leaflet'
 import Layout from '../components/Layout'
+import W3WAddress from '../components/W3WAddress'
 import MetricCard from '../components/MetricCard'
 import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
@@ -135,6 +137,146 @@ function SlidePanel({ staff, countryRisk, onClose, onOpenIntel }) {
   )
 }
 
+// ── Mini Leaflet map ──────────────────────────────────────────────────────────
+function MiniMap({ lat, lng }) {
+  const containerRef = useRef(null)
+  const mapRef       = useRef(null)
+
+  useEffect(() => {
+    if (!lat || !lng || !containerRef.current || mapRef.current) return
+
+    const map = L.map(containerRef.current, {
+      center: [lat, lng],
+      zoom: 15,
+      zoomControl: true,
+      scrollWheelZoom: false,
+    })
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+    }).addTo(map)
+
+    const icon = L.divIcon({
+      className: '',
+      html: '<div style="width:14px;height:14px;background:#E11B1B;border:2px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
+      iconAnchor: [7, 7],
+    })
+    L.marker([lat, lng], { icon }).addTo(map)
+    mapRef.current = map
+
+    return () => {
+      mapRef.current.remove()
+      mapRef.current = null
+    }
+  }, [lat, lng])
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full rounded-xl overflow-hidden border border-gray-200"
+      style={{ height: 200 }}
+    />
+  )
+}
+
+// ── Expandable check-in card ──────────────────────────────────────────────────
+function CheckInCard({ ci }) {
+  const [open, setOpen] = useState(false)
+
+  const lat = Number(ci.latitude)
+  const lng = Number(ci.longitude)
+  const hasLocation = lat && lng
+
+  const isOverdue = ci.next_checkin_due && new Date(ci.next_checkin_due) < new Date()
+  const minsAgo   = Math.floor((Date.now() - new Date(ci.created_at)) / 60000)
+  const timeLabel = minsAgo < 60 ? `${minsAgo}m ago`
+    : minsAgo < 1440 ? `${Math.floor(minsAgo / 60)}h ago`
+    : `${Math.floor(minsAgo / 1440)}d ago`
+  const fmtDue = d => new Date(d).toLocaleString('en-GB', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  })
+
+  return (
+    <div className={`border-b border-gray-50 last:border-0 ${ci.status === 'distress' ? 'bg-red-50' : ''}`}>
+
+      {/* ── Collapsed row ── */}
+      <button
+        className="w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-gray-50 transition-colors"
+        onClick={() => setOpen(p => !p)}
+      >
+        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+          style={{ background: BRAND_BLUE }}>
+          {(ci.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+        </div>
+        <span className="text-xs font-medium text-gray-800 w-32 shrink-0">{ci.full_name || '—'}</span>
+        <span className="shrink-0">
+          {ci.status === 'distress'
+            ? <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 border border-red-200 text-red-700"><AlertCircle size={9}/>DISTRESS</span>
+            : <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 border border-green-200 text-green-700"><CheckCircle2 size={9}/>Safe</span>
+          }
+        </span>
+        <span className="flex-1 text-xs text-gray-400 truncate px-2 flex items-center gap-1">
+          {hasLocation ? <><MapPin size={9} className="text-gray-300 shrink-0"/>{lat.toFixed(5)}, {lng.toFixed(5)}</> : ci.arrival_city || '—'}
+        </span>
+        <span className="text-xs text-gray-400 shrink-0 w-16 text-right">{timeLabel}</span>
+        <span className={`text-xs shrink-0 w-28 text-right font-medium ${isOverdue ? 'text-red-600' : 'text-gray-400'}`}>
+          {ci.next_checkin_due ? `${isOverdue ? '⚠ ' : ''}${fmtDue(ci.next_checkin_due)}` : '—'}
+        </span>
+        <span className="ml-2 shrink-0 text-gray-300">
+          {open ? <ChevronUp size={13}/> : <ChevronDown size={13}/>}
+        </span>
+      </button>
+
+      {/* ── Expanded detail ── */}
+      {open && (
+        <div className="px-5 pb-5 pt-3 border-t border-gray-100 bg-gray-50/50">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* Map */}
+            {hasLocation
+              ? <MiniMap lat={lat} lng={lng} />
+              : <div className="h-48 rounded-xl bg-gray-100 flex items-center justify-center text-xs text-gray-400 border border-gray-200">No location data</div>
+            }
+
+            {/* Details */}
+            <div className="space-y-3">
+              {hasLocation && (
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Location</p>
+                  <W3WAddress lat={lat} lng={lng} />
+                </div>
+              )}
+              {ci.trip_name && (
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Trip</p>
+                  <p className="text-xs text-gray-700">{ci.trip_name}{ci.arrival_city ? ` · ${ci.arrival_city}` : ''}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Message</p>
+                <p className="text-xs text-gray-500 italic">{ci.message || 'No message'}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Checked In</p>
+                  <p className="text-xs text-gray-700">{new Date(ci.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Next Due</p>
+                  <p className={`text-xs font-medium ${isOverdue ? 'text-red-600' : 'text-gray-700'}`}>
+                    {ci.next_checkin_due ? fmtDue(ci.next_checkin_due) : '—'}
+                    {isOverdue && <span className="ml-1 text-[9px] bg-red-100 px-1.5 py-0.5 rounded-full">OVERDUE</span>}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Tracker() {
   const [staffList, setStaffList]           = useState([])
   const [activeAlertCount, setActiveAlertCount] = useState(0)
@@ -151,6 +293,7 @@ export default function Tracker() {
     setLoading(true)
     const today = new Date().toISOString().split('T')[0]
 
+    // RLS enforces visibility — admin sees own org only, developer sees all
     const [
       { data: profiles },
       { data: activeTrips },
@@ -255,7 +398,7 @@ export default function Tracker() {
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <MetricCard label="Currently Travelling" value={loading ? '–' : travelling}            valueColor="text-[#2563EB]"  icon={Users} />
-        <MetricCard label="Total Staff"           value={loading ? '–' : staffList.length}     valueColor="text-gray-700"   icon={Users} />
+        <MetricCard label="Total Staff" value={loading ? '–' : staffList.length} valueColor="text-gray-700" icon={Users} />
         <MetricCard label="Active Alerts"         value={loading ? '–' : activeAlertCount}     valueColor="text-[#D97706]"  icon={Bell}  />
       </div>
 
@@ -388,61 +531,21 @@ export default function Tracker() {
         ) : recentCheckins.length === 0 ? (
           <div className="px-5 py-8 text-center text-sm text-gray-400">No check-ins recorded yet</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-50">
-                <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Staff Member</th>
-                <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Location</th>
-                <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Message</th>
-                <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Time</th>
-                <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Next Due</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentCheckins.map(ci => {
-                const isOverdue = ci.next_checkin_due && new Date(ci.next_checkin_due) < new Date()
-                const minsAgo = Math.floor((Date.now() - new Date(ci.created_at)) / 60000)
-                const timeLabel = minsAgo < 60 ? `${minsAgo}m ago`
-                  : minsAgo < 1440 ? `${Math.floor(minsAgo/60)}h ago`
-                  : `${Math.floor(minsAgo/1440)}d ago`
-
-                return (
-                  <tr key={ci.id} className={`border-b border-gray-50 last:border-0 ${ci.status === 'distress' ? 'bg-red-50' : ''}`}>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                          style={{ background: BRAND_BLUE }}>
-                          {(ci.full_name || '?').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
-                        </div>
-                        <span className="text-xs font-medium text-gray-800">{ci.full_name || '—'}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3">
-                      {ci.status === 'distress'
-                        ? <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 border border-red-200 text-red-700"><AlertCircle size={9}/>DISTRESS</span>
-                        : <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 border border-green-200 text-green-700"><CheckCircle2 size={9}/>Safe</span>
-                      }
-                    </td>
-                    <td className="px-5 py-3 text-xs text-gray-500">
-                      {ci.arrival_city || ci.location_label || '—'}
-                    </td>
-                    <td className="px-5 py-3 text-xs text-gray-400 max-w-[180px] truncate">
-                      {ci.message || <span className="italic">No message</span>}
-                    </td>
-                    <td className="px-5 py-3 text-xs text-gray-500">{timeLabel}</td>
-                    <td className="px-5 py-3">
-                      {ci.next_checkin_due ? (
-                        <span className={`text-xs font-medium ${isOverdue ? 'text-red-600' : 'text-gray-500'}`}>
-                          {isOverdue ? '⚠ ' : ''}{new Date(ci.next_checkin_due).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
-                        </span>
-                      ) : <span className="text-gray-300">—</span>}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div>
+            {/* Column headers */}
+            <div className="flex items-center gap-3 px-5 py-2 border-b border-gray-50 bg-white">
+              <div className="w-7 shrink-0" />
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider w-32 shrink-0">Staff Member</span>
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider shrink-0">Status</span>
+              <span className="flex-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-2">Location</span>
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider w-16 text-right shrink-0">Time</span>
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider w-28 text-right shrink-0">Next Due</span>
+              <div className="w-5 shrink-0" />
+            </div>
+            {recentCheckins.map(ci => (
+              <CheckInCard key={ci.id} ci={ci} />
+            ))}
+          </div>
         )}
       </div>
     </Layout>

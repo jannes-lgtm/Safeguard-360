@@ -131,7 +131,7 @@ function CorporateAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
 
       <NavSection label="24/7 Support" />
-      <NavItem to="/assistance"     icon={Headphones}   label="Live Control Room" />
+      <NavItem to="/control-room"   icon={Headphones}   label="Assistance Requests" />
 
       <NavSection label="Account" />
       <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
