@@ -25,7 +25,13 @@
   [functions."acled"]
     timeout = 26
 
-# Route all requests through the React app (required for React Router)
+# Route /api/* calls to Netlify functions
+[[redirects]]
+  from   = "/api/*"
+  to     = "/.netlify/functions/:splat"
+  status = 200
+
+# Route all other requests through the React app (required for React Router)
 [[redirects]]
   from   = "/*"
   to     = "/index.html"
