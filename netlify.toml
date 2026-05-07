@@ -3,6 +3,28 @@
   publish   = "dist"
   functions = "api"
 
+[functions]
+  node_bundler = "esbuild"
+
+  # Allow data-heavy functions enough time to fetch feeds + call AI
+  [functions."country-risk"]
+    timeout = 26
+
+  [functions."rss-ingest"]
+    timeout = 26
+
+  [functions."trip-alert-scan"]
+    timeout = 26
+
+  [functions."ai-assistant"]
+    timeout = 26
+
+  [functions."weather-alerts"]
+    timeout = 26
+
+  [functions."acled"]
+    timeout = 26
+
 # Route all requests through the React app (required for React Router)
 [[redirects]]
   from   = "/*"
