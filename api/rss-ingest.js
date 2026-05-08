@@ -80,15 +80,6 @@ export const PRECONFIGURED_FEEDS = [
     url: 'https://reliefweb.int/updates/rss.xml?theme=3&source=WHO',
     description: 'UN OCHA ReliefWeb health emergency situation reports from WHO — epidemics, outbreaks and humanitarian health crises worldwide.',
   },
-  {
-    id: 'ecdc-threats',
-    name: 'ECDC — Communicable Disease Threats',
-    category: 'health',
-    geography: 'Global (EU focus)',
-    url: 'https://www.ecdc.europa.eu/en/rss-feed/ecdc-communicable-disease-threats-report',
-    description: 'European Centre for Disease Prevention and Control weekly threats report — active outbreaks relevant to international travellers including hantavirus, mpox and respiratory illness.',
-  },
-
   // ── Security / Africa ─────────────────────────────────────────────────────
   {
     id: 'iss-africa',

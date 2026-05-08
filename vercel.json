@@ -8,7 +8,21 @@
     "api/notify.js":           { "maxDuration": 30 },
     "api/rss-ingest.js":       { "maxDuration": 30 },
     "api/acled.js":            { "maxDuration": 30 },
-    "api/flight-status.js":    { "maxDuration": 20 }
+    "api/flight-status.js":    { "maxDuration": 20 },
+    "api/weather-alerts.js":   { "maxDuration": 30 },
+    "api/loadshedding.js":     { "maxDuration": 20 },
+    "api/feed-status.js":      { "maxDuration": 10 },
+    "api/travel-approval.js":  { "maxDuration": 30 }
   },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin",  "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ]
+    }
+  ],
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

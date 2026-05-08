@@ -1,10 +1,28 @@
 /**
- * Netlify function adapter
- * Converts Netlify's (event, context) format to Express-style (req, res)
- * so all existing function handlers work without modification.
+ * Universal adapter: works for both Vercel (Express-style req/res) and
+ * Netlify (event/context with return value).
+ *
+ * Detection: Vercel passes a real http.ServerResponse as the second argument,
+ * which always has writeHead(). Netlify's context object does not.
  */
 export function adapt(handler) {
-  return async (event, context) => {
+  return async (reqOrEvent, resOrContext) => {
+    // Vercel: second arg is a real http.ServerResponse — pass through directly.
+    // All _handler functions are already Express-style so no conversion needed.
+    if (typeof resOrContext?.writeHead === 'function') {
+      try {
+        await handler(reqOrEvent, resOrContext)
+      } catch (e) {
+        console.error('[adapter] handler error:', e.message, e.stack)
+        if (!resOrContext.headersSent) {
+          resOrContext.status(500).json({ error: e.message })
+        }
+      }
+      return
+    }
+
+    // Netlify: convert (event, context) → Express-style (req, res) + return value
+    const event   = reqOrEvent
     const query   = event.queryStringParameters || {}
     const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     let statusCode = 200
@@ -14,7 +32,7 @@ export function adapt(handler) {
       query,
       method:  event.httpMethod,
       headers: event.headers || {},
-      body:    event.body,
+      body:    tryParseBody(event.body),
     }
 
     const res = {
@@ -45,4 +63,9 @@ export function adapt(handler) {
 
     return { statusCode, headers, body }
   }
+}
+
+function tryParseBody(body) {
+  if (!body) return undefined
+  try { return JSON.parse(body) } catch { return body }
 }
