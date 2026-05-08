@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutGrid, MapPin, Bell, FileText, CheckCircle,
   Users, LogOut, UserCircle, Radio, Newspaper, Briefcase,
   AlertOctagon, Navigation, Shield, Siren, ClipboardList,
   Building2, GraduationCap, BookOpen, Globe, Settings,
-  BarChart2, Code2, Headphones,
+  BarChart2, Code2, Headphones, Menu, X,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import usePassiveLocation from '../hooks/usePassiveLocation'
@@ -238,10 +238,15 @@ function SoloTravellerNav({ alertCount, tripAlertCount }) {
 // ── Main layout ───────────────────────────────────────────────────────────────
 export default function Layout({ children }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [profile, setProfile]                   = useState(null)
   const [activeAlertCount, setActiveAlertCount] = useState(0)
   const [tripAlertCount, setTripAlertCount]     = useState(0)
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0)
+  const [sidebarOpen, setSidebarOpen]           = useState(false)
+
+  // Close sidebar on route change
+  useEffect(() => { setSidebarOpen(false) }, [location.pathname])
 
   // Passive location tracking — fires silently on every page, once per 15 min
   usePassiveLocation(profile)
@@ -311,108 +316,123 @@ export default function Layout({ children }) {
   const role = profile?.role || 'traveller'
   const roleInfo = ROLE_LABELS[role] || ROLE_LABELS.traveller
 
+  const sidebarContent = (
+    <>
+      {/* Logo */}
+      <div className="px-2 pt-1 pb-0">
+        <img src="/logo-transparent.png" alt="SafeGuard360" className="w-full object-contain" />
+      </div>
+
+      {/* Divider */}
+      <div className="mx-4 mb-1" style={{ height: '1px', background: 'rgba(255,255,255,0.07)' }} />
+
+      {/* Role indicator strip */}
+      {profile && (
+        <div className="mx-3 mb-2 px-3 py-1.5 rounded-lg flex items-center gap-2"
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          {role === 'developer'  && <Code2 size={11} style={{ color: roleInfo.color }} />}
+          {role === 'admin'      && <Building2 size={11} style={{ color: roleInfo.color }} />}
+          {role === 'org_admin'  && <Building2 size={11} style={{ color: roleInfo.color }} />}
+          {role === 'traveller'  && <UserCircle size={11} style={{ color: roleInfo.color }} />}
+          {role === 'solo'       && <UserCircle size={11} style={{ color: roleInfo.color }} />}
+          <span className="text-[10px] font-bold" style={{ color: roleInfo.color }}>
+            {roleInfo.label}
+          </span>
+          {profile.org_name && (
+            <span className="text-[10px] text-white/30 truncate ml-auto">{profile.org_name}</span>
+          )}
+        </div>
+      )}
+
+      {/* Nav — role-based */}
+      <nav className="flex-1 py-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
+        {role === 'developer' && <DeveloperNav alertCount={activeAlertCount} />}
+        {role === 'admin' && <CorporateAdminNav alertCount={activeAlertCount} pendingApprovals={pendingApprovalsCount} />}
+        {role === 'org_admin' && <OrgAdminNav alertCount={activeAlertCount} pendingApprovals={pendingApprovalsCount} />}
+        {role === 'traveller' && <TravellerNav alertCount={activeAlertCount} tripAlertCount={tripAlertCount} />}
+        {role === 'solo' && <SoloTravellerNav alertCount={activeAlertCount} tripAlertCount={tripAlertCount} />}
+      </nav>
+
+      {/* User footer */}
+      <div className="mx-3 mb-3 rounded-xl p-3"
+        style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.09)' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-xs font-semibold truncate leading-tight">
+              {profile?.full_name || profile?.email || 'User'}
+            </p>
+            <p className="text-[10px] mt-0.5" style={{ color: roleInfo.color }}>{roleInfo.label}</p>
+          </div>
+          <button onClick={handleSignOut} title="Sign out"
+            className="p-1.5 rounded-lg transition-all hover:bg-white/10"
+            style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <LogOut size={14} />
+          </button>
+        </div>
+      </div>
+    </>
+  )
+
+  const sidebarStyle = {
+    background: 'linear-gradient(180deg, #010e7a 0%, #0118A1 40%, #0118A1 100%)',
+    borderRight: '1px solid rgba(255,255,255,0.06)',
+    boxShadow: '4px 0 24px rgba(1,24,161,0.35)',
+  }
+
   return (
     <div className="flex min-h-screen" style={{ background: '#F0F2F8' }}>
 
-      {/* ── Sidebar ── */}
-      <aside
-        className="w-[230px] shrink-0 flex flex-col fixed top-0 left-0 h-full z-30"
-        style={{
-          background: 'linear-gradient(180deg, #010e7a 0%, #0118A1 40%, #0118A1 100%)',
-          borderRight: '1px solid rgba(255,255,255,0.06)',
-          boxShadow: '4px 0 24px rgba(1,24,161,0.35)',
-        }}
-      >
-        {/* Logo */}
-        <div className="px-2 pt-1 pb-0">
-          <img src="/logo-transparent.png" alt="SafeGuard360" className="w-full object-contain" />
-        </div>
-
-        {/* Divider */}
-        <div className="mx-4 mb-1" style={{ height: '1px', background: 'rgba(255,255,255,0.07)' }} />
-
-        {/* Role indicator strip */}
-        {profile && (
-          <div className="mx-3 mb-2 px-3 py-1.5 rounded-lg flex items-center gap-2"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            {role === 'developer'  && <Code2 size={11} style={{ color: roleInfo.color }} />}
-            {role === 'admin'      && <Building2 size={11} style={{ color: roleInfo.color }} />}
-            {role === 'org_admin'  && <Building2 size={11} style={{ color: roleInfo.color }} />}
-            {role === 'traveller'  && <UserCircle size={11} style={{ color: roleInfo.color }} />}
-            {role === 'solo'       && <UserCircle size={11} style={{ color: roleInfo.color }} />}
-            <span className="text-[10px] font-bold" style={{ color: roleInfo.color }}>
-              {roleInfo.label}
-            </span>
-            {profile.org_name && (
-              <span className="text-[10px] text-white/30 truncate ml-auto">{profile.org_name}</span>
-            )}
-          </div>
-        )}
-
-        {/* Nav — role-based */}
-        <nav className="flex-1 py-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-          {role === 'developer' && (
-            <DeveloperNav alertCount={activeAlertCount} />
-          )}
-          {role === 'admin' && (
-            <CorporateAdminNav
-              alertCount={activeAlertCount}
-              pendingApprovals={pendingApprovalsCount}
-            />
-          )}
-          {role === 'org_admin' && (
-            <OrgAdminNav
-              alertCount={activeAlertCount}
-              pendingApprovals={pendingApprovalsCount}
-            />
-          )}
-          {role === 'traveller' && (
-            <TravellerNav
-              alertCount={activeAlertCount}
-              tripAlertCount={tripAlertCount}
-            />
-          )}
-          {role === 'solo' && (
-            <SoloTravellerNav
-              alertCount={activeAlertCount}
-              tripAlertCount={tripAlertCount}
-            />
-          )}
-        </nav>
-
-        {/* ── User footer ── */}
-        <div className="mx-3 mb-3 rounded-xl p-3"
-          style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.09)' }}>
-          <div className="flex items-center gap-3">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-              style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
-            >
-              {initials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-xs font-semibold truncate leading-tight">
-                {profile?.full_name || profile?.email || 'User'}
-              </p>
-              <p className="text-[10px] mt-0.5" style={{ color: roleInfo.color }}>
-                {roleInfo.label}
-              </p>
-            </div>
-            <button
-              onClick={handleSignOut}
-              title="Sign out"
-              className="p-1.5 rounded-lg transition-all hover:bg-white/10"
-              style={{ color: 'rgba(255,255,255,0.4)' }}
-            >
-              <LogOut size={14} />
-            </button>
-          </div>
-        </div>
+      {/* ── Desktop sidebar (hidden on mobile) ── */}
+      <aside className="hidden lg:flex w-[230px] shrink-0 flex-col fixed top-0 left-0 h-full z-30" style={sidebarStyle}>
+        {sidebarContent}
       </aside>
 
+      {/* ── Mobile overlay ── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* ── Mobile slide-in sidebar ── */}
+      <aside
+        className={`fixed top-0 left-0 h-full z-50 flex flex-col w-[270px] lg:hidden transition-transform duration-300 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        style={sidebarStyle}
+      >
+        {/* Close button */}
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/10"
+          style={{ color: 'rgba(255,255,255,0.5)' }}
+        >
+          <X size={18} />
+        </button>
+        {sidebarContent}
+      </aside>
+
+      {/* ── Mobile top bar ── */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 h-14"
+        style={{ background: '#0118A1', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-white/10" style={{ color: 'white' }}>
+          <Menu size={22} />
+        </button>
+        <img src="/logo-transparent.png" alt="SafeGuard360" className="h-8 object-contain" />
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
+          style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+          {initials}
+        </div>
+      </div>
+
       {/* ── Main content ── */}
-      <main className="flex-1 ml-[230px] min-h-screen">
-        <div className="p-7 max-w-6xl mx-auto">
+      <main className="flex-1 lg:ml-[230px] min-h-screen pt-14 lg:pt-0">
+        <div className="p-4 lg:p-7 max-w-6xl mx-auto">
           {children}
         </div>
       </main>
