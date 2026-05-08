@@ -39,6 +39,13 @@ export default function TermsAndConditions() {
     load()
   }, [])
 
+  // Auto-mark scrolled if content doesn't overflow the container
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    if (el.scrollHeight <= el.clientHeight) setScrolled(true)
+  }, [])
+
   const handleScroll = (e) => {
     const el = e.target
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60
@@ -54,19 +61,12 @@ export default function TermsAndConditions() {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) throw new Error('Session expired — please refresh and try again.')
 
-      // Call SECURITY DEFINER function — bypasses RLS, updates profile + returns it
-      const { data: updatedProf, error: rpcError } = await supabase.rpc('accept_terms_v1')
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() })
+        .eq('id', user.id)
 
-      if (rpcError) {
-        console.error('accept_terms_v1 RPC error:', rpcError)
-        throw new Error(`Could not save your acceptance: ${rpcError.message}`)
-      }
-
-      // Function returns the updated profile — verify terms_version was set
-      if (updatedProf?.terms_version !== TERMS_VERSION) {
-        console.error('Profile after accept:', updatedProf)
-        throw new Error(`Acceptance saved but profile not updated correctly. Please contact support.`)
-      }
+      if (updateError) throw new Error(`Could not save your acceptance: ${updateError.message}`)
 
       navigate('/dashboard')
     } catch (err) {
