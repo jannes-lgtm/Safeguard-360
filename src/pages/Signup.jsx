@@ -83,6 +83,13 @@ export default function Signup() {
         throw new Error(authErr.message)
       }
 
+      // Notify admin (fire-and-forget)
+      fetch('/api/notify-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: fullName.trim(), email, company_name: companyName.trim(), role: 'org_admin' }),
+      }).catch(() => {})
+
       setDone(true)
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.')
@@ -114,11 +121,17 @@ export default function Signup() {
 
       if (authErr) throw new Error(authErr.message)
 
-      // 2. Mark invite as accepted (fire-and-forget — don't block on this)
+      // 2. Mark invite as accepted + notify admin (fire-and-forget)
       fetch('/api/accept-invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: inviteToken }),
+      }).catch(() => {})
+
+      fetch('/api/notify-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: fullName.trim(), email: inviteData.email, role: inviteData.role || 'traveller' }),
       }).catch(() => {})
 
       setDone(true)
