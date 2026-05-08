@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
+import Signup from './pages/Signup'
 import ComingSoon from './pages/ComingSoon'
 import Dashboard from './pages/Dashboard'
 import Itinerary from './pages/Itinerary'
@@ -32,6 +33,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
         <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/itinerary" element={<ProtectedRoute><Itinerary /></ProtectedRoute>} />
@@ -39,7 +41,7 @@ export default function App() {
         <Route path="/policies" element={<ProtectedRoute><Policies /></ProtectedRoute>} />
         <Route path="/training" element={<ProtectedRoute><Training /></ProtectedRoute>} />
         <Route path="/incidents" element={<ProtectedRoute><Incidents /></ProtectedRoute>} />
-        <Route path="/tracker" element={<ProtectedRoute adminOnly><Tracker /></ProtectedRoute>} />
+        <Route path="/tracker" element={<ProtectedRoute orgAdminAllowed><Tracker /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/intel-feeds" element={<ProtectedRoute adminOnly><IntelFeeds /></ProtectedRoute>} />
         <Route path="/briefings" element={<ProtectedRoute><Briefings /></ProtectedRoute>} />
@@ -50,11 +52,11 @@ export default function App() {
         <Route path="/sos" element={<ProtectedRoute><SOS /></ProtectedRoute>} />
         <Route path="/checkin" element={<ProtectedRoute><CheckIn /></ProtectedRoute>} />
         <Route path="/live-map" element={<ProtectedRoute><LiveMap /></ProtectedRoute>} />
-        <Route path="/approvals"      element={<ProtectedRoute adminOnly><TravelApprovals /></ProtectedRoute>} />
+        <Route path="/approvals"      element={<ProtectedRoute orgAdminAllowed><TravelApprovals /></ProtectedRoute>} />
         <Route path="/organisations"   element={<ProtectedRoute adminOnly><Organisations /></ProtectedRoute>} />
-        <Route path="/org/users"       element={<ProtectedRoute><OrgUsers /></ProtectedRoute>} />
-        <Route path="/org/training"    element={<ProtectedRoute><OrgTraining /></ProtectedRoute>} />
-        <Route path="/control-room"    element={<ProtectedRoute adminOnly><ControlRoom /></ProtectedRoute>} />
+        <Route path="/org/users"       element={<ProtectedRoute orgAdminAllowed><OrgUsers /></ProtectedRoute>} />
+        <Route path="/org/training"    element={<ProtectedRoute orgAdminAllowed><OrgTraining /></ProtectedRoute>} />
+        <Route path="/control-room"    element={<ProtectedRoute orgAdminAllowed><ControlRoom /></ProtectedRoute>} />
         <Route path="/assistance"      element={<ProtectedRoute><Assistance /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>

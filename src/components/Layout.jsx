@@ -69,6 +69,7 @@ function NavItem({ to, icon: Icon, label, badge, red }) {
 const ROLE_LABELS = {
   developer:  { label: 'Developer',        color: '#a78bfa' },
   admin:      { label: 'Corporate Admin',  color: BRAND_GREEN },
+  org_admin:  { label: 'Company Admin',    color: BRAND_GREEN },
   traveller:  { label: 'Traveller',        color: '#60a5fa' },
   solo:       { label: 'Solo Traveller',   color: '#f472b6' },
 }
@@ -106,6 +107,40 @@ function DeveloperNav({ alertCount }) {
 }
 
 function CorporateAdminNav({ alertCount, pendingApprovals }) {
+  return (
+    <>
+      <NavSection label="Overview" />
+      <NavItem to="/dashboard"      icon={LayoutGrid}   label="Dashboard" />
+
+      <NavSection label="My Company" />
+      <NavItem to="/org/users"      icon={Users}        label="Our Travellers" />
+      <NavItem to="/approvals"      icon={ClipboardList} label="Travel Approvals" badge={pendingApprovals} />
+      <NavItem to="/tracker"        icon={Navigation}   label="Staff Tracker" />
+
+      <NavSection label="Training" />
+      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
+      <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
+
+      <NavSection label="Intelligence" />
+      <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
+      <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
+      <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount} />
+
+      <NavSection label="Compliance" />
+      <NavItem to="/policies"       icon={FileText}     label="Policy Library" />
+      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
+      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
+
+      <NavSection label="24/7 Support" />
+      <NavItem to="/control-room"   icon={Headphones}   label="Assistance Requests" />
+
+      <NavSection label="Account" />
+      <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
+    </>
+  )
+}
+
+function OrgAdminNav({ alertCount, pendingApprovals }) {
   return (
     <>
       <NavSection label="Overview" />
@@ -246,7 +281,7 @@ export default function Layout({ children }) {
           .eq('is_read', false),
       ]
 
-      if (finalRole === 'admin' || finalRole === 'developer') {
+      if (['admin', 'developer', 'org_admin'].includes(finalRole)) {
         queries.push(
           supabase.from('itineraries')
             .select('*', { count: 'exact', head: true })
@@ -257,7 +292,7 @@ export default function Layout({ children }) {
       const results = await Promise.all(queries)
       setActiveAlertCount(results[0].count || 0)
       setTripAlertCount(results[1].count || 0)
-      if (finalRole === 'admin' || finalRole === 'developer') {
+      if (['admin', 'developer', 'org_admin'].includes(finalRole)) {
         setPendingApprovalsCount(results[2]?.count || 0)
       }
     }
@@ -302,6 +337,7 @@ export default function Layout({ children }) {
             style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
             {role === 'developer'  && <Code2 size={11} style={{ color: roleInfo.color }} />}
             {role === 'admin'      && <Building2 size={11} style={{ color: roleInfo.color }} />}
+            {role === 'org_admin'  && <Building2 size={11} style={{ color: roleInfo.color }} />}
             {role === 'traveller'  && <UserCircle size={11} style={{ color: roleInfo.color }} />}
             {role === 'solo'       && <UserCircle size={11} style={{ color: roleInfo.color }} />}
             <span className="text-[10px] font-bold" style={{ color: roleInfo.color }}>
@@ -320,6 +356,12 @@ export default function Layout({ children }) {
           )}
           {role === 'admin' && (
             <CorporateAdminNav
+              alertCount={activeAlertCount}
+              pendingApprovals={pendingApprovalsCount}
+            />
+          )}
+          {role === 'org_admin' && (
+            <OrgAdminNav
               alertCount={activeAlertCount}
               pendingApprovals={pendingApprovalsCount}
             />

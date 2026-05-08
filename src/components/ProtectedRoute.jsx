@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 
 const TERMS_VERSION = '1.0'
 
-export default function ProtectedRoute({ children, adminOnly = false }) {
+export default function ProtectedRoute({ children, adminOnly = false, orgAdminAllowed = false }) {
   const navigate = useNavigate()
   const [checking, setChecking] = useState(true)
 
@@ -35,8 +35,14 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
         return
       }
 
-      // Admin-only gate — allow admin AND developer
-      if (adminOnly && role !== 'admin' && role !== 'developer') {
+      // adminOnly: platform admin + developer only
+      if (adminOnly && !['admin', 'developer'].includes(role)) {
+        navigate('/dashboard')
+        return
+      }
+
+      // orgAdminAllowed: org_admin, platform admin, developer
+      if (orgAdminAllowed && !['admin', 'developer', 'org_admin'].includes(role)) {
         navigate('/dashboard')
         return
       }
@@ -45,7 +51,7 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
     }
 
     checkAuth()
-  }, [navigate, adminOnly])
+  }, [navigate, adminOnly, orgAdminAllowed])
 
   if (checking) {
     return (

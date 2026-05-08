@@ -146,7 +146,10 @@ export default function OrgUsers() {
   const [approvalMap, setApprovalMap]   = useState({})   // user_id → pending count
   const [loading, setLoading]           = useState(true)
   const [showInvite, setShowInvite]     = useState(false)
-  const [inviteNote, setInviteNote]     = useState('')
+  const [inviteEmail, setInviteEmail]   = useState('')
+  const [inviteRole,  setInviteRole]    = useState('traveller')
+  const [inviting,    setInviting]      = useState(false)
+  const [inviteResult, setInviteResult] = useState(null)  // { ok, invite_url, email_sent } | { error }
 
   const loadData = async () => {
     setLoading(true)
@@ -216,6 +219,30 @@ export default function OrgUsers() {
   }
 
   useEffect(() => { loadData() }, [])
+
+  const handleInvite = async (e) => {
+    e.preventDefault()
+    setInviting(true)
+    setInviteResult(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const r = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+      })
+      const data = await r.json()
+      setInviteResult(data)
+      if (data.ok) setInviteEmail('')
+    } catch {
+      setInviteResult({ error: 'Network error. Please try again.' })
+    } finally {
+      setInviting(false)
+    }
+  }
 
   const travelling = users.filter(u => tripMap[u.id])
   const overdue    = users.filter(u => {
@@ -289,35 +316,73 @@ export default function OrgUsers() {
       {showInvite && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-gray-900">Invite a Traveller</h2>
-              <button onClick={() => setShowInvite(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={18} />
-              </button>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-bold text-gray-900">Invite a Team Member</h2>
+              <button onClick={() => { setShowInvite(false); setInviteResult(null); setInviteEmail('') }}
+                className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
             </div>
-            <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
-                <p className="font-semibold mb-1">How to add travellers</p>
-                <ol className="list-decimal list-inside space-y-1 text-xs text-blue-700">
-                  <li>Share your organisation invite link or ask them to register</li>
-                  <li>Once registered, go to <strong>Supabase → Table Editor → profiles</strong></li>
-                  <li>Find their profile row and set <code className="bg-blue-100 px-1 rounded">org_id</code> to your organisation ID</li>
-                  <li>Set <code className="bg-blue-100 px-1 rounded">role</code> to <code className="bg-blue-100 px-1 rounded">traveller</code></li>
-                </ol>
+
+            {inviteResult?.ok ? (
+              <div className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                  <p className="font-semibold text-green-800 mb-1">
+                    {inviteResult.email_sent ? '✓ Invite sent!' : '✓ Invite created'}
+                  </p>
+                  <p className="text-xs text-green-700">
+                    {inviteResult.email_sent
+                      ? `An invite email has been sent to ${inviteEmail || 'the user'}.`
+                      : 'Copy the link below and share it manually.'}
+                  </p>
+                </div>
+                {inviteResult.invite_url && (
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Invite link</p>
+                    <p className="text-xs font-mono text-gray-700 break-all">{inviteResult.invite_url}</p>
+                    <button onClick={() => navigator.clipboard.writeText(inviteResult.invite_url)}
+                      className="mt-2 text-xs font-semibold text-[#0118A1] hover:underline">
+                      Copy link
+                    </button>
+                  </div>
+                )}
+                <button onClick={() => { setInviteResult(null); setInviteEmail('') }}
+                  className="w-full py-2.5 text-sm font-bold rounded-xl"
+                  style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+                  Invite another
+                </button>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Your Organisation ID</p>
-                <p className="text-xs font-mono text-gray-700 break-all">{adminProfile?.org_id}</p>
-              </div>
-              <p className="text-xs text-gray-400">
-                A self-service invite flow will be available in the next release.
-              </p>
-            </div>
-            <button onClick={() => setShowInvite(false)}
-              className="w-full mt-4 px-4 py-2.5 text-sm font-bold rounded-xl"
-              style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
-              Got it
-            </button>
+            ) : (
+              <form onSubmit={handleInvite} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
+                  <input
+                    type="email" required
+                    value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+                    placeholder="colleague@company.com"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
+                  <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20">
+                    <option value="traveller">Traveller</option>
+                    <option value="org_admin">Company Administrator</option>
+                  </select>
+                </div>
+                {inviteResult?.error && (
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    {inviteResult.error}
+                  </p>
+                )}
+                <button type="submit" disabled={inviting}
+                  className="w-full py-2.5 text-sm font-bold rounded-xl disabled:opacity-60 flex items-center justify-center gap-2"
+                  style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+                  {inviting
+                    ? <><div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" /> Sending…</>
+                    : 'Send Invite'}
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}

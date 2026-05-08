@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Eye, EyeOff, Shield, MapPin, AlertTriangle, PhoneCall } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -167,6 +167,15 @@ export default function Login() {
             >
               Forgot your password?
             </button>
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-gray-100 text-center">
+            <p className="text-sm text-gray-500">
+              New to Safeguard 360?{' '}
+              <Link to="/signup" className="font-semibold text-[#0118A1] hover:underline">
+                Create an account
+              </Link>
+            </p>
           </div>
         </div>
       </div>
