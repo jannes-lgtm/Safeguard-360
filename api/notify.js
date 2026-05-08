@@ -100,8 +100,9 @@ async function _handler(req, res) {
         full_name: profile?.full_name || user.email || 'Unknown',
       },
       contacts,
-      adminEmail: process.env.SOS_ADMIN_EMAIL || null,
-      adminPhone: process.env.SOS_ADMIN_PHONE || null,
+      adminEmail:    process.env.SOS_ADMIN_EMAIL    || null,
+      adminPhone:    process.env.SOS_ADMIN_PHONE    || null,
+      adminWhatsApp: process.env.SOS_ADMIN_WHATSAPP || null,
     })
 
     return res.status(200).json({ ok: true, sent })

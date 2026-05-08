@@ -400,9 +400,10 @@ async function _handler(req, res) {
         }).catch(() => []),
       ])
 
-      const userEmail = authRes?.email || null
-      const profile   = profileRows?.[0] || {}
-      const userPhone = profile.phone || profile.whatsapp_number || null
+      const userEmail    = authRes?.email || null
+      const profile      = profileRows?.[0] || {}
+      const userPhone    = profile.phone || null
+      const userWhatsApp = profile.whatsapp_number || null
 
       const fiveMinAgo = Date.now() - 5 * 60 * 1000
       const newAlerts  = inserted.filter(a =>
@@ -420,7 +421,7 @@ async function _handler(req, res) {
           byTrip[key].alerts.push(a)
         }
         for (const { tripName, city, alerts } of Object.values(byTrip)) {
-          await notifyAlert({ userEmail, userPhone, alerts, tripName, city })
+          await notifyAlert({ userEmail, userPhone, userWhatsApp, alerts, tripName, city })
         }
         console.log(`[trip-alert-scan] Notified ${userEmail} about ${newAlerts.length} new alert(s)`)
       }

@@ -2,19 +2,23 @@
  * api/_notify.js — Shared notification module (underscore = not a Vercel route)
  *
  * Required env vars:
- *   RESEND_API_KEY          — email delivery via Resend (resend.com)
- *   RESEND_FROM_EMAIL       — verified sender address (default: alerts@safeguard360.co.za)
- *   TWILIO_ACCOUNT_SID      — Twilio account SID
- *   TWILIO_AUTH_TOKEN       — Twilio auth token
- *   TWILIO_FROM_NUMBER      — Twilio phone number in E.164 format e.g. +27123456789
- *   SOS_ADMIN_EMAIL         — email address that receives all SOS alerts
- *   SOS_ADMIN_PHONE         — phone number that receives SOS SMS (E.164 format)
+ *   RESEND_API_KEY           — email delivery via Resend (resend.com)
+ *   RESEND_FROM_EMAIL        — verified sender address (default: alerts@risk360.co)
+ *   TWILIO_ACCOUNT_SID       — Twilio account SID
+ *   TWILIO_AUTH_TOKEN        — Twilio auth token
+ *   TWILIO_FROM_NUMBER       — Twilio phone number in E.164 format e.g. +27123456789
+ *   TWILIO_WHATSAPP_FROM     — WhatsApp-enabled number, e.g. whatsapp:+14155238886 (sandbox)
+ *                              or whatsapp:+27XXXXXXXXX (approved business number)
+ *   SOS_ADMIN_EMAIL          — email address that receives all SOS alerts
+ *   SOS_ADMIN_PHONE          — phone number that receives SOS SMS (E.164 format)
+ *   SOS_ADMIN_WHATSAPP       — WhatsApp number for SOS (E.164 format, no "whatsapp:" prefix)
  *
  * Exports:
  *   sendEmail(to, subject, html)
  *   sendSms(to, body)
- *   notifyAlert({ userEmail, userPhone, alerts, tripName, city })
- *   notifySos({ event, contacts, adminEmail, adminPhone })
+ *   sendWhatsApp(to, body)
+ *   notifyAlert({ userEmail, userPhone, userWhatsApp, alerts, tripName, city })
+ *   notifySos({ event, contacts, adminEmail, adminPhone, adminWhatsApp })
  */
 
 const FROM_NAME = 'Safeguard 360'
@@ -58,15 +62,38 @@ export async function sendSms(to, body) {
   const from  = process.env.TWILIO_FROM_NUMBER
   if (!sid || !token || !from || !to) return false
 
-  // Normalise number — strip spaces, ensure starts with +
-  const toNorm = to.replace(/\s+/g, '').replace(/^0/, '+27')
-  if (!toNorm.startsWith('+')) {
+  const toNorm = normaliseE164(to)
+  if (!toNorm) {
     console.warn('[notify] SMS skipped — number not in E.164 format:', to)
     return false
   }
 
+  return twilioSend(sid, token, { Body: body, From: from, To: toNorm }, 'SMS')
+}
+
+// ── WhatsApp via Twilio ───────────────────────────────────────────────────────
+export async function sendWhatsApp(to, body) {
+  const sid   = process.env.TWILIO_ACCOUNT_SID
+  const token = process.env.TWILIO_AUTH_TOKEN
+  const from  = process.env.TWILIO_WHATSAPP_FROM   // e.g. whatsapp:+14155238886
+  if (!sid || !token || !from || !to) return false
+
+  const toNorm = normaliseE164(to)
+  if (!toNorm) {
+    console.warn('[notify] WhatsApp skipped — number not in E.164 format:', to)
+    return false
+  }
+
+  return twilioSend(
+    sid, token,
+    { Body: body, From: from, To: `whatsapp:${toNorm}` },
+    'WhatsApp'
+  )
+}
+
+// ── Shared Twilio sender ──────────────────────────────────────────────────────
+async function twilioSend(sid, token, params, label) {
   try {
-    const params = new URLSearchParams({ Body: body, From: from, To: toNorm })
     const res = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
       {
@@ -75,19 +102,25 @@ export async function sendSms(to, body) {
           'Authorization': `Basic ${Buffer.from(`${sid}:${token}`).toString('base64')}`,
           'Content-Type':  'application/x-www-form-urlencoded',
         },
-        body: params.toString(),
+        body: new URLSearchParams(params).toString(),
       }
     )
     if (!res.ok) {
       const err = await res.text()
-      console.error('[notify] Twilio error:', res.status, err)
+      console.error(`[notify] Twilio ${label} error:`, res.status, err)
       return false
     }
     return true
   } catch (e) {
-    console.error('[notify] sendSms failed:', e.message)
+    console.error(`[notify] send${label} failed:`, e.message)
     return false
   }
+}
+
+function normaliseE164(num) {
+  if (!num) return null
+  const n = num.toString().replace(/\s+/g, '').replace(/^0/, '+27')
+  return n.startsWith('+') ? n : null
 }
 
 // ── Shared HTML shell ─────────────────────────────────────────────────────────
@@ -133,11 +166,12 @@ function severityColour(sev) {
  * @param {object} opts
  * @param {string}  opts.userEmail
  * @param {string}  [opts.userPhone]
+ * @param {string}  [opts.userWhatsApp]
  * @param {Array}   opts.alerts     — array of trip_alert rows
  * @param {string}  opts.tripName
  * @param {string}  opts.city
  */
-export async function notifyAlert({ userEmail, userPhone, alerts, tripName, city }) {
+export async function notifyAlert({ userEmail, userPhone, userWhatsApp, alerts, tripName, city }) {
   if (!alerts?.length) return
   if (!userEmail && !userPhone) return
 
@@ -191,9 +225,14 @@ export async function notifyAlert({ userEmail, userPhone, alerts, tripName, city
     ? `S360 ALERT [${top.severity}] ${top.title} — ${label}. Open the app for details.`
     : `S360 — ${count} new alerts for ${label}. Highest: ${top.severity} — ${top.title}. Open the app.`
 
+  const waBody = count === 1
+    ? `*Safeguard 360 Alert*\n\n*[${top.severity}]* ${top.title}\n\nTrip: ${label} → ${city}\n\nOpen the app for full details: https://www.risk360.co/dashboard`
+    : `*Safeguard 360 — ${count} New Alerts*\n\nTrip: ${label} → ${city}\n\nTop alert: *[${top.severity}]* ${top.title}\n\nOpen the app: https://www.risk360.co/dashboard`
+
   const promises = []
-  if (userEmail) promises.push(sendEmail(userEmail, subject, html))
-  if (userPhone) promises.push(sendSms(userPhone, sms.substring(0, 160)))
+  if (userEmail)    promises.push(sendEmail(userEmail, subject, html))
+  if (userPhone)    promises.push(sendSms(userPhone, sms.substring(0, 160)))
+  if (userWhatsApp) promises.push(sendWhatsApp(userWhatsApp, waBody))
   await Promise.allSettled(promises)
 }
 
@@ -201,12 +240,13 @@ export async function notifyAlert({ userEmail, userPhone, alerts, tripName, city
 /**
  * Send SOS alerts to admin + emergency contacts.
  * @param {object} opts
- * @param {object}  opts.event       — the sos_events row
- * @param {Array}   opts.contacts    — [{name, email, phone?}]
+ * @param {object}  opts.event            — the sos_events row
+ * @param {Array}   opts.contacts         — [{name, email, phone?, whatsapp?}]
  * @param {string}  [opts.adminEmail]
  * @param {string}  [opts.adminPhone]
+ * @param {string}  [opts.adminWhatsApp]
  */
-export async function notifySos({ event, contacts = [], adminEmail, adminPhone }) {
+export async function notifySos({ event, contacts = [], adminEmail, adminPhone, adminWhatsApp }) {
   const mapsUrl = (event.latitude && event.longitude)
     ? `https://maps.google.com/?q=${event.latitude},${event.longitude}`
     : null
@@ -273,13 +313,23 @@ export async function notifySos({ event, contacts = [], adminEmail, adminPhone }
 
   const smsBody = smsLines.substring(0, 320)
 
+  const waBody = [
+    `🆘 *SOS ALERT — ${who}${where ? ` in ${where}` : ''}*`,
+    event.message ? `_"${event.message.substring(0, 120)}"_` : null,
+    mapsUrl ? `📍 Location: ${mapsUrl}` : '📍 No GPS available',
+    `🕐 ${new Date().toUTCString()}`,
+    `Respond immediately — Safeguard 360`,
+  ].filter(Boolean).join('\n')
+
   const promises = []
-  if (adminEmail) promises.push(sendEmail(adminEmail, subject, html))
-  if (adminPhone) promises.push(sendSms(adminPhone, smsBody))
+  if (adminEmail)    promises.push(sendEmail(adminEmail, subject, html))
+  if (adminPhone)    promises.push(sendSms(adminPhone, smsBody))
+  if (adminWhatsApp) promises.push(sendWhatsApp(adminWhatsApp, waBody))
 
   for (const c of contacts) {
-    if (c.email) promises.push(sendEmail(c.email, subject, html))
-    if (c.phone) promises.push(sendSms(c.phone, smsBody))
+    if (c.email)    promises.push(sendEmail(c.email, subject, html))
+    if (c.phone)    promises.push(sendSms(c.phone, smsBody))
+    if (c.whatsapp) promises.push(sendWhatsApp(c.whatsapp, waBody))
   }
 
   const results = await Promise.allSettled(promises)
