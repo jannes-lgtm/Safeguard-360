@@ -89,8 +89,8 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-white">
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
-          <div className="flex md:hidden items-center gap-2 mb-8">
-            <img src="/logo-transparent.png" alt="SafeGuard360" className="h-8 w-auto" style={{ filter: 'brightness(0) saturate(100%) invert(7%) sepia(96%) saturate(5187%) hue-rotate(231deg) brightness(89%) contrast(115%)' }} />
+          <div className="flex md:hidden items-center mb-8">
+            <img src="/logo-transparent.png" alt="SafeGuard360" className="h-12 w-auto" />
           </div>
 
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h2>
