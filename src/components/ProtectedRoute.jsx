@@ -4,6 +4,9 @@ import { supabase } from '../lib/supabase'
 
 const TERMS_VERSION = '1.0'
 
+// Roles that must complete the traveller onboarding wizard before accessing the app
+const ONBOARDING_ROLES = ['traveller', 'solo']
+
 export default function ProtectedRoute({ children, adminOnly = false, orgAdminAllowed = false }) {
   const navigate = useNavigate()
   const [checking, setChecking] = useState(true)
@@ -17,10 +20,10 @@ export default function ProtectedRoute({ children, adminOnly = false, orgAdminAl
         return
       }
 
-      // Load profile for role + terms check
+      // Load profile for role + terms + onboarding check
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, terms_version, terms_accepted_at')
+        .select('role, terms_version, terms_accepted_at, onboarding_completed_at, org_id')
         .eq('id', user.id)
         .single()
 
@@ -29,19 +32,31 @@ export default function ProtectedRoute({ children, adminOnly = false, orgAdminAl
         || user.user_metadata?.role
         || 'traveller'
 
-      // T&C gate — redirect to /terms if not accepted (developer exempt for testing)
+      // Gate 1 — T&C (developer exempt)
       if (role !== 'developer' && profile?.terms_version !== TERMS_VERSION) {
         navigate('/terms')
         return
       }
 
-      // adminOnly: platform admin + developer only
+      // Gate 2 — Org admin must complete org onboarding first
+      if (role === 'org_admin' && !profile?.org_id) {
+        navigate('/org-onboarding')
+        return
+      }
+
+      // Gate 3 — Travellers must complete personal onboarding first
+      if (ONBOARDING_ROLES.includes(role) && !profile?.onboarding_completed_at) {
+        navigate('/onboarding')
+        return
+      }
+
+      // Gate 4 — adminOnly: platform admin + developer only
       if (adminOnly && !['admin', 'developer'].includes(role)) {
         navigate('/dashboard')
         return
       }
 
-      // orgAdminAllowed: org_admin, platform admin, developer
+      // Gate 5 — orgAdminAllowed: org_admin, platform admin, developer
       if (orgAdminAllowed && !['admin', 'developer', 'org_admin'].includes(role)) {
         navigate('/dashboard')
         return

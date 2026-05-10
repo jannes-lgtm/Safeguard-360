@@ -26,6 +26,8 @@ import ControlRoom from './pages/ControlRoom'
 import Assistance from './pages/Assistance'
 import TermsAndConditions from './pages/TermsAndConditions'
 import TravelPolicy from './pages/TravelPolicy'
+import Onboarding from './pages/Onboarding'
+import OrgOnboarding from './pages/OrgOnboarding'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -36,6 +38,8 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/terms" element={<TermsAndConditions />} />
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/org-onboarding" element={<OrgOnboarding />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/itinerary" element={<ProtectedRoute><Itinerary /></ProtectedRoute>} />
         <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
