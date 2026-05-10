@@ -28,6 +28,7 @@ import TermsAndConditions from './pages/TermsAndConditions'
 import TravelPolicy from './pages/TravelPolicy'
 import Onboarding from './pages/Onboarding'
 import OrgOnboarding from './pages/OrgOnboarding'
+import AdminControlCenter from './pages/AdminControlCenter'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="/checkin" element={<ProtectedRoute><CheckIn /></ProtectedRoute>} />
         <Route path="/live-map" element={<ProtectedRoute><LiveMap /></ProtectedRoute>} />
         <Route path="/approvals"      element={<ProtectedRoute orgAdminAllowed><TravelApprovals /></ProtectedRoute>} />
+        <Route path="/admin"           element={<ProtectedRoute adminOnly><AdminControlCenter /></ProtectedRoute>} />
         <Route path="/organisations"   element={<ProtectedRoute adminOnly><Organisations /></ProtectedRoute>} />
         <Route path="/org/users"       element={<ProtectedRoute orgAdminAllowed><OrgUsers /></ProtectedRoute>} />
         <Route path="/org/training"    element={<ProtectedRoute orgAdminAllowed><OrgTraining /></ProtectedRoute>} />
