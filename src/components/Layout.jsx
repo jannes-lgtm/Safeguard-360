@@ -88,19 +88,22 @@ function DeveloperNav({ alertCount }) {
       <NavSection label="Intelligence" />
       <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
+      <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount} />
       <NavItem to="/intel-feeds"    icon={Radio}        label="Intel Feeds" />
 
       <NavSection label="Operations" />
       <NavItem to="/control-room"   icon={Headphones}   label="Live Control Room" />
       <NavItem to="/approvals"      icon={ClipboardList} label="Travel Approvals" />
-      <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount} />
-      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
 
       <NavSection label="Compliance" />
       <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
       <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
       <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
+
+      <NavSection label="24/7 Support" />
+      <NavItem to="/assistance"     icon={Headphones}   label="Assistance Requests" />
       <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
+      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
 
       <NavSection label="Account" />
       <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
@@ -121,10 +124,6 @@ function CorporateAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/approvals"      icon={ClipboardList} label="Travel Approvals" badge={pendingApprovals} />
       <NavItem to="/tracker"        icon={Navigation}   label="Staff Tracker" />
 
-      <NavSection label="Training" />
-      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
-      <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
-
       <NavSection label="Intelligence" />
       <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
@@ -133,11 +132,13 @@ function CorporateAdminNav({ alertCount, pendingApprovals }) {
       <NavSection label="Compliance" />
       <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
       <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
-      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
-      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
+      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
+      <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
 
       <NavSection label="24/7 Support" />
       <NavItem to="/control-room"   icon={Headphones}   label="Assistance Requests" />
+      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
+      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
 
       <NavSection label="Account" />
       <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
@@ -156,10 +157,6 @@ function OrgAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/approvals"      icon={ClipboardList} label="Travel Approvals" badge={pendingApprovals} />
       <NavItem to="/tracker"        icon={Navigation}   label="Staff Tracker" />
 
-      <NavSection label="Training" />
-      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
-      <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
-
       <NavSection label="Intelligence" />
       <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
@@ -168,11 +165,13 @@ function OrgAdminNav({ alertCount, pendingApprovals }) {
       <NavSection label="Compliance" />
       <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
       <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
-      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
-      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
+      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
+      <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
 
       <NavSection label="24/7 Support" />
       <NavItem to="/control-room"   icon={Headphones}   label="Assistance Requests" />
+      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
+      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
 
       <NavSection label="Account" />
       <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
@@ -201,10 +200,11 @@ function TravellerNav({ alertCount, tripAlertCount }) {
       <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
       <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
       <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
-      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
 
       <NavSection label="24/7 Support" />
-      <NavItem to="/assistance"     icon={Headphones}   label="Live Control Room" />
+      <NavItem to="/assistance"     icon={Headphones}   label="Assistance Requests" />
+      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
+      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
 
       <NavSection label="Account" />
       <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
@@ -220,21 +220,24 @@ function SoloTravellerNav({ alertCount, tripAlertCount }) {
 
       <NavSection label="My Travel" />
       <NavItem to="/itinerary"      icon={MapPin}       label="My Trips" />
-      <NavItem to="/alerts"         icon={Bell}         label="Travel Alerts" badge={alertCount + tripAlertCount} />
+      <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount + tripAlertCount} />
       <NavItem to="/checkin"        icon={CheckCircle}  label="Check In" />
       <NavItem to="/live-map"       icon={Navigation}   label="Live Location" />
       <NavItem to="/sos"            icon={AlertOctagon} label="SOS Emergency" red />
 
-      <NavSection label="Destination Intel" />
+      <NavSection label="Intelligence" />
       <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
 
-      <NavSection label="Safety" />
-      <NavItem to="/training"       icon={GraduationCap} label="Travel Safety Training" />
-      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
+      <NavSection label="Compliance" />
+      <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
+      <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
+      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
 
       <NavSection label="24/7 Support" />
-      <NavItem to="/assistance"     icon={Headphones}   label="Live Control Room" />
+      <NavItem to="/assistance"     icon={Headphones}   label="Assistance Requests" />
+      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
+      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
 
       <NavSection label="Account" />
       <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
