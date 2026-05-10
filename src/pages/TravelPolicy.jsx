@@ -650,21 +650,22 @@ export default function TravelPolicy() {
     const r = prof?.role || 'traveller'
     setRole(r)
 
-    if (!prof?.org_id) { setLoading(false); return }
+    const orgId = prof?.org_id
+    if (!orgId) { setLoading(false); return }
 
-    const [{ data: pol }, { data: sig }] = await Promise.all([
-      supabase.from('travel_policies').select('*').eq('org_id', prof.org_id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).single(),
-      supabase.from('policy_signatures').select('*').eq('user_id', user.id).limit(1).single(),
+    const [polRes, sigRes] = await Promise.all([
+      supabase.from('travel_policies').select('*').eq('org_id', orgId).eq('is_active', true).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('policy_signatures').select('*').eq('user_id', user.id).maybeSingle(),
     ])
 
-    setPolicy(pol)
-    setSignature(sig)
+    setPolicy(polRes.data)
+    setSignature(sigRes.data)
 
-    if (['admin', 'developer', 'org_admin'].includes(r) && pol) {
+    if (['admin', 'developer', 'org_admin'].includes(r) && polRes.data) {
       const { data: sigs } = await supabase
         .from('policy_signatures')
         .select('*, profiles(full_name, email)')
-        .eq('policy_id', pol.id)
+        .eq('policy_id', polRes.data.id)
         .order('signed_at', { ascending: false })
       setSignatures(sigs || [])
     }
