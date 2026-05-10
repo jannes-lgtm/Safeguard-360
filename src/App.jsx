@@ -25,6 +25,7 @@ import OrgTraining from './pages/OrgTraining'
 import ControlRoom from './pages/ControlRoom'
 import Assistance from './pages/Assistance'
 import TermsAndConditions from './pages/TermsAndConditions'
+import TravelPolicy from './pages/TravelPolicy'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/itinerary" element={<ProtectedRoute><Itinerary /></ProtectedRoute>} />
         <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
         <Route path="/policies" element={<ProtectedRoute><Policies /></ProtectedRoute>} />
+        <Route path="/travel-policy" element={<ProtectedRoute><TravelPolicy /></ProtectedRoute>} />
         <Route path="/training" element={<ProtectedRoute><Training /></ProtectedRoute>} />
         <Route path="/incidents" element={<ProtectedRoute><Incidents /></ProtectedRoute>} />
         <Route path="/tracker" element={<ProtectedRoute orgAdminAllowed><Tracker /></ProtectedRoute>} />

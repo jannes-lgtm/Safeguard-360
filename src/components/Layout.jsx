@@ -96,7 +96,8 @@ function DeveloperNav({ alertCount }) {
       <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
 
       <NavSection label="Compliance" />
-      <NavItem to="/policies"       icon={FileText}     label="Policy Library" />
+      <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
+      <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
       <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
       <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
 
@@ -127,7 +128,8 @@ function CorporateAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount} />
 
       <NavSection label="Compliance" />
-      <NavItem to="/policies"       icon={FileText}     label="Policy Library" />
+      <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
+      <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
       <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
       <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
 
@@ -161,7 +163,8 @@ function OrgAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount} />
 
       <NavSection label="Compliance" />
-      <NavItem to="/policies"       icon={FileText}     label="Policy Library" />
+      <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
+      <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
       <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
       <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
 
@@ -192,7 +195,8 @@ function TravellerNav({ alertCount, tripAlertCount }) {
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
 
       <NavSection label="Compliance" />
-      <NavItem to="/policies"       icon={FileText}     label="Policy Library" />
+      <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
+      <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
       <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
       <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
 
