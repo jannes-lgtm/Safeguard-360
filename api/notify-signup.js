@@ -1,6 +1,6 @@
 import { adapt } from './_adapter.js'
 
-const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || 'info@risk360.co'
+const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || 'admin@risk360.co'
 const RESEND_KEY  = process.env.RESEND_API_KEY
 const FROM_EMAIL  = process.env.RESEND_FROM_EMAIL || 'noreply@risk360.co'
 
