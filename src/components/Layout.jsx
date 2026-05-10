@@ -111,9 +111,10 @@ function DeveloperNav({ alertCount }) {
 function CorporateAdminNav({ alertCount, pendingApprovals }) {
   return (
     <>
-      <NavSection label="Overview" />
+      <NavSection label="Platform" />
       <NavItem to="/dashboard"      icon={LayoutGrid}   label="Dashboard" />
       <NavItem to="/admin"          icon={BarChart2}    label="Admin Control Center" />
+      <NavItem to="/organisations"  icon={Building2}    label="All Organisations" />
 
       <NavSection label="My Company" />
       <NavItem to="/org/users"      icon={Users}        label="Our Travellers" />
