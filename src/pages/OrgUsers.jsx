@@ -9,6 +9,7 @@ import {
   Users, CheckCircle2, AlertTriangle, Clock, MapPin,
   BookOpen, RefreshCw, ChevronDown, ChevronUp, Mail,
   UserPlus, X, Shield, FileText, Printer, Globe,
+  Phone, Calendar, Plane, GraduationCap, AlertCircle,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -102,33 +103,134 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals })
       </button>
 
       {open && (
-        <div className="border-t border-gray-100 px-4 pb-4 pt-3 space-y-3">
-          {/* Compliance breakdown */}
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: 'Training', pct: trainPct, detail: `${completedModules}/${totalModules} modules` },
-              { label: 'Check-ins', pct: checkinPct, detail: hasOverdue ? `${pendingCheckins.length} overdue` : 'On track' },
-            ].map(item => {
-              const ic = complianceColor(item.pct)
-              return (
-                <div key={item.label} className="bg-gray-50 rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">{item.label}</span>
-                    <span className={`text-xs font-bold ${ic.text}`}>{item.pct}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1">
-                    <div className="h-1.5 rounded-full transition-all" style={{ width: `${item.pct}%`, background: ic.bar }} />
-                  </div>
-                  <p className="text-[10px] text-gray-400">{item.detail}</p>
-                </div>
-              )
-            })}
+        <div className="border-t border-gray-100 px-4 pb-5 pt-4 space-y-4 bg-gray-50/40">
+
+          {/* Profile info */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-white rounded-xl p-3 border border-gray-100">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Contact</p>
+              <a href={`mailto:${user.email}`} className="flex items-center gap-1.5 text-xs text-[#0118A1] hover:underline mb-1">
+                <Mail size={11}/> {user.email}
+              </a>
+              {user.phone && (
+                <a href={`tel:${user.phone}`} className="flex items-center gap-1.5 text-xs text-gray-600">
+                  <Phone size={11}/> {user.phone}
+                </a>
+              )}
+            </div>
+            <div className="bg-white rounded-xl p-3 border border-gray-100">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Account</p>
+              <p className="text-xs text-gray-700">
+                {user.onboarding_completed_at
+                  ? <span className="text-green-600 font-semibold">✓ Onboarding complete</span>
+                  : <span className="text-amber-600 font-semibold">⚠ Onboarding pending</span>}
+              </p>
+              {user.created_at && (
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Joined {new Date(user.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
+              )}
+            </div>
+            <div className="bg-white rounded-xl p-3 border border-gray-100">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Current Trip</p>
+              {activeTrip ? (
+                <>
+                  <p className="text-xs font-semibold text-gray-800 truncate">{activeTrip.trip_name || 'Active Trip'}</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    {activeTrip.departure_city && activeTrip.arrival_city
+                      ? `${activeTrip.departure_city} → ${activeTrip.arrival_city}`
+                      : activeTrip.arrival_city || ''}
+                  </p>
+                  {activeTrip.return_date && (
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      Returns {new Date(activeTrip.return_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-gray-400 italic">Not currently travelling</p>
+              )}
+            </div>
           </div>
 
-          {/* Contact */}
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <Mail size={11} className="text-gray-400" />
-            <a href={`mailto:${user.email}`} className="hover:text-[#0118A1] hover:underline">{user.email}</a>
+          {/* Compliance breakdown */}
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Compliance Breakdown</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Training', icon: GraduationCap, pct: trainPct, detail: `${completedModules} of ${totalModules} modules complete` },
+                { label: 'Check-ins', icon: CheckCircle2, pct: checkinPct, detail: hasOverdue ? `${pendingCheckins.length} overdue check-in${pendingCheckins.length !== 1 ? 's' : ''}` : 'All check-ins on track' },
+              ].map(item => {
+                const ic = complianceColor(item.pct)
+                const Icon = item.icon
+                return (
+                  <div key={item.label} className="bg-white rounded-xl p-3 border border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <Icon size={12} className="text-gray-400" />
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{item.label}</span>
+                      </div>
+                      <span className={`text-sm font-bold ${ic.text}`}>{item.pct}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2 mb-1.5">
+                      <div className="h-2 rounded-full transition-all" style={{ width: `${item.pct}%`, background: ic.bar }} />
+                    </div>
+                    <p className="text-[10px] text-gray-400">{item.detail}</p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Training modules list */}
+          {trainingRecs.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Training Modules</p>
+              <div className="space-y-1.5">
+                {trainingRecs.map((rec, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-100">
+                    {rec.completed
+                      ? <CheckCircle2 size={13} className="text-green-500 shrink-0" />
+                      : <AlertCircle size={13} className="text-amber-400 shrink-0" />}
+                    <span className="text-xs text-gray-700 flex-1 truncate">
+                      {rec.training_modules?.module_name || rec.training_modules?.module_order
+                        ? `Module ${rec.training_modules.module_order}`
+                        : `Module ${i + 1}`}
+                    </span>
+                    <span className={`text-[10px] font-semibold ${rec.completed ? 'text-green-600' : 'text-amber-600'}`}>
+                      {rec.completed ? 'Complete' : 'Pending'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Overdue check-ins */}
+          {hasOverdue && (
+            <div className="bg-red-50 rounded-xl p-3 border border-red-200">
+              <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-1.5">
+                <AlertCircle size={10} className="inline mr-1" />Overdue Check-ins
+              </p>
+              {pendingCheckins.slice(0, 3).map((c, i) => (
+                <p key={i} className="text-xs text-red-700">
+                  {c.label || 'Check-in'} — due {new Date(c.due_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex gap-2 flex-wrap pt-1">
+            <a href={`mailto:${user.email}`}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white"
+              style={{ background: BRAND_BLUE }}>
+              <Mail size={12}/> Send Email
+            </a>
+            <a href={`mailto:${user.email}?subject=SafeGuard360 Check-in Reminder`}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors">
+              <Clock size={12}/> Send Reminder
+            </a>
           </div>
         </div>
       )}
@@ -189,7 +291,7 @@ export default function OrgUsers() {
       { data: pendingTrips },
     ] = await Promise.all([
       supabase.from('training_records')
-        .select('*, training_modules(module_order)')
+        .select('*, training_modules(module_order, module_name)')
         .in('user_id', userIds),
       supabase.from('scheduled_checkins')
         .select('*')
