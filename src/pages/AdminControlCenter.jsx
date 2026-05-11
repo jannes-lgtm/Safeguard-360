@@ -719,12 +719,17 @@ export default function AdminControlCenter() {
     const action = status === 'approved' ? 'approve' : 'reject'
     if (!confirm(`Are you sure you want to ${action} "${org.name}"?`)) return
     await supabase.from('organisations').update({ approval_status: status }).eq('id', org.id)
-    // Notify the org admin via email
     fetch('/api/notify-org-approval', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ org_id: org.id, org_name: org.name, status }),
     }).catch(() => {})
+    refresh()
+  }
+
+  const handleDeleteOrg = async (org) => {
+    if (!confirm(`Permanently delete "${org.name}"? This cannot be undone.`)) return
+    await supabase.from('organisations').delete().eq('id', org.id)
     refresh()
   }
 
@@ -1013,21 +1018,25 @@ export default function AdminControlCenter() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
-                            {o.approval_status === 'pending' && (
-                              <>
-                                <button onClick={()=>handleOrgApproval(o,'approved')} title="Approve"
-                                  className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors">
-                                  <UserCheck size={14}/>
-                                </button>
-                                <button onClick={()=>handleOrgApproval(o,'rejected')} title="Reject"
-                                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
-                                  <UserX size={14}/>
-                                </button>
-                              </>
+                            {o.approval_status !== 'approved' && (
+                              <button onClick={()=>handleOrgApproval(o,'approved')} title="Approve"
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors">
+                                <UserCheck size={14}/>
+                              </button>
+                            )}
+                            {o.approval_status !== 'rejected' && (
+                              <button onClick={()=>handleOrgApproval(o,'rejected')} title="Reject"
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                                <UserX size={14}/>
+                              </button>
                             )}
                             <button onClick={()=>setEditOrg(o)} title="Edit organisation"
                               className="p-1.5 rounded-lg text-gray-400 hover:text-[#0118A1] hover:bg-blue-50 transition-colors">
                               <Pencil size={14}/>
+                            </button>
+                            <button onClick={()=>handleDeleteOrg(o)} title="Delete organisation"
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                              <Trash2 size={14}/>
                             </button>
                           </div>
                         </td>
