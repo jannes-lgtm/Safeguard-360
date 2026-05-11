@@ -1,14 +1,66 @@
-import { createClient } from '@supabase/supabase-js'
-
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
+const headers = () => ({
+  'Content-Type':  'application/json',
+  'Authorization': `Bearer ${SERVICE_KEY}`,
+  'apikey':        SERVICE_KEY,
+})
+
+async function restPost(path, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method:  'POST',
+    headers: { ...headers(), 'Prefer': 'return=representation' },
+    body:    JSON.stringify(body),
+  })
+  const text = await res.text()
+  const data = text ? JSON.parse(text) : null
+  if (!res.ok) throw new Error(data?.[0]?.message || data?.message || text || res.statusText)
+  return Array.isArray(data) ? data[0] : data
+}
+
+async function restPatch(path, match, body) {
+  const params = Object.entries(match).map(([k, v]) => `${k}=eq.${v}`).join('&')
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}?${params}`, {
+    method:  'PATCH',
+    headers: { ...headers(), 'Prefer': 'return=representation' },
+    body:    JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(text || res.statusText)
+  }
+}
+
+async function createAuthUser(email, password, metadata) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+    method:  'POST',
+    headers: headers(),
+    body: JSON.stringify({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: metadata,
+    }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data?.msg || data?.message || data?.error_description || JSON.stringify(data))
+  return data
+}
+
+async function deleteAuthUser(userId) {
+  await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+    method:  'DELETE',
+    headers: headers(),
+  }).catch(() => {})
+}
+
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  if (req.method !== 'POST')    return res.status(405).json({ error: 'Method not allowed' })
 
   if (!SUPABASE_URL || !SERVICE_KEY) {
-    return res.status(500).json({ error: 'Server configuration error. Please contact support.' })
+    return res.status(500).json({ error: 'Server configuration error.' })
   }
 
   const { email, password, full_name, company_name, country } = req.body
@@ -16,61 +68,43 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing required fields.' })
   }
 
-  const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false }
-  })
-
-  let orgId = null
+  let orgId  = null
+  let userId = null
 
   try {
     // 1. Create the organisation
-    const { data: org, error: orgErr } = await supabaseAdmin
-      .from('organisations')
-      .insert({ name: company_name.trim(), country: country?.trim() || null, is_active: true })
-      .select('id,name')
-      .single()
-
-    if (orgErr) throw new Error(`Organisation error: ${orgErr.message}`)
+    const org = await restPost('organisations', {
+      name:      company_name.trim(),
+      country:   country?.trim() || null,
+      is_active: true,
+    })
     orgId = org.id
 
-    // 2. Create the auth user (trigger will create a basic profile row)
-    const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: full_name.trim(), role: 'org_admin', org_id: org.id },
+    // 2. Create auth user via admin REST API
+    const user = await createAuthUser(email, password, {
+      full_name: full_name.trim(),
+      role:      'org_admin',
+      org_id:    orgId,
+    })
+    userId = user.id
+
+    // 3. Ensure profile has correct role + org_id
+    await restPatch('profiles', { id: userId }, {
+      full_name: full_name.trim(),
+      role:      'org_admin',
+      org_id:    orgId,
+      status:    'active',
     })
 
-    if (authErr) throw new Error(`Auth error: ${authErr.message}`)
-
-    // 3. Ensure profile has correct role + org_id (trigger may have set defaults)
-    const { error: profileErr } = await supabaseAdmin
-      .from('profiles')
-      .upsert({
-        id:        authData.user.id,
-        email,
-        full_name: full_name.trim(),
-        role:      'org_admin',
-        org_id:    org.id,
-        status:    'active',
-      }, { onConflict: 'id' })
-
-    if (profileErr) throw new Error(`Profile error: ${profileErr.message}`)
-
-    // Notify admin (fire-and-forget)
-    fetch(`${SUPABASE_URL.replace('supabase.co', 'vercel.app')}/api/notify-signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ full_name: full_name.trim(), email, company_name, role: 'org_admin' }),
-    }).catch(() => {})
-
-    return res.status(200).json({ success: true, org_id: org.id })
+    return res.status(200).json({ success: true, org_id: orgId })
   } catch (err) {
-    // Roll back org if it was created
-    if (orgId) {
-      await supabaseAdmin.from('organisations').delete().eq('id', orgId).catch(() => {})
+    console.error('[org-signup]', err.message)
+    if (userId) await deleteAuthUser(userId)
+    if (orgId)  {
+      await fetch(`${SUPABASE_URL}/rest/v1/organisations?id=eq.${orgId}`, {
+        method: 'DELETE', headers: headers(),
+      }).catch(() => {})
     }
-    console.error('[org-signup] error:', err.message)
-    return res.status(400).json({ error: err.message || 'Signup failed.' })
+    return res.status(400).json({ error: err.message || 'Signup failed. Please try again.' })
   }
 }
