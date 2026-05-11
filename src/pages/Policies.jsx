@@ -21,7 +21,8 @@ import { useEffect, useState } from 'react'
 import {
   FileText, Download, CheckCircle2, Clock,
   Shield, Plane, HeartPulse, BookOpen,
-  RefreshCw, ChevronRight, AlertCircle
+  RefreshCw, ChevronRight, AlertCircle,
+  Mail, Plus, Upload, X,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -63,6 +64,15 @@ function StatusChip({ status }) {
   )
 }
 
+function InternalBadge() {
+  return (
+    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide"
+      style={{ background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' }}>
+      Internal
+    </span>
+  )
+}
+
 // ── Policy card ───────────────────────────────────────────────────────────────
 function PolicyCard({ policy, acknowledged, onAcknowledge, ackLoading }) {
   const isUnderReview = policy.status === 'Under Review'
@@ -96,6 +106,7 @@ function PolicyCard({ policy, acknowledged, onAcknowledge, ackLoading }) {
             <div className="flex flex-wrap gap-1.5">
               <CategoryChip category={policy.category} />
               <StatusChip status={policy.status} />
+              {policy.org_id && <InternalBadge />}
             </div>
           </div>
         </div>
@@ -158,6 +169,176 @@ function PolicyCard({ policy, acknowledged, onAcknowledge, ackLoading }) {
   )
 }
 
+// ── Add Policy Modal ──────────────────────────────────────────────────────────
+function AddPolicyModal({ orgId, onClose, onSaved }) {
+  const POLICY_CATEGORIES = ['Travel', 'Compliance', 'Security', 'Health & Safety']
+  const today = new Date().toISOString().split('T')[0]
+
+  const [form, setForm] = useState({
+    name: '', category: 'Travel', description: '', file_url: '', version: '1.0',
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  const f = key => ({
+    value: form[key] ?? '',
+    onChange: e => setForm(p => ({ ...p, [key]: e.target.value })),
+  })
+
+  const handleSave = async () => {
+    if (!form.name.trim()) return
+    setSaving(true)
+    setError(null)
+    const { error: err } = await supabase.from('policies').insert({
+      name:         form.name.trim(),
+      category:     form.category,
+      description:  form.description,
+      file_url:     form.file_url,
+      version:      form.version || '1.0',
+      org_id:       orgId,
+      status:       'Active',
+      last_updated: today,
+    })
+    setSaving(false)
+    if (err) { setError(err.message); return }
+    onSaved()
+    onClose()
+  }
+
+  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+  const labelClass = "text-xs font-semibold text-gray-600 block mb-1.5"
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Plus size={16} style={{ color: BRAND_BLUE }} />
+            <h2 className="text-base font-bold text-gray-900">Add Policy</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700">{error}</div>
+          )}
+
+          <div>
+            <label className={labelClass}>Policy name <span className="text-red-500">*</span></label>
+            <input className={inputClass} placeholder="e.g. International Travel Security Policy" {...f('name')} />
+          </div>
+
+          <div>
+            <label className={labelClass}>Category</label>
+            <select className={inputClass} {...f('category')}>
+              {POLICY_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className={labelClass}>Description</label>
+            <textarea className={`${inputClass} h-24 resize-none`}
+              placeholder="What does this policy cover?" {...f('description')} />
+          </div>
+
+          <div>
+            <label className={labelClass}>Document URL or link</label>
+            <input className={inputClass} placeholder="https://…" {...f('file_url')} />
+          </div>
+
+          <div>
+            <label className={labelClass}>Version</label>
+            <input className={inputClass} placeholder="1.0" {...f('version')} />
+          </div>
+        </div>
+
+        <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+            Cancel
+          </button>
+          <button onClick={handleSave} disabled={saving || !form.name.trim()}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl disabled:opacity-50"
+            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            {saving ? <><RefreshCw size={13} className="animate-spin" /> Saving…</> : <><Upload size={13} /> Add Policy</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Request Policy Modal ──────────────────────────────────────────────────────
+function RequestPolicyModal({ orgName, onClose }) {
+  const [form, setForm] = useState({ title: '', description: '', urgency: 'Standard' })
+
+  const f = key => ({
+    value: form[key] ?? '',
+    onChange: e => setForm(p => ({ ...p, [key]: e.target.value })),
+  })
+
+  const handleSubmit = () => {
+    const subject = encodeURIComponent(`Policy Request – ${orgName || 'My Organisation'}`)
+    const body = encodeURIComponent(
+      `Policy Request\n\nPolicy title / topic:\n${form.title}\n\nUrgency: ${form.urgency}\n\nWhat the policy should cover:\n${form.description}`
+    )
+    window.location.href = `mailto:support@risk360.co?subject=${subject}&body=${body}`
+    onClose()
+  }
+
+  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+  const labelClass = "text-xs font-semibold text-gray-600 block mb-1.5"
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Mail size={16} style={{ color: BRAND_BLUE }} />
+            <h2 className="text-base font-bold text-gray-900">Request from SafeGuard360</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <div>
+            <label className={labelClass}>Policy title / topic needed <span className="text-red-500">*</span></label>
+            <input className={inputClass} placeholder="e.g. Remote Work Security Policy" {...f('title')} />
+          </div>
+
+          <div>
+            <label className={labelClass}>What should the policy cover?</label>
+            <textarea className={`${inputClass} h-28 resize-none`}
+              placeholder="Describe the scope, audience, and key areas the policy should address…"
+              {...f('description')} />
+          </div>
+
+          <div>
+            <label className={labelClass}>Urgency</label>
+            <select className={inputClass} {...f('urgency')}>
+              <option value="Standard">Standard</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+            Cancel
+          </button>
+          <button onClick={handleSubmit} disabled={!form.title.trim()}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl disabled:opacity-50 transition-opacity"
+            style={{ background: BRAND_BLUE, color: 'white' }}>
+            <Mail size={14} /> Send Request
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function Policies() {
   const [policies, setPolicies]             = useState([])
@@ -166,14 +347,31 @@ export default function Policies() {
   const [ackLoading, setAckLoading]         = useState(null)
   const [ackTableMissing, setAckTableMissing] = useState(false)
   const [filter, setFilter]                 = useState('all')
+  const [userProfile, setUserProfile]       = useState(null)
+  const [showAddModal, setShowAddModal]     = useState(false)
+  const [showRequestModal, setShowRequestModal] = useState(false)
 
   const load = async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
 
+    // Load user profile to get role, org_id, full_name
+    const { data: prof } = await supabase
+      .from('profiles').select('role, org_id, full_name, organisations(name)').eq('id', user.id).single()
+    setUserProfile(prof || null)
+
+    const orgId = prof?.org_id
+
+    // Build policies query — include org-specific policies when user has an org
+    let polsQuery = supabase.from('policies').select('*').in('status', ['Active', 'Under Review'])
+    if (orgId) {
+      polsQuery = polsQuery.or(`org_id.is.null,org_id.eq.${orgId}`)
+    }
+    polsQuery = polsQuery.order('name')
+
     const [{ data: pols }, { data: acks, error: ackErr }] = await Promise.all([
-      supabase.from('policies').select('*').in('status', ['Active', 'Under Review']).order('name'),
+      polsQuery,
       supabase.from('policy_acknowledgements').select('policy_id, acknowledged_at').eq('user_id', user.id),
     ])
 
@@ -200,6 +398,11 @@ export default function Policies() {
     setAckLoading(null)
   }
 
+  const role  = userProfile?.role
+  const orgId = userProfile?.org_id
+  const orgName = userProfile?.organisations?.name
+  const canManagePolicies = role === 'admin' || role === 'org_admin'
+
   const total    = policies.filter(p => p.status === 'Active').length
   const ackCount = policies.filter(p => acknowledgements[p.id]).length
   const pct      = total > 0 ? Math.round((ackCount / total) * 100) : 0
@@ -213,10 +416,27 @@ export default function Policies() {
   return (
     <Layout>
       {/* Header */}
-      <div className="mb-7">
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">Compliance</p>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Policy Library</h1>
-        <p className="text-sm text-gray-400 mt-1">Duty of care documents and sign-off tracking</p>
+      <div className="mb-7 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">Compliance</p>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Policy Library</h1>
+          <p className="text-sm text-gray-400 mt-1">Duty of care documents and sign-off tracking</p>
+        </div>
+
+        {canManagePolicies && (
+          <div className="flex items-center gap-2 shrink-0 mt-1">
+            <button onClick={() => setShowRequestModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-colors hover:bg-[#0118A1]/5"
+              style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, background: 'white' }}>
+              <Mail size={15} /> Request from SafeGuard360
+            </button>
+            <button onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
+              style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+              <Plus size={15} /> Add Policy
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Acknowledgement table missing */}
@@ -313,6 +533,21 @@ export default function Policies() {
             />
           ))}
         </div>
+      )}
+
+      {showAddModal && (
+        <AddPolicyModal
+          orgId={orgId}
+          onClose={() => setShowAddModal(false)}
+          onSaved={load}
+        />
+      )}
+
+      {showRequestModal && (
+        <RequestPolicyModal
+          orgName={orgName}
+          onClose={() => setShowRequestModal(false)}
+        />
       )}
     </Layout>
   )

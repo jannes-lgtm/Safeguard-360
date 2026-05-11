@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react'
 import {
   BookOpen, Plus, X, CheckCircle2, Video, Link as LinkIcon,
   FileText, File, Pencil, Trash2, GraduationCap, Users,
-  BarChart2, RefreshCw, Shield,
+  BarChart2, RefreshCw, Shield, Mail,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -228,6 +228,84 @@ function ModuleModal({ mod, maxOrder, onClose, onSaved, orgId, userId }) {
   )
 }
 
+// ── Request Training Modal ────────────────────────────────────────────────────
+function RequestTrainingModal({ orgName, onClose }) {
+  const [form, setForm] = useState({ title: '', description: '', category: 'Safety & Security' })
+
+  const CATEGORIES = [
+    'Safety & Security',
+    'Destination Briefing',
+    'Emergency Response',
+    'Compliance & Legal',
+    'Cultural Awareness',
+    'Other',
+  ]
+
+  const f = key => ({
+    value: form[key] ?? '',
+    onChange: e => setForm(p => ({ ...p, [key]: e.target.value })),
+  })
+
+  const handleSubmit = () => {
+    const subject = encodeURIComponent(`Training Request – ${orgName || 'My Organisation'}`)
+    const body = encodeURIComponent(
+      `Training Request\n\nWhat training is needed:\n${form.title}\n\nCategory: ${form.category}\n\nDescription:\n${form.description}`
+    )
+    window.location.href = `mailto:support@risk360.co?subject=${subject}&body=${body}`
+    onClose()
+  }
+
+  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+  const labelClass = "text-xs font-semibold text-gray-600 block mb-1.5"
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Mail size={16} style={{ color: BRAND_BLUE }} />
+            <h2 className="text-base font-bold text-gray-900">Request from SafeGuard360</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <div>
+            <label className={labelClass}>What training do you need? <span className="text-red-500">*</span></label>
+            <input className={inputClass} placeholder="e.g. Active Shooter Response Training" {...f('title')} />
+          </div>
+
+          <div>
+            <label className={labelClass}>Category</label>
+            <select className={inputClass} {...f('category')}>
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className={labelClass}>Describe the training content, audience, and any specific topics</label>
+            <textarea className={`${inputClass} h-28 resize-none`}
+              placeholder="Include details about the intended audience, learning objectives, and any specific requirements…"
+              {...f('description')} />
+          </div>
+        </div>
+
+        <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 flex gap-3">
+          <button onClick={onClose}
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+            Cancel
+          </button>
+          <button onClick={handleSubmit} disabled={!form.title.trim()}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl disabled:opacity-50 transition-opacity"
+            style={{ background: BRAND_BLUE, color: 'white' }}>
+            <Mail size={14} /> Send Request
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function OrgTraining() {
   const [profile, setProfile]         = useState(null)
@@ -237,6 +315,7 @@ export default function OrgTraining() {
   const [loading, setLoading]         = useState(true)
   const [modal, setModal]             = useState(null)  // null | 'new' | module obj
   const [deletingId, setDeletingId]   = useState(null)
+  const [showRequestModal, setShowRequestModal] = useState(false)
 
   const loadData = async () => {
     setLoading(true)
@@ -295,6 +374,11 @@ export default function OrgTraining() {
         <div className="flex items-center gap-2">
           <button onClick={loadData} className="p-2 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100">
             <RefreshCw size={16} />
+          </button>
+          <button onClick={() => setShowRequestModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-colors hover:bg-[#0118A1]/5"
+            style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, background: 'white' }}>
+            <Mail size={15} /> Request from SafeGuard360
           </button>
           <button onClick={() => setModal('new')}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
@@ -386,6 +470,13 @@ export default function OrgTraining() {
           userId={profile?.id}
           onClose={() => setModal(null)}
           onSaved={loadData}
+        />
+      )}
+
+      {showRequestModal && (
+        <RequestTrainingModal
+          orgName={profile?.organisations?.name}
+          onClose={() => setShowRequestModal(false)}
         />
       )}
     </Layout>
