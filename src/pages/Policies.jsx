@@ -401,7 +401,8 @@ export default function Policies() {
   const role  = userProfile?.role
   const orgId = userProfile?.org_id
   const orgName = userProfile?.organisations?.name
-  const canManagePolicies = role === 'admin' || role === 'org_admin'
+  // Buttons visible to any non-traveller/solo with an org, plus platform admins and developers
+  const canManagePolicies = ['admin', 'org_admin', 'developer'].includes(role) || (orgId && !['traveller', 'solo'].includes(role))
 
   const total    = policies.filter(p => p.status === 'Active').length
   const ackCount = policies.filter(p => acknowledgements[p.id]).length
