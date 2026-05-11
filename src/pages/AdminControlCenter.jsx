@@ -969,7 +969,8 @@ export default function AdminControlCenter() {
                     <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Users</th>
                     <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Travelling</th>
                     <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Plan</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Setup</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Approval</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Onboarding</th>
                     <th className="text-right px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Actions</th>
                   </tr>
                 </thead>
@@ -1003,12 +1004,12 @@ export default function AdminControlCenter() {
                           <Pill label={(o.subscription_plan||'professional').charAt(0).toUpperCase()+(o.subscription_plan||'professional').slice(1)} color="blue"/>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex flex-col gap-1">
-                            <Pill label={o.org_onboarding_completed_at?'Complete':'Pending'} color={o.org_onboarding_completed_at?'green':'amber'}/>
-                            {o.approval_status === 'pending' && <Pill label="Awaiting Approval" color="amber"/>}
-                            {o.approval_status === 'approved' && <Pill label="Approved" color="green"/>}
-                            {o.approval_status === 'rejected' && <Pill label="Rejected" color="red"/>}
-                          </div>
+                          {o.approval_status === 'pending'  && <Pill label="Awaiting Approval" color="amber"/>}
+                          {o.approval_status === 'approved' && <Pill label="Approved" color="green"/>}
+                          {o.approval_status === 'rejected' && <Pill label="Rejected" color="red"/>}
+                        </td>
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          <Pill label={o.org_onboarding_completed_at ? 'Complete' : 'Pending'} color={o.org_onboarding_completed_at ? 'green' : 'amber'}/>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
