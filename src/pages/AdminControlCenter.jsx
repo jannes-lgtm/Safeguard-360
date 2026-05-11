@@ -733,6 +733,16 @@ export default function AdminControlCenter() {
     refresh()
   }
 
+  const handleDeleteProfile = async (profile) => {
+    if (!confirm(`Permanently delete "${profile.full_name || profile.email}"? This removes their account and cannot be undone.`)) return
+    await fetch('/api/delete-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: profile.id }),
+    })
+    refresh()
+  }
+
   if (loading) return (
     <Layout>
       <div className="flex items-center justify-center h-64">
@@ -918,22 +928,25 @@ export default function AdminControlCenter() {
                             : <span className="text-gray-400 text-xs">At home</span>}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-1">
-                            <button onClick={()=>setLinkProfile(p)} title="Link / change organisation"
-                              className="p-1.5 rounded-lg text-gray-400 hover:text-[#0118A1] hover:bg-blue-50 transition-colors">
-                              <Link2 size={14}/>
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            <button onClick={()=>setLinkProfile(p)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#0118A1] bg-blue-50 hover:bg-blue-100 transition-colors">
+                              <Link2 size={11}/> Assign Org
                             </button>
-                            <button onClick={()=>setRoleProfile(p)} title="Change role"
-                              className="p-1.5 rounded-lg text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors">
-                              <Pencil size={14}/>
+                            <button onClick={()=>setRoleProfile(p)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors">
+                              <Pencil size={11}/> Role
                             </button>
                             {p.org_id && (
                               <button onClick={async()=>{ if(confirm('Remove from organisation?')) { await supabase.from('profiles').update({org_id:null}).eq('id',p.id); refresh() }}}
-                                title="Remove from organisation"
-                                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
-                                <Link2Off size={14}/>
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors">
+                                <Link2Off size={11}/> Unlink
                               </button>
                             )}
+                            <button onClick={()=>handleDeleteProfile(p)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
+                              <Trash2 size={11}/> Delete
+                            </button>
                           </div>
                         </td>
                       </tr>
