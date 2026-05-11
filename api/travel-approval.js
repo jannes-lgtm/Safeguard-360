@@ -158,8 +158,8 @@ async function _handler(req, res) {
   const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token)
   if (authErr || !user) return res.status(401).json({ error: 'Invalid token' })
 
-  const { data: prof } = await supabaseAdmin.from('profiles').select('role').eq('id', user.id).single()
-  if (!['admin', 'developer'].includes(prof?.role)) return res.status(403).json({ error: 'Admin or developer only' })
+  const { data: prof } = await supabaseAdmin.from('profiles').select('role, org_id').eq('id', user.id).single()
+  if (!['admin', 'developer', 'org_admin'].includes(prof?.role)) return res.status(403).json({ error: 'Admin or developer only' })
 
   const { action, trip_id, notes } = req.body
   if (!trip_id || !['approve', 'reject'].includes(action)) {
@@ -169,10 +169,18 @@ async function _handler(req, res) {
   // Load the trip
   const { data: trip, error: tripErr } = await supabaseAdmin
     .from('itineraries')
-    .select('*')
+    .select('*, profiles!user_id(org_id)')
     .eq('id', trip_id)
     .single()
   if (tripErr || !trip) return res.status(404).json({ error: 'Trip not found' })
+
+  // Org admins may only approve trips belonging to their own organisation
+  if (prof?.role === 'org_admin') {
+    const tripOrgId = trip.profiles?.org_id
+    if (!prof.org_id || tripOrgId !== prof.org_id) {
+      return res.status(403).json({ error: 'You can only approve trips for your own organisation' })
+    }
+  }
 
   // ── REJECT ────────────────────────────────────────────────────────────────
   if (action === 'reject') {
