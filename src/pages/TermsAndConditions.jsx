@@ -63,8 +63,10 @@ export default function TermsAndConditions() {
 
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() })
-        .eq('id', user.id)
+        .upsert(
+          { id: user.id, email: user.email, terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() },
+          { onConflict: 'id' }
+        )
 
       if (updateError) throw new Error(`Could not save your acceptance: ${updateError.message}`)
 
