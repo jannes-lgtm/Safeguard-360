@@ -795,14 +795,21 @@ export default function AdminControlCenter() {
       </div>
 
       {/* Tabs — scrollable on mobile */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 overflow-x-auto scrollbar-none">
+      <div className="flex gap-1 mb-6 overflow-x-auto scrollbar-none border-b border-gray-200 pb-0">
         {TABS.map(t => {
           const Icon = t.icon
+          const active = tab === t.id
           return (
-            <button key={t.id} onClick={()=>setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors shrink-0
-                ${tab===t.id?'bg-white shadow-sm text-gray-900':'text-gray-500 hover:text-gray-700'}`}>
-              <Icon size={13}/> {t.label}
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className="flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-all shrink-0 relative"
+              style={{
+                color: active ? BRAND_BLUE : '#6B7280',
+                borderBottom: active ? `3px solid ${BRAND_GREEN}` : '3px solid transparent',
+                background: active ? `${BRAND_BLUE}08` : 'transparent',
+                borderRadius: '8px 8px 0 0',
+              }}>
+              <Icon size={15} style={{ color: active ? BRAND_BLUE : '#9CA3AF' }}/>
+              {t.label}
             </button>
           )
         })}
