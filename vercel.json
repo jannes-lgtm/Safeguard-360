@@ -19,7 +19,8 @@
     "api/notify-signup.js":    { "maxDuration": 10 },
     "api/visa-check.js":       { "maxDuration": 45 },
     "api/visa-letter.js":      { "maxDuration": 60 },
-    "api/org-signup.js":       { "maxDuration": 20 }
+    "api/org-signup.js":       { "maxDuration": 20 },
+    "api/notify-org-approval.js": { "maxDuration": 10 }
   },
   "crons": [
     {

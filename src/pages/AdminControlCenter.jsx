@@ -715,6 +715,19 @@ export default function AdminControlCenter() {
     refresh()
   }
 
+  const handleOrgApproval = async (org, status) => {
+    const action = status === 'approved' ? 'approve' : 'reject'
+    if (!confirm(`Are you sure you want to ${action} "${org.name}"?`)) return
+    await supabase.from('organisations').update({ approval_status: status }).eq('id', org.id)
+    // Notify the org admin via email
+    fetch('/api/notify-org-approval', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ org_id: org.id, org_name: org.name, status }),
+    }).catch(() => {})
+    refresh()
+  }
+
   if (loading) return (
     <Layout>
       <div className="flex items-center justify-center h-64">
@@ -990,10 +1003,27 @@ export default function AdminControlCenter() {
                           <Pill label={(o.subscription_plan||'professional').charAt(0).toUpperCase()+(o.subscription_plan||'professional').slice(1)} color="blue"/>
                         </td>
                         <td className="px-4 py-3">
-                          <Pill label={o.org_onboarding_completed_at?'Complete':'Pending'} color={o.org_onboarding_completed_at?'green':'amber'}/>
+                          <div className="flex flex-col gap-1">
+                            <Pill label={o.org_onboarding_completed_at?'Complete':'Pending'} color={o.org_onboarding_completed_at?'green':'amber'}/>
+                            {o.approval_status === 'pending' && <Pill label="Awaiting Approval" color="amber"/>}
+                            {o.approval_status === 'approved' && <Pill label="Approved" color="green"/>}
+                            {o.approval_status === 'rejected' && <Pill label="Rejected" color="red"/>}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
+                            {o.approval_status === 'pending' && (
+                              <>
+                                <button onClick={()=>handleOrgApproval(o,'approved')} title="Approve"
+                                  className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors">
+                                  <UserCheck size={14}/>
+                                </button>
+                                <button onClick={()=>handleOrgApproval(o,'rejected')} title="Reject"
+                                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                                  <UserX size={14}/>
+                                </button>
+                              </>
+                            )}
                             <button onClick={()=>setEditOrg(o)} title="Edit organisation"
                               className="p-1.5 rounded-lg text-gray-400 hover:text-[#0118A1] hover:bg-blue-50 transition-colors">
                               <Pencil size={14}/>

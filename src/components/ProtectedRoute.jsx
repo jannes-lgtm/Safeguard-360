@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
 const TERMS_VERSION = '1.0'
-
-// Roles that must complete the traveller onboarding wizard before accessing the app
 const ONBOARDING_ROLES = ['traveller', 'solo']
 
 export default function ProtectedRoute({ children, adminOnly = false, orgAdminAllowed = false }) {
@@ -14,13 +12,8 @@ export default function ProtectedRoute({ children, adminOnly = false, orgAdminAl
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login'); return }
 
-      if (!user) {
-        navigate('/login')
-        return
-      }
-
-      // Load profile for role + terms + onboarding check
       const { data: profile } = await supabase
         .from('profiles')
         .select('role, terms_version, terms_accepted_at, onboarding_completed_at, org_id')
@@ -38,10 +31,22 @@ export default function ProtectedRoute({ children, adminOnly = false, orgAdminAl
         return
       }
 
-      // Gate 2 — Org admin must complete org onboarding first
-      if (role === 'org_admin' && !profile?.org_id) {
-        navigate('/org-onboarding')
-        return
+      // Gate 2 — Org admin: needs org, org must be approved
+      if (role === 'org_admin') {
+        if (!profile?.org_id) {
+          navigate('/org-onboarding')
+          return
+        }
+        const { data: org } = await supabase
+          .from('organisations')
+          .select('approval_status')
+          .eq('id', profile.org_id)
+          .single()
+
+        if (!org || org.approval_status === 'pending' || org.approval_status === 'rejected') {
+          navigate('/pending-approval')
+          return
+        }
       }
 
       // Gate 3 — Travellers must complete personal onboarding first

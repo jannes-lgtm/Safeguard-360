@@ -31,6 +31,7 @@ import OrgOnboarding from './pages/OrgOnboarding'
 import AdminControlCenter from './pages/AdminControlCenter'
 import Visa from './pages/Visa'
 import ResetPassword from './pages/ResetPassword'
+import PendingApproval from './pages/PendingApproval'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/pending-approval" element={<PendingApproval />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="/onboarding" element={<Onboarding />} />
