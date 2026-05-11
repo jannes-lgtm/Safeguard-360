@@ -1137,18 +1137,18 @@ export default function Dashboard() {
       {role === 'developer' && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
-            <MetricCard label="Organisations"    value={loading ? '–' : devMetrics.orgs}        icon={Building2}    valueColor="text-[#0118A1]" accent="#0118A1" />
-            <MetricCard label="Total Travellers" value={loading ? '–' : devMetrics.travellers}  icon={Users}        valueColor="text-[#0118A1]" accent="#0118A1" />
-            <MetricCard label="Active Trips"     value={loading ? '–' : devMetrics.activeTrips} icon={Plane}        valueColor="text-blue-600"  accent="#2563EB" />
+            <MetricCard label="Organisations"    value={loading ? '–' : devMetrics.orgs}        icon={Building2}    valueColor="text-[#0118A1]" accent="#0118A1" to="/organisations" />
+            <MetricCard label="Total Travellers" value={loading ? '–' : devMetrics.travellers}  icon={Users}        valueColor="text-[#0118A1]" accent="#0118A1" to="/admin" />
+            <MetricCard label="Active Trips"     value={loading ? '–' : devMetrics.activeTrips} icon={Plane}        valueColor="text-blue-600"  accent="#2563EB" to="/tracker" />
             <MetricCard label="Control Room"     value={loading ? '–' : devMetrics.controlRoom} icon={Headphones}
               valueColor={devMetrics.controlRoom > 0 ? 'text-red-600' : 'text-emerald-600'}
-              accent={devMetrics.controlRoom > 0 ? '#EF4444' : '#059669'} />
+              accent={devMetrics.controlRoom > 0 ? '#EF4444' : '#059669'} to="/control-room" />
           </div>
           <div className="grid grid-cols-2 gap-4 mb-7">
             <MetricCard label="Active Alerts" value={loading ? '–' : metrics.activeAlerts} icon={Bell}
               valueColor={metrics.activeAlerts > 0 ? 'text-red-600' : 'text-gray-900'}
-              accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'} />
-            <MetricCard label="Active Feeds"  value={loading ? '–' : metrics.activeFeeds}  icon={Radio} valueColor="text-emerald-600" accent="#059669" />
+              accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'} to="/alerts" />
+            <MetricCard label="Active Feeds"  value={loading ? '–' : metrics.activeFeeds}  icon={Radio} valueColor="text-emerald-600" accent="#059669" to="/intel-feeds" />
           </div>
         </>
       )}
@@ -1157,14 +1157,14 @@ export default function Dashboard() {
       {role === 'admin' && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
-            <MetricCard label="Our Travellers"    value={loading ? '–' : adminMetrics.travellers}       icon={Users}         valueColor="text-[#0118A1]" accent="#0118A1" />
-            <MetricCard label="Currently Travelling" value={loading ? '–' : adminMetrics.travelling}   icon={Plane}         valueColor="text-blue-600"  accent="#2563EB" />
+            <MetricCard label="Our Travellers"    value={loading ? '–' : adminMetrics.travellers}       icon={Users}         valueColor="text-[#0118A1]" accent="#0118A1" to="/org/users" />
+            <MetricCard label="Currently Travelling" value={loading ? '–' : adminMetrics.travelling}   icon={Plane}         valueColor="text-blue-600"  accent="#2563EB" to="/tracker" />
             <MetricCard label="Pending Approvals" value={loading ? '–' : adminMetrics.pendingApprovals} icon={ClipboardList}
               valueColor={adminMetrics.pendingApprovals > 0 ? 'text-amber-600' : 'text-gray-900'}
-              accent={adminMetrics.pendingApprovals > 0 ? '#D97706' : '#0118A1'} />
+              accent={adminMetrics.pendingApprovals > 0 ? '#D97706' : '#0118A1'} to="/approvals" />
             <MetricCard label="Overdue Check-ins" value={loading ? '–' : adminMetrics.overdueCheckins} icon={Clock}
               valueColor={adminMetrics.overdueCheckins > 0 ? 'text-red-600' : 'text-emerald-600'}
-              accent={adminMetrics.overdueCheckins > 0 ? '#EF4444' : '#059669'} />
+              accent={adminMetrics.overdueCheckins > 0 ? '#EF4444' : '#059669'} to="/control-room" />
           </div>
 
           {/* Urgent action banners — only shown when there's something that needs attention */}
@@ -1216,12 +1216,12 @@ export default function Dashboard() {
       {(role === 'traveller' || role === 'solo') && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
-            <MetricCard label="My Compliance"  value={loading ? '–' : complianceBreakdown ? `${complianceBreakdown.total}%` : '–'} icon={BarChart2} valueColor="text-[#0118A1]" accent="#0118A1" />
+            <MetricCard label="My Compliance"  value={loading ? '–' : complianceBreakdown ? `${complianceBreakdown.total}%` : '–'} icon={BarChart2} valueColor="text-[#0118A1]" accent="#0118A1" to="/training" />
             <MetricCard label="Active Alerts"  value={loading ? '–' : metrics.activeAlerts} icon={Bell}
               valueColor={metrics.activeAlerts > 0 ? 'text-red-600' : 'text-gray-900'}
-              accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'} />
-            <MetricCard label="My Trips"       value={loading ? '–' : myTrips.length}       icon={Plane}  valueColor="text-[#0118A1]" accent="#0118A1" />
-            <MetricCard label="Active Feeds"   value={loading ? '–' : metrics.activeFeeds}  icon={Radio}  valueColor="text-emerald-600" accent="#059669" />
+              accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'} to="/alerts" />
+            <MetricCard label="My Trips"       value={loading ? '–' : myTrips.length}       icon={Plane}  valueColor="text-[#0118A1]" accent="#0118A1" to="/itinerary" />
+            <MetricCard label="Active Feeds"   value={loading ? '–' : metrics.activeFeeds}  icon={Radio}  valueColor="text-emerald-600" accent="#059669" to="/intel-feeds" />
           </div>
 
           {/* Quick action shortcuts */}
