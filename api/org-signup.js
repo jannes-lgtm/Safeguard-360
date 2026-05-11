@@ -88,13 +88,23 @@ export default async function handler(req, res) {
     })
     userId = user.id
 
-    // 3. Ensure profile has correct role + org_id
-    await restPatch('profiles', { id: userId }, {
-      full_name: full_name.trim(),
-      role:      'org_admin',
-      org_id:    orgId,
-      status:    'active',
+    // 3. Upsert profile — works whether trigger created it or not
+    const profileRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+      method:  'POST',
+      headers: { ...headers(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({
+        id:        userId,
+        email,
+        full_name: full_name.trim(),
+        role:      'org_admin',
+        org_id:    orgId,
+        status:    'active',
+      }),
     })
+    if (!profileRes.ok) {
+      const t = await profileRes.text()
+      throw new Error(`Profile error: ${t}`)
+    }
 
     return res.status(200).json({ success: true, org_id: orgId })
   } catch (err) {
