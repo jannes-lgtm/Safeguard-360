@@ -55,40 +55,20 @@ export default function Signup() {
     setLoading(true)
 
     try {
-      // 1. Create the organisation
-      const { data: org, error: orgErr } = await supabase
-        .from('organisations')
-        .insert({ name: companyName.trim(), country: country.trim() || null })
-        .select('id,name')
-        .single()
-
-      if (orgErr) throw new Error(orgErr.message)
-
-      // 2. Sign up with org_id + role in metadata so the trigger wires it up
-      const { error: authErr } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName.trim(),
-            role:      'org_admin',
-            org_id:    org.id,
-          },
-        },
-      })
-
-      if (authErr) {
-        // Roll back the org we just created
-        await supabase.from('organisations').delete().eq('id', org.id)
-        throw new Error(authErr.message)
-      }
-
-      // Notify admin (fire-and-forget)
-      fetch('/api/notify-signup', {
+      const res = await fetch('/api/org-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ full_name: fullName.trim(), email, company_name: companyName.trim(), role: 'org_admin' }),
-      }).catch(() => {})
+        body: JSON.stringify({
+          email,
+          password,
+          full_name:    fullName.trim(),
+          company_name: companyName.trim(),
+          country:      country.trim() || null,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Something went wrong.')
 
       setDone(true)
     } catch (err) {
