@@ -6,7 +6,7 @@ import {
   ListChecks, RefreshCw, X, CheckCircle2, BookOpen,
   FileText, CheckSquare, Award, Users, ClipboardList,
   Clock, Building2, Headphones, Shield, GraduationCap,
-  Pencil, Navigation, MapPin, Send, MessageSquare, Sparkles,
+  Pencil, Navigation, MapPin, Send, MessageSquare, Sparkles, Activity,
 } from 'lucide-react'
 import L from 'leaflet'
 import Layout from '../components/Layout'
@@ -851,6 +851,7 @@ export default function Dashboard() {
 
   // Developer
   const [devMetrics, setDevMetrics]     = useState({ orgs: 0, travellers: 0, activeTrips: 0, controlRoom: 0 })
+  const [healthIssues, setHealthIssues] = useState([])
 
   const loadingRef = useRef(false)
 
@@ -877,6 +878,9 @@ export default function Dashboard() {
 
     // ── DEVELOPER ─────────────────────────────────────────────────────────────
     if (userRole === 'developer') {
+      const cutoff48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+      const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
       const [
         { count: orgCount },
         { count: travellerCount },
@@ -884,6 +888,12 @@ export default function Dashboard() {
         { count: crCount },
         { count: alertCount },
         feedStatuses,
+        { data: pendingOrgs },
+        { data: orphanedAdmins },
+        { data: stuckOnboarding },
+        { data: noTerms },
+        { data: allOrgs },
+        { data: allProfiles },
       ] = await Promise.all([
         supabase.from('organisations').select('*', { count: 'exact', head: true }),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('role', 'developer'),
@@ -891,10 +901,47 @@ export default function Dashboard() {
         supabase.from('control_room_requests').select('*', { count: 'exact', head: true }).in('status', ['pending', 'in_progress']),
         supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
         fetch('/api/feed-status').then(r => r.json()).catch(() => ({})),
+        // Health: orgs awaiting approval
+        supabase.from('organisations').select('id,name,created_at').eq('approval_status', 'pending'),
+        // Health: org_admins with no org linked
+        supabase.from('profiles').select('id,full_name,email,created_at').eq('role', 'org_admin').is('org_id', null),
+        // Health: travellers stuck in onboarding >48h
+        supabase.from('profiles').select('id,full_name,email,created_at')
+          .in('role', ['traveller', 'solo']).is('onboarding_completed_at', null).lt('created_at', cutoff48h),
+        // Health: users who never accepted terms >24h after signup
+        supabase.from('profiles').select('id,full_name,email,created_at')
+          .is('terms_version', null).lt('created_at', cutoff24h).neq('role', 'developer'),
+        // Health: empty orgs (need org member counts)
+        supabase.from('organisations').select('id,name'),
+        supabase.from('profiles').select('org_id').not('org_id', 'is', null),
       ])
+
       const activeFeeds = Object.values(feedStatuses || {}).filter(s => s === 'active').length
+
+      // Derive empty orgs
+      const orgMemberCounts = {}
+      ;(allProfiles || []).forEach(p => { orgMemberCounts[p.org_id] = (orgMemberCounts[p.org_id] || 0) + 1 })
+      const emptyOrgs = (allOrgs || []).filter(o => !orgMemberCounts[o.id])
+
+      const issues = []
+      if ((crCount || 0) > 0)
+        issues.push({ severity: 'critical', label: 'Active SOS / control room requests', count: crCount, link: '/control-room' })
+      if ((pendingOrgs || []).length > 0)
+        issues.push({ severity: 'warning', label: 'Organisations awaiting approval', count: pendingOrgs.length, link: '/organisations' })
+      if ((orphanedAdmins || []).length > 0)
+        issues.push({ severity: 'warning', label: 'Org admins with no organisation linked', count: orphanedAdmins.length, link: '/admin' })
+      if ((stuckOnboarding || []).length > 0)
+        issues.push({ severity: 'warning', label: 'Travellers stuck in onboarding (>48 h)', count: stuckOnboarding.length, link: '/admin' })
+      if ((noTerms || []).length > 0)
+        issues.push({ severity: 'info', label: 'Users who never accepted terms (>24 h)', count: noTerms.length, link: '/admin' })
+      if (emptyOrgs.length > 0)
+        issues.push({ severity: 'info', label: 'Organisations with no members', count: emptyOrgs.length, link: '/organisations' })
+      if ((alertCount || 0) > 0)
+        issues.push({ severity: 'info', label: 'Active platform alerts', count: alertCount, link: '/alerts' })
+
       setDevMetrics({ orgs: orgCount || 0, travellers: travellerCount || 0, activeTrips: tripCount || 0, controlRoom: crCount || 0 })
       setMetrics({ activeAlerts: alertCount || 0, activeFeeds })
+      setHealthIssues(issues)
       setLoading(false)
       loadingRef.current = false
       return
@@ -1133,22 +1180,92 @@ export default function Dashboard() {
         <MorningBriefCard brief={morningBrief} loading={briefLoading} />
       )}
 
-      {/* ── DEVELOPER METRICS ── */}
+      {/* ── DEVELOPER PLATFORM HEALTH ── */}
       {role === 'developer' && (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
-            <MetricCard label="Organisations"    value={loading ? '–' : devMetrics.orgs}        icon={Building2}    valueColor="text-[#0118A1]" accent="#0118A1" to="/organisations" />
-            <MetricCard label="Total Travellers" value={loading ? '–' : devMetrics.travellers}  icon={Users}        valueColor="text-[#0118A1]" accent="#0118A1" to="/admin" />
-            <MetricCard label="Active Trips"     value={loading ? '–' : devMetrics.activeTrips} icon={Plane}        valueColor="text-blue-600"  accent="#2563EB" to="/tracker" />
-            <MetricCard label="Control Room"     value={loading ? '–' : devMetrics.controlRoom} icon={Headphones}
-              valueColor={devMetrics.controlRoom > 0 ? 'text-red-600' : 'text-emerald-600'}
-              accent={devMetrics.controlRoom > 0 ? '#EF4444' : '#059669'} to="/control-room" />
+          {/* Compact stat strip */}
+          <div className="grid grid-cols-4 gap-3 mb-6">
+            {[
+              { label: 'Orgs',         value: devMetrics.orgs,        to: '/organisations', color: BRAND_BLUE },
+              { label: 'Travellers',   value: devMetrics.travellers,  to: '/admin',         color: BRAND_BLUE },
+              { label: 'Active Trips', value: devMetrics.activeTrips, to: '/tracker',       color: '#2563EB' },
+              { label: 'Active Feeds', value: metrics.activeFeeds,    to: '/intel-feeds',   color: '#059669' },
+            ].map(s => (
+              <Link key={s.label} to={s.to}
+                className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex flex-col gap-0.5 hover:shadow-md transition-shadow">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{s.label}</span>
+                <span className="text-2xl font-bold" style={{ color: loading ? '#D1D5DB' : s.color }}>
+                  {loading ? '–' : s.value}
+                </span>
+              </Link>
+            ))}
           </div>
-          <div className="grid grid-cols-2 gap-4 mb-7">
-            <MetricCard label="Active Alerts" value={loading ? '–' : metrics.activeAlerts} icon={Bell}
-              valueColor={metrics.activeAlerts > 0 ? 'text-red-600' : 'text-gray-900'}
-              accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'} to="/alerts" />
-            <MetricCard label="Active Feeds"  value={loading ? '–' : metrics.activeFeeds}  icon={Radio} valueColor="text-emerald-600" accent="#059669" to="/intel-feeds" />
+
+          {/* Platform Health Monitor */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-7 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50"
+              style={{ background: `${BRAND_BLUE}06` }}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
+                  <Activity size={14} style={{ color: BRAND_BLUE }} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-gray-900">Platform Health Monitor</h2>
+                  <p className="text-[11px] text-gray-400">Issues detected from live platform data</p>
+                </div>
+              </div>
+              {!loading && (
+                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
+                  healthIssues.some(i => i.severity === 'critical') ? 'bg-red-100 text-red-700' :
+                  healthIssues.some(i => i.severity === 'warning')  ? 'bg-amber-100 text-amber-700' :
+                  healthIssues.length > 0 ? 'bg-blue-100 text-blue-700' :
+                  'bg-green-100 text-green-700'
+                }`}>
+                  {healthIssues.some(i => i.severity === 'critical') ? 'Critical' :
+                   healthIssues.some(i => i.severity === 'warning')  ? 'Needs Attention' :
+                   healthIssues.length > 0 ? 'Minor Issues' : 'All Clear'}
+                </span>
+              )}
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center py-12 text-gray-400 text-sm gap-2">
+                <div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" />
+                Scanning platform…
+              </div>
+            ) : healthIssues.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-2">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center bg-green-50">
+                  <CheckCircle2 size={24} className="text-green-500" />
+                </div>
+                <p className="text-sm font-semibold text-gray-700">No issues detected</p>
+                <p className="text-xs text-gray-400">Platform is operating normally</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {healthIssues.map((issue, i) => {
+                  const cfg = {
+                    critical: { bg: 'bg-red-50',    border: 'border-red-200',   text: 'text-red-700',   badge: 'bg-red-100 text-red-700',   dot: 'bg-red-500',   label: 'Critical' },
+                    warning:  { bg: 'bg-amber-50',  border: 'border-amber-200', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500', label: 'Warning' },
+                    info:     { bg: 'bg-blue-50',   border: 'border-blue-200',  text: 'text-blue-700',  badge: 'bg-blue-100 text-blue-700',  dot: 'bg-blue-400',  label: 'Info' },
+                  }[issue.severity]
+                  return (
+                    <Link key={i} to={issue.link}
+                      className={`flex items-center justify-between px-5 py-3.5 hover:${cfg.bg} transition-colors group`}>
+                      <div className="flex items-center gap-3">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
+                        <span className="text-sm text-gray-800">{issue.label}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.badge}`}>{cfg.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-lg font-bold ${cfg.text}`}>{issue.count}</span>
+                        <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </>
       )}
