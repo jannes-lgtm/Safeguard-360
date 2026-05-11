@@ -6,14 +6,15 @@ import {
   ListChecks, RefreshCw, X, CheckCircle2, BookOpen,
   FileText, CheckSquare, Award, Users, ClipboardList,
   Clock, Building2, Headphones, Shield, GraduationCap,
-  Pencil, Navigation, MapPin,
+  Pencil, Navigation, MapPin, Send, MessageSquare, Sparkles,
 } from 'lucide-react'
+import L from 'leaflet'
 import Layout from '../components/Layout'
 import MetricCard from '../components/MetricCard'
 import SeverityBadge from '../components/SeverityBadge'
 import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
-import { cityToCountry, SEVERITY_STYLE } from '../data/intelData'
+import { cityToCountry, SEVERITY_STYLE, COUNTRY_META } from '../data/intelData'
 
 const BRAND_BLUE  = '#0118A1'
 const BRAND_GREEN = '#AACC00'
@@ -573,6 +574,254 @@ function MorningBriefCard({ brief, loading }) {
   )
 }
 
+// ── Trip Map ──────────────────────────────────────────────────────────────────
+const RISK_PIN = {
+  Critical: { fill: '#EF4444', stroke: '#B91C1C', r: 11 },
+  High:     { fill: '#F97316', stroke: '#C2410C', r: 10 },
+  Medium:   { fill: '#EAB308', stroke: '#A16207', r: 9  },
+  Low:      { fill: '#22C55E', stroke: '#15803D', r: 8  },
+  default:  { fill: '#6366F1', stroke: '#4338CA', r: 8  },
+}
+
+function TripMapSection({ trips, destRisk, onCountryClick }) {
+  const containerRef = useRef(null)
+  const mapRef       = useRef(null)
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current || !trips.length) return
+
+    const map = L.map(containerRef.current, {
+      center: [20, 20], zoom: 2,
+      zoomControl: true, scrollWheelZoom: false,
+    })
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com">CARTO</a>',
+      subdomains: 'abcd', maxZoom: 19,
+    }).addTo(map)
+
+    const todayISO = new Date().toISOString().split('T')[0]
+    const bounds   = []
+
+    trips.forEach(trip => {
+      const country = cityToCountry(trip.arrival_city) || trip.arrival_city
+      const coords  = COUNTRY_META[country]
+      if (!coords) return
+
+      const isActive = trip.depart_date <= todayISO && trip.return_date >= todayISO
+      const sev      = destRisk[country]?.severity || 'default'
+      const pin      = RISK_PIN[sev] || RISK_PIN.default
+      const r        = isActive ? pin.r + 3 : pin.r
+
+      const marker = L.circleMarker([coords.lat, coords.lon], {
+        radius: r, color: pin.stroke, fillColor: pin.fill,
+        fillOpacity: isActive ? 0.9 : 0.65, weight: 2,
+      })
+
+      marker.bindPopup(`
+        <div style="font-family:sans-serif;padding:4px 0;min-width:160px">
+          <div style="font-weight:700;font-size:13px;margin-bottom:4px">${trip.trip_name}</div>
+          <div style="font-size:11px;color:#6b7280;margin-bottom:6px">${trip.arrival_city}${country !== trip.arrival_city ? ` · ${country}` : ''}</div>
+          ${isActive ? '<div style="font-size:10px;font-weight:700;color:#0118A1;margin-bottom:8px">✈️ Active now</div>' : `<div style="font-size:10px;color:#9ca3af;margin-bottom:8px">${trip.depart_date} → ${trip.return_date}</div>`}
+          <button onclick="window.__dashGoto('${country.replace(/'/g, "\\'")}')"
+            style="display:block;width:100%;background:#0118A1;color:#fff;border:none;
+              border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer">
+            View Risk Report →
+          </button>
+        </div>`)
+
+      marker.addTo(map)
+      bounds.push([coords.lat, coords.lon])
+    })
+
+    if (bounds.length > 0) {
+      try { map.fitBounds(bounds, { padding: [40, 40], maxZoom: 6 }) } catch { /* ignore */ }
+    }
+
+    window.__dashGoto = (country) => {
+      onCountryClick(country)
+      map.closePopup()
+    }
+
+    mapRef.current = map
+
+    return () => {
+      delete window.__dashGoto
+      map.remove()
+      mapRef.current = null
+    }
+  }, [trips, destRisk, onCountryClick])
+
+  if (!trips.length) return null
+
+  return (
+    <div className="mb-7">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}12` }}>
+            <Globe size={13} style={{ color: BRAND_BLUE }} />
+          </div>
+          <h2 className="text-sm font-bold text-gray-900">My Travel Map</h2>
+        </div>
+        <div className="flex items-center gap-3">
+          {Object.entries(RISK_PIN).filter(([k]) => k !== 'default').map(([k, v]) => (
+            <div key={k} className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: v.fill }} />
+              <span className="text-[10px] text-gray-400 font-medium">{k}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="rounded-2xl overflow-hidden"
+        style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
+        <div ref={containerRef} style={{ height: 300 }} />
+      </div>
+    </div>
+  )
+}
+
+// ── Dashboard AI Chat ─────────────────────────────────────────────────────────
+function DashboardAiChat({ profile, trips, orgName, role }) {
+  const tripSummary = trips.slice(0, 6).map(t => {
+    const country = cityToCountry(t.arrival_city) || t.arrival_city
+    return `${t.trip_name} (${country}, ${t.depart_date}→${t.return_date})`
+  }).join('; ') || 'No upcoming trips.'
+
+  const initialMsg = role === 'admin' || role === 'org_admin'
+    ? `Hi! I'm your AI security analyst for ${orgName || 'your organisation'}. Ask me about destination risks, duty of care, traveller safety, or any security concern.`
+    : `Hi${profile?.full_name ? ` ${profile.full_name.split(' ')[0]}` : ''}! I'm your AI travel security analyst. Ask me about risk levels, safe areas, what to do in an emergency, or anything about your upcoming trips.`
+
+  const [messages, setMessages] = useState([{ role: 'assistant', text: initialMsg }])
+  const [input, setInput]       = useState('')
+  const [sending, setSending]   = useState(false)
+  const bottomRef               = useRef(null)
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  const QUICK = role === 'admin' || role === 'org_admin'
+    ? ['What are the highest risk destinations my staff may travel to?', 'What is our duty of care?', 'Summarise current global threat landscape']
+    : trips.length
+      ? [`What should I know before travelling to ${cityToCountry(trips[0]?.arrival_city) || trips[0]?.arrival_city}?`, 'What to do in a medical emergency abroad?', 'What vaccinations might I need?']
+      : ['What are the safest countries to travel to right now?', 'What should I pack for a business trip?', 'How do I stay safe in high-risk areas?']
+
+  const send = async (msg) => {
+    const text = (msg || input).trim()
+    if (!text || sending) return
+    setInput('')
+    setMessages(prev => [...prev, { role: 'user', text }])
+    setSending(true)
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({
+          message: text,
+          context: {
+            travelerName: profile?.full_name,
+            activeTrips:  tripSummary,
+            orgName,
+            mode: 'dashboard',
+          },
+        }),
+      })
+      const data = await res.json()
+      setMessages(prev => [...prev, { role: 'assistant', text: data.reply || data.error || 'No response received.' }])
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', text: 'Failed to reach AI assistant. Please try again.' }])
+    }
+    setSending(false)
+  }
+
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden"
+      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
+      {/* Header */}
+      <div className="flex items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(135deg, ${BRAND_BLUE}08 0%, ${BRAND_BLUE}04 100%)`, borderBottom: `1px solid ${BRAND_BLUE}12` }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: BRAND_BLUE }}>
+          <Brain size={16} color="white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-gray-900">AI Security Analyst</span>
+            <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full"
+              style={{ background: `${BRAND_BLUE}15`, color: BRAND_BLUE }}>
+              <Zap size={7} /> LIVE
+            </span>
+          </div>
+          <p className="text-[11px] text-gray-400 mt-0.5">Ask anything about travel risk, destinations, or security</p>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="p-4 space-y-3 max-h-72 overflow-y-auto bg-gray-50/60">
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            {m.role === 'assistant' && (
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2 mt-0.5" style={{ background: `${BRAND_BLUE}12` }}>
+                <Brain size={11} style={{ color: BRAND_BLUE }} />
+              </div>
+            )}
+            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
+              m.role === 'user'
+                ? 'text-white rounded-br-[4px]'
+                : 'bg-white border border-gray-100 text-gray-700 rounded-bl-[4px] shadow-sm'
+            }`} style={m.role === 'user' ? { backgroundColor: BRAND_BLUE } : {}}>
+              {m.text}
+            </div>
+          </div>
+        ))}
+        {sending && (
+          <div className="flex justify-start">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2 mt-0.5" style={{ background: `${BRAND_BLUE}12` }}>
+              <Brain size={11} style={{ color: BRAND_BLUE }} />
+            </div>
+            <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-[4px] px-3.5 py-2.5 shadow-sm">
+              <div className="flex gap-1 items-center">
+                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Quick suggestions */}
+      {messages.length <= 1 && (
+        <div className="px-4 py-3 flex flex-wrap gap-2" style={{ borderTop: '1px solid #F1F5F9' }}>
+          {QUICK.map((q, i) => (
+            <button key={i} onClick={() => send(q)}
+              className="text-[11px] font-medium px-3 py-1.5 rounded-full border transition-colors hover:border-[#0118A1] hover:text-[#0118A1] text-gray-500 border-gray-200 bg-white">
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Input */}
+      <div className="flex items-center gap-3 px-4 py-3 bg-white" style={{ borderTop: '1px solid #F1F5F9' }}>
+        <input
+          className="flex-1 text-xs text-gray-800 placeholder-gray-400 outline-none bg-transparent"
+          placeholder="Ask about risk, safety, destinations…"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+          disabled={sending}
+        />
+        <button onClick={() => send()}
+          disabled={!input.trim() || sending}
+          className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors disabled:opacity-40"
+          style={{ backgroundColor: BRAND_BLUE }}>
+          <Send size={13} color="white" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const [role, setRole]                 = useState(null)
@@ -942,6 +1191,24 @@ export default function Dashboard() {
 
           {/* Quick actions grid */}
           <QuickActions role="admin" hasActiveTrip={false} />
+
+          {/* AI Security Analyst */}
+          {!loading && (
+            <div className="mb-7">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}12` }}>
+                  <Brain size={13} style={{ color: BRAND_BLUE }} />
+                </div>
+                <h2 className="text-sm font-bold text-gray-900">AI Security Analyst</h2>
+              </div>
+              <DashboardAiChat
+                profile={profile}
+                trips={[]}
+                orgName={profile?.organisations?.name}
+                role={role}
+              />
+            </div>
+          )}
         </>
       )}
 
@@ -970,6 +1237,15 @@ export default function Dashboard() {
 
           {/* 24/7 Assistance CTA — always visible for travellers */}
           <AssistanceCTA />
+
+          {/* Trip map — visible when they have upcoming/active trips */}
+          {!loading && (
+            <TripMapSection
+              trips={myTrips}
+              destRisk={destRisk}
+              onCountryClick={setSelectedCountry}
+            />
+          )}
         </>
       )}
 
@@ -1102,10 +1378,24 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Compliance panel — traveller gets personal score, admin gets org score */}
+        {/* Right column — compliance + AI chat stacked for travellers, org compliance for admin */}
         {(role === 'traveller' || role === 'solo') && (
-          <div className="lg:w-2/5">
+          <div className="lg:w-2/5 flex flex-col gap-5">
             <ComplianceScoreCard breakdown={complianceBreakdown} loading={loading} />
+            <div>
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}12` }}>
+                  <Brain size={13} style={{ color: BRAND_BLUE }} />
+                </div>
+                <h2 className="text-sm font-bold text-gray-900">AI Security Analyst</h2>
+              </div>
+              <DashboardAiChat
+                profile={profile}
+                trips={myTrips}
+                orgName={profile?.organisations?.name}
+                role={role}
+              />
+            </div>
           </div>
         )}
         {role === 'admin' && (
