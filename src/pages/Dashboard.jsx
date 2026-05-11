@@ -1365,68 +1365,119 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Currently Travelling */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6 overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50"
-              style={{ background: `${BRAND_BLUE}06` }}>
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
-                  <Plane size={14} style={{ color: BRAND_BLUE }} />
+          {/* Currently Travelling + Live Risk Alerts — side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+
+            {/* Currently Travelling */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50"
+                style={{ background: `${BRAND_BLUE}06` }}>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
+                    <Plane size={14} style={{ color: BRAND_BLUE }} />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-gray-900">Currently Travelling</h2>
+                    <p className="text-[11px] text-gray-400">Staff on active trips right now</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-sm font-bold text-gray-900">Currently Travelling</h2>
-                  <p className="text-[11px] text-gray-400">Staff on active trips right now</p>
+                <Link to="/tracker" className="text-xs font-semibold text-[#0118A1] hover:underline flex items-center gap-1">
+                  Full tracker <ChevronRight size={12} />
+                </Link>
+              </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-10 text-gray-400 text-sm gap-2">
+                  <div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" />
+                  Loading…
                 </div>
-              </div>
-              <Link to="/tracker" className="text-xs font-semibold text-[#0118A1] hover:underline flex items-center gap-1">
-                Full tracker <ChevronRight size={12} />
-              </Link>
-            </div>
-            {loading ? (
-              <div className="flex items-center justify-center py-10 text-gray-400 text-sm gap-2">
-                <div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" />
-                Loading…
-              </div>
-            ) : activeTravellers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-2">
-                <Plane size={28} className="text-gray-200" />
-                <p className="text-sm text-gray-400">No staff currently travelling</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-50">
-                {activeTravellers.map(({ trip, profile: tp }) => {
-                  const daysLeft = trip.return_date
-                    ? Math.max(0, Math.ceil((new Date(trip.return_date) - new Date()) / 86400000))
-                    : null
-                  return (
-                    <div key={trip.id} className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                        style={{ background: BRAND_BLUE }}>
-                        {(tp.full_name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 text-sm truncate">{tp.full_name || tp.email}</p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {trip.departure_city && trip.arrival_city
-                            ? `${trip.departure_city} → ${trip.arrival_city}`
-                            : trip.trip_name || 'Trip'}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        {daysLeft !== null && (
-                          <p className="text-xs font-semibold text-gray-500">
-                            {daysLeft === 0 ? 'Returns today' : `${daysLeft}d remaining`}
+              ) : activeTravellers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-2">
+                  <Plane size={28} className="text-gray-200" />
+                  <p className="text-sm text-gray-400">No staff currently travelling</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-50">
+                  {activeTravellers.map(({ trip, profile: tp }) => {
+                    const daysLeft = trip.return_date
+                      ? Math.max(0, Math.ceil((new Date(trip.return_date) - new Date()) / 86400000))
+                      : null
+                    return (
+                      <div key={trip.id} className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
+                        <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                          style={{ background: BRAND_BLUE }}>
+                          {(tp.full_name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 text-sm truncate">{tp.full_name || tp.email}</p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {trip.departure_city && trip.arrival_city
+                              ? `${trip.departure_city} → ${trip.arrival_city}`
+                              : trip.trip_name || 'Trip'}
                           </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          {daysLeft !== null && (
+                            <p className="text-xs font-semibold text-gray-500">
+                              {daysLeft === 0 ? 'Returns today' : `${daysLeft}d remaining`}
+                            </p>
+                          )}
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full mt-0.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Active
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Live Risk Alerts */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50" style={{ background: '#FEF2F208' }}>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-50">
+                    <Bell size={14} style={{ color: '#EF4444' }} />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-gray-900">Live Risk Alerts</h2>
+                    <p className="text-[11px] text-gray-400">Active alerts affecting your travellers</p>
+                  </div>
+                </div>
+                <Link to="/alerts" className="text-xs font-semibold text-[#0118A1] hover:underline flex items-center gap-1">
+                  View all <ChevronRight size={12} />
+                </Link>
+              </div>
+              {loading ? (
+                <div className="space-y-3 p-5">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-50 rounded-xl animate-pulse"/>)}</div>
+              ) : recentAlerts.length === 0 ? (
+                <div className="flex flex-col items-center py-10 gap-2">
+                  <CheckCircle2 size={28} className="text-emerald-400" />
+                  <p className="text-sm text-gray-400">All clear — no active alerts</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-50">
+                  {recentAlerts.map(alert => (
+                    <div key={alert.id} className="flex items-start gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
+                      <div className="mt-1.5 w-2 h-2 rounded-full shrink-0" style={{ background: severityDot[alert.severity] || '#94A3B8' }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                          <span className="text-sm font-semibold text-gray-900 truncate">{alert.title}</span>
+                          <SeverityBadge severity={alert.severity} />
+                        </div>
+                        <p className="text-xs text-gray-400 truncate">{alert.description}</p>
+                        {alert.country && (
+                          <button onClick={() => setSelectedCountry(alert.country)}
+                            className="text-[11px] font-semibold flex items-center gap-1 mt-1 hover:underline" style={{ color: BRAND_BLUE }}>
+                            <Globe size={9} /> {alert.country} intel →
+                          </button>
                         )}
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full mt-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Active
-                        </span>
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Latest Check-in Locations */}
@@ -1618,8 +1669,8 @@ export default function Dashboard() {
       {/* ── BOTTOM PANELS ── */}
       <div className="flex flex-col lg:flex-row gap-5">
 
-        {/* Live alerts — shown to all roles */}
-        <div className={`${role === 'traveller' || role === 'solo' ? 'lg:w-3/5' : 'lg:w-full'} bg-white rounded-2xl p-6`}
+        {/* Live alerts — hidden for admin/org_admin (shown above next to Currently Travelling) */}
+        <div className={`${role === 'traveller' || role === 'solo' ? 'lg:w-3/5' : 'lg:w-full'} bg-white rounded-2xl p-6 ${(role === 'admin' || role === 'org_admin') ? 'hidden' : ''}`}
           style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
           <div className="flex items-center gap-2.5 mb-5">
             <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: '#FEF2F2' }}>
@@ -1683,8 +1734,8 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-        {role === 'admin' && (
-          <div className="lg:w-2/5">
+        {(role === 'admin' || role === 'org_admin') && (
+          <div className="lg:w-full">
             <OrgCompliancePanel orgStats={orgStats} loading={loading} />
           </div>
         )}
