@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react'
 import {
   Users, CheckCircle2, AlertTriangle, Clock, MapPin,
   BookOpen, RefreshCw, ChevronDown, ChevronUp, Mail,
-  UserPlus, X, Shield,
+  UserPlus, X, Shield, FileText, Printer, Globe,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -145,6 +145,9 @@ export default function OrgUsers() {
   const [tripMap, setTripMap]           = useState({})   // user_id → active trip
   const [approvalMap, setApprovalMap]   = useState({})   // user_id → pending count
   const [loading, setLoading]           = useState(true)
+  const [activeTab, setActiveTab]       = useState('travellers')
+  const [visaLetters, setVisaLetters]   = useState([])
+  const [visaLoading, setVisaLoading]   = useState(false)
   const [showInvite, setShowInvite]     = useState(false)
   const [inviteEmail, setInviteEmail]   = useState('')
   const [inviteRole,  setInviteRole]    = useState('traveller')
@@ -218,7 +221,25 @@ export default function OrgUsers() {
     setLoading(false)
   }
 
+  const loadVisaLetters = async (orgId) => {
+    setVisaLoading(true)
+    const { data } = await supabase
+      .from('visa_letter_requests')
+      .select('*, profiles(full_name, email)')
+      .eq('org_id', orgId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setVisaLetters(data || [])
+    setVisaLoading(false)
+  }
+
   useEffect(() => { loadData() }, [])
+
+  useEffect(() => {
+    if (activeTab === 'visa' && adminProfile?.org_id) {
+      loadVisaLetters(adminProfile.org_id)
+    }
+  }, [activeTab, adminProfile])
 
   const handleInvite = async (e) => {
     e.preventDefault()
@@ -272,6 +293,25 @@ export default function OrgUsers() {
         </div>
       </div>
 
+      {/* Tab toggle */}
+      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
+        {[
+          { id: 'travellers', label: 'Travellers',   icon: Users    },
+          { id: 'visa',       label: 'Visa Letters', icon: FileText },
+        ].map(t => {
+          const Icon = t.icon
+          return (
+            <button key={t.id} onClick={() => setActiveTab(t.id)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+              style={activeTab === t.id
+                ? { background: 'white', color: BRAND_BLUE, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
+                : { color: '#64748B' }}>
+              <Icon size={14} /> {t.label}
+            </button>
+          )
+        })}
+      </div>
+
       {/* Quick stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
@@ -286,30 +326,94 @@ export default function OrgUsers() {
         ))}
       </div>
 
-      {/* User list */}
-      {loading ? (
-        <div className="space-y-3">
-          {[1,2,3].map(i => <div key={i} className="h-16 bg-white rounded-xl border animate-pulse"/>)}
+      {/* ── Visa Letters Tab ── */}
+      {activeTab === 'visa' && (
+        <div>
+          {visaLoading ? (
+            <div className="space-y-2">
+              {[1,2,3].map(i => <div key={i} className="h-16 bg-white rounded-xl border animate-pulse"/>)}
+            </div>
+          ) : visaLetters.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
+              <FileText size={36} className="text-gray-200 mx-auto mb-3" />
+              <p className="text-gray-400 font-medium">No visa letters generated yet</p>
+              <p className="text-gray-300 text-xs mt-1">Travellers can generate letters from the Visa Assistant page</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {visaLetters.map(l => (
+                <div key={l.id} className="bg-white rounded-xl border border-gray-100 p-4">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: `${BRAND_BLUE}12` }}>
+                        <Globe size={15} style={{ color: BRAND_BLUE }} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">
+                          {l.profiles?.full_name || l.profiles?.email || 'Unknown traveller'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {l.passport_country} → {l.destination_country} · {l.travel_purpose}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {l.depart_date} – {l.return_date}
+                          {l.trip_name ? ` · ${l.trip_name}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                        {l.status}
+                      </span>
+                      <span className="text-[10px] text-gray-400">
+                        {new Date(l.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                  </div>
+                  {l.letter_text && (
+                    <details className="mt-3">
+                      <summary className="text-xs font-semibold cursor-pointer" style={{ color: BRAND_BLUE }}>
+                        View letter
+                      </summary>
+                      <pre className="mt-3 whitespace-pre-wrap text-xs text-gray-600 leading-relaxed font-serif bg-gray-50 rounded-lg p-4 border border-gray-100 max-h-64 overflow-y-auto">
+                        {l.letter_text}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      ) : users.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
-          <Users size={36} className="text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-400 font-medium">No travellers yet</p>
-          <p className="text-gray-300 text-xs mt-1">Invite your first team member to get started</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {users.map(u => (
-            <UserRow
-              key={u.id}
-              user={u}
-              trainingRecs={trainingMap[u.id] || []}
-              checkins={checkinMap[u.id] || []}
-              activeTrip={tripMap[u.id]}
-              pendingApprovals={approvalMap[u.id] || 0}
-            />
-          ))}
-        </div>
+      )}
+
+      {/* ── Travellers Tab ── */}
+      {activeTab === 'travellers' && (
+        loading ? (
+          <div className="space-y-3">
+            {[1,2,3].map(i => <div key={i} className="h-16 bg-white rounded-xl border animate-pulse"/>)}
+          </div>
+        ) : users.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
+            <Users size={36} className="text-gray-200 mx-auto mb-3" />
+            <p className="text-gray-400 font-medium">No travellers yet</p>
+            <p className="text-gray-300 text-xs mt-1">Invite your first team member to get started</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {users.map(u => (
+              <UserRow
+                key={u.id}
+                user={u}
+                trainingRecs={trainingMap[u.id] || []}
+                checkins={checkinMap[u.id] || []}
+                activeTrip={tripMap[u.id]}
+                pendingApprovals={approvalMap[u.id] || 0}
+              />
+            ))}
+          </div>
+        )
       )}
 
       {/* Invite modal */}

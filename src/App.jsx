@@ -29,6 +29,7 @@ import TravelPolicy from './pages/TravelPolicy'
 import Onboarding from './pages/Onboarding'
 import OrgOnboarding from './pages/OrgOnboarding'
 import AdminControlCenter from './pages/AdminControlCenter'
+import Visa from './pages/Visa'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -66,6 +67,7 @@ export default function App() {
         <Route path="/org/training"    element={<ProtectedRoute orgAdminAllowed><OrgTraining /></ProtectedRoute>} />
         <Route path="/control-room"    element={<ProtectedRoute orgAdminAllowed><ControlRoom /></ProtectedRoute>} />
         <Route path="/assistance"      element={<ProtectedRoute><Assistance /></ProtectedRoute>} />
+        <Route path="/visa"            element={<ProtectedRoute><Visa /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

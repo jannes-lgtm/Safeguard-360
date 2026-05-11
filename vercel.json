@@ -16,7 +16,9 @@
     "api/scan-all.js":         { "maxDuration": 300 },
     "api/invite-user.js":      { "maxDuration": 20 },
     "api/accept-invite.js":    { "maxDuration": 10 },
-    "api/notify-signup.js":    { "maxDuration": 10 }
+    "api/notify-signup.js":    { "maxDuration": 10 },
+    "api/visa-check.js":       { "maxDuration": 45 },
+    "api/visa-letter.js":      { "maxDuration": 60 }
   },
   "crons": [
     {

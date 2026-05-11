@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   User, Bell, Heart, Shield, CreditCard,
-  Globe, Phone, Calendar, CheckCircle2,
+  Globe, Phone, Calendar, CheckCircle2, Briefcase,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -63,6 +63,11 @@ export default function Profile() {
           blood_type:         data.blood_type         || '',
           allergies:          data.allergies          || '',
           medications:        data.medications        || '',
+          // line manager
+          manager_name:  data.manager_name  || '',
+          manager_title: data.manager_title || '',
+          manager_email: data.manager_email || '',
+          manager_phone: data.manager_phone || '',
           // legacy emergency contacts
           emergency_contact_1_name:  data.emergency_contact_1_name  || '',
           emergency_contact_1_email: data.emergency_contact_1_email || '',
@@ -181,6 +186,30 @@ export default function Profile() {
             </div>
           </div>
         </Section>
+
+        {/* ── Line Manager ── */}
+        {(profile?.role === 'traveller' || profile?.role === 'org_admin') && profile?.org_id && (
+          <Section icon={Briefcase} title="Line Manager" subtitle="Approves your travel and signs visa support letters">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Full Name</label>
+                <input className={inputClass} placeholder="Sarah Jones" {...f('manager_name')} />
+              </div>
+              <div>
+                <label className={labelClass}>Job Title</label>
+                <input className={inputClass} placeholder="e.g. HR Manager / Director" {...f('manager_title')} />
+              </div>
+              <div>
+                <label className={labelClass}>Email Address</label>
+                <input type="email" className={inputClass} placeholder="manager@company.com" {...f('manager_email')} />
+              </div>
+              <div>
+                <label className={labelClass}>Phone Number</label>
+                <input type="tel" className={inputClass} placeholder="+27 11 000 0000" {...f('manager_phone')} />
+              </div>
+            </div>
+          </Section>
+        )}
 
         {/* ── Insurance & Medical ── */}
         <Section icon={Shield} title="Insurance & Medical" subtitle="Used in case of medical emergency abroad">

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   User, Phone, Globe, CreditCard, Heart, Shield,
   ChevronRight, ChevronLeft, CheckCircle2, MapPin,
-  Loader2, AlertTriangle, ChevronDown,
+  Loader2, AlertTriangle, ChevronDown, Briefcase,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -77,6 +77,7 @@ export default function Onboarding() {
   const navigate = useNavigate()
   const [step, setStep]       = useState(0)
   const [userId, setUserId]   = useState(null)
+  const [orgId, setOrgId]     = useState(null)
   const [orgPolicy, setOrgPolicy] = useState(null)
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
@@ -88,6 +89,9 @@ export default function Onboarding() {
   })
   const [kin, setKin] = useState({
     kin_name: '', kin_relationship: '', kin_phone: '', kin_email: '',
+  })
+  const [manager, setManager] = useState({
+    manager_name: '', manager_title: '', manager_email: '', manager_phone: '',
   })
   const [insurance, setInsurance] = useState({
     insurance_provider: '', insurance_policy: '',
@@ -117,6 +121,7 @@ export default function Onboarding() {
       if (prof?.onboarding_completed_at) { navigate('/dashboard'); return }
       if (prof?.full_name) setPersonal(p => ({ ...p, full_name: prof.full_name }))
       if (prof?.phone)     setPersonal(p => ({ ...p, phone: prof.phone }))
+      if (prof?.org_id)    setOrgId(prof.org_id)
 
       // Load org policy for signing step
       if (prof?.org_id) {
@@ -143,7 +148,19 @@ export default function Onboarding() {
 
   const setP = (k, v) => setPersonal(f => ({ ...f, [k]: v }))
   const setK = (k, v) => setKin(f => ({ ...f, [k]: v }))
+  const setM = (k, v) => setManager(f => ({ ...f, [k]: v }))
   const setI = (k, v) => setInsurance(f => ({ ...f, [k]: v }))
+
+  // Dynamic step list based on org membership + policy
+  const stepIds = [
+    'personal',
+    'kin',
+    ...(orgId ? ['manager'] : []),
+    'insurance',
+    ...(orgPolicy ? ['policy'] : []),
+  ]
+  const currentStepId = stepIds[step]
+  const totalSteps    = stepIds.length
 
   const getLocation = () => {
     setLocating(true)
@@ -167,16 +184,20 @@ export default function Onboarding() {
 
   const validateStep = () => {
     setError('')
-    if (step === 0) {
-      if (!personal.full_name.trim()) { setError('Please enter your full name.'); return false }
-      if (!personal.phone.trim())     { setError('Please enter your phone number.'); return false }
+    if (currentStepId === 'personal') {
+      if (!personal.full_name.trim())   { setError('Please enter your full name.'); return false }
+      if (!personal.phone.trim())       { setError('Please enter your phone number.'); return false }
       if (!personal.nationality.trim()) { setError('Please enter your nationality.'); return false }
     }
-    if (step === 1) {
+    if (currentStepId === 'kin') {
       if (!kin.kin_name.trim())  { setError('Please enter your next of kin name.'); return false }
       if (!kin.kin_phone.trim()) { setError('Please enter your next of kin phone number.'); return false }
     }
-    if (step === 3) {
+    if (currentStepId === 'manager') {
+      if (!manager.manager_name.trim())  { setError('Please enter your line manager\'s name.'); return false }
+      if (!manager.manager_email.trim()) { setError('Please enter your line manager\'s email.'); return false }
+    }
+    if (currentStepId === 'policy') {
       if (!signedName.trim()) { setError('Please type your full name to sign.'); return false }
       if (!scrolled) { setError('Please scroll to the bottom before signing.'); return false }
     }
@@ -185,9 +206,8 @@ export default function Onboarding() {
 
   const handleNext = () => {
     if (!validateStep()) return
-    // Skip policy step if no org policy
-    if (step === 2 && !orgPolicy) { handleComplete(); return }
-    setStep(s => s + 1)
+    if (step < totalSteps - 1) setStep(s => s + 1)
+    else handleComplete()
   }
 
   const handleComplete = async () => {
@@ -200,6 +220,7 @@ export default function Onboarding() {
       const { error: profErr } = await supabase.from('profiles').update({
         ...personal,
         ...kin,
+        ...(orgId ? manager : {}),
         ...insurance,
         onboarding_completed_at: new Date().toISOString(),
       }).eq('id', userId)
@@ -229,8 +250,7 @@ export default function Onboarding() {
     }
   }
 
-  const totalSteps = orgPolicy ? 4 : 3
-  const pct = Math.round(((step) / totalSteps) * 100)
+  const pct = Math.round((step / totalSteps) * 100)
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F0F2F8' }}>
@@ -249,10 +269,10 @@ export default function Onboarding() {
           </div>
           {/* Step labels */}
           <div className="flex justify-between mt-2">
-            {STEPS.slice(0, orgPolicy ? 4 : 3).map((s, i) => (
-              <span key={s.id} className="text-[9px] font-bold uppercase tracking-wide"
+            {stepIds.map((id, i) => (
+              <span key={id} className="text-[9px] font-bold uppercase tracking-wide"
                 style={{ color: i <= step ? BRAND_BLUE : '#CBD5E1' }}>
-                {s.label}
+                {id === 'personal' ? 'Personal' : id === 'kin' ? 'Next of Kin' : id === 'manager' ? 'Manager' : id === 'insurance' ? 'Insurance' : 'Policy'}
               </span>
             ))}
           </div>
@@ -263,8 +283,8 @@ export default function Onboarding() {
       <div className="flex-1 flex items-start justify-center px-4 py-8">
         <div className="w-full max-w-2xl">
 
-          {/* ── STEP 0: Personal Details ── */}
-          {step === 0 && (
+          {/* ── STEP: Personal Details ── */}
+          {currentStepId === 'personal' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
                 <div className="flex items-center gap-3">
@@ -314,8 +334,8 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* ── STEP 1: Next of Kin ── */}
-          {step === 1 && (
+          {/* ── STEP: Next of Kin ── */}
+          {currentStepId === 'kin' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
                 <div className="flex items-center gap-3">
@@ -365,8 +385,52 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* ── STEP 2: Insurance & Medical ── */}
-          {step === 2 && (
+          {/* ── STEP: Line Manager ── */}
+          {currentStepId === 'manager' && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: BRAND_BLUE }}>
+                    <Briefcase size={18} color="white" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-gray-900">Line Manager</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">The person who approves your travel and signs your visa letters</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800">
+                  Your line manager's details will be used on visa support letters and travel approval requests. Make sure they are accurate.
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Full Name *</label>
+                    <input className={inputClass} placeholder="e.g. Sarah Jones"
+                      value={manager.manager_name} onChange={e => setM('manager_name', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Job Title</label>
+                    <input className={inputClass} placeholder="e.g. HR Manager / Director"
+                      value={manager.manager_title} onChange={e => setM('manager_title', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Email Address *</label>
+                    <input className={inputClass} type="email" placeholder="manager@company.com"
+                      value={manager.manager_email} onChange={e => setM('manager_email', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Phone Number</label>
+                    <input className={inputClass} type="tel" placeholder="+27 11 000 0000"
+                      value={manager.manager_phone} onChange={e => setM('manager_phone', e.target.value)} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP: Insurance & Medical ── */}
+          {currentStepId === 'insurance' && (
             <div className="space-y-4">
               {/* Insurance */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -438,8 +502,8 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* ── STEP 3: Travel Policy Signing ── */}
-          {step === 3 && orgPolicy && (
+          {/* ── STEP: Travel Policy Signing ── */}
+          {currentStepId === 'policy' && orgPolicy && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
                 <div className="flex items-center gap-3">
@@ -526,7 +590,7 @@ export default function Onboarding() {
               <ChevronLeft size={16} /> Back
             </button>
 
-            {step < (orgPolicy ? 3 : 2) ? (
+            {step < totalSteps - 1 ? (
               <button onClick={handleNext}
                 className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all"
                 style={{ background: BRAND_BLUE, color: 'white' }}>

@@ -99,6 +99,7 @@ function DeveloperNav({ alertCount }) {
       <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
       <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
       <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
+      <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
 
       <NavSection label="24/7 Support" />
       <NavItem to="/assistance"     icon={Headphones}   label="Assistance Requests" />
@@ -133,6 +134,7 @@ function CorporateAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
       <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
       <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
+      <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
       <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
 
       <NavSection label="24/7 Support" />
@@ -166,6 +168,7 @@ function OrgAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
       <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
       <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
+      <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
       <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
 
       <NavSection label="24/7 Support" />
@@ -200,6 +203,7 @@ function TravellerNav({ alertCount, tripAlertCount }) {
       <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
       <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
       <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
+      <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
 
       <NavSection label="24/7 Support" />
       <NavItem to="/assistance"     icon={Headphones}   label="Assistance Requests" />
@@ -233,6 +237,7 @@ function SoloTravellerNav({ alertCount, tripAlertCount }) {
       <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
       <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
       <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
+      <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
 
       <NavSection label="24/7 Support" />
       <NavItem to="/assistance"     icon={Headphones}   label="Assistance Requests" />
