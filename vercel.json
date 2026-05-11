@@ -21,7 +21,7 @@
   "crons": [
     {
       "path": "/api/scan-all",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 */4 * * *"
     }
   ],
   "headers": [
