@@ -846,8 +846,10 @@ export default function Dashboard() {
   const [nudgeModule, setNudgeModule]   = useState(null)       // { module_order, module_name }
 
   // Corporate Admin
-  const [orgStats, setOrgStats]         = useState(null)
-  const [adminMetrics, setAdminMetrics] = useState({ travellers: 0, travelling: 0, pendingApprovals: 0, overdueCheckins: 0 })
+  const [orgStats, setOrgStats]           = useState(null)
+  const [adminMetrics, setAdminMetrics]   = useState({ travellers: 0, travelling: 0, pendingApprovals: 0, overdueCheckins: 0 })
+  const [activeTravellers, setActiveTravellers] = useState([]) // { profile, trip }
+  const [latestCheckins, setLatestCheckins]     = useState([]) // { user_id, lat, lng, label, completed_at, name }
 
   // Developer
   const [devMetrics, setDevMetrics]     = useState({ orgs: 0, travellers: 0, activeTrips: 0, controlRoom: 0 })
@@ -947,14 +949,14 @@ export default function Dashboard() {
       return
     }
 
-    // ── CORPORATE ADMIN ───────────────────────────────────────────────────────
-    if (userRole === 'admin' && prof?.org_id) {
+    // ── CORPORATE ADMIN (admin + org_admin) ──────────────────────────────────
+    if ((userRole === 'admin' || userRole === 'org_admin') && prof?.org_id) {
       const orgId = prof.org_id
 
-      // Get org travellers
-      const { data: orgTravellers } = await supabase.from('profiles')
-        .select('id').eq('org_id', orgId).eq('role', 'traveller')
-      const orgIds = (orgTravellers || []).map(t => t.id)
+      // Get all org travellers (full profiles)
+      const { data: orgTravellerProfiles } = await supabase.from('profiles')
+        .select('id, full_name, email').eq('org_id', orgId).eq('role', 'traveller')
+      const orgIds = (orgTravellerProfiles || []).map(t => t.id)
 
       const [
         { count: alertCount },
@@ -966,6 +968,8 @@ export default function Dashboard() {
         acksResult,
         { data: allCheckins },
         feedStatuses,
+        { data: activeTrips },
+        { data: completedCheckins },
       ] = await Promise.all([
         supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
         orgIds.length
@@ -992,6 +996,17 @@ export default function Dashboard() {
           ? supabase.from('scheduled_checkins').select('id, completed').in('user_id', orgIds)
           : Promise.resolve({ data: [] }),
         fetch('/api/feed-status').then(r => r.json()).catch(() => ({})),
+        // Active trips for travelling panel
+        orgIds.length
+          ? supabase.from('itineraries').select('*').in('user_id', orgIds).eq('status', 'Active')
+          : Promise.resolve({ data: [] }),
+        // Latest completed check-ins with location
+        orgIds.length
+          ? supabase.from('scheduled_checkins')
+              .select('user_id, completed_at, latitude, longitude, location_label')
+              .in('user_id', orgIds).eq('completed', true)
+              .order('completed_at', { ascending: false }).limit(50)
+          : Promise.resolve({ data: [] }),
       ])
 
       const acks      = acksResult?.data || []
@@ -1000,6 +1015,20 @@ export default function Dashboard() {
       const totalSch  = allCheckins?.length || 0
       const doneSch   = (allCheckins || []).filter(c => c.completed).length
       const checkinPct = totalSch > 0 ? Math.round(doneSch / totalSch * 100) : 100
+
+      // Build active travellers list: join trip → profile
+      const profileMap = {}
+      ;(orgTravellerProfiles || []).forEach(p => { profileMap[p.id] = p })
+      const travellerList = (activeTrips || []).map(trip => ({
+        trip,
+        profile: profileMap[trip.user_id] || { full_name: 'Unknown', email: '' },
+      }))
+
+      // Latest check-in per user (with location)
+      const seenUsers = new Set()
+      const checkinList = (completedCheckins || [])
+        .filter(c => { if (seenUsers.has(c.user_id)) return false; seenUsers.add(c.user_id); return true })
+        .map(c => ({ ...c, name: profileMap[c.user_id]?.full_name || 'Traveller' }))
 
       const activeFeeds = Object.values(feedStatuses || {}).filter(s => s === 'active').length
       setMetrics({ activeAlerts: alertCount || 0, activeFeeds })
@@ -1010,6 +1039,8 @@ export default function Dashboard() {
         overdueCheckins:  overdueCheckins?.length || 0,
       })
       setOrgStats({ trainPct, polPct, checkinPct })
+      setActiveTravellers(travellerList)
+      setLatestCheckins(checkinList)
       setLoading(false)
       loadingRef.current = false
       return
@@ -1270,34 +1301,33 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* ── CORPORATE ADMIN METRICS ── */}
-      {role === 'admin' && (
+      {/* ── CORPORATE ADMIN DASHBOARD ── */}
+      {(role === 'admin' || role === 'org_admin') && (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
-            <MetricCard label="Our Travellers"    value={loading ? '–' : adminMetrics.travellers}       icon={Users}         valueColor="text-[#0118A1]" accent="#0118A1" to="/org/users" />
-            <MetricCard label="Currently Travelling" value={loading ? '–' : adminMetrics.travelling}   icon={Plane}         valueColor="text-blue-600"  accent="#2563EB" to="/tracker" />
-            <MetricCard label="Pending Approvals" value={loading ? '–' : adminMetrics.pendingApprovals} icon={ClipboardList}
+          {/* Metric cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+            <MetricCard label="Our Travellers"       value={loading ? '–' : adminMetrics.travellers}       icon={Users}         valueColor="text-[#0118A1]" accent="#0118A1" to="/org/users" />
+            <MetricCard label="Currently Travelling" value={loading ? '–' : adminMetrics.travelling}       icon={Plane}         valueColor="text-blue-600"  accent="#2563EB" to="/tracker" />
+            <MetricCard label="Pending Approvals"    value={loading ? '–' : adminMetrics.pendingApprovals} icon={ClipboardList}
               valueColor={adminMetrics.pendingApprovals > 0 ? 'text-amber-600' : 'text-gray-900'}
               accent={adminMetrics.pendingApprovals > 0 ? '#D97706' : '#0118A1'} to="/approvals" />
-            <MetricCard label="Overdue Check-ins" value={loading ? '–' : adminMetrics.overdueCheckins} icon={Clock}
+            <MetricCard label="Overdue Check-ins"    value={loading ? '–' : adminMetrics.overdueCheckins}  icon={Clock}
               valueColor={adminMetrics.overdueCheckins > 0 ? 'text-red-600' : 'text-emerald-600'}
               accent={adminMetrics.overdueCheckins > 0 ? '#EF4444' : '#059669'} to="/control-room" />
           </div>
 
-          {/* Urgent action banners — only shown when there's something that needs attention */}
+          {/* Urgent banners */}
           {!loading && (adminMetrics.pendingApprovals > 0 || adminMetrics.overdueCheckins > 0) && (
-            <div className="flex gap-3 mb-6 flex-wrap">
+            <div className="flex gap-3 mb-5 flex-wrap">
               {adminMetrics.pendingApprovals > 0 && (
-                <Link to="/approvals"
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors">
+                <Link to="/approvals" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors">
                   <ClipboardList size={14} />
                   {adminMetrics.pendingApprovals} trip{adminMetrics.pendingApprovals !== 1 ? 's' : ''} awaiting approval
                   <ChevronRight size={13} />
                 </Link>
               )}
               {adminMetrics.overdueCheckins > 0 && (
-                <Link to="/tracker"
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-colors">
+                <Link to="/tracker" className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-colors">
                   <Clock size={14} />
                   {adminMetrics.overdueCheckins} overdue check-in{adminMetrics.overdueCheckins !== 1 ? 's' : ''}
                   <ChevronRight size={13} />
@@ -1306,8 +1336,151 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Quick actions grid */}
-          <QuickActions role="admin" hasActiveTrip={false} />
+          {/* Quick Actions */}
+          <div className="mb-6">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Quick Actions</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Invite Traveller',    icon: Users,          to: '/org/users',    bg: BRAND_BLUE,   desc: 'Add staff to your team' },
+                { label: 'Travel Approvals',    icon: ClipboardList,  to: '/approvals',    bg: '#D97706',    desc: 'Review pending trips' },
+                { label: 'Training & Courses',  icon: GraduationCap,  to: '/org/training', bg: '#7C3AED',    desc: 'Assign or upload training' },
+                { label: 'Policies & Docs',     icon: FileText,       to: '/policies',     bg: '#059669',    desc: 'Upload company policies' },
+              ].map(a => {
+                const Icon = a.icon
+                return (
+                  <Link key={a.label} to={a.to}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                      style={{ background: `${a.bg}18` }}>
+                      <Icon size={17} style={{ color: a.bg }} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">{a.label}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">{a.desc}</p>
+                    </div>
+                    <span className="text-[10px] font-semibold text-gray-300 uppercase tracking-widest mt-auto">Open →</span>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Currently Travelling */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50"
+              style={{ background: `${BRAND_BLUE}06` }}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
+                  <Plane size={14} style={{ color: BRAND_BLUE }} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-gray-900">Currently Travelling</h2>
+                  <p className="text-[11px] text-gray-400">Staff on active trips right now</p>
+                </div>
+              </div>
+              <Link to="/tracker" className="text-xs font-semibold text-[#0118A1] hover:underline flex items-center gap-1">
+                Full tracker <ChevronRight size={12} />
+              </Link>
+            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-10 text-gray-400 text-sm gap-2">
+                <div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" />
+                Loading…
+              </div>
+            ) : activeTravellers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2">
+                <Plane size={28} className="text-gray-200" />
+                <p className="text-sm text-gray-400">No staff currently travelling</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {activeTravellers.map(({ trip, profile: tp }) => {
+                  const daysLeft = trip.return_date
+                    ? Math.max(0, Math.ceil((new Date(trip.return_date) - new Date()) / 86400000))
+                    : null
+                  return (
+                    <div key={trip.id} className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                        style={{ background: BRAND_BLUE }}>
+                        {(tp.full_name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm truncate">{tp.full_name || tp.email}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {trip.departure_city && trip.arrival_city
+                            ? `${trip.departure_city} → ${trip.arrival_city}`
+                            : trip.trip_name || 'Trip'}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {daysLeft !== null && (
+                          <p className="text-xs font-semibold text-gray-500">
+                            {daysLeft === 0 ? 'Returns today' : `${daysLeft}d remaining`}
+                          </p>
+                        )}
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full mt-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Active
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Latest Check-in Locations */}
+          {!loading && latestCheckins.filter(c => c.latitude && c.longitude).length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-6 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50"
+                style={{ background: `${BRAND_BLUE}06` }}>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
+                    <MapPin size={14} style={{ color: BRAND_BLUE }} />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-gray-900">Latest Check-in Locations</h2>
+                    <p className="text-[11px] text-gray-400">Most recent GPS check-in per traveller</p>
+                  </div>
+                </div>
+                <Link to="/tracker" className="text-xs font-semibold text-[#0118A1] hover:underline flex items-center gap-1">
+                  Live map <ChevronRight size={12} />
+                </Link>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {latestCheckins.filter(c => c.latitude && c.longitude).slice(0, 5).map((c, i) => (
+                  <div key={i} className="flex items-center gap-3 px-5 py-3">
+                    <div className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{c.name}</p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {c.location_label || `${Number(c.latitude).toFixed(4)}, ${Number(c.longitude).toFixed(4)}`}
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-gray-400 shrink-0">
+                      {c.completed_at ? new Date(c.completed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Contact SafeGuard360 */}
+          <div className="rounded-2xl border mb-6 overflow-hidden"
+            style={{ background: `${BRAND_BLUE}08`, borderColor: `${BRAND_BLUE}20` }}>
+            <div className="px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <p className="text-sm font-bold text-gray-900">Need help or a custom solution?</p>
+                <p className="text-xs text-gray-500 mt-0.5">Request bespoke training, policies, or platform support from the SafeGuard360 team.</p>
+              </div>
+              <a href="mailto:support@risk360.co"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shrink-0"
+                style={{ background: BRAND_BLUE }}>
+                <Send size={13} /> Contact SafeGuard360
+              </a>
+            </div>
+          </div>
 
           {/* AI Security Analyst */}
           {!loading && (
@@ -1318,12 +1491,7 @@ export default function Dashboard() {
                 </div>
                 <h2 className="text-sm font-bold text-gray-900">AI Security Analyst</h2>
               </div>
-              <DashboardAiChat
-                profile={profile}
-                trips={[]}
-                orgName={profile?.organisations?.name}
-                role={role}
-              />
+              <DashboardAiChat profile={profile} trips={[]} orgName={profile?.organisations?.name} role={role} />
             </div>
           )}
         </>
