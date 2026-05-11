@@ -61,14 +61,30 @@ export default function TermsAndConditions() {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) throw new Error('Session expired — please refresh and try again.')
 
-      const { error: updateError } = await supabase
+      // UPDATE only — never overwrite org_id, role, or other profile fields
+      const { error: updateError, count } = await supabase
         .from('profiles')
-        .upsert(
-          { id: user.id, email: user.email, terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() },
-          { onConflict: 'id' }
-        )
+        .update({ terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() })
+        .eq('id', user.id)
 
       if (updateError) throw new Error(`Could not save your acceptance: ${updateError.message}`)
+
+      // If profile didn't exist yet (edge case), create a minimal one from auth metadata
+      if (count === 0) {
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id:                user.id,
+            email:             user.email,
+            full_name:         user.user_metadata?.full_name || 'New User',
+            role:              user.user_metadata?.role || 'traveller',
+            org_id:            user.user_metadata?.org_id || null,
+            status:            'active',
+            terms_version:     TERMS_VERSION,
+            terms_accepted_at: new Date().toISOString(),
+          })
+        if (insertError) throw new Error(`Could not save your acceptance: ${insertError.message}`)
+      }
 
       navigate('/dashboard')
     } catch (err) {
