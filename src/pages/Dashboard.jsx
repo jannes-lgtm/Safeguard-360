@@ -1037,6 +1037,18 @@ function SoloTripRiskReport({ trips, destRisk, destAlerts, loading, onCountryCli
   )
 }
 
+// ── Simple markdown → HTML for AI chat bubbles ───────────────────────────────
+function mdToHtml(text) {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/^#{1,3} (.+)$/gm, '<strong>$1</strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^[-*] (.+)$/gm, '• $1')
+    .replace(/\n{2,}/g, '</p><p style="margin:6px 0 0">')
+    .replace(/\n/g, '<br/>')
+}
+
 // ── Dashboard AI Chat ─────────────────────────────────────────────────────────
 function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
   const tripSummary = trips.slice(0, 6).map(t => {
@@ -1146,11 +1158,15 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
                 <Sparkles size={10} style={{ color: dark ? BRAND_GREEN : BRAND_BLUE }} />
               </div>
             )}
-            <div className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed whitespace-pre-wrap ${m.role === 'user' ? 'rounded-br-[4px]' : 'rounded-bl-[4px]'}`}
+            <div className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${m.role === 'user' ? 'rounded-br-[4px]' : 'rounded-bl-[4px]'}`}
               style={m.role === 'user'
                 ? { background: 'linear-gradient(135deg,#0118A1,#0A3D6B)', color: 'white' }
-                : { background: dark ? '#162033' : '#FFFFFF', border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : '#EFF2F8'}`, color: dark ? 'rgba(255,255,255,0.82)' : '#1F2937' }}>
-              {m.text}
+                : { background: '#FFFFFF', border: '1px solid #EFF2F8', color: '#1F2937' }}
+              dangerouslySetInnerHTML={m.role === 'assistant'
+                ? { __html: `<p style="margin:0">${mdToHtml(m.text)}</p>` }
+                : undefined}
+            >
+              {m.role === 'user' ? m.text : null}
             </div>
           </div>
         ))}
