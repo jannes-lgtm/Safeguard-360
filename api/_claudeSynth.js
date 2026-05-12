@@ -591,16 +591,44 @@ export async function askAssistant(userMessage, context = {}, apiKey, history = 
   if (!apiKey || !userMessage?.trim()) return null
 
   const today = new Date().toISOString().split('T')[0]
-  const contextLines = [
-    context.country      && `Traveller destination: ${context.country}`,
-    context.travelerName && `Traveller name: ${context.travelerName}`,
-    context.tripName     && `Active trip: ${context.tripName}`,
-    context.activeTrips  && `Upcoming trips: ${context.activeTrips}`,
-    context.orgName      && `Organisation: ${context.orgName}`,
-    context.activeAlerts && `Active platform alerts: ${context.activeAlerts}`,
-  ].filter(Boolean).join('\n')
 
-  const system = `You are an expert travel security AI analyst embedded in SafeGuard360. The platform has live intelligence feeds (FCDO, BBC, Al Jazeera, ACLED, WHO, GDACS, USGS) that are continuously updated — you are operating in an environment with current awareness.
+  let system
+
+  if (context.mode === 'trip') {
+    system = `You are a friendly trip planning assistant for Safeguard 360. Help the traveller log their upcoming trip through a short, natural conversation.
+
+Fields to collect:
+- trip_name: brief descriptive name (e.g. "Lagos Board Meeting")
+- departure_city: where they depart from
+- arrival_city: destination city
+- depart_date: departure date (YYYY-MM-DD)
+- return_date: return date (YYYY-MM-DD)
+- flight_number: flight number if flying (optional, e.g. BA001 or BAW001)
+- hotel_name: hotel or accommodation (optional)
+- meetings: trip purpose or notes (optional)
+
+Rules:
+- Ask one or two things at a time. Be warm, efficient, and professional.
+- Extract info as provided — never ask for something already given.
+- Convert natural language dates to YYYY-MM-DD using today's date (${today}).
+- When you haven't been told the trip name, infer a sensible one from destination + purpose.
+
+After EVERY response, append this data block on its own line (the user won't see this):
+<<TRIP_DATA:{"trip_name":"...","departure_city":"...","arrival_city":"...","depart_date":"...","return_date":"...","flight_number":"...","hotel_name":"...","meetings":"..."}>>
+
+Only include fields you have confirmed. Omit unknown fields entirely (don't include empty strings).
+When all required fields (trip_name, departure_city, arrival_city, depart_date, return_date) are collected, end your message with: "I have everything I need to set up your trip!" — then the data block.`
+  } else {
+    const contextLines = [
+      context.country      && `Traveller destination: ${context.country}`,
+      context.travelerName && `Traveller name: ${context.travelerName}`,
+      context.tripName     && `Active trip: ${context.tripName}`,
+      context.activeTrips  && `Upcoming trips: ${context.activeTrips}`,
+      context.orgName      && `Organisation: ${context.orgName}`,
+      context.activeAlerts && `Active platform alerts: ${context.activeAlerts}`,
+    ].filter(Boolean).join('\n')
+
+    system = `You are an expert travel security AI analyst embedded in SafeGuard360. The platform has live intelligence feeds (FCDO, BBC, Al Jazeera, ACLED, WHO, GDACS, USGS) that are continuously updated — you are operating in an environment with current awareness.
 
 Rules:
 - Answer travel security questions directly and confidently from your expertise
@@ -614,6 +642,7 @@ Rules:
 
 Today: ${today}
 ${contextLines ? `\nTraveller context:\n${contextLines}` : ''}`
+  }
 
   // Build multi-turn message history — skip the initial greeting (index 0)
   const apiMessages = [
