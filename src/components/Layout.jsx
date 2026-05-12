@@ -251,7 +251,7 @@ function SoloTravellerNav({ alertCount, tripAlertCount }) {
 }
 
 // ── Main layout ───────────────────────────────────────────────────────────────
-export default function Layout({ children }) {
+export default function Layout({ children, dark = false }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [profile, setProfile]                   = useState(null)
@@ -399,7 +399,7 @@ export default function Layout({ children }) {
   }
 
   return (
-    <div className="flex min-h-screen" style={{ background: '#F0F2F8' }}>
+    <div className="flex min-h-screen" style={{ background: dark ? '#090D1A' : '#F0F2F8' }}>
 
       {/* ── Desktop sidebar (hidden on mobile) ── */}
       <aside className="hidden lg:flex w-[230px] shrink-0 flex-col fixed top-0 left-0 h-full z-30" style={sidebarStyle}>

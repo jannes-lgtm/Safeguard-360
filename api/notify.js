@@ -56,6 +56,30 @@ async function getProfile(userId) {
   }
 }
 
+// ── Fetch emergency contacts (normalised table, priority ordered) ──────────────
+async function getEmergencyContacts(userId) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL()}/rest/v1/emergency_contacts?user_id=eq.${userId}&order=priority.asc&limit=3`,
+      {
+        headers: {
+          apikey:        SERVICE_KEY(),
+          Authorization: `Bearer ${SERVICE_KEY()}`,
+        },
+      }
+    )
+    if (!res.ok) return []
+    const rows = await res.json()
+    return (rows || []).map(c => ({
+      name:  c.full_name  || null,
+      email: c.email      || null,
+      phone: c.phone      || null,
+    })).filter(c => c.email || c.phone)
+  } catch {
+    return []
+  }
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 async function _handler(req, res) {
   if (req.method !== 'POST') {
@@ -78,21 +102,10 @@ async function _handler(req, res) {
 
   // ── SOS notification ────────────────────────────────────────────────────────
   if (type === 'sos') {
-    // Fetch profile so we can pull emergency contact emails
-    const profile = await getProfile(user.id)
-
-    const contacts = [
-      {
-        name:  profile?.emergency_contact_1_name  || null,
-        email: profile?.emergency_contact_1_email || null,
-        phone: profile?.emergency_contact_1_phone || null,
-      },
-      {
-        name:  profile?.emergency_contact_2_name  || null,
-        email: profile?.emergency_contact_2_email || null,
-        phone: profile?.emergency_contact_2_phone || null,
-      },
-    ].filter(c => c.email || c.phone)
+    const [profile, contacts] = await Promise.all([
+      getProfile(user.id),
+      getEmergencyContacts(user.id),
+    ])
 
     const sent = await notifySos({
       event: {
@@ -100,7 +113,7 @@ async function _handler(req, res) {
         full_name: profile?.full_name || user.email || 'Unknown',
       },
       contacts,
-      adminEmail:    process.env.SOS_ADMIN_EMAIL    || null,
+      adminEmail:    process.env.SOS_ADMIN_EMAIL    || process.env.CONTROL_ROOM_EMAIL || null,
       adminPhone:    process.env.SOS_ADMIN_PHONE    || null,
       adminWhatsApp: process.env.SOS_ADMIN_WHATSAPP || null,
     })

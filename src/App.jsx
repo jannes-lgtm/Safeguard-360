@@ -32,6 +32,8 @@ import AdminControlCenter from './pages/AdminControlCenter'
 import Visa from './pages/Visa'
 import ResetPassword from './pages/ResetPassword'
 import PendingApproval from './pages/PendingApproval'
+import TripShare from './pages/TripShare'
+import Briefing from './pages/Briefing'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -46,6 +48,8 @@ export default function App() {
         <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/org-onboarding" element={<OrgOnboarding />} />
+        <Route path="/trip-share/:token" element={<TripShare />} />
+        <Route path="/briefing/:briefingId" element={<Briefing />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/itinerary" element={<ProtectedRoute><Itinerary /></ProtectedRoute>} />
         <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />

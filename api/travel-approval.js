@@ -55,6 +55,9 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
+import { sendEmail } from './_notify.js'
+
+const APP_URL = process.env.APP_URL || 'https://safeguard360.co.za'
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -182,6 +185,22 @@ async function _handler(req, res) {
     }
   }
 
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || null
+  const ua = req.headers['user-agent'] || null
+  const tripOrgId = trip.profiles?.org_id || null
+
+  const auditBase = {
+    actor_id:      user.id,
+    actor_email:   user.email,
+    actor_role:    prof.role,
+    actor_org_id:  prof.org_id || null,
+    entity_type:   'trip',
+    entity_id:     trip_id,
+    entity_org_id: tripOrgId,
+    ip_address:    ip,
+    user_agent:    ua,
+  }
+
   // ── REJECT ────────────────────────────────────────────────────────────────
   if (action === 'reject') {
     await supabaseAdmin.from('itineraries').update({
@@ -190,6 +209,13 @@ async function _handler(req, res) {
       approved_by:     user.id,
       approved_at:     new Date().toISOString(),
     }).eq('id', trip_id)
+
+    await supabaseAdmin.from('audit_logs').insert({
+      ...auditBase,
+      action:      'trip.rejected',
+      description: `Trip "${trip.trip_name}" rejected${notes ? `: ${notes}` : ''}`,
+      metadata:    { trip_name: trip.trip_name, traveller_id: trip.user_id, risk_level: trip.risk_level, notes },
+    })
 
     return res.json({ ok: true, action: 'rejected' })
   }
@@ -237,11 +263,115 @@ async function _handler(req, res) {
   await supabaseAdmin.from('scheduled_checkins').delete().eq('trip_id', trip_id)
   await supabaseAdmin.from('scheduled_checkins').insert(checkinRows)
 
+  await supabaseAdmin.from('audit_logs').insert({
+    ...auditBase,
+    action:      'trip.approved',
+    description: `Trip "${trip.trip_name}" approved — ${modules.length} training modules assigned, ${checkinRows.length} check-ins scheduled`,
+    metadata:    { trip_name: trip.trip_name, traveller_id: trip.user_id, risk_level: trip.risk_level, modules_count: modules.length, checkins_count: checkinRows.length, notes },
+  })
+
+  // 3. Generate pre-travel briefing and email the traveller
+  let briefingId  = null
+  let briefingRef = null
+  try {
+    const briefingRes = await fetch(`${APP_URL}/api/generate-briefing`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body:    JSON.stringify({ trip_id }),
+      signal:  AbortSignal.timeout(45000),
+    })
+    if (briefingRes.ok) {
+      const bData = await briefingRes.json()
+      briefingId  = bData.briefing_id
+      briefingRef = bData.ref
+    }
+  } catch (err) {
+    console.error('[travel-approval] Briefing generation failed (non-fatal):', err.message)
+  }
+
+  // 4. Email traveller with briefing link
+  if (briefingId) {
+    const { data: travProfile } = await supabaseAdmin
+      .from('profiles').select('full_name, email').eq('id', trip.user_id).single()
+
+    const travName  = travProfile?.full_name || 'Traveller'
+    const travEmail = travProfile?.email
+    const briefingUrl = `${APP_URL}/briefing/${briefingId}`
+
+    if (travEmail) {
+      const riskColour =
+        riskLevel === 'Critical' ? '#DC2626' :
+        riskLevel === 'High'     ? '#F97316' :
+        riskLevel === 'Medium'   ? '#D97706' : '#059669'
+
+      await sendEmail(
+        travEmail,
+        `Action Required: Pre-Travel Security Briefing — ${trip.trip_name} (${briefingRef})`,
+        `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 0;">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+  <tr><td style="background:#0118A1;padding:24px 28px;border-radius:10px 10px 0 0;">
+    <h1 style="margin:0;font-size:18px;font-weight:700;color:#fff;">Action Required: Pre-Travel Security Briefing</h1>
+    <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.7);">ISO 31030:2021 — Travel Risk Management</p>
+  </td></tr>
+  <tr><td style="background:#fff;padding:28px;border:1px solid #e5e7eb;border-top:none;">
+    <p style="margin:0 0 16px;font-size:13px;color:#374151;line-height:1.6;">
+      Hi ${travName},<br/><br/>
+      Your travel request for <strong>${trip.trip_name}</strong> has been approved.
+      Before you depart, you are required to read and acknowledge your
+      <strong>Pre-Travel Security Briefing</strong> in compliance with ISO 31030:2021.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:4px 0;font-size:12px;color:#9ca3af;width:140px;">Document Ref</td>
+        <td style="padding:4px 0;font-size:12px;font-weight:700;font-family:monospace;color:#111827;">${briefingRef}</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 0;font-size:12px;color:#9ca3af;">Destination</td>
+        <td style="padding:4px 0;font-size:13px;color:#374151;">${trip.arrival_city || trip.trip_name}</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 0;font-size:12px;color:#9ca3af;">Travel Dates</td>
+        <td style="padding:4px 0;font-size:13px;color:#374151;">${trip.depart_date} → ${trip.return_date}</td>
+      </tr>
+      <tr>
+        <td style="padding:4px 0;font-size:12px;color:#9ca3af;">Risk Level</td>
+        <td style="padding:4px 0;font-size:13px;font-weight:700;color:${riskColour};">${riskLevel}</td>
+      </tr>
+    </table>
+    <div style="text-align:center;margin-bottom:24px;">
+      <a href="${briefingUrl}" style="display:inline-block;background:#0118A1;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:14px 32px;border-radius:10px;">
+        Read &amp; Acknowledge Briefing →
+      </a>
+    </div>
+    <div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;">
+      <p style="margin:0;font-size:12px;color:#92400E;font-weight:600;">
+        ⚠️ Your acknowledgement must be completed before your departure date of ${trip.depart_date}.
+      </p>
+    </div>
+  </td></tr>
+  <tr><td style="background:#f9fafb;padding:14px 28px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;">
+    <p style="margin:0;font-size:11px;color:#9ca3af;">Safeguard 360 — ISO 31030:2021 Travel Risk Management</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`
+      ).catch(() => {})
+    }
+  }
+
   return res.json({
     ok:          true,
     action:      'approved',
     modules:     modules.length,
     checkins:    checkinRows.length,
+    briefing_id: briefingId,
+    briefing_ref: briefingRef,
     schedule:    checkinRows.map(c => ({ type: c.checkin_type, due: c.due_at, label: c.label })),
   })
 }

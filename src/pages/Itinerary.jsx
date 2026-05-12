@@ -46,7 +46,7 @@ export default function Itinerary() {
   const [expandedTraining, setExpandedTraining] = useState({}) // trip_id → bool
   const [submittingApproval, setSubmittingApproval] = useState(null) // trip_id
 
-  const emptyForm = { trip_name: '', flight_number: '', departure_city: '', arrival_city: '', depart_date: '', return_date: '', hotel_name: '', meetings: '' }
+  const emptyForm = { trip_name: '', flight_number: '', departure_city: '', arrival_city: '', depart_date: '', return_date: '', hotel_name: '', meetings: '', checkin_interval_days: 1 }
   const [form, setForm] = useState(emptyForm)
 
   const startEdit = (trip) => {
@@ -60,6 +60,7 @@ export default function Itinerary() {
       return_date: trip.return_date || '',
       hotel_name: trip.hotel_name || '',
       meetings: trip.meetings || '',
+      checkin_interval_days: trip.checkin_interval_days || 1,
     })
     setActiveTab('Flight')
     setTimeout(() => document.getElementById('trip-form')?.scrollIntoView({ behavior: 'smooth' }), 100)
@@ -182,6 +183,7 @@ export default function Itinerary() {
       meetings: form.meetings,
       risk_level: riskLevel,
       status,
+      checkin_interval_days: Number(form.checkin_interval_days) || 1,
     }
 
     // Always get user ID fresh from session to avoid null state issues
@@ -210,42 +212,48 @@ export default function Itinerary() {
       if (error) { setSubmitting(false); return }
       savedTripId = inserted?.id
 
-      // Auto-create check-in schedule for solo travellers (normally done by admin on approval)
+      // Auto-create interval-based check-in schedule for solo travellers
       if (isSolo && savedTripId) {
-        const tripDurationMs = returnDate.getTime() - departDate.getTime()
-        const midDate = new Date(departDate.getTime() + tripDurationMs / 2)
+        const intervalDays = Number(form.checkin_interval_days) || 1
+        const checkins = []
 
-        const checkins = [
-          {
-            trip_id: savedTripId,
-            user_id: currentUserId,
-            checkin_type: 'arrival',
-            due_at: departDate.toISOString(),
-            window_hours: 24,
-            label: 'Arrival check-in',
-            completed: false,
-          },
-        ]
+        // Always start with an arrival check-in
+        checkins.push({
+          trip_id: savedTripId,
+          user_id: currentUserId,
+          checkin_type: 'arrival',
+          due_at: departDate.toISOString(),
+          window_hours: 24,
+          label: 'Arrival check-in',
+          completed: false,
+        })
 
-        // Add mid-trip check-in for trips longer than 2 days
-        if (tripDurationMs > 2 * 24 * 3600 * 1000) {
+        // Generate recurring check-ins at the chosen interval
+        const cursor = new Date(departDate)
+        cursor.setDate(cursor.getDate() + intervalDays)
+        let count = 1
+        while (cursor < returnDate) {
           checkins.push({
             trip_id: savedTripId,
             user_id: currentUserId,
-            checkin_type: 'random',
-            due_at: midDate.toISOString(),
+            checkin_type: 'scheduled',
+            due_at: new Date(cursor).toISOString(),
             window_hours: 12,
-            label: 'Mid-trip check-in',
+            label: `Check-in ${count}`,
             completed: false,
           })
+          cursor.setDate(cursor.getDate() + intervalDays)
+          count++
         }
 
-        // Return check-in for trips longer than 1 day
-        if (tripDurationMs > 24 * 3600 * 1000) {
+        // Return check-in (only if not already covered by the last interval)
+        const lastDue = checkins[checkins.length - 1]?.due_at
+        const returnMs = returnDate.getTime()
+        if (!lastDue || Math.abs(new Date(lastDue).getTime() - returnMs) > 12 * 3600 * 1000) {
           checkins.push({
             trip_id: savedTripId,
             user_id: currentUserId,
-            checkin_type: 'random',
+            checkin_type: 'return',
             due_at: returnDate.toISOString(),
             window_hours: 12,
             label: 'Return check-in',
@@ -254,6 +262,20 @@ export default function Itinerary() {
         }
 
         await supabase.from('scheduled_checkins').insert(checkins)
+
+        // Notify emergency contacts with trip details + secure share link
+        try {
+          const { data: { session: s } } = await supabase.auth.getSession()
+          if (s?.access_token) {
+            await fetch('/api/notify-trip-contacts', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.access_token}` },
+              body: JSON.stringify({ trip_id: savedTripId }),
+            })
+          }
+        } catch (notifyErr) {
+          console.warn('[notify-trip-contacts] Failed silently:', notifyErr)
+        }
       }
     }
 
@@ -607,6 +629,36 @@ export default function Itinerary() {
                 <label className={labelClass}>Return date</label>
                 <input type="date" className={inputClass} {...f('return_date')} required />
               </div>
+              {profile?.role === 'solo' && (
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Check-in frequency</label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { label: 'Daily', value: 1 },
+                      { label: 'Every 2 days', value: 2 },
+                      { label: 'Every 3 days', value: 3 },
+                      { label: 'Every 4 days', value: 4 },
+                      { label: 'Weekly', value: 7 },
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setForm(p => ({ ...p, checkin_interval_days: opt.value }))}
+                        className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                          form.checkin_interval_days === opt.value
+                            ? 'bg-[#0118A1] text-white border-[#0118A1]'
+                            : 'bg-white text-gray-600 border-gray-300 hover:border-[#0118A1] hover:text-[#0118A1]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-xs text-gray-400">
+                    How often you'll check in so your emergency contacts know you're safe.
+                  </p>
+                </div>
+              )}
               <div className="md:col-span-2">
                 <label className={labelClass}>Hotel name</label>
                 <input className={inputClass} placeholder="e.g. Eko Hotel & Suites" {...f('hotel_name')} />

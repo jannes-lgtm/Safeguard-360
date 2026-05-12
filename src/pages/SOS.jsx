@@ -114,11 +114,12 @@ function SosRow({ event, isAdmin, onResolve }) {
 
 // ── Main SOS page ─────────────────────────────────────────────────────────────
 export default function SOS() {
-  const [profile, setProfile]         = useState(null)
-  const [activeTrip, setActiveTrip]   = useState(null)
-  const [isAdmin, setIsAdmin]         = useState(false)
-  const [events, setEvents]           = useState([])
-  const [loading, setLoading]         = useState(true)
+  const [profile, setProfile]           = useState(null)
+  const [activeTrip, setActiveTrip]     = useState(null)
+  const [isAdmin, setIsAdmin]           = useState(false)
+  const [events, setEvents]             = useState([])
+  const [loading, setLoading]           = useState(true)
+  const [emergencyContacts, setEmergencyContacts] = useState([])
 
   // SOS trigger flow
   const [step, setStep]               = useState('idle')  // idle → confirm → sending → sent
@@ -132,14 +133,16 @@ export default function SOS() {
     if (!user) return
 
     const today = new Date().toISOString().split('T')[0]
-    const [{ data: prof }, { data: trip }, { data: evts }] = await Promise.all([
+    const [{ data: prof }, { data: trip }, { data: evts }, { data: contacts }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('itineraries').select('*')
         .eq('user_id', user.id)
         .lte('depart_date', today).gte('return_date', today)
         .limit(1).single(),
       supabase.from('sos_events').select('*').order('created_at', { ascending: false }).limit(20),
+      supabase.from('emergency_contacts').select('*').eq('user_id', user.id).order('priority'),
     ])
+    setEmergencyContacts(contacts || [])
 
     const role = prof?.role || user.app_metadata?.role || 'traveller'
     setIsAdmin(role === 'admin')
@@ -317,26 +320,48 @@ export default function SOS() {
         )}
 
         {/* Emergency contacts */}
-        {profile && (profile.emergency_contact_1_name || profile.emergency_contact_2_name) && (
+        {emergencyContacts.length > 0 && (
           <div className="bg-white border border-gray-200 rounded-[12px] p-5 mb-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Your Emergency Contacts</p>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+              Your Emergency Contacts ({emergencyContacts.length})
+            </p>
             <div className="space-y-3">
-              {[
-                { name: profile.emergency_contact_1_name, email: profile.emergency_contact_1_email },
-                { name: profile.emergency_contact_2_name, email: profile.emergency_contact_2_email },
-              ].filter(c => c.name).map((c, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                    <User size={13} className="text-gray-500"/>
+              {emergencyContacts.map((c, i) => (
+                <div key={c.id} className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-[#0118A1]/10 flex items-center justify-center shrink-0 text-[10px] font-bold text-[#0118A1]">
+                    {i + 1}
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{c.name}</p>
-                    {c.email && <p className="text-xs text-gray-500">{c.email}</p>}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">{c.full_name}</p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                      {c.relationship && <span className="text-[11px] text-gray-400">{c.relationship}</span>}
+                      {c.email && (
+                        <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                          <Mail size={9}/>{c.email}
+                        </span>
+                      )}
+                      {c.phone && (
+                        <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                          <Phone size={9}/>{c.phone}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-            <p className="text-[10px] text-gray-400 mt-3">Update contacts in <span className="text-[#0118A1] font-medium">My Profile</span></p>
+            <p className="text-[10px] text-gray-400 mt-3">
+              These contacts will be notified immediately when you trigger an SOS. Update them in{' '}
+              <span className="text-[#0118A1] font-medium">My Profile</span>.
+            </p>
+          </div>
+        )}
+        {emergencyContacts.length === 0 && !loading && (
+          <div className="bg-amber-50 border border-amber-200 rounded-[12px] p-4 mb-6">
+            <p className="text-xs font-semibold text-amber-800 mb-1">⚠️ No emergency contacts set</p>
+            <p className="text-xs text-amber-700">
+              Add emergency contacts in <span className="font-semibold">My Profile</span> so someone can be notified if you trigger an SOS.
+            </p>
           </div>
         )}
 

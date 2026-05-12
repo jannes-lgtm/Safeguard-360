@@ -21,12 +21,22 @@
     "api/visa-letter.js":      { "maxDuration": 60 },
     "api/org-signup.js":       { "maxDuration": 20 },
     "api/notify-org-approval.js": { "maxDuration": 10 },
-    "api/delete-user.js":         { "maxDuration": 10 }
+    "api/delete-user.js":         { "maxDuration": 10 },
+    "api/audit-log.js":           { "maxDuration": 10 },
+    "api/notify-trip-contacts.js": { "maxDuration": 15 },
+    "api/trip-share.js":           { "maxDuration": 10 },
+    "api/missed-checkins.js":      { "maxDuration": 60 },
+    "api/generate-briefing.js":   { "maxDuration": 60 },
+    "api/acknowledge-briefing.js": { "maxDuration": 15 }
   },
   "crons": [
     {
       "path": "/api/scan-all",
       "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/missed-checkins",
+      "schedule": "0 * * * *"
     }
   ],
   "headers": [

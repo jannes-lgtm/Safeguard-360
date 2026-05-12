@@ -271,7 +271,7 @@ function OrgCompliancePanel({ orgStats, loading }) {
 }
 
 // ── Quick Actions ─────────────────────────────────────────────────────────────
-function QuickActions({ role, hasActiveTrip }) {
+function QuickActions({ role, hasActiveTrip, dark = false }) {
   const travellerActions = [
     {
       icon: Plane,
@@ -342,37 +342,46 @@ function QuickActions({ role, hasActiveTrip }) {
     },
   ]
 
-  const actions = role === 'admin' ? adminActions : travellerActions
+  const soloActions = [
+    { icon: Plane,       label: 'Plan a Trip',     desc: 'Add a new trip to your planner',       to: '/itinerary',    color: BRAND_BLUE, bg: `${BRAND_BLUE}0F` },
+    { icon: Globe,       label: 'Country Intel',   desc: 'Check safety at your destination',     to: '/country-risk', color: '#059669',  bg: '#ECFDF5' },
+    { icon: Brain,       label: 'AI Analyst',      desc: 'Ask about risk, safety, destinations', to: '/dashboard',    color: '#7C3AED',  bg: '#F5F3FF' },
+    { icon: Headphones,  label: '24/7 Support',    desc: 'Reach emergency support anytime',      to: '/assistance',   color: '#D97706',  bg: '#FFF7ED' },
+  ]
+
+  const actions = role === 'solo' ? soloActions : role === 'admin' ? adminActions : travellerActions
 
   return (
     <div className="mb-7">
       <div className="flex items-center gap-2.5 mb-3">
-        <h2 className="text-sm font-bold text-gray-900">Quick Actions</h2>
+        <h2 className="text-sm font-bold" style={{ color: dark ? '#F9FAFB' : '#111827' }}>Quick Actions</h2>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {actions.map(action => {
           const Icon = action.icon
+          const darkBg = `${action.color}18`
           return (
             <Link
               key={action.label}
               to={action.to}
-              className="bg-white rounded-2xl p-4 flex flex-col gap-3 transition-all duration-200 hover:-translate-y-0.5 group"
+              className="rounded-2xl p-4 flex flex-col gap-3 transition-all duration-200 hover:-translate-y-0.5 group"
               style={{
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.03)',
-                border: '1px solid rgba(0,0,0,0.06)',
+                background: dark ? '#111827' : '#FFFFFF',
+                boxShadow: dark ? '0 2px 16px rgba(0,0,0,0.4)' : '0 1px 3px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.03)',
+                border: dark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.06)',
               }}
             >
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: action.bg }}
+                style={{ background: dark ? darkBg : action.bg }}
               >
                 <Icon size={17} style={{ color: action.color }} />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-bold text-gray-900 group-hover:text-[#0118A1] transition-colors leading-tight mb-0.5">
+                <p className="text-sm font-bold leading-tight mb-0.5 transition-colors" style={{ color: dark ? '#F9FAFB' : '#111827' }}>
                   {action.label}
                 </p>
-                <p className="text-[11px] text-gray-400 leading-snug">{action.desc}</p>
+                <p className="text-[11px] leading-snug" style={{ color: dark ? 'rgba(255,255,255,0.35)' : '#9CA3AF' }}>{action.desc}</p>
               </div>
               <div className="flex items-center gap-1 text-[11px] font-semibold transition-all"
                 style={{ color: action.color }}>
@@ -680,8 +689,356 @@ function TripMapSection({ trips, destRisk, onCountryClick }) {
   )
 }
 
+// ── Solo World Explorer Map ────────────────────────────────────────────────────
+const MAJOR_CITIES = [
+  { name: 'London',       lat: 51.505,  lng: -0.090 },
+  { name: 'New York',     lat: 40.712,  lng: -74.006 },
+  { name: 'Tokyo',        lat: 35.676,  lng: 139.650 },
+  { name: 'Dubai',        lat: 25.204,  lng: 55.270 },
+  { name: 'Singapore',    lat: 1.352,   lng: 103.820 },
+  { name: 'Paris',        lat: 48.857,  lng: 2.347 },
+  { name: 'Sydney',       lat: -33.868, lng: 151.209 },
+  { name: 'São Paulo',    lat: -23.548, lng: -46.636 },
+  { name: 'Lagos',        lat: 6.524,   lng: 3.379 },
+  { name: 'Mumbai',       lat: 19.076,  lng: 72.877 },
+  { name: 'Nairobi',      lat: -1.286,  lng: 36.817 },
+  { name: 'Johannesburg', lat: -26.204, lng: 28.047 },
+  { name: 'Cairo',        lat: 30.044,  lng: 31.235 },
+  { name: 'Cape Town',    lat: -33.925, lng: 18.424 },
+  { name: 'Istanbul',     lat: 41.015,  lng: 28.979 },
+  { name: 'Bangkok',      lat: 13.754,  lng: 100.502 },
+  { name: 'Hong Kong',    lat: 22.319,  lng: 114.169 },
+  { name: 'Seoul',        lat: 37.566,  lng: 126.978 },
+  { name: 'Amsterdam',    lat: 52.373,  lng: 4.890 },
+  { name: 'Frankfurt',    lat: 50.110,  lng: 8.682 },
+  { name: 'Doha',         lat: 25.286,  lng: 51.533 },
+  { name: 'Addis Ababa',  lat: 9.025,   lng: 38.747 },
+  { name: 'Casablanca',   lat: 33.589,  lng: -7.613 },
+  { name: 'Mexico City',  lat: 19.432,  lng: -99.133 },
+  { name: 'Buenos Aires', lat: -34.603, lng: -58.381 },
+  { name: 'Toronto',      lat: 43.653,  lng: -79.383 },
+  { name: 'Los Angeles',  lat: 34.052,  lng: -118.244 },
+  { name: 'Chicago',      lat: 41.878,  lng: -87.629 },
+  { name: 'Kuala Lumpur', lat: 3.140,   lng: 101.687 },
+  { name: 'Jakarta',      lat: -6.208,  lng: 106.845 },
+  { name: 'Riyadh',       lat: 24.688,  lng: 46.722 },
+  { name: 'Karachi',      lat: 24.861,  lng: 67.010 },
+  { name: 'Manila',       lat: 14.598,  lng: 120.984 },
+  { name: 'Accra',        lat: 5.560,   lng: -0.197 },
+]
+
+function SoloWorldMap({ trips, onCountryClick, T = {} }) {
+  const containerRef = useRef(null)
+  const mapRef       = useRef(null)
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return
+
+    const map = L.map(containerRef.current, {
+      center: [20, 10], zoom: 2,
+      zoomControl: false, scrollWheelZoom: false,
+      attributionControl: false,
+    })
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      subdomains: 'abcd', maxZoom: 19,
+    }).addTo(map)
+
+    // Major city glow dots
+    MAJOR_CITIES.forEach(city => {
+      L.circleMarker([city.lat, city.lng], {
+        radius: 2.5, color: 'transparent',
+        fillColor: '#AACC00', fillOpacity: 0.55, weight: 0,
+      }).bindTooltip(city.name, { permanent: false, direction: 'top', className: 'leaflet-solo-tip' })
+       .addTo(map)
+    })
+
+    // Trip destinations
+    const todayISO = new Date().toISOString().split('T')[0]
+    trips.forEach(trip => {
+      const country = cityToCountry(trip.arrival_city) || trip.arrival_city
+      const coords  = COUNTRY_META[country]
+      if (!coords) return
+      const isActive = trip.depart_date <= todayISO && trip.return_date >= todayISO
+
+      L.circleMarker([coords.lat, coords.lon], {
+        radius: isActive ? 12 : 8,
+        color: isActive ? '#AACC00' : '#4F83F4',
+        fillColor: isActive ? '#AACC00' : '#1E40AF',
+        fillOpacity: isActive ? 0.85 : 0.65, weight: 2.5,
+      }).bindPopup(`
+        <div style="font-family:sans-serif;padding:4px 0;min-width:150px">
+          <div style="font-weight:700;font-size:13px;margin-bottom:4px">${trip.trip_name}</div>
+          <div style="font-size:11px;color:#9ca3af;margin-bottom:6px">${trip.arrival_city}</div>
+          ${isActive ? '<div style="font-size:10px;font-weight:700;color:#AACC00;margin-bottom:8px">✈️ Active now</div>' : `<div style="font-size:10px;color:#9ca3af;margin-bottom:8px">${trip.depart_date} → ${trip.return_date}</div>`}
+          <button onclick="window.__soloMapGoto('${country.replace(/'/g, "\\'")}')"
+            style="display:block;width:100%;background:#0118A1;color:#fff;border:none;
+              border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer">
+            View Intel →
+          </button>
+        </div>`)
+      .addTo(map)
+    })
+
+    window.__soloMapGoto = (country) => { onCountryClick(country); map.closePopup() }
+    mapRef.current = map
+
+    return () => {
+      delete window.__soloMapGoto
+      map.remove()
+      mapRef.current = null
+    }
+  }, [trips, onCountryClick])
+
+  return (
+    <div className="mb-7">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: T.iconBg || `${BRAND_BLUE}12` }}>
+            <Globe size={13} style={{ color: T.textPrimary ? BRAND_GREEN : BRAND_BLUE }} />
+          </div>
+          <h2 className="text-sm font-bold" style={{ color: T.textPrimary || '#111827' }}>World Explorer</h2>
+        </div>
+        <span className="text-[10px] font-medium" style={{ color: T.textMuted || '#9CA3AF' }}>Click a destination for a full intel brief</span>
+      </div>
+      <div className="rounded-2xl overflow-hidden relative"
+        style={{ boxShadow: '0 2px 24px rgba(0,0,0,0.5)', border: `1px solid ${T.cardBorder || 'rgba(1,24,161,0.15)'}` }}>
+        <div ref={containerRef} style={{ height: 400 }} />
+        <div className="absolute bottom-3 left-3 flex items-center gap-3 px-3 py-2 rounded-xl"
+          style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#AACC00', opacity: 0.6 }} />
+            <span className="text-[10px] text-gray-300 font-medium">Major city</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#AACC00' }} />
+            <span className="text-[10px] text-gray-300 font-medium">Active trip</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#4F83F4' }} />
+            <span className="text-[10px] text-gray-300 font-medium">Upcoming</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Solo News Widget ───────────────────────────────────────────────────────────
+function SoloNewsWidget({ alerts, loading, onCountryClick, T = {} }) {
+  const isDark = !!T.card && T.card !== '#FFFFFF'
+  if (loading) return (
+    <div className="mb-7">
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2' }}>
+          <Radio size={13} style={{ color: '#EF4444' }} />
+        </div>
+        <h2 className="text-sm font-bold" style={{ color: T.textPrimary || '#111827' }}>Global Intel Feed</h2>
+      </div>
+      <div className="space-y-2">
+        {[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: T.card || '#fff', border: `1px solid ${T.cardBorder || '#F3F4F6'}` }} />)}
+      </div>
+    </div>
+  )
+
+  if (!alerts?.length) return null
+
+  return (
+    <div className="mb-7">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2' }}>
+            <Radio size={13} style={{ color: '#EF4444' }} />
+          </div>
+          <h2 className="text-sm font-bold" style={{ color: T.textPrimary || '#111827' }}>Global Intel Feed</h2>
+          <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full"
+            style={{ background: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2', color: isDark ? '#FCA5A5' : '#B91C1C', border: `1px solid ${isDark ? 'rgba(239,68,68,0.25)' : '#FECACA'}` }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" /> LIVE
+          </span>
+        </div>
+        <Link to="/alerts" className="text-xs font-semibold hover:underline flex items-center gap-1" style={{ color: isDark ? BRAND_GREEN : BRAND_BLUE }}>
+          View all <ChevronRight size={11} />
+        </Link>
+      </div>
+      <div className="space-y-2">
+        {alerts.map(alert => {
+          const pill = SEVERITY_PILL[alert.severity] || SEVERITY_PILL.Low
+          const cardBg = isDark
+            ? `${pill.bar}18`
+            : pill.bg
+          const cardBorder = isDark
+            ? `${pill.bar}35`
+            : pill.border
+          return (
+            <div key={alert.id} className="rounded-2xl flex items-start gap-3 px-4 py-3.5 transition-all hover:opacity-90 cursor-default"
+              style={{ background: cardBg, border: `1px solid ${cardBorder}`, boxShadow: isDark ? '0 2px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div className="w-1 self-stretch rounded-full shrink-0" style={{ background: pill.bar }} />
+              <span className="text-base shrink-0 leading-none mt-0.5">{ALERT_TYPE_ICON[alert.alert_type] || '⚠️'}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2 mb-0.5">
+                  <p className="text-sm font-semibold leading-snug" style={{ color: isDark ? '#F9FAFB' : '#111827' }}>{alert.title}</p>
+                  <span className="text-[10px] font-bold uppercase shrink-0 px-2 py-0.5 rounded-full"
+                    style={{ background: pill.bar + '30', color: isDark ? pill.bar : pill.color }}>{alert.severity}</span>
+                </div>
+                {alert.description && (
+                  <p className="text-xs leading-relaxed line-clamp-2 mb-1.5" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#6B7280' }}>{alert.description}</p>
+                )}
+                <div className="flex items-center gap-3 flex-wrap">
+                  {alert.country && (
+                    <button onClick={() => onCountryClick(alert.country)}
+                      className="text-[11px] font-semibold flex items-center gap-1 hover:underline" style={{ color: isDark ? BRAND_GREEN : BRAND_BLUE }}>
+                      <Globe size={9} /> {alert.country} intel →
+                    </button>
+                  )}
+                  {alert.date_issued && (
+                    <span className="text-[10px]" style={{ color: T.textMuted || '#9CA3AF' }}>{fmtEventDate(alert.date_issued)}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Solo Trip Risk Report ─────────────────────────────────────────────────────
+const RISK_CONFIG = {
+  Critical: { bar: '#EF4444', label: 'Critical',   pct: 100, dot: '#EF4444' },
+  High:     { bar: '#F97316', label: 'High',        pct: 75,  dot: '#F97316' },
+  Medium:   { bar: '#EAB308', label: 'Medium',      pct: 50,  dot: '#EAB308' },
+  Low:      { bar: '#22C55E', label: 'Low',         pct: 25,  dot: '#22C55E' },
+  Info:     { bar: '#60A5FA', label: 'Info',        pct: 10,  dot: '#60A5FA' },
+}
+
+function SoloTripRiskReport({ trips, destRisk, destAlerts, loading, onCountryClick, T }) {
+  const isDark = !!T?.card && T.card !== '#FFFFFF'
+  const todayISO = new Date().toISOString().split('T')[0]
+
+  if (loading) return (
+    <div className="mb-7">
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: isDark ? 'rgba(170,204,0,0.12)' : `${BRAND_BLUE}12` }}>
+          <Shield size={13} style={{ color: isDark ? BRAND_GREEN : BRAND_BLUE }} />
+        </div>
+        <h2 className="text-sm font-bold" style={{ color: T?.textPrimary || '#111827' }}>Trip Risk Report</h2>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {[1,2].map(i => <div key={i} className="h-36 rounded-2xl animate-pulse" style={{ background: T?.card || '#fff', border: `1px solid ${T?.cardBorder || '#F3F4F6'}` }} />)}
+      </div>
+    </div>
+  )
+
+  if (!trips.length) return (
+    <div className="mb-7 rounded-2xl p-6 flex items-center gap-4"
+      style={{ background: T?.card || '#fff', border: `1px solid ${T?.cardBorder || 'rgba(0,0,0,0.06)'}`, boxShadow: T?.cardShadow }}>
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: isDark ? 'rgba(170,204,0,0.12)' : `${BRAND_BLUE}10` }}>
+        <Plane size={18} style={{ color: isDark ? BRAND_GREEN : BRAND_BLUE }} />
+      </div>
+      <div>
+        <p className="text-sm font-bold mb-0.5" style={{ color: T?.textPrimary || '#111827' }}>No trips booked yet</p>
+        <p className="text-xs" style={{ color: T?.textSub || '#6B7280' }}>Add a trip to see a real-time risk report for your destination.</p>
+      </div>
+      <Link to="/itinerary" className="ml-auto text-xs font-bold px-3 py-2 rounded-xl shrink-0 transition-opacity hover:opacity-80"
+        style={{ background: isDark ? BRAND_GREEN : BRAND_BLUE, color: isDark ? '#090D1A' : '#fff' }}>
+        Plan a Trip →
+      </Link>
+    </div>
+  )
+
+  return (
+    <div className="mb-7">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: isDark ? 'rgba(170,204,0,0.12)' : `${BRAND_BLUE}12` }}>
+            <Shield size={13} style={{ color: isDark ? BRAND_GREEN : BRAND_BLUE }} />
+          </div>
+          <h2 className="text-sm font-bold" style={{ color: T?.textPrimary || '#111827' }}>Trip Risk Report</h2>
+        </div>
+        <span className="text-[10px] font-medium" style={{ color: T?.textMuted || '#9CA3AF' }}>
+          {trips.length} trip{trips.length !== 1 ? 's' : ''} · live risk data
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {trips.map(trip => {
+          const country  = cityToCountry(trip.arrival_city) || trip.arrival_city
+          const risk     = destRisk[country]
+          const alertCnt = destAlerts[country] ?? 0
+          const sev      = risk?.severity || null
+          const cfg      = RISK_CONFIG[sev] || { bar: isDark ? 'rgba(255,255,255,0.15)' : '#E5E7EB', label: 'Scanning…', pct: 0, dot: '#9CA3AF' }
+          const isActive = trip.depart_date <= todayISO && trip.return_date >= todayISO
+          const departs  = new Date(trip.depart_date)
+          const daysOut  = Math.max(0, Math.ceil((departs - new Date()) / 86400000))
+          const statusLabel = isActive ? '✈️ Active now' : daysOut === 0 ? 'Departing today' : daysOut === 1 ? 'Tomorrow' : `In ${daysOut} days`
+
+          return (
+            <button key={trip.id} onClick={() => onCountryClick(country)}
+              className="rounded-2xl p-5 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg flex flex-col gap-3 w-full"
+              style={{ background: T?.card || '#fff', border: `1px solid ${T?.cardBorder || 'rgba(0,0,0,0.06)'}`, boxShadow: T?.cardShadow || '0 1px 3px rgba(0,0,0,0.06)' }}>
+
+              {/* Top row */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate" style={{ color: T?.textPrimary || '#111827' }}>{trip.trip_name}</p>
+                  <p className="text-xs mt-0.5 truncate" style={{ color: T?.textSub || '#6B7280' }}>{trip.arrival_city} · {country}</p>
+                </div>
+                {isActive ? (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: `${BRAND_GREEN}20`, color: BRAND_GREEN }}>LIVE</span>
+                ) : (
+                  <span className="text-[10px] font-medium shrink-0" style={{ color: T?.textMuted || '#9CA3AF' }}>{statusLabel}</span>
+                )}
+              </div>
+
+              {/* Risk gauge */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cfg.dot }} />
+                    <span className="text-xs font-bold" style={{ color: cfg.dot }}>{cfg.label} Risk</span>
+                  </div>
+                  {alertCnt > 0 && (
+                    <span className="text-[10px] font-semibold" style={{ color: isDark ? '#FCA5A5' : '#DC2626' }}>
+                      {alertCnt} active alert{alertCnt !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6' }}>
+                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${cfg.pct}%`, background: cfg.bar }} />
+                </div>
+              </div>
+
+              {/* Summary */}
+              {risk?.summary ? (
+                <p className="text-[11px] leading-relaxed line-clamp-2" style={{ color: T?.textSub || '#6B7280' }}>
+                  {risk.summary}
+                </p>
+              ) : (
+                <p className="text-[11px]" style={{ color: T?.textMuted || '#9CA3AF' }}>
+                  {sev ? '' : 'Tap to load full country intel →'}
+                </p>
+              )}
+
+              {/* Footer */}
+              <div className="flex items-center justify-between pt-1" style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#F3F4F6'}` }}>
+                <span className="text-[10px]" style={{ color: T?.textMuted || '#9CA3AF' }}>
+                  {trip.depart_date} → {trip.return_date}
+                </span>
+                <span className="text-[10px] font-semibold" style={{ color: isDark ? BRAND_GREEN : BRAND_BLUE }}>
+                  Full Intel →
+                </span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── Dashboard AI Chat ─────────────────────────────────────────────────────────
-function DashboardAiChat({ profile, trips, orgName, role }) {
+function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
   const tripSummary = trips.slice(0, 6).map(t => {
     const country = cityToCountry(t.arrival_city) || t.arrival_city
     return `${t.trip_name} (${country}, ${t.depart_date}→${t.return_date})`
@@ -734,54 +1091,57 @@ function DashboardAiChat({ profile, trips, orgName, role }) {
     setSending(false)
   }
 
+  const accentColor = dark ? BRAND_GREEN : BRAND_BLUE
+  const msgBg       = dark ? '#1A2235' : '#F9FAFB'
+  const divider     = dark ? 'rgba(255,255,255,0.07)' : '#F1F5F9'
+
   return (
-    <div className="bg-white rounded-2xl overflow-hidden"
-      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
+    <div className="rounded-2xl overflow-hidden"
+      style={{ background: dark ? '#111827' : '#FFFFFF', border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}`, boxShadow: dark ? '0 2px 20px rgba(0,0,0,0.4)' : '0 1px 3px rgba(0,0,0,0.06)' }}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-4" style={{ background: `linear-gradient(135deg, ${BRAND_BLUE}08 0%, ${BRAND_BLUE}04 100%)`, borderBottom: `1px solid ${BRAND_BLUE}12` }}>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: BRAND_BLUE }}>
-          <Brain size={16} color="white" />
+      <div className="flex items-center gap-3 px-5 py-4" style={{ background: dark ? `${BRAND_GREEN}10` : `${BRAND_BLUE}08`, borderBottom: `1px solid ${dark ? `${BRAND_GREEN}18` : `${BRAND_BLUE}12`}` }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: dark ? BRAND_GREEN : BRAND_BLUE }}>
+          <Brain size={16} color={dark ? '#090D1A' : 'white'} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-gray-900">AI Security Analyst</span>
+            <span className="text-sm font-bold" style={{ color: dark ? '#F9FAFB' : '#111827' }}>AI Security Analyst</span>
             <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full"
-              style={{ background: `${BRAND_BLUE}15`, color: BRAND_BLUE }}>
+              style={{ background: `${accentColor}20`, color: accentColor }}>
               <Zap size={7} /> LIVE
             </span>
           </div>
-          <p className="text-[11px] text-gray-400 mt-0.5">Ask anything about travel risk, destinations, or security</p>
+          <p className="text-[11px] mt-0.5" style={{ color: dark ? 'rgba(255,255,255,0.35)' : '#9CA3AF' }}>Ask anything about travel risk, destinations, or security</p>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="p-4 space-y-3 max-h-72 overflow-y-auto bg-gray-50/60">
+      <div className="p-4 space-y-3 max-h-72 overflow-y-auto" style={{ background: msgBg }}>
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {m.role === 'assistant' && (
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2 mt-0.5" style={{ background: `${BRAND_BLUE}12` }}>
-                <Brain size={11} style={{ color: BRAND_BLUE }} />
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2 mt-0.5" style={{ background: `${accentColor}18` }}>
+                <Brain size={11} style={{ color: accentColor }} />
               </div>
             )}
-            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
-              m.role === 'user'
-                ? 'text-white rounded-br-[4px]'
-                : 'bg-white border border-gray-100 text-gray-700 rounded-bl-[4px] shadow-sm'
-            }`} style={m.role === 'user' ? { backgroundColor: BRAND_BLUE } : {}}>
+            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${m.role === 'user' ? 'text-white rounded-br-[4px]' : 'rounded-bl-[4px]'}`}
+              style={m.role === 'user'
+                ? { backgroundColor: accentColor, color: dark ? '#090D1A' : 'white' }
+                : { background: dark ? '#1E2D42' : '#FFFFFF', border: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : '#F3F4F6'}`, color: dark ? 'rgba(255,255,255,0.8)' : '#374151' }}>
               {m.text}
             </div>
           </div>
         ))}
         {sending && (
           <div className="flex justify-start">
-            <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2 mt-0.5" style={{ background: `${BRAND_BLUE}12` }}>
-              <Brain size={11} style={{ color: BRAND_BLUE }} />
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2 mt-0.5" style={{ background: `${accentColor}18` }}>
+              <Brain size={11} style={{ color: accentColor }} />
             </div>
-            <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-[4px] px-3.5 py-2.5 shadow-sm">
+            <div className="rounded-2xl rounded-bl-[4px] px-3.5 py-2.5" style={{ background: dark ? '#1E2D42' : '#FFFFFF', border: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : '#F3F4F6'}` }}>
               <div className="flex gap-1 items-center">
-                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: dark ? 'rgba(255,255,255,0.3)' : '#D1D5DB', animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: dark ? 'rgba(255,255,255,0.3)' : '#D1D5DB', animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: dark ? 'rgba(255,255,255,0.3)' : '#D1D5DB', animationDelay: '300ms' }} />
               </div>
             </div>
           </div>
@@ -791,10 +1151,11 @@ function DashboardAiChat({ profile, trips, orgName, role }) {
 
       {/* Quick suggestions */}
       {messages.length <= 1 && (
-        <div className="px-4 py-3 flex flex-wrap gap-2" style={{ borderTop: '1px solid #F1F5F9' }}>
+        <div className="px-4 py-3 flex flex-wrap gap-2" style={{ borderTop: `1px solid ${divider}`, background: dark ? '#111827' : '#FFFFFF' }}>
           {QUICK.map((q, i) => (
             <button key={i} onClick={() => send(q)}
-              className="text-[11px] font-medium px-3 py-1.5 rounded-full border transition-colors hover:border-[#0118A1] hover:text-[#0118A1] text-gray-500 border-gray-200 bg-white">
+              className="text-[11px] font-medium px-3 py-1.5 rounded-full border transition-colors"
+              style={{ color: dark ? 'rgba(255,255,255,0.45)' : '#6B7280', borderColor: dark ? 'rgba(255,255,255,0.12)' : '#E5E7EB', background: 'transparent' }}>
               {q}
             </button>
           ))}
@@ -802,9 +1163,10 @@ function DashboardAiChat({ profile, trips, orgName, role }) {
       )}
 
       {/* Input */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-white" style={{ borderTop: '1px solid #F1F5F9' }}>
+      <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: `1px solid ${divider}`, background: dark ? '#111827' : '#FFFFFF' }}>
         <input
-          className="flex-1 text-xs text-gray-800 placeholder-gray-400 outline-none bg-transparent"
+          className="flex-1 text-xs outline-none bg-transparent"
+          style={{ color: dark ? '#F9FAFB' : '#1F2937' }}
           placeholder="Ask about risk, safety, destinations…"
           value={input}
           onChange={e => setInput(e.target.value)}
@@ -814,8 +1176,8 @@ function DashboardAiChat({ profile, trips, orgName, role }) {
         <button onClick={() => send()}
           disabled={!input.trim() || sending}
           className="w-8 h-8 flex items-center justify-center rounded-xl transition-colors disabled:opacity-40"
-          style={{ backgroundColor: BRAND_BLUE }}>
-          <Send size={13} color="white" />
+          style={{ backgroundColor: accentColor }}>
+          <Send size={13} color={dark ? '#090D1A' : 'white'} />
         </button>
       </div>
     </div>
@@ -842,8 +1204,9 @@ export default function Dashboard() {
   const [tripAlerts, setTripAlerts]     = useState([])
   const [dismissedIds, setDismissedIds] = useState(() => new Set())
   const [metrics, setMetrics]           = useState({ activeAlerts: 0, staffTravelling: 0, activeFeeds: 0 })
-  const [overdueCheckin, setOverdueCheckin] = useState(null)   // { id, due_at, label }
-  const [nudgeModule, setNudgeModule]   = useState(null)       // { module_order, module_name }
+  const [overdueCheckin, setOverdueCheckin] = useState(null)
+  const [pendingBriefings, setPendingBriefings] = useState([])
+  const [nudgeModule, setNudgeModule]   = useState(null)
 
   // Corporate Admin
   const [orgStats, setOrgStats]           = useState(null)
@@ -869,13 +1232,19 @@ export default function Dashboard() {
 
     // Load profile + role first
     const { data: prof } = await supabase.from('profiles').select('*, organisations(name)').eq('id', uid).single()
-    const userRole = prof?.role || session.user.app_metadata?.role || 'traveller'
+    const rawRole = prof?.role || session.user.app_metadata?.role || 'traveller'
+    // Treat unaffiliated travellers (no org) as solo — consistent with Onboarding.jsx logic
+    const adminRoles = ['admin', 'org_admin', 'developer']
+    const userRole = rawRole === 'traveller' && !prof?.org_id && !adminRoles.includes(rawRole)
+      ? 'solo'
+      : rawRole
     setRole(userRole)
     setProfile({ ...prof, id: uid, email: session.user.email })
 
-    // Always load recent global alerts
+    // Always load recent global alerts (solo gets more for the news feed)
+    const alertLimit = (userRole === 'solo') ? 8 : 4
     const { data: alerts } = await supabase.from('alerts').select('*')
-      .eq('status', 'Active').order('date_issued', { ascending: false }).limit(4)
+      .eq('status', 'Active').order('date_issued', { ascending: false }).limit(alertLimit)
     setRecentAlerts(alerts || [])
 
     // ── DEVELOPER ─────────────────────────────────────────────────────────────
@@ -1055,7 +1424,7 @@ export default function Dashboard() {
     ] = await Promise.all([
       supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
       supabase.from('itineraries').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
-      fetch('/api/feed-status').then(r => r.json()).catch(() => ({})),
+      fetch('/api/feed-status', { signal: AbortSignal.timeout(3000) }).then(r => r.json()).catch(() => ({})),
       supabase.from('itineraries').select('*').eq('user_id', uid).gte('return_date', today).order('depart_date'),
     ])
 
@@ -1103,6 +1472,15 @@ export default function Dashboard() {
     setMetrics({ activeAlerts: alertCount || 0, staffTravelling: travelCount || 0, activeFeeds, compliancePct })
     setMyTrips(trips || [])
     setOverdueCheckin(overdueCheckins?.[0] || null)
+
+    // Fetch unacknowledged briefings for this user
+    const { data: briefings } = await supabase
+      .from('travel_briefings')
+      .select('id, document_ref, destination, depart_date, risk_level')
+      .eq('user_id', uid)
+      .is('acknowledged_at', null)
+      .order('created_at', { ascending: false })
+    setPendingBriefings(briefings || [])
     // Normalise nudge module — join puts module info under training_modules key
     const rawNudge = incompleteModules?.[0] || null
     setNudgeModule(rawNudge ? {
@@ -1175,21 +1553,47 @@ export default function Dashboard() {
     solo:      'Your personal travel safety dashboard',
   }
 
+  const dark = role === 'solo'
+  const T = dark ? {
+    pageBg:      '#090D1A',
+    card:        '#111827',
+    cardBorder:  'rgba(255,255,255,0.07)',
+    cardShadow:  '0 2px 16px rgba(0,0,0,0.4)',
+    textPrimary: '#F9FAFB',
+    textSub:     'rgba(255,255,255,0.45)',
+    textMuted:   'rgba(255,255,255,0.25)',
+    iconBg:      'rgba(170,204,0,0.12)',
+    divider:     'rgba(255,255,255,0.06)',
+    inputBg:     '#1A2235',
+  } : {
+    pageBg:      '#F0F2F8',
+    card:        '#FFFFFF',
+    cardBorder:  'rgba(0,0,0,0.06)',
+    cardShadow:  '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
+    textPrimary: '#111827',
+    textSub:     '#6B7280',
+    textMuted:   '#9CA3AF',
+    iconBg:      `${BRAND_BLUE}12`,
+    divider:     '#F1F5F9',
+    inputBg:     '#F9FAFB',
+  }
+
   return (
-    <Layout>
+    <Layout dark={dark}>
       {selectedCountry && <IntelBrief country={selectedCountry} onClose={() => setSelectedCountry(null)} />}
 
       {/* Header */}
       <div className="mb-7">
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">{todayStr}</p>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">{greeting()}</h1>
+        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: T.textMuted, letterSpacing: '0.18em' }}>{todayStr}</p>
+        <h1 className="text-3xl font-bold tracking-tight" style={{ color: T.textPrimary }}>{greeting()}</h1>
         <div className="flex items-center gap-3 mt-1 flex-wrap">
-          <p className="text-sm text-gray-400">{subtitles[role] || subtitles.traveller}</p>
-          {/* Next trip pill — only for traveller/solo with an upcoming trip */}
+          <p className="text-sm" style={{ color: T.textSub }}>{subtitles[role] || subtitles.traveller}</p>
           {(role === 'traveller' || role === 'solo') && nextTrip && daysToTrip !== null && (
             <Link to="/itinerary"
               className="flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors hover:opacity-80"
-              style={{ background: daysToTrip === 0 ? `${BRAND_BLUE}15` : '#F1F5F9', color: daysToTrip === 0 ? BRAND_BLUE : '#64748B', border: `1px solid ${daysToTrip === 0 ? BRAND_BLUE + '30' : '#E2E8F0'}` }}>
+              style={dark
+                ? { background: 'rgba(170,204,0,0.12)', color: BRAND_GREEN, border: `1px solid rgba(170,204,0,0.25)` }
+                : { background: daysToTrip === 0 ? `${BRAND_BLUE}15` : '#F1F5F9', color: daysToTrip === 0 ? BRAND_BLUE : '#64748B', border: `1px solid ${daysToTrip === 0 ? BRAND_BLUE + '30' : '#E2E8F0'}` }}>
               <Plane size={9} />
               {daysToTrip === 0
                 ? `✈️ Travelling today · ${nextTrip.trip_name}`
@@ -1206,9 +1610,38 @@ export default function Dashboard() {
         <OverdueCheckinBanner checkin={overdueCheckin} />
       )}
 
+      {/* ── Pending briefing banners ── */}
+      {(role === 'traveller' || role === 'solo') && pendingBriefings.map(b => (
+        <Link key={b.id} to={`/briefing/${b.id}`}
+          className="flex items-center gap-3 rounded-2xl px-5 py-4 mb-4 transition-all hover:opacity-90"
+          style={{ background: dark ? 'rgba(234,179,8,0.12)' : '#FFFBEB', border: `1px solid ${dark ? 'rgba(234,179,8,0.3)' : '#FDE68A'}`, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#D97706' }}>
+            <FileText size={16} color="white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold" style={{ color: dark ? '#FDE68A' : '#92400E' }}>
+              Action Required: Pre-Travel Security Briefing
+            </p>
+            <p className="text-xs" style={{ color: dark ? 'rgba(253,230,138,0.7)' : '#B45309' }}>
+              {b.destination} · Departs {b.depart_date} · Ref: {b.document_ref} — Please read and acknowledge before departure
+            </p>
+          </div>
+          <span className="text-xs font-bold px-3 py-1.5 rounded-lg shrink-0" style={{ background: '#D97706', color: '#fff' }}>
+            Review →
+          </span>
+        </Link>
+      ))}
+
       {/* Morning brief (traveller + solo + developer) */}
       {role !== 'admin' && (briefLoading || morningBrief) && (
         <MorningBriefCard brief={morningBrief} loading={briefLoading} />
+      )}
+
+      {/* ── SOLO: AI assistant at top ── */}
+      {role === 'solo' && (
+        <div className="mb-7">
+          <DashboardAiChat profile={profile} trips={myTrips} orgName={null} role={role} dark={dark} />
+        </div>
       )}
 
       {/* ── DEVELOPER PLATFORM HEALTH ── */}
@@ -1552,30 +1985,59 @@ export default function Dashboard() {
       {(role === 'traveller' || role === 'solo') && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
-            <MetricCard label="My Compliance"  value={loading ? '–' : complianceBreakdown ? `${complianceBreakdown.total}%` : '–'} icon={BarChart2} valueColor="text-[#0118A1]" accent="#0118A1" to="/training" />
-            <MetricCard label="Active Alerts"  value={loading ? '–' : metrics.activeAlerts} icon={Bell}
-              valueColor={metrics.activeAlerts > 0 ? 'text-red-600' : 'text-gray-900'}
-              accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'} to="/alerts" />
-            <MetricCard label="My Trips"       value={loading ? '–' : myTrips.length}       icon={Plane}  valueColor="text-[#0118A1]" accent="#0118A1" to="/itinerary" />
-            <MetricCard label="Active Feeds"   value={loading ? '–' : metrics.activeFeeds}  icon={Radio}  valueColor="text-emerald-600" accent="#059669" to="/intel-feeds" />
+            {role === 'solo' ? (
+              <>
+                <MetricCard label="Active Alerts"  value={loading ? '–' : metrics.activeAlerts} icon={Bell}
+                  valueColor={metrics.activeAlerts > 0 ? 'text-red-400' : (dark ? 'text-white' : 'text-gray-900')}
+                  accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'} to="/alerts" dark={dark} />
+                <MetricCard label="My Trips"       value={loading ? '–' : myTrips.length}       icon={Plane}  valueColor={dark ? 'text-[#AACC00]' : 'text-[#0118A1]'} accent={dark ? BRAND_GREEN : '#0118A1'} to="/itinerary" dark={dark} />
+                <MetricCard label="Active Feeds"   value={loading ? '–' : metrics.activeFeeds}  icon={Radio}  valueColor="text-emerald-400" accent="#059669" to="/intel-feeds" dark={dark} />
+                <MetricCard label="SOS Ready"      value={loading ? '–' : '✓'}                  icon={Shield} valueColor="text-emerald-400" accent="#059669" to="/sos" dark={dark} />
+              </>
+            ) : (
+              <>
+                <MetricCard label="My Compliance"  value={loading ? '–' : complianceBreakdown ? `${complianceBreakdown.total}%` : '–'} icon={BarChart2} valueColor="text-[#0118A1]" accent="#0118A1" to="/training" />
+                <MetricCard label="Active Alerts"  value={loading ? '–' : metrics.activeAlerts} icon={Bell}
+                  valueColor={metrics.activeAlerts > 0 ? 'text-red-600' : 'text-gray-900'}
+                  accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'} to="/alerts" />
+                <MetricCard label="My Trips"       value={loading ? '–' : myTrips.length}       icon={Plane}  valueColor="text-[#0118A1]" accent="#0118A1" to="/itinerary" />
+                <MetricCard label="Active Feeds"   value={loading ? '–' : metrics.activeFeeds}  icon={Radio}  valueColor="text-emerald-600" accent="#059669" to="/intel-feeds" />
+              </>
+            )}
           </div>
 
           {/* Quick action shortcuts */}
-          <QuickActions role={role} hasActiveTrip={myTrips.some(t => t.status === 'Active')} />
+          <QuickActions role={role} hasActiveTrip={myTrips.some(t => t.status === 'Active')} dark={dark} />
 
-          {/* Training nudge — only when score is below 70% and there's a next module */}
-          {!loading && (
+          {/* Training nudge — org travellers only */}
+          {role !== 'solo' && !loading && (
             <TrainingNudge
               module={nudgeModule}
               score={complianceBreakdown?.total ?? 100}
             />
           )}
 
-          {/* 24/7 Assistance CTA — always visible for travellers */}
-          <AssistanceCTA />
+          {/* 24/7 Assistance CTA */}
+          {role !== 'solo' && <AssistanceCTA />}
 
-          {/* Trip map — visible when they have upcoming/active trips */}
-          {!loading && (
+          {/* Solo: trip risk report + world map + news feed */}
+          {role === 'solo' && (
+            <>
+              <SoloTripRiskReport
+                trips={myTrips}
+                destRisk={destRisk}
+                destAlerts={destAlerts}
+                loading={loading}
+                onCountryClick={setSelectedCountry}
+                T={T}
+              />
+              <SoloWorldMap trips={myTrips} onCountryClick={setSelectedCountry} T={T} />
+              <SoloNewsWidget alerts={recentAlerts} loading={loading} onCountryClick={setSelectedCountry} T={T} />
+            </>
+          )}
+
+          {/* Org traveller: trip map */}
+          {role !== 'solo' && !loading && (
             <TripMapSection
               trips={myTrips}
               destRisk={destRisk}
@@ -1669,8 +2131,8 @@ export default function Dashboard() {
       {/* ── BOTTOM PANELS ── */}
       <div className="flex flex-col lg:flex-row gap-5">
 
-        {/* Live alerts — hidden for admin/org_admin (shown above next to Currently Travelling) */}
-        <div className={`${role === 'traveller' || role === 'solo' ? 'lg:w-3/5' : 'lg:w-full'} bg-white rounded-2xl p-6 ${(role === 'admin' || role === 'org_admin') ? 'hidden' : ''}`}
+        {/* Live alerts — hidden for admin/org_admin and solo (solo sees SoloNewsWidget above) */}
+        <div className={`${role === 'traveller' ? 'lg:w-3/5' : 'lg:w-full'} bg-white rounded-2xl p-6 ${(role === 'admin' || role === 'org_admin' || role === 'solo') ? 'hidden' : ''}`}
           style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
           <div className="flex items-center gap-2.5 mb-5">
             <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: '#FEF2F2' }}>
@@ -1714,8 +2176,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Right column — compliance + AI chat stacked for travellers, org compliance for admin */}
-        {(role === 'traveller' || role === 'solo') && (
+        {/* Right column — compliance + AI chat for org travellers */}
+        {role === 'traveller' && (
           <div className="lg:w-2/5 flex flex-col gap-5">
             <ComplianceScoreCard breakdown={complianceBreakdown} loading={loading} />
             <div>
