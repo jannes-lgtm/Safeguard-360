@@ -125,25 +125,27 @@ async function _handler(req, res) {
     return res.status(500).json({ error: insertErr.message })
   }
 
-  await sb.from('audit_logs').insert({
-    actor_id:    user.id,
-    actor_email: profile?.email || user.email || null,
-    actor_role:  profile?.role || null,
-    action:      'debrief.submitted',
-    entity_type: 'trip_debrief',
-    entity_id:   debrief.id,
-    description: `Post-travel debrief submitted for trip: ${trip.trip_name || trip_id}`,
-    metadata: {
-      trip_id,
-      trip_name:                trip.trip_name,
-      had_security_incident:    !!had_security_incident,
-      had_medical_issue:        !!had_medical_issue,
-      had_transport_issue:      !!had_transport_issue,
-      overall_safety_rating:    Number(overall_safety_rating),
-      briefing_usefulness:      Number(briefing_usefulness),
-      risk_assessment_accuracy: Number(risk_assessment_accuracy),
-    },
-  }).catch(() => {})
+  try {
+    await sb.from('audit_logs').insert({
+      actor_id:    user.id,
+      actor_email: profile?.email || user.email || null,
+      actor_role:  profile?.role || null,
+      action:      'debrief.submitted',
+      entity_type: 'trip_debrief',
+      entity_id:   debrief.id,
+      description: `Post-travel debrief submitted for trip: ${trip.trip_name || trip_id}`,
+      metadata: {
+        trip_id,
+        trip_name:                trip.trip_name,
+        had_security_incident:    !!had_security_incident,
+        had_medical_issue:        !!had_medical_issue,
+        had_transport_issue:      !!had_transport_issue,
+        overall_safety_rating:    Number(overall_safety_rating),
+        briefing_usefulness:      Number(briefing_usefulness),
+        risk_assessment_accuracy: Number(risk_assessment_accuracy),
+      },
+    })
+  } catch {}
 
   return res.status(200).json({ ok: true, debrief_id: debrief.id })
 }
