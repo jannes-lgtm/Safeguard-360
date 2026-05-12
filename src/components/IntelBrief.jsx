@@ -624,7 +624,7 @@ export default function IntelBrief({ country, travelerName, returnDate, tripName
   const fmtDate = d => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-end" style={{ background: 'rgba(0,0,0,0.35)' }}
+    <div className="fixed inset-0 flex items-start justify-end" style={{ background: 'rgba(0,0,0,0.35)', zIndex: 9000 }}
       onClick={onClose}>
       <div className="bg-white w-full max-w-lg h-full overflow-y-auto shadow-2xl flex flex-col"
         onClick={e => e.stopPropagation()}>

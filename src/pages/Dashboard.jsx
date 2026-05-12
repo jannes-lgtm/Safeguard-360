@@ -682,7 +682,7 @@ function TripMapSection({ trips, destRisk, onCountryClick }) {
         </div>
       </div>
       <div className="rounded-2xl overflow-hidden"
-        style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
+        style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)', isolation: 'isolate' }}>
         <div ref={containerRef} style={{ height: 300 }} />
       </div>
     </div>
@@ -802,7 +802,7 @@ function SoloWorldMap({ trips, onCountryClick, T = {} }) {
         <span className="text-[10px] font-medium" style={{ color: T.textMuted || '#9CA3AF' }}>Click a destination for a full intel brief</span>
       </div>
       <div className="rounded-2xl overflow-hidden relative"
-        style={{ boxShadow: '0 2px 24px rgba(0,0,0,0.5)', border: `1px solid ${T.cardBorder || 'rgba(1,24,161,0.15)'}` }}>
+        style={{ boxShadow: '0 2px 24px rgba(0,0,0,0.5)', border: `1px solid ${T.cardBorder || 'rgba(1,24,161,0.15)'}`, isolation: 'isolate' }}>
         <div ref={containerRef} style={{ height: 400 }} />
         <div className="absolute bottom-3 left-3 flex items-center gap-3 px-3 py-2 rounded-xl"
           style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.08)' }}>

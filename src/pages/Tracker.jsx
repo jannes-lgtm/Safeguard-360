@@ -32,7 +32,7 @@ function SlidePanel({ staff, countryRisk, onClose, onOpenIntel }) {
   const risk    = country ? countryRisk[country] : null
 
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className="fixed inset-0 flex" style={{ zIndex: 9000 }}>
       <div className="flex-1 bg-black/30" onClick={onClose} />
       <div className="w-full max-w-md bg-white shadow-xl flex flex-col h-full overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-gray-50 sticky top-0">
