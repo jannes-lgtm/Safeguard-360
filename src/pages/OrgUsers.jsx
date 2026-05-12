@@ -223,22 +223,25 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
           {/* Action buttons */}
           <div className="flex gap-2 flex-wrap pt-1">
             <a href={`mailto:${user.email}`}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-85"
               style={{ background: BRAND_BLUE }}>
               <Mail size={12}/> Send Email
             </a>
             <a href={`mailto:${user.email}?subject=SafeGuard360 Check-in Reminder`}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85"
+              style={{ border: `1px solid ${BRAND_BLUE}`, color: BRAND_BLUE, background: `${BRAND_BLUE}07` }}>
               <Clock size={12}/> Send Reminder
             </a>
             <button onClick={() => onReinvite(user)} disabled={reinviting}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
+              style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
               {reinviting
-                ? <><div className="w-3 h-3 border border-blue-700 border-t-transparent rounded-full animate-spin" /> Sending…</>
+                ? <><div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" /> Sending…</>
                 : <><UserPlus size={12}/> Resend Invite</>}
             </button>
             <button onClick={() => onRemove(user)} disabled={removing}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
+              style={{ border: '1px solid #EF4444', color: '#EF4444', background: '#FEF2F2' }}>
               <X size={12}/> Remove from Org
             </button>
           </div>

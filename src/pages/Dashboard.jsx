@@ -1578,19 +1578,8 @@ export default function Dashboard() {
     solo:      'Your personal travel safety dashboard',
   }
 
-  const dark = role === 'solo'
-  const T = dark ? {
-    pageBg:      '#090D1A',
-    card:        '#111827',
-    cardBorder:  'rgba(255,255,255,0.07)',
-    cardShadow:  '0 2px 16px rgba(0,0,0,0.4)',
-    textPrimary: '#F9FAFB',
-    textSub:     'rgba(255,255,255,0.45)',
-    textMuted:   'rgba(255,255,255,0.25)',
-    iconBg:      'rgba(170,204,0,0.12)',
-    divider:     'rgba(255,255,255,0.06)',
-    inputBg:     '#1A2235',
-  } : {
+  const dark = false
+  const T = {
     pageBg:      '#F0F2F8',
     card:        '#FFFFFF',
     cardBorder:  'rgba(0,0,0,0.06)',
@@ -1604,7 +1593,7 @@ export default function Dashboard() {
   }
 
   return (
-    <Layout dark={dark}>
+    <Layout>
       {selectedCountry && <IntelBrief country={selectedCountry} onClose={() => setSelectedCountry(null)} />}
 
       {/* Header */}
@@ -1665,7 +1654,7 @@ export default function Dashboard() {
       {/* ── SOLO: AI assistant at top ── */}
       {role === 'solo' && (
         <div className="mb-7">
-          <DashboardAiChat profile={profile} trips={myTrips} orgName={null} role={role} dark={dark} />
+          <DashboardAiChat profile={profile} trips={myTrips} orgName={null} role={role} />
         </div>
       )}
 
@@ -2013,11 +2002,11 @@ export default function Dashboard() {
             {role === 'solo' ? (
               <>
                 <MetricCard label="Active Alerts"  value={loading ? '–' : metrics.activeAlerts} icon={Bell}
-                  valueColor={metrics.activeAlerts > 0 ? 'text-red-400' : (dark ? 'text-white' : 'text-gray-900')}
-                  accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'} to="/alerts" dark={dark} />
-                <MetricCard label="My Trips"       value={loading ? '–' : myTrips.length}       icon={Plane}  valueColor={dark ? 'text-[#AACC00]' : 'text-[#0118A1]'} accent={dark ? BRAND_GREEN : '#0118A1'} to="/itinerary" dark={dark} />
-                <MetricCard label="Active Feeds"   value={loading ? '–' : metrics.activeFeeds}  icon={Radio}  valueColor="text-emerald-400" accent="#059669" to="/intel-feeds" dark={dark} />
-                <MetricCard label="SOS Ready"      value={loading ? '–' : '✓'}                  icon={Shield} valueColor="text-emerald-400" accent="#059669" to="/sos" dark={dark} />
+                  valueColor={metrics.activeAlerts > 0 ? 'text-red-600' : 'text-gray-900'}
+                  accent={metrics.activeAlerts > 0 ? '#EF4444' : '#0118A1'} to="/alerts" />
+                <MetricCard label="My Trips"       value={loading ? '–' : myTrips.length}       icon={Plane}  valueColor="text-[#0118A1]" accent="#0118A1" to="/itinerary" />
+                <MetricCard label="Active Feeds"   value={loading ? '–' : metrics.activeFeeds}  icon={Radio}  valueColor="text-[#0118A1]" accent="#0118A1" to="/intel-feeds" />
+                <MetricCard label="SOS Ready"      value={loading ? '–' : '✓'}                  icon={Shield} valueColor="text-emerald-600" accent="#059669" to="/sos" />
               </>
             ) : (
               <>
@@ -2032,7 +2021,7 @@ export default function Dashboard() {
           </div>
 
           {/* Quick action shortcuts */}
-          <QuickActions role={role} hasActiveTrip={myTrips.some(t => t.status === 'Active')} dark={dark} />
+          <QuickActions role={role} hasActiveTrip={myTrips.some(t => t.status === 'Active')} />
 
           {/* Training nudge — org travellers only */}
           {role !== 'solo' && !loading && (
