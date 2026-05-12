@@ -27,7 +27,8 @@
     "api/trip-share.js":           { "maxDuration": 10 },
     "api/missed-checkins.js":      { "maxDuration": 60 },
     "api/generate-briefing.js":   { "maxDuration": 60 },
-    "api/acknowledge-briefing.js": { "maxDuration": 15 }
+    "api/acknowledge-briefing.js": { "maxDuration": 15 },
+    "api/passport-expiry.js":      { "maxDuration": 30 }
   },
   "crons": [
     {
@@ -37,6 +38,10 @@
     {
       "path": "/api/missed-checkins",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/passport-expiry",
+      "schedule": "0 7 * * *"
     }
   ],
   "headers": [

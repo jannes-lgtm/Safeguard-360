@@ -158,6 +158,25 @@ export default function Profile() {
 
         {/* ── Travel Documents ── */}
         <Section icon={Globe} title="Travel Documents" subtitle="Passport details for travel booking and emergencies">
+          {(() => {
+            const expiry = form.passport_expiry
+            if (!expiry) return null
+            const days = Math.floor((new Date(expiry) - new Date()) / 86400000)
+            if (days > 180) return null
+            const expired  = days < 0
+            const critical = days <= 30
+            return (
+              <div className="flex items-start gap-3 rounded-xl px-4 py-3 mb-4"
+                style={{ background: expired || critical ? '#FEF2F2' : '#FFF7ED', border: `1px solid ${expired || critical ? '#FECACA' : '#FED7AA'}` }}>
+                <span className="text-base leading-none mt-0.5">{expired ? '🚨' : '⚠️'}</span>
+                <p className="text-xs font-semibold" style={{ color: expired || critical ? '#991B1B' : '#92400E' }}>
+                  {expired
+                    ? 'Your passport has expired. Please renew immediately — you cannot travel internationally until renewed.'
+                    : `Passport expires in ${days} day${days !== 1 ? 's' : ''}. Most countries require 6 months validity. Please renew soon.`}
+                </p>
+              </div>
+            )
+          })()}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-1">
               <label className={labelClass}>Passport Number</label>

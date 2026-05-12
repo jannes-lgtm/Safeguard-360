@@ -1646,6 +1646,45 @@ export default function Dashboard() {
         </Link>
       ))}
 
+      {/* ── Passport expiry banner (traveller / solo) ── */}
+      {(role === 'traveller' || role === 'solo') && (() => {
+        if (!profile?.passport_expiry) return null
+        const days = Math.floor((new Date(profile.passport_expiry) - new Date()) / 86400000)
+        if (days > 180) return null
+        const expired  = days < 0
+        const critical = days <= 30
+        const bg       = expired || critical ? '#FEF2F2' : '#FFF7ED'
+        const border   = expired || critical ? '#FECACA' : '#FED7AA'
+        const iconBg   = expired || critical ? '#DC2626' : '#D97706'
+        const titleCol = expired || critical ? '#991B1B' : '#92400E'
+        const textCol  = expired || critical ? '#B91C1C' : '#B45309'
+        const emoji    = expired ? '🚨' : critical ? '⚠️' : '📋'
+        const title    = expired
+          ? 'Passport Expired — Travel Blocked'
+          : critical
+            ? `Passport Expiring in ${days} Day${days !== 1 ? 's' : ''} — Renew Immediately`
+            : `Passport Renewal Due — ${days} Days Remaining`
+        const sub      = expired
+          ? 'Your passport has expired. Most countries will deny entry. Renew before booking any travel.'
+          : `Most countries require 6 months passport validity beyond your travel dates. Please renew as soon as possible.`
+        return (
+          <Link to="/profile"
+            className="flex items-center gap-3 rounded-2xl px-5 py-4 mb-4 transition-all hover:opacity-90"
+            style={{ background: bg, border: `1px solid ${border}`, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: iconBg }}>
+              <span className="text-base leading-none">{emoji}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold" style={{ color: titleCol }}>{title}</p>
+              <p className="text-xs mt-0.5" style={{ color: textCol }}>{sub}</p>
+            </div>
+            <span className="text-xs font-bold px-3 py-1.5 rounded-lg shrink-0 text-white" style={{ background: iconBg }}>
+              Update →
+            </span>
+          </Link>
+        )
+      })()}
+
       {/* Morning brief (traveller + solo + developer) */}
       {role !== 'admin' && (briefLoading || morningBrief) && (
         <MorningBriefCard brief={morningBrief} loading={briefLoading} />
