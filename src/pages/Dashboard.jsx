@@ -6,7 +6,7 @@ import {
   ListChecks, RefreshCw, X, CheckCircle2, BookOpen,
   FileText, CheckSquare, Award, Users, ClipboardList,
   Clock, Building2, Headphones, Shield, GraduationCap,
-  Pencil, Navigation, MapPin, Send, MessageSquare, Sparkles, Activity,
+  Pencil, Navigation, MapPin, Send, MessageSquare, Sparkles, Activity, Stethoscope,
 } from 'lucide-react'
 import L from 'leaflet'
 import Layout from '../components/Layout'
@@ -69,7 +69,7 @@ function TripAlertsSection({ alerts, onMarkRead, onDismissAll }) {
         </button>
       </div>
       <div className="space-y-2">
-        {sorted.map(alert => {
+        {alerts.map(alert => {
           const pill = SEVERITY_PILL[alert.severity] || SEVERITY_PILL.Low
           return (
             <div key={alert.id} className="rounded-2xl flex items-start gap-3 p-4 transition-all"
@@ -488,6 +488,29 @@ function TrainingNudge({ module: mod, score }) {
   )
 }
 
+// ── Health Declaration Nudge ──────────────────────────────────────────────────
+function HealthNudge({ trip }) {
+  if (!trip) return null
+  return (
+    <Link to={`/health/${trip.id}`}
+      className="flex items-center gap-4 rounded-2xl px-5 py-4 mb-6 transition-all hover:brightness-97 group"
+      style={{ background: 'linear-gradient(135deg, #EEF1FF 0%, #F4F6FF 100%)', border: '1px solid #C7D2FE', boxShadow: '0 2px 12px rgba(1,24,161,0.06)' }}>
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#0118A1' }}>
+        <Stethoscope size={16} color="white" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold leading-tight" style={{ color: '#0118A1' }}>Complete your pre-travel health declaration</p>
+        <p className="text-xs mt-0.5 truncate" style={{ color: '#4B5563' }}>
+          <span className="font-semibold">{trip.trip_name || trip.arrival_city}</span> · Departs {trip.depart_date} · Required before departure
+        </p>
+      </div>
+      <div className="flex items-center gap-1.5 text-sm font-bold shrink-0 group-hover:gap-2 transition-all" style={{ color: '#0118A1' }}>
+        Complete <ChevronRight size={15} />
+      </div>
+    </Link>
+  )
+}
+
 // ── Morning Brief ─────────────────────────────────────────────────────────────
 const BRIEF_SEV_STYLE = {
   Critical: { bg: '#FEF2F2', border: '#FECACA', text: '#B91C1C' },
@@ -824,16 +847,104 @@ function SoloWorldMap({ trips, onCountryClick, T = {} }) {
   )
 }
 
+// ── Live News Feed Widget ──────────────────────────────────────────────────────
+const NEWS_FEEDS = ['osac', 'bbc-africa', 'african-arguments', 'iss-africa', 'crisis-group-africa']
+const FEED_LABELS = { osac: 'OSAC', 'bbc-africa': 'BBC Africa', 'african-arguments': 'African Arguments', 'iss-africa': 'ISS Africa', 'crisis-group-africa': 'Crisis Group' }
+
+function LiveNewsFeed({ compact = false }) {
+  const [articles, setArticles] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [activeFeed, setActiveFeed] = useState('osac')
+
+  useEffect(() => {
+    setLoading(true)
+    setArticles([])
+    fetch(`/api/rss-ingest?id=${activeFeed}&limit=6`)
+      .then(r => r.json())
+      .then(d => { setArticles(d.articles || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [activeFeed])
+
+  const timeAgo = (dateStr) => {
+    if (!dateStr) return ''
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const h = Math.floor(diff / 3600000)
+    if (h < 1) return 'Just now'
+    if (h < 24) return `${h}h ago`
+    return `${Math.floor(h / 24)}d ago`
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-50">
+            <Radio size={14} style={{ color: BRAND_BLUE }} />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-gray-900">Latest News</h2>
+            <p className="text-[11px] text-gray-400">Live security & risk intelligence</p>
+          </div>
+        </div>
+        <Link to="/intel-feeds" className="text-xs font-semibold hover:underline flex items-center gap-1" style={{ color: BRAND_BLUE }}>
+          All feeds <ChevronRight size={12} />
+        </Link>
+      </div>
+
+      {/* Feed tabs */}
+      <div className="flex gap-1 px-4 pt-3 pb-2 overflow-x-auto">
+        {NEWS_FEEDS.map(id => (
+          <button key={id} onClick={() => setActiveFeed(id)}
+            className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors"
+            style={activeFeed === id
+              ? { background: BRAND_BLUE, color: '#fff' }
+              : { background: '#F1F5F9', color: '#64748B' }}>
+            {FEED_LABELS[id]}
+          </button>
+        ))}
+      </div>
+
+      {/* Articles */}
+      {loading ? (
+        <div className="space-y-3 p-4">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-50 rounded-xl animate-pulse"/>)}</div>
+      ) : articles.length === 0 ? (
+        <div className="flex flex-col items-center py-8 gap-2">
+          <Radio size={24} className="text-gray-300" />
+          <p className="text-sm text-gray-400">No articles available</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-50">
+          {articles.slice(0, compact ? 4 : 6).map((art, i) => (
+            <a key={i} href={art.link} target="_blank" rel="noopener noreferrer"
+              className="flex items-start gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group">
+              <div className="mt-1.5 w-2 h-2 rounded-full shrink-0 bg-blue-200 group-hover:bg-blue-400 transition-colors" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 leading-snug line-clamp-2 group-hover:text-[#0118A1] transition-colors">{art.title}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">{FEED_LABELS[activeFeed]} · {timeAgo(art.pubDate)}</p>
+              </div>
+              <ChevronRight size={12} className="text-gray-300 group-hover:text-[#0118A1] shrink-0 mt-1.5 transition-colors" />
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Solo News Widget ───────────────────────────────────────────────────────────
-function SoloNewsWidget({ alerts, loading, onCountryClick, T = {} }) {
+function SoloNewsWidget({ alerts, hasTrips = false, loading, onCountryClick, T = {} }) {
   const isDark = !!T.card && T.card !== '#FFFFFF'
+
   if (loading) return (
     <div className="mb-7">
       <div className="flex items-center gap-2.5 mb-3">
         <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2' }}>
           <Radio size={13} style={{ color: '#EF4444' }} />
         </div>
-        <h2 className="text-sm font-bold" style={{ color: T.textPrimary || '#111827' }}>Global Intel Feed</h2>
+        <h2 className="text-sm font-bold" style={{ color: T.textPrimary || '#111827' }}>
+          {hasTrips ? 'Destination Intelligence' : 'Global Intel Feed'}
+        </h2>
       </div>
       <div className="space-y-2">
         {[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: T.card || '#fff', border: `1px solid ${T.cardBorder || '#F3F4F6'}` }} />)}
@@ -841,7 +952,38 @@ function SoloNewsWidget({ alerts, loading, onCountryClick, T = {} }) {
     </div>
   )
 
-  if (!alerts?.length) return null
+  // "LIVE" only if newest alert is within 7 days
+  const newestDate = alerts?.[0]?.date_issued ? new Date(alerts[0].date_issued) : null
+  const isLive = newestDate && (Date.now() - newestDate.getTime()) < 7 * 24 * 60 * 60 * 1000
+  const title = hasTrips ? 'Destination Intelligence' : 'Global Intel Feed'
+
+  if (!alerts?.length) return (
+    <div className="mb-7">
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2' }}>
+          <Radio size={13} style={{ color: '#EF4444' }} />
+        </div>
+        <h2 className="text-sm font-bold" style={{ color: T.textPrimary || '#111827' }}>{title}</h2>
+      </div>
+      <div className="rounded-2xl px-5 py-8 text-center" style={{ background: T.card || '#fff', border: `1px solid ${T.cardBorder || '#F3F4F6'}` }}>
+        {hasTrips ? (
+          <>
+            <CheckCircle2 size={20} className="text-emerald-400 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-gray-600 mb-0.5">No active alerts for your destinations</p>
+            <p className="text-xs text-gray-400">We'll surface any relevant threats here as they emerge.</p>
+          </>
+        ) : (
+          <>
+            <Globe size={20} className="text-gray-300 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-gray-500 mb-0.5">No critical global alerts right now</p>
+            <p className="text-xs text-gray-400">
+              <Link to="/itinerary" className="underline" style={{ color: BRAND_BLUE }}>Add a trip</Link> to see destination-specific intelligence.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  )
 
   return (
     <div className="mb-7">
@@ -850,11 +992,13 @@ function SoloNewsWidget({ alerts, loading, onCountryClick, T = {} }) {
           <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2' }}>
             <Radio size={13} style={{ color: '#EF4444' }} />
           </div>
-          <h2 className="text-sm font-bold" style={{ color: T.textPrimary || '#111827' }}>Global Intel Feed</h2>
-          <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full"
-            style={{ background: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2', color: isDark ? '#FCA5A5' : '#B91C1C', border: `1px solid ${isDark ? 'rgba(239,68,68,0.25)' : '#FECACA'}` }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" /> LIVE
-          </span>
+          <h2 className="text-sm font-bold" style={{ color: T.textPrimary || '#111827' }}>{title}</h2>
+          {isLive && (
+            <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full"
+              style={{ background: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2', color: isDark ? '#FCA5A5' : '#B91C1C', border: `1px solid ${isDark ? 'rgba(239,68,68,0.25)' : '#FECACA'}` }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" /> LIVE
+            </span>
+          )}
         </div>
         <Link to="/alerts" className="text-xs font-semibold hover:underline flex items-center gap-1" style={{ color: isDark ? BRAND_GREEN : BRAND_BLUE }}>
           View all <ChevronRight size={11} />
@@ -1248,6 +1392,7 @@ export default function Dashboard() {
   const [overdueCheckin, setOverdueCheckin] = useState(null)
   const [pendingBriefings, setPendingBriefings] = useState([])
   const [nudgeModule, setNudgeModule]   = useState(null)
+  const [nudgeHealthTrip, setNudgeHealthTrip] = useState(null)
 
   // Corporate Admin
   const [orgStats, setOrgStats]           = useState(null)
@@ -1282,11 +1427,7 @@ export default function Dashboard() {
     setRole(userRole)
     setProfile({ ...prof, id: uid, email: session.user.email })
 
-    // Always load recent global alerts (solo gets more for the news feed)
-    const alertLimit = (userRole === 'solo') ? 8 : 4
-    const { data: alerts } = await supabase.from('alerts').select('*')
-      .eq('status', 'Active').order('date_issued', { ascending: false }).limit(alertLimit)
-    setRecentAlerts(alerts || [])
+    // Alerts are loaded per-role after trip destinations are known — see each branch below
 
     // ── DEVELOPER ─────────────────────────────────────────────────────────────
     if (userRole === 'developer') {
@@ -1451,6 +1592,25 @@ export default function Dashboard() {
       setOrgStats({ trainPct, polPct, checkinPct })
       setActiveTravellers(travellerList)
       setLatestCheckins(checkinList)
+
+      // Relevant alerts: destination countries of active org trips, else Critical only
+      const cutoff7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      const orgTripCountries = [...new Set((activeTrips || []).map(t => cityToCountry(t.arrival_city)).filter(Boolean))]
+      if (orgTripCountries.length > 0) {
+        const perCountry = await Promise.all(orgTripCountries.map(c =>
+          supabase.from('alerts').select('*').eq('status', 'Active').gte('date_issued', cutoff7d)
+            .ilike('country', `%${c}%`).order('date_issued', { ascending: false }).limit(3)
+        ))
+        const seen = new Set()
+        const deduped = perCountry.flatMap(r => r.data || []).filter(a => { if (seen.has(a.id)) return false; seen.add(a.id); return true })
+        setRecentAlerts(deduped)
+      } else {
+        const { data: critAlerts } = await supabase.from('alerts').select('*')
+          .eq('status', 'Active').eq('severity', 'Critical').gte('date_issued', cutoff7d)
+          .order('date_issued', { ascending: false }).limit(5)
+        setRecentAlerts(critAlerts || [])
+      }
+
       setLoading(false)
       loadingRef.current = false
       return
@@ -1514,6 +1674,18 @@ export default function Dashboard() {
     setMyTrips(trips || [])
     setOverdueCheckin(overdueCheckins?.[0] || null)
 
+    // Health declaration nudge — find first approved trip without a completed declaration
+    const approvedTrips = (trips || []).filter(t => t.approval_status === 'approved' && t.status !== 'Completed')
+    if (approvedTrips.length > 0) {
+      const { data: healthDecs } = await supabase
+        .from('pre_travel_health').select('trip_id')
+        .in('trip_id', approvedTrips.map(t => t.id)).eq('user_id', uid)
+      const healthSet = new Set((healthDecs || []).map(d => d.trip_id))
+      setNudgeHealthTrip(approvedTrips.find(t => !healthSet.has(t.id)) || null)
+    } else {
+      setNudgeHealthTrip(null)
+    }
+
     // Fetch unacknowledged briefings for this user
     const { data: briefings } = await supabase
       .from('travel_briefings')
@@ -1530,7 +1702,24 @@ export default function Dashboard() {
       module_name:  rawNudge.training_modules?.title,
     } : null)
 
+    // Relevant alerts: trip destination countries only, else Critical global alerts only
+    const cutoff7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     const countries = [...new Set((trips || []).map(t => cityToCountry(t.arrival_city)).filter(Boolean))]
+    if (countries.length > 0) {
+      const perCountry = await Promise.all(countries.map(c =>
+        supabase.from('alerts').select('*').eq('status', 'Active').gte('date_issued', cutoff7d)
+          .ilike('country', `%${c}%`).order('date_issued', { ascending: false }).limit(3)
+      ))
+      const seen = new Set()
+      const deduped = perCountry.flatMap(r => r.data || []).filter(a => { if (seen.has(a.id)) return false; seen.add(a.id); return true })
+      setRecentAlerts(deduped)
+    } else {
+      const { data: critAlerts } = await supabase.from('alerts').select('*')
+        .eq('status', 'Active').eq('severity', 'Critical').gte('date_issued', cutoff7d)
+        .order('date_issued', { ascending: false }).limit(5)
+      setRecentAlerts(critAlerts || [])
+    }
+
     if (countries.length > 0) {
       const [riskResults, alertResults] = await Promise.all([
         Promise.all(countries.map(c =>
@@ -1934,52 +2123,8 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Live Risk Alerts */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50" style={{ background: '#FEF2F208' }}>
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-50">
-                    <Bell size={14} style={{ color: '#EF4444' }} />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-gray-900">Live Risk Alerts</h2>
-                    <p className="text-[11px] text-gray-400">Active alerts affecting your travellers</p>
-                  </div>
-                </div>
-                <Link to="/alerts" className="text-xs font-semibold text-[#0118A1] hover:underline flex items-center gap-1">
-                  View all <ChevronRight size={12} />
-                </Link>
-              </div>
-              {loading ? (
-                <div className="space-y-3 p-5">{[1,2,3].map(i => <div key={i} className="h-12 bg-gray-50 rounded-xl animate-pulse"/>)}</div>
-              ) : recentAlerts.length === 0 ? (
-                <div className="flex flex-col items-center py-10 gap-2">
-                  <CheckCircle2 size={28} className="text-emerald-400" />
-                  <p className="text-sm text-gray-400">All clear — no active alerts</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {recentAlerts.map(alert => (
-                    <div key={alert.id} className="flex items-start gap-3 px-5 py-3 hover:bg-gray-50 transition-colors">
-                      <div className="mt-1.5 w-2 h-2 rounded-full shrink-0" style={{ background: severityDot[alert.severity] || '#94A3B8' }} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                          <span className="text-sm font-semibold text-gray-900 truncate">{alert.title}</span>
-                          <SeverityBadge severity={alert.severity} />
-                        </div>
-                        <p className="text-xs text-gray-400 truncate">{alert.description}</p>
-                        {alert.country && (
-                          <button onClick={() => setSelectedCountry(alert.country)}
-                            className="text-[11px] font-semibold flex items-center gap-1 mt-1 hover:underline" style={{ color: BRAND_BLUE }}>
-                            <Globe size={9} /> {alert.country} intel →
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Latest News Feed */}
+            <LiveNewsFeed />
           </div>
 
           {/* Latest Check-in Locations */}
@@ -2086,6 +2231,11 @@ export default function Dashboard() {
             />
           )}
 
+          {/* Health declaration nudge — org travellers with approved trips */}
+          {(role === 'traveller') && !loading && (
+            <HealthNudge trip={nudgeHealthTrip} />
+          )}
+
           {/* 24/7 Assistance CTA */}
           {role !== 'solo' && <AssistanceCTA />}
 
@@ -2101,7 +2251,7 @@ export default function Dashboard() {
                 T={T}
               />
               <SoloWorldMap trips={myTrips} onCountryClick={setSelectedCountry} T={T} />
-              <SoloNewsWidget alerts={recentAlerts} loading={loading} onCountryClick={setSelectedCountry} T={T} />
+              <SoloNewsWidget alerts={recentAlerts} hasTrips={myTrips.length > 0} loading={loading} onCountryClick={setSelectedCountry} T={T} />
             </>
           )}
 
@@ -2212,49 +2362,9 @@ export default function Dashboard() {
       {/* ── BOTTOM PANELS ── */}
       <div className="flex flex-col lg:flex-row gap-5">
 
-        {/* Live alerts — hidden for admin/org_admin and solo (solo sees SoloNewsWidget above) */}
-        <div className={`${role === 'traveller' ? 'lg:w-3/5' : 'lg:w-full'} bg-white rounded-2xl p-6 ${(role === 'admin' || role === 'org_admin' || role === 'solo') ? 'hidden' : ''}`}
-          style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.06)' }}>
-          <div className="flex items-center gap-2.5 mb-5">
-            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: '#FEF2F2' }}>
-              <Bell size={13} style={{ color: '#EF4444' }} />
-            </div>
-            <h2 className="text-sm font-bold text-gray-900">Live Risk Alerts</h2>
-          </div>
-          {loading ? (
-            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-14 bg-gray-50 rounded-xl animate-pulse"/>)}</div>
-          ) : recentAlerts.length === 0 ? (
-            <div className="flex flex-col items-center py-8 gap-2">
-              <CheckCircle2 size={28} className="text-emerald-400" />
-              <p className="text-sm text-gray-400 font-medium">All clear — no active alerts</p>
-            </div>
-          ) : (
-            <div className="space-y-0 divide-y divide-gray-50">
-              {recentAlerts.map(alert => (
-                <div key={alert.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
-                  <div className="mt-2 w-2 h-2 rounded-full shrink-0" style={{ background: severityDot[alert.severity] || '#94A3B8' }} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <span className="text-sm font-semibold text-gray-900">{alert.title}</span>
-                      <SeverityBadge severity={alert.severity} />
-                    </div>
-                    <p className="text-xs text-gray-400 truncate">{alert.description}</p>
-                    {alert.country && (
-                      <button onClick={() => setSelectedCountry(alert.country)}
-                        className="text-[11px] font-semibold flex items-center gap-1 mt-1 hover:underline" style={{ color: BRAND_BLUE }}>
-                        <Globe size={9} /> {alert.country} intel →
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="mt-5 pt-4" style={{ borderTop: '1px solid #F1F5F9' }}>
-            <Link to="/alerts" className="text-xs font-semibold hover:underline flex items-center gap-1" style={{ color: BRAND_BLUE }}>
-              View all alerts <ChevronRight size={11} />
-            </Link>
-          </div>
+        {/* Latest News Feed — shown for travellers */}
+        <div className={`${role === 'traveller' ? 'lg:w-3/5' : 'lg:w-full'} ${(role === 'admin' || role === 'org_admin' || role === 'solo') ? 'hidden' : ''}`}>
+          <LiveNewsFeed compact />
         </div>
 
         {/* Right column — compliance for org travellers */}
