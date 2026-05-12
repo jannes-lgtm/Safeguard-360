@@ -151,8 +151,15 @@ export default async function handler(req, res) {
   // Auth: cron secret or POST from admin
   const cronSecret = process.env.CRON_SECRET
   const authHeader = req.headers['authorization'] || req.headers['x-cron-secret'] || ''
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}` && authHeader !== cronSecret) {
-    return res.status(401).json({ error: 'Unauthorised' })
+  const isCron = req.headers['x-vercel-cron'] === '1'
+  if (!isCron) {
+    if (!cronSecret) {
+      console.error('[passport-expiry] CRON_SECRET not set — refusing unauthenticated access')
+      return res.status(503).json({ error: 'CRON_SECRET not configured on server' })
+    }
+    if (authHeader !== `Bearer ${cronSecret}` && authHeader !== cronSecret) {
+      return res.status(401).json({ error: 'Unauthorised' })
+    }
   }
 
   const today     = new Date()

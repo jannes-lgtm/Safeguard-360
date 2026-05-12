@@ -172,13 +172,13 @@ async function _handler(req, res) {
 
   if (source === 'gdacs') {
     const data = await fetchGdacs({ country, days: parseInt(days || 30) })
-    if (!data) return res.status(502).json({ error: 'GDACS fetch failed' })
+    if (!data) return res.json({ source: 'GDACS', events: [], total: 0, fetchError: true })
     return res.json(data)
   }
 
   if (source === 'usgs') {
     const data = await fetchUsgs({ minMagnitude: parseFloat(minMag || 4.5), days: parseInt(days || 7) })
-    if (!data) return res.status(502).json({ error: 'USGS fetch failed' })
+    if (!data) return res.json({ source: 'USGS', events: [], total: 0, fetchError: true })
     return res.json(data)
   }
 

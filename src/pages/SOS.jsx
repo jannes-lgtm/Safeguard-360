@@ -28,6 +28,7 @@ import {
 import Layout from '../components/Layout'
 import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
+import { resolveCountry } from '../lib/cityToCountry'
 
 const BRAND_BLUE  = '#0118A1'
 const BRAND_GREEN = '#AACC00'
@@ -145,7 +146,7 @@ export default function SOS() {
     setEmergencyContacts(contacts || [])
 
     const role = prof?.role || user.app_metadata?.role || 'traveller'
-    setIsAdmin(role === 'admin')
+    setIsAdmin(['admin', 'org_admin', 'developer'].includes(role))
     setProfile({ ...prof, email: user.email })
     setActiveTrip(trip || null)
     setEvents(evts || [])
@@ -187,7 +188,7 @@ export default function SOS() {
     await supabase.from('alerts').insert({
       title: `🆘 SOS — ${payload.full_name}`,
       description: message.trim() || `SOS triggered by ${payload.full_name}${activeTrip ? ` in ${activeTrip.arrival_city}` : ''}. Immediate response required.`,
-      country: activeTrip?.arrival_city || 'Unknown',
+      country: resolveCountry(activeTrip?.arrival_city) || activeTrip?.arrival_city || 'Unknown',
       location: payload.location_label || activeTrip?.arrival_city || null,
       severity: 'Critical',
       status: 'Active',

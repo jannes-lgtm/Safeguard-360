@@ -372,7 +372,7 @@ async function _handler(req, res) {
   }
 
   const xml = await fetchRss(feedUrl)
-  if (!xml) return res.status(502).json({ error: `Could not fetch RSS feed: ${feedUrl}` })
+  if (!xml) return res.json({ feed: feedMeta || { url: feedUrl }, articles: [], total: 0, fetchError: true, fetchedAt: new Date().toISOString() })
 
   const items = parseRss(xml)
   const articles = items.slice(0, parseInt(limit)).map(item => ({

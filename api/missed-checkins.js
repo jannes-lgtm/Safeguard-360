@@ -8,10 +8,12 @@ import { createClient } from '@supabase/supabase-js'
 import { sendEmail, sendSms, sendWhatsApp } from './_notify.js'
 import { adapt } from './_adapter.js'
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-)
+function getSupabaseAdmin() {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) throw new Error(`Supabase env vars missing: url=${!!url} key=${!!key}`)
+  return createClient(url, key)
+}
 
 const APP_URL                = process.env.APP_URL || 'https://www.risk360.co'
 const CONTROL_ROOM_EMAIL     = process.env.CONTROL_ROOM_EMAIL || 'control@risk360.co'
@@ -193,8 +195,24 @@ async function _handler(req, res) {
   // Verify cron secret to prevent unauthorised triggers
   const authHeader = req.headers.authorization || ''
   const secret = authHeader.replace('Bearer ', '')
-  if (CRON_SECRET && secret !== CRON_SECRET) {
-    return res.status(401).json({ error: 'Unauthorised' })
+  // Require the secret to be configured — if not set, refuse ALL non-cron access
+  const isCron = req.headers['x-vercel-cron'] === '1'
+  if (!isCron) {
+    if (!CRON_SECRET) {
+      console.error('[missed-checkins] CRON_SECRET env var not set — refusing unauthenticated access')
+      return res.status(503).json({ error: 'CRON_SECRET not configured on server' })
+    }
+    if (secret !== CRON_SECRET) {
+      return res.status(401).json({ error: 'Unauthorised' })
+    }
+  }
+
+  let supabaseAdmin
+  try {
+    supabaseAdmin = getSupabaseAdmin()
+  } catch (e) {
+    console.error('[missed-checkins] Supabase init failed:', e.message)
+    return res.status(503).json({ error: e.message })
   }
 
   const now = new Date().toISOString()
@@ -223,7 +241,7 @@ async function _handler(req, res) {
       return res.json({ ok: true, processed: 0 })
     }
 
-    return processMissed(overdue, res)
+    return processMissed(overdue, res, supabaseAdmin)
   }
 
   if (!missed?.length) {
@@ -231,10 +249,10 @@ async function _handler(req, res) {
     return res.json({ ok: true, processed: 0 })
   }
 
-  return processMissed(missed, res)
+  return processMissed(missed, res, supabaseAdmin)
 }
 
-async function processMissed(missed, res) {
+async function processMissed(missed, res, supabaseAdmin) {
   let processed = 0
   let notified  = 0
 

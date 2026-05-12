@@ -69,13 +69,20 @@ async function _handler(req, res) {
   const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
   const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
   const AI_KEY       = process.env.ANTHROPIC_API_KEY || ''
-  const SCAN_SECRET  = process.env.SCAN_SECRET || ''
+  const SCAN_SECRET  = process.env.SCAN_SECRET || null
 
   // Auth — either the Vercel cron header or Bearer secret
   const bearer = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim()
   const isCron = req.headers['x-vercel-cron'] === '1'
-  if (!isCron && (!SCAN_SECRET || bearer !== SCAN_SECRET)) {
-    return res.status(401).json({ error: 'Unauthorized' })
+  // Require SCAN_SECRET to be configured — empty string is NOT secure
+  if (!isCron) {
+    if (!SCAN_SECRET) {
+      console.error('[scan-all] SCAN_SECRET env var not set — refusing unauthenticated access')
+      return res.status(503).json({ error: 'SCAN_SECRET not configured on server' })
+    }
+    if (bearer !== SCAN_SECRET) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
   }
 
   if (!SUPABASE_URL || !SERVICE_KEY) {

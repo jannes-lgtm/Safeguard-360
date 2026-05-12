@@ -34,7 +34,8 @@
     "api/notify-trip-submitted.js": { "maxDuration": 20 },
     "api/notify-incident.js":       { "maxDuration": 20 },
     "api/crisis-broadcast.js":      { "maxDuration": 60 },
-    "api/health-requirements.js":   { "maxDuration": 45 }
+    "api/health-requirements.js":   { "maxDuration": 45 },
+    "api/destination-feed.js":      { "maxDuration": 30 }
   },
   "crons": [
     {
@@ -58,7 +59,7 @@
     {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "Access-Control-Allow-Origin",  "value": "*" },
+        { "key": "Access-Control-Allow-Origin",  "value": "https://www.risk360.co" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
       ]

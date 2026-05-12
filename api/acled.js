@@ -27,7 +27,7 @@ async function _handler(req, res) {
   const email = process.env.ACLED_EMAIL
 
   if (!apiKey || !email) {
-    return res.status(503).json({ error: 'ACLED not configured', configured: false })
+    return res.json({ configured: false, events: [], total: 0, note: 'Add ACLED_API_KEY and ACLED_EMAIL to Vercel to enable conflict data' })
   }
 
   const { country, days = 30, limit = 20 } = req.query

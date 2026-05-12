@@ -29,6 +29,15 @@ async function getUser(token) {
   return res.ok ? res.json() : null
 }
 
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 const SEV_COLOR = {
   Critical: '#DC2626',
   High:     '#EA580C',
@@ -66,10 +75,10 @@ function buildEmail({ subject, message, severity, senderName, orgName }) {
       </p>
     </div>
 
-    <h2 style="margin:0 0 16px;font-size:17px;font-weight:800;color:#111827;">${subject}</h2>
+    <h2 style="margin:0 0 16px;font-size:17px;font-weight:800;color:#111827;">${escapeHtml(subject)}</h2>
 
     <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:18px 20px;margin-bottom:24px;">
-      <p style="margin:0;font-size:14px;color:#374151;line-height:1.75;white-space:pre-wrap;">${message}</p>
+      <p style="margin:0;font-size:14px;color:#374151;line-height:1.75;white-space:pre-wrap;">${escapeHtml(message)}</p>
     </div>
 
     <div style="text-align:center;margin-bottom:24px;">

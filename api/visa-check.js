@@ -9,9 +9,29 @@
 import { resolveModel } from './_claudeSynth.js'
 import { adapt } from './_adapter.js'
 
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
+const ANON_KEY     = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
+
+async function verifyToken(token) {
+  if (!token || !SUPABASE_URL || !ANON_KEY) return false
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(4000),
+    })
+    return r.ok
+  } catch { return false }
+}
+
 async function handler(req, res) {
   if (req.method === 'OPTIONS') { res.status(200).end(); return }
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return }
+
+  // Require authenticated user — this endpoint calls paid AI
+  const token = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim()
+  if (!token || !(await verifyToken(token))) {
+    return res.status(401).json({ error: 'Authentication required' })
+  }
 
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
   if (!ANTHROPIC_API_KEY) { res.status(503).json({ error: 'AI not configured' }); return }

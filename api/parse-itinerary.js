@@ -96,9 +96,29 @@ async function resolveModel(apiKey) {
   return 'claude-3-haiku-20240307'
 }
 
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
+const ANON_KEY     = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
+
+async function verifyToken(token) {
+  if (!token || !SUPABASE_URL || !ANON_KEY) return false
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { apikey: ANON_KEY, Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(4000),
+    })
+    return r.ok
+  } catch { return false }
+}
+
 async function _handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // Require authenticated user — this endpoint calls paid AI
+  const token = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim()
+  if (!token || !(await verifyToken(token))) {
+    return res.status(401).json({ error: 'Authentication required' })
   }
 
   const { content, type, filename } = req.body || {}
@@ -107,9 +127,8 @@ async function _handler(req, res) {
     return res.status(400).json({ error: 'Missing content or type' })
   }
 
-  // If no API key, return mock data so the UI works for testing
   if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(200).json({ trips: MOCK_TRIPS })
+    return res.status(503).json({ error: 'AI not configured — add ANTHROPIC_API_KEY to Vercel environment variables' })
   }
 
   const model = await resolveModel(process.env.ANTHROPIC_API_KEY)

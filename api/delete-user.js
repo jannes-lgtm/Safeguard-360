@@ -29,6 +29,16 @@ export default async function handler(req, res) {
   const { data: targetProf } = await supabaseAdmin
     .from('profiles').select('full_name, email, role, org_id').eq('id', user_id).single()
 
+  // Org admin can only delete users within their own organisation
+  if (actorProf.role === 'org_admin') {
+    if (!actorProf.org_id || targetProf?.org_id !== actorProf.org_id) {
+      return res.status(403).json({ error: 'Cannot delete users outside your organisation' })
+    }
+    if (['admin', 'developer', 'org_admin'].includes(targetProf?.role)) {
+      return res.status(403).json({ error: 'Cannot delete admin users' })
+    }
+  }
+
   try {
     const authRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${user_id}`, {
       method: 'DELETE',

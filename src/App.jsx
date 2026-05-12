@@ -53,8 +53,8 @@ export default function App() {
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/org-onboarding" element={<OrgOnboarding />} />
         <Route path="/trip-share/:token" element={<TripShare />} />
-        <Route path="/briefing/:briefingId" element={<Briefing />} />
-        <Route path="/debrief/:tripId" element={<Debrief />} />
+        <Route path="/briefing/:briefingId" element={<ProtectedRoute><Briefing /></ProtectedRoute>} />
+        <Route path="/debrief/:tripId"      element={<ProtectedRoute><Debrief /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/itinerary" element={<ProtectedRoute><Itinerary /></ProtectedRoute>} />
         <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />

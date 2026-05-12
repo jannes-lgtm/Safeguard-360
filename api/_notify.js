@@ -23,6 +23,15 @@
 
 const FROM_NAME = 'Safeguard 360'
 
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 // ── Email via Resend ──────────────────────────────────────────────────────────
 export async function sendEmail(to, subject, html) {
   const apiKey = process.env.RESEND_API_KEY
@@ -119,8 +128,14 @@ async function twilioSend(sid, token, params, label) {
 
 function normaliseE164(num) {
   if (!num) return null
-  const n = num.toString().replace(/\s+/g, '').replace(/^0/, '+27')
-  return n.startsWith('+') ? n : null
+  // Strip whitespace, dashes, parentheses
+  let n = num.toString().replace(/[\s\-().]/g, '')
+  // South African local format: 0xx → +27xx
+  if (/^0[6-8]\d{8}$/.test(n)) n = '+27' + n.slice(1)
+  // Must be E.164: + followed by 7–15 digits
+  if (/^\+\d{7,15}$/.test(n)) return n
+  console.warn('[notify] Phone not in E.164 format, skipping:', num)
+  return null
 }
 
 // ── Shared HTML shell ─────────────────────────────────────────────────────────
@@ -189,10 +204,10 @@ export async function notifyAlert({ userEmail, userPhone, userWhatsApp, alerts, 
         <div style="display:flex;align-items:flex-start;gap:12px;">
           <div style="width:4px;min-height:40px;background:${severityColour(a.severity)};border-radius:2px;flex-shrink:0;margin-top:2px;"></div>
           <div>
-            <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#111827;">${a.title}</p>
-            ${a.description ? `<p style="margin:0 0 6px;font-size:12px;color:#6b7280;line-height:1.5;">${(a.description || '').substring(0, 220)}${(a.description || '').length > 220 ? '…' : ''}</p>` : ''}
-            <span style="display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${severityColour(a.severity)};background:${a.severity === 'Critical' ? '#fef2f2' : a.severity === 'High' ? '#fffbeb' : '#eff6ff'};padding:2px 8px;border-radius:20px;">${a.severity}</span>
-            <span style="font-size:10px;color:#9ca3af;margin-left:8px;">${a.source || 'Safeguard 360'}</span>
+            <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#111827;">${escapeHtml(a.title)}</p>
+            ${a.description ? `<p style="margin:0 0 6px;font-size:12px;color:#6b7280;line-height:1.5;">${escapeHtml((a.description || '').substring(0, 220))}${(a.description || '').length > 220 ? '…' : ''}</p>` : ''}
+            <span style="display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${severityColour(a.severity)};background:${a.severity === 'Critical' ? '#fef2f2' : a.severity === 'High' ? '#fffbeb' : '#eff6ff'};padding:2px 8px;border-radius:20px;">${escapeHtml(a.severity)}</span>
+            <span style="font-size:10px;color:#9ca3af;margin-left:8px;">${escapeHtml(a.source || 'Safeguard 360')}</span>
           </div>
         </div>
       </td>
@@ -278,7 +293,7 @@ export async function notifySos({ event, contacts = [], adminEmail, adminPhone, 
      ${event.message ? `
      <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:7px;padding:14px 16px;margin-bottom:20px;">
        <p style="margin:0 0 6px;font-size:10px;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:.08em;">Traveller's Message</p>
-       <p style="margin:0;font-size:14px;color:#111827;font-style:italic;line-height:1.5;">"${event.message}"</p>
+       <p style="margin:0;font-size:14px;color:#111827;font-style:italic;line-height:1.5;">"${escapeHtml(event.message)}"</p>
      </div>` : ''}
 
      <!-- GPS button -->
