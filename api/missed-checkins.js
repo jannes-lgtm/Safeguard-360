@@ -13,8 +13,8 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY,
 )
 
-const APP_URL          = process.env.APP_URL || 'https://safeguard360.co.za'
-const CONTROL_ROOM_EMAIL = process.env.CONTROL_ROOM_EMAIL || 'control@safeguard360.co.za'
+const APP_URL            = process.env.APP_URL || 'https://www.risk360.co'
+const CONTROL_ROOM_EMAIL = process.env.CONTROL_ROOM_EMAIL || 'control@risk360.co'
 const CRON_SECRET      = process.env.CRON_SECRET
 
 function fmtDate(d) {
@@ -240,7 +240,7 @@ async function processMissed(missed, res) {
     try {
       // Load traveller profile + email contacts
       const [{ data: traveller }, { data: contacts }, { data: trip }] = await Promise.all([
-        supabaseAdmin.from('profiles').select('full_name, email, phone').eq('id', checkin.user_id).single(),
+        supabaseAdmin.from('profiles').select('full_name, email, phone, org_id, role').eq('id', checkin.user_id).single(),
         supabaseAdmin.from('emergency_contacts').select('*').eq('user_id', checkin.user_id).order('priority'),
         supabaseAdmin.from('itineraries').select('trip_name, arrival_city, depart_date, return_date').eq('id', checkin.trip_id).single(),
       ])
@@ -275,7 +275,30 @@ async function processMissed(missed, res) {
           checkin,
           overdueMins: overdueMins_,
         })
-      )
+      ).catch(() => {})
+
+      // If org traveller, also notify org admin(s)
+      if (traveller?.org_id) {
+        const { data: orgAdmins } = await supabaseAdmin
+          .from('profiles')
+          .select('full_name, email')
+          .eq('org_id', traveller.org_id)
+          .eq('role', 'org_admin')
+        await Promise.allSettled(
+          (orgAdmins || []).filter(a => a.email).map(admin =>
+            sendEmail(
+              admin.email,
+              `🔴 Missed check-in — ${traveller?.full_name || 'Traveller'} — ${trip?.trip_name || 'Active trip'}`,
+              buildControlRoomEmail({
+                traveller: { ...traveller, contactCount: emailContacts.length },
+                trip,
+                checkin,
+                overdueMins: overdueMins_,
+              })
+            )
+          )
+        )
+      }
 
       const sentCount = contactResults.filter(r => r.status === 'fulfilled').length
       notified += sentCount
