@@ -5,7 +5,7 @@ import {
   Users, LogOut, UserCircle, Radio, Newspaper, Briefcase,
   AlertOctagon, Navigation, Shield, Siren, ClipboardList,
   Building2, GraduationCap, BookOpen, Globe, Settings,
-  BarChart2, Code2, Headphones, Menu, X,
+  BarChart2, Code2, Headphones, Menu, X, Megaphone,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import usePassiveLocation from '../hooks/usePassiveLocation'
@@ -138,6 +138,7 @@ function CorporateAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
 
       <NavSection label="24/7 Support" />
+      <NavItem to="/crisis-broadcast" icon={Megaphone}   label="Crisis Broadcast" />
       <NavItem to="/control-room"   icon={Headphones}   label="Assistance Requests" />
       <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
       <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
@@ -173,6 +174,7 @@ function OrgAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
 
       <NavSection label="24/7 Support" />
+      <NavItem to="/crisis-broadcast" icon={Megaphone}   label="Crisis Broadcast" />
       <NavItem to="/control-room"   icon={Headphones}   label="Assistance Requests" />
       <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
       <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
