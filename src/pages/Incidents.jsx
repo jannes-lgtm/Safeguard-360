@@ -25,6 +25,13 @@
  * create policy "admin_all" on incidents for all using (
  *   exists (select 1 from profiles where id = auth.uid() and role = 'admin')
  * );
+ * -- Allow org admins to read their org members' incidents:
+ * create policy "org_admin_read" on incidents for select using (
+ *   exists (
+ *     select 1 from profiles p1 join profiles p2 on p1.org_id = p2.org_id
+ *     where p1.id = auth.uid() and p1.role = 'org_admin' and p2.id = incidents.user_id
+ *   )
+ * );
  */
 
 import { useEffect, useState } from 'react'
@@ -75,6 +82,7 @@ const EMPTY_FORM = {
   country: '',
   city: '',
   incident_date: new Date().toISOString().split('T')[0],
+  trip_id: '',
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -129,8 +137,9 @@ function ReportModal({ profile, trips, onClose, onSaved }) {
     setSaving(true)
     setError(null)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    const { error: err } = await supabase.from('incidents').insert({
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
+    const { data: inserted, error: err } = await supabase.from('incidents').insert({
       user_id:       user.id,
       reported_by:   profile?.full_name || profile?.email || 'Unknown',
       type:          form.type,
@@ -140,14 +149,25 @@ function ReportModal({ profile, trips, onClose, onSaved }) {
       country:       form.country || null,
       city:          form.city || null,
       incident_date: form.incident_date,
+      trip_id:       form.trip_id || null,
       status:        'Open',
-    })
+    }).select('id').single()
 
     if (err) {
       setError(err.message)
       setSaving(false)
       return
     }
+
+    // Notify org admin + control room
+    if (inserted?.id && session?.access_token) {
+      fetch('/api/notify-incident', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ incident_id: inserted.id }),
+      }).catch(() => {})
+    }
+
     onSaved()
     onClose()
   }
@@ -217,6 +237,27 @@ function ReportModal({ profile, trips, onClose, onSaved }) {
               ))}
             </div>
           </div>
+
+          {/* Trip link */}
+          {trips?.length > 0 && (
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                Link to Trip <span className="text-gray-300">(optional)</span>
+              </label>
+              <select
+                value={form.trip_id}
+                onChange={e => set('trip_id', e.target.value)}
+                className="w-full text-sm text-gray-800 border border-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none bg-white"
+              >
+                <option value="">— Not linked to a specific trip —</option>
+                {trips.map(t => (
+                  <option key={t.id} value={t.id}>
+                    {t.trip_name}{t.arrival_city ? ` → ${t.arrival_city}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Title */}
           <div>
@@ -345,7 +386,7 @@ function IncidentCard({ incident }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 mt-3 text-[11px] text-gray-400">
+        <div className="flex items-center gap-4 mt-3 text-[11px] text-gray-400 flex-wrap">
           {(incident.city || incident.country) && (
             <span className="flex items-center gap-1">
               <MapPin size={10} />
@@ -356,9 +397,15 @@ function IncidentCard({ incident }) {
             <Calendar size={10} />
             {fmtDate(incident.incident_date)}
           </span>
+          {incident.reported_by && (
+            <span className="flex items-center gap-1">
+              <Shield size={10} />
+              {incident.reported_by}
+            </span>
+          )}
           <span className="flex items-center gap-1 ml-auto">
             <Clock size={10} />
-            Reported {fmtDate(incident.created_at)}
+            {fmtDate(incident.created_at)}
           </span>
         </div>
       </div>
@@ -394,15 +441,26 @@ export default function Incidents() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
 
-    const [{ data: prof }, { data: tripsData }, { data: inc, error }] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
+    const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    setProfile(prof || { id: user.id, email: user.email })
+
+    // Org admins see all incidents from their org members
+    let incQuery
+    if (prof?.role === 'org_admin' && prof?.org_id) {
+      const { data: orgUsers } = await supabase.from('profiles').select('id').eq('org_id', prof.org_id)
+      const ids = (orgUsers || []).map(u => u.id)
+      incQuery = supabase.from('incidents').select('*').in('user_id', ids.length ? ids : [user.id])
+    } else {
+      incQuery = supabase.from('incidents').select('*').eq('user_id', user.id)
+    }
+
+    const [{ data: tripsData }, { data: inc, error }] = await Promise.all([
       supabase.from('itineraries').select('id,trip_name,arrival_city').eq('user_id', user.id).limit(20),
-      supabase.from('incidents').select('*').eq('user_id', user.id).order('incident_date', { ascending: false }),
+      incQuery.order('incident_date', { ascending: false }),
     ])
 
-    if (error?.code === '42P01') { setTableError(true) }  // table doesn't exist yet
+    if (error?.code === '42P01') { setTableError(true) }
 
-    setProfile(prof || { id: user.id, email: user.email })
     setTrips(tripsData || [])
     setIncidents(inc || [])
     setLoading(false)
