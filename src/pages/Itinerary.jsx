@@ -84,6 +84,7 @@ export default function Itinerary() {
   const [showUpload, setShowUpload]           = useState(false)
   const [trainingMap, setTrainingMap]         = useState({})
   const [debriefSet, setDebriefSet]           = useState(new Set())
+  const [healthSet, setHealthSet]             = useState(new Set())
   const [expandedTraining, setExpandedTraining] = useState({})
   const [form, setForm]               = useState(emptyForm)
 
@@ -148,12 +149,12 @@ export default function Itinerary() {
       }
 
       if (tripIds.length) {
-        const { data: debriefs } = await supabase
-          .from('trip_debriefs')
-          .select('trip_id')
-          .in('trip_id', tripIds)
-          .eq('user_id', uid)
+        const [{ data: debriefs }, { data: healthDecs }] = await Promise.all([
+          supabase.from('trip_debriefs').select('trip_id').in('trip_id', tripIds).eq('user_id', uid),
+          supabase.from('pre_travel_health').select('trip_id').in('trip_id', tripIds).eq('user_id', uid),
+        ])
         setDebriefSet(new Set((debriefs || []).map(d => d.trip_id)))
+        setHealthSet(new Set((healthDecs || []).map(d => d.trip_id)))
       }
 
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', uid).single()
@@ -984,6 +985,26 @@ export default function Itinerary() {
                             <p className="text-[10px] text-gray-400 pl-1">+{tripAlertMap[trip.id].length - 3} more — check Dashboard</p>
                           )}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Pre-travel health declaration CTA */}
+                    {trip.approval_status === 'approved' && trip.status !== 'Completed' && (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        {healthSet.has(trip.id) ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-xl">
+                            <CheckCircle2 size={12} className="text-green-500 shrink-0" />
+                            Health declaration submitted
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => navigate(`/health/${trip.id}`)}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border-2 transition-all"
+                            style={{ borderColor: '#0118A1', color: '#0118A1', background: '#EEF1FF' }}
+                          >
+                            Complete pre-travel health declaration →
+                          </button>
+                        )}
                       </div>
                     )}
 

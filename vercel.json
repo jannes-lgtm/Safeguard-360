@@ -33,7 +33,8 @@
     "api/trigger-debriefs.js":     { "maxDuration": 60 },
     "api/notify-trip-submitted.js": { "maxDuration": 20 },
     "api/notify-incident.js":       { "maxDuration": 20 },
-    "api/crisis-broadcast.js":      { "maxDuration": 60 }
+    "api/crisis-broadcast.js":      { "maxDuration": 60 },
+    "api/health-requirements.js":   { "maxDuration": 45 }
   },
   "crons": [
     {

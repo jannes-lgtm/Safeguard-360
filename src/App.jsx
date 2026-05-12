@@ -37,6 +37,7 @@ import Briefing from './pages/Briefing'
 import Debrief from './pages/Debrief'
 import OrgAnalytics from './pages/OrgAnalytics'
 import CrisisBroadcast from './pages/CrisisBroadcast'
+import HealthDeclaration from './pages/HealthDeclaration'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -79,6 +80,7 @@ export default function App() {
         <Route path="/org/training"    element={<ProtectedRoute orgAdminAllowed><OrgTraining /></ProtectedRoute>} />
         <Route path="/org/analytics"     element={<ProtectedRoute orgAdminAllowed><OrgAnalytics /></ProtectedRoute>} />
         <Route path="/crisis-broadcast"  element={<ProtectedRoute orgAdminAllowed><CrisisBroadcast /></ProtectedRoute>} />
+        <Route path="/health/:tripId"    element={<ProtectedRoute><HealthDeclaration /></ProtectedRoute>} />
         <Route path="/control-room"      element={<ProtectedRoute orgAdminAllowed><ControlRoom /></ProtectedRoute>} />
         <Route path="/assistance"      element={<ProtectedRoute><Assistance /></ProtectedRoute>} />
         <Route path="/visa"            element={<ProtectedRoute><Visa /></ProtectedRoute>} />
