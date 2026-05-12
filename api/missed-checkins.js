@@ -5,7 +5,7 @@
  * For each: emails emergency contacts + control room, marks missed_notified_at.
  */
 import { createClient } from '@supabase/supabase-js'
-import { sendEmail } from './_notify.js'
+import { sendEmail, sendSms, sendWhatsApp } from './_notify.js'
 import { adapt } from './_adapter.js'
 
 const supabaseAdmin = createClient(
@@ -13,9 +13,11 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY,
 )
 
-const APP_URL            = process.env.APP_URL || 'https://www.risk360.co'
-const CONTROL_ROOM_EMAIL = process.env.CONTROL_ROOM_EMAIL || 'control@risk360.co'
-const CRON_SECRET      = process.env.CRON_SECRET
+const APP_URL                = process.env.APP_URL || 'https://www.risk360.co'
+const CONTROL_ROOM_EMAIL     = process.env.CONTROL_ROOM_EMAIL || 'control@risk360.co'
+const CONTROL_ROOM_PHONE     = process.env.CONTROL_ROOM_PHONE || ''
+const CONTROL_ROOM_WHATSAPP  = process.env.CONTROL_ROOM_WHATSAPP || ''
+const CRON_SECRET            = process.env.CRON_SECRET
 
 function fmtDate(d) {
   if (!d) return '—'
@@ -238,69 +240,80 @@ async function processMissed(missed, res) {
 
   for (const checkin of missed) {
     try {
-      // Load traveller profile + email contacts
       const [{ data: traveller }, { data: contacts }, { data: trip }] = await Promise.all([
-        supabaseAdmin.from('profiles').select('full_name, email, phone, org_id, role').eq('id', checkin.user_id).single(),
+        supabaseAdmin.from('profiles').select('full_name, email, phone, whatsapp, org_id, role').eq('id', checkin.user_id).single(),
         supabaseAdmin.from('emergency_contacts').select('*').eq('user_id', checkin.user_id).order('priority'),
         supabaseAdmin.from('itineraries').select('trip_name, arrival_city, depart_date, return_date').eq('id', checkin.trip_id).single(),
       ])
 
       const overdueMins_ = minsOverdue(checkin.due_at, checkin.window_hours || 24)
-      const emailContacts = (contacts || []).filter(c => c.email)
+      const h = Math.floor(overdueMins_ / 60)
+      const m = overdueMins_ % 60
+      const overdueStr = h > 0 ? `${h}h ${m}m` : `${m} min`
 
-      // Email each emergency contact
-      const contactResults = await Promise.allSettled(
-        emailContacts.map(contact =>
-          sendEmail(
-            contact.email,
-            `⚠️ MISSED CHECK-IN — ${traveller?.full_name || 'Traveller'} — ${trip?.trip_name || 'Active trip'}`,
-            buildContactEmail({
-              traveller: traveller || {},
-              trip,
-              contact,
-              overdueMins: overdueMins_,
-              scheduledLabel: checkin.label || 'Scheduled check-in',
-            })
-          )
-        )
-      )
+      const travName  = traveller?.full_name || 'Traveller'
+      const tripName  = trip?.trip_name || 'Active trip'
+      const city      = trip?.arrival_city || 'destination'
+      const emailSubjectContact = `⚠️ MISSED CHECK-IN — ${travName} — ${tripName}`
+      const emailSubjectCR      = `🔴 CONTROL ROOM — Missed check-in: ${travName}`
+      const emailSubjectAdmin   = `🔴 Missed check-in — ${travName} — ${tripName}`
 
-      // Email control room
-      await sendEmail(
-        CONTROL_ROOM_EMAIL,
-        `🔴 CONTROL ROOM — Missed check-in: ${traveller?.full_name || checkin.user_id}`,
-        buildControlRoomEmail({
-          traveller: { ...traveller, contactCount: emailContacts.length },
-          trip,
-          checkin,
-          overdueMins: overdueMins_,
-        })
-      ).catch(() => {})
+      // SMS bodies
+      const smsTraveller = `S360 ALERT: You missed your safety check-in for "${tripName}" (${city}). Please log in and confirm you're safe: ${APP_URL}/checkin`
+      const smsContact   = `S360 ALERT: ${travName} missed their check-in for "${tripName}" in ${city}. Overdue by ${overdueStr}. Please try to contact them directly.`
+      const smsCR        = `S360 CONTROL ROOM: ${travName} missed check-in — ${tripName} in ${city}. Overdue ${overdueStr}. Emergency contacts notified.`
 
-      // If org traveller, also notify org admin(s)
+      // WhatsApp bodies
+      const waTraveller = `*Safeguard 360 — Missed Check-in*\n\nYou missed your scheduled safety check-in for *${tripName}* (${city}).\n\nPlease confirm you are safe: ${APP_URL}/checkin`
+      const waContact   = `*Safeguard 360 Alert*\n\n*${travName}* has missed their safety check-in.\n\nTrip: *${tripName}* → ${city}\nOverdue by: *${overdueStr}*\n\nPlease try to contact them directly.\n\n_You are listed as their emergency contact on Safeguard 360._`
+      const waCR        = `*S360 CONTROL ROOM — Missed Check-in*\n\nTraveller: *${travName}*\nTrip: ${tripName} → ${city}\nOverdue: *${overdueStr}*\n\nLog into the control room to action.`
+
+      const sends = []
+
+      // ── 1. Alert the traveller themselves via SMS + WhatsApp ──────────────────
+      if (traveller?.phone)    sends.push(sendSms(traveller.phone, smsTraveller).catch(() => false))
+      if (traveller?.whatsapp) sends.push(sendWhatsApp(traveller.whatsapp, waTraveller).catch(() => false))
+
+      // ── 2. Notify each emergency contact (email + SMS + WhatsApp) ─────────────
+      const contactEmail = buildContactEmail({
+        traveller: traveller || {}, trip, contact: {},
+        overdueMins: overdueMins_, scheduledLabel: checkin.label || 'Scheduled check-in',
+      })
+      for (const contact of (contacts || [])) {
+        if (contact.email)    sends.push(sendEmail(contact.email, emailSubjectContact, buildContactEmail({ traveller: traveller || {}, trip, contact, overdueMins: overdueMins_, scheduledLabel: checkin.label || 'Scheduled check-in' })).catch(() => false))
+        if (contact.phone)    sends.push(sendSms(contact.phone, smsContact).catch(() => false))
+        if (contact.whatsapp) sends.push(sendWhatsApp(contact.whatsapp, waContact).catch(() => false))
+      }
+
+      // ── 3. Control room (email + SMS + WhatsApp) ──────────────────────────────
+      const crEmail = buildControlRoomEmail({
+        traveller: { ...traveller, contactCount: (contacts || []).filter(c => c.email || c.phone).length },
+        trip, checkin, overdueMins: overdueMins_,
+      })
+      sends.push(sendEmail(CONTROL_ROOM_EMAIL, emailSubjectCR, crEmail).catch(() => false))
+      if (CONTROL_ROOM_PHONE)    sends.push(sendSms(CONTROL_ROOM_PHONE, smsCR).catch(() => false))
+      if (CONTROL_ROOM_WHATSAPP) sends.push(sendWhatsApp(CONTROL_ROOM_WHATSAPP, waCR).catch(() => false))
+
+      // ── 4. Org admins (email + SMS + WhatsApp) ────────────────────────────────
       if (traveller?.org_id) {
         const { data: orgAdmins } = await supabaseAdmin
           .from('profiles')
-          .select('full_name, email')
+          .select('full_name, email, phone, whatsapp')
           .eq('org_id', traveller.org_id)
           .eq('role', 'org_admin')
-        await Promise.allSettled(
-          (orgAdmins || []).filter(a => a.email).map(admin =>
-            sendEmail(
-              admin.email,
-              `🔴 Missed check-in — ${traveller?.full_name || 'Traveller'} — ${trip?.trip_name || 'Active trip'}`,
-              buildControlRoomEmail({
-                traveller: { ...traveller, contactCount: emailContacts.length },
-                trip,
-                checkin,
-                overdueMins: overdueMins_,
-              })
-            )
-          )
-        )
+        const adminEmail = buildControlRoomEmail({
+          traveller: { ...traveller, contactCount: (contacts || []).filter(c => c.email || c.phone).length },
+          trip, checkin, overdueMins: overdueMins_,
+        })
+        for (const admin of (orgAdmins || [])) {
+          if (admin.email)    sends.push(sendEmail(admin.email, emailSubjectAdmin, adminEmail).catch(() => false))
+          if (admin.phone)    sends.push(sendSms(admin.phone, smsCR).catch(() => false))
+          if (admin.whatsapp) sends.push(sendWhatsApp(admin.whatsapp, waCR).catch(() => false))
+        }
       }
 
-      const sentCount = contactResults.filter(r => r.status === 'fulfilled').length
+      const results = await Promise.allSettled(sends)
+      const sentCount = results.filter(r => r.status === 'fulfilled' && r.value !== false).length
       notified += sentCount
 
       // Mark as notified
@@ -309,7 +322,7 @@ async function processMissed(missed, res) {
         .update({ missed_notified_at: new Date().toISOString() })
         .eq('id', checkin.id)
 
-      console.log(`[missed-checkins] Processed ${checkin.id}: ${sentCount} contacts notified, overdue ${overdueMins_}m`)
+      console.log(`[missed-checkins] Processed ${checkin.id}: ${sentCount}/${sends.length} notifications sent, overdue ${overdueMins_}m`)
       processed++
     } catch (err) {
       console.error(`[missed-checkins] Error processing checkin ${checkin.id}:`, err.message)
