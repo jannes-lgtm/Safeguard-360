@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   MapPin, Plane, Hotel, AlertTriangle, Pencil, Trash2,
   CheckCircle2, BookOpen, Lock, ChevronDown, ChevronUp,
-  Sparkles, Send, Upload, Plus, X, Edit3,
+  Sparkles, Send, Upload, Plus, X, Edit3, Shield,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import SeverityBadge from '../components/SeverityBadge'
@@ -27,6 +27,7 @@ function getRiskLevel(city) {
 const emptyForm = {
   trip_name: '', flight_number: '', departure_city: '', arrival_city: '',
   depart_date: '', return_date: '', hotel_name: '', meetings: '', checkin_interval_days: 1,
+  insurance_insurer: '', insurance_policy_number: '', insurance_emergency_number: '',
 }
 
 const FIELD_LABELS = {
@@ -183,6 +184,9 @@ export default function Itinerary() {
       hotel_name: form.hotel_name, meetings: form.meetings,
       risk_level: riskLevel, status,
       checkin_interval_days: Number(form.checkin_interval_days) || 1,
+      insurance_insurer: form.insurance_insurer || null,
+      insurance_policy_number: form.insurance_policy_number || null,
+      insurance_emergency_number: form.insurance_emergency_number || null,
     }
 
     const { data: { session } } = await supabase.auth.getSession()
@@ -285,6 +289,9 @@ export default function Itinerary() {
       depart_date: trip.depart_date || '', return_date: trip.return_date || '',
       hotel_name: trip.hotel_name || '', meetings: trip.meetings || '',
       checkin_interval_days: trip.checkin_interval_days || 1,
+      insurance_insurer: trip.insurance_insurer || '',
+      insurance_policy_number: trip.insurance_policy_number || '',
+      insurance_emergency_number: trip.insurance_emergency_number || '',
     })
     setPlanMode('manual')
     setShowForm(true)
@@ -640,6 +647,26 @@ export default function Itinerary() {
                       <label className={labelCls}>Hotel name</label>
                       <input className={inputCls} placeholder="e.g. Eko Hotel & Suites" {...f('hotel_name')} />
                     </div>
+
+                    {/* Travel insurance */}
+                    <div className="md:col-span-2 pt-2">
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Travel Insurance</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className={labelCls}>Insurer / Policy name</label>
+                          <input className={inputCls} placeholder="e.g. AIG Travel Guard" {...f('insurance_insurer')} />
+                        </div>
+                        <div>
+                          <label className={labelCls}>Policy number</label>
+                          <input className={inputCls} placeholder="e.g. POL-123456" {...f('insurance_policy_number')} />
+                        </div>
+                        <div>
+                          <label className={labelCls}>24hr emergency number</label>
+                          <input className={inputCls} placeholder="e.g. +1 800 555 0199" {...f('insurance_emergency_number')} />
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="md:col-span-2">
                       <label className={labelCls}>Notes</label>
                       <textarea className={`${inputCls} h-20 resize-none`} placeholder="Meeting details, contacts…" {...f('meetings')} />
@@ -852,6 +879,13 @@ export default function Itinerary() {
                           <div className="flex items-center gap-1 text-xs text-gray-400">
                             <Hotel size={10} />
                             <span>{trip.hotel_name}</span>
+                          </div>
+                        )}
+                        {trip.insurance_insurer && (
+                          <div className="flex items-center gap-1 text-xs text-gray-400" title={`Policy: ${trip.insurance_policy_number || '—'} | Emergency: ${trip.insurance_emergency_number || '—'}`}>
+                            <Shield size={10} className="text-green-500" />
+                            <span className="text-green-600 font-medium">{trip.insurance_insurer}</span>
+                            {trip.insurance_policy_number && <span className="text-gray-300">· {trip.insurance_policy_number}</span>}
                           </div>
                         )}
                         <div className="flex items-center gap-2 mt-1">

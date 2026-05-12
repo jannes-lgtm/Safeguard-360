@@ -35,6 +35,7 @@ import PendingApproval from './pages/PendingApproval'
 import TripShare from './pages/TripShare'
 import Briefing from './pages/Briefing'
 import Debrief from './pages/Debrief'
+import OrgAnalytics from './pages/OrgAnalytics'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -75,6 +76,7 @@ export default function App() {
         <Route path="/organisations"   element={<ProtectedRoute adminOnly><Organisations /></ProtectedRoute>} />
         <Route path="/org/users"       element={<ProtectedRoute orgAdminAllowed><OrgUsers /></ProtectedRoute>} />
         <Route path="/org/training"    element={<ProtectedRoute orgAdminAllowed><OrgTraining /></ProtectedRoute>} />
+        <Route path="/org/analytics"   element={<ProtectedRoute orgAdminAllowed><OrgAnalytics /></ProtectedRoute>} />
         <Route path="/control-room"    element={<ProtectedRoute orgAdminAllowed><ControlRoom /></ProtectedRoute>} />
         <Route path="/assistance"      element={<ProtectedRoute><Assistance /></ProtectedRoute>} />
         <Route path="/visa"            element={<ProtectedRoute><Visa /></ProtectedRoute>} />

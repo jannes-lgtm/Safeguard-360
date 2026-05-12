@@ -155,6 +155,7 @@ function OrgAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/dashboard"      icon={LayoutGrid}   label="Dashboard" />
 
       <NavSection label="My Company" />
+      <NavItem to="/org/analytics"  icon={BarChart2}    label="Analytics" />
       <NavItem to="/org/users"      icon={Users}        label="Our Travellers" />
       <NavItem to="/approvals"      icon={ClipboardList} label="Travel Approvals" badge={pendingApprovals} />
       <NavItem to="/tracker"        icon={Navigation}   label="Staff Tracker" />
