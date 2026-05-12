@@ -56,8 +56,9 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from './_notify.js'
+import { synthesiseBrief, fetchGDACS, fetchUSGS, fetchHealthOutbreaks } from './_claudeSynth.js'
 
-const APP_URL = process.env.APP_URL || 'https://safeguard360.co.za'
+const APP_URL = process.env.APP_URL || 'https://www.risk360.co'
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
@@ -270,109 +271,197 @@ async function _handler(req, res) {
     metadata:    { trip_name: trip.trip_name, traveller_id: trip.user_id, risk_level: trip.risk_level, modules_count: modules.length, checkins_count: checkinRows.length, notes },
   })
 
-  // 3. Generate pre-travel briefing and email the traveller
-  let briefingId  = null
-  let briefingRef = null
-  try {
-    const briefingRes = await fetch(`${APP_URL}/api/generate-briefing`, {
+  // 3. Fetch traveller profile (needed for email regardless of briefing success)
+  const { data: travProfile } = await supabaseAdmin
+    .from('profiles').select('full_name, email').eq('id', trip.user_id).single()
+  const travName  = travProfile?.full_name || 'Traveller'
+  const travEmail = travProfile?.email
+
+  // 4. Fetch live country risk data in parallel with briefing generation
+  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+  const destination = trip.arrival_city || trip.trip_name
+
+  const [gdacs, usgs, health] = await Promise.all([
+    fetchGDACS(destination).catch(() => []),
+    fetchUSGS(destination).catch(() => []),
+    fetchHealthOutbreaks(destination).catch(() => ({ matches: [], recent: [] })),
+  ])
+
+  const [riskBrief, briefingResult] = await Promise.all([
+    // Live risk synthesis for the destination
+    ANTHROPIC_API_KEY
+      ? synthesiseBrief(destination, null, { gdacs, usgs, health }, ANTHROPIC_API_KEY).catch(() => null)
+      : Promise.resolve(null),
+
+    // Generate the full ISO briefing document via internal API
+    fetch(`${APP_URL}/api/generate-briefing`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body:    JSON.stringify({ trip_id }),
-      signal:  AbortSignal.timeout(45000),
-    })
-    if (briefingRes.ok) {
-      const bData = await briefingRes.json()
-      briefingId  = bData.briefing_id
-      briefingRef = bData.ref
-    }
-  } catch (err) {
-    console.error('[travel-approval] Briefing generation failed (non-fatal):', err.message)
-  }
+      signal:  AbortSignal.timeout(50000),
+    }).then(r => r.ok ? r.json() : null).catch(err => {
+      console.error('[travel-approval] Briefing generation failed (non-fatal):', err.message)
+      return null
+    }),
+  ])
 
-  // 4. Email traveller with briefing link
-  if (briefingId) {
-    const { data: travProfile } = await supabaseAdmin
-      .from('profiles').select('full_name, email').eq('id', trip.user_id).single()
+  const briefingId  = briefingResult?.briefing_id || null
+  const briefingRef = briefingResult?.ref || null
 
-    const travName  = travProfile?.full_name || 'Traveller'
-    const travEmail = travProfile?.email
-    const briefingUrl = `${APP_URL}/briefing/${briefingId}`
+  // 5. Send approval email with embedded country risk report
+  if (travEmail) {
+    const riskColour =
+      riskLevel === 'Critical' ? '#DC2626' :
+      riskLevel === 'High'     ? '#F97316' :
+      riskLevel === 'Medium'   ? '#D97706' : '#059669'
 
-    if (travEmail) {
-      const riskColour =
-        riskLevel === 'Critical' ? '#DC2626' :
-        riskLevel === 'High'     ? '#F97316' :
-        riskLevel === 'Medium'   ? '#D97706' : '#059669'
+    const riskBg =
+      riskLevel === 'Critical' ? '#FEF2F2' :
+      riskLevel === 'High'     ? '#FFF7ED' :
+      riskLevel === 'Medium'   ? '#FFFBEB' : '#F0FDF4'
 
-      await sendEmail(
-        travEmail,
-        `Action Required: Pre-Travel Security Briefing — ${trip.trip_name} (${briefingRef})`,
-        `<!DOCTYPE html>
+    const riskBorder =
+      riskLevel === 'Critical' ? '#FECACA' :
+      riskLevel === 'High'     ? '#FED7AA' :
+      riskLevel === 'Medium'   ? '#FDE68A' : '#BBF7D0'
+
+    // Build risk section HTML
+    const riskSummaryHtml = riskBrief?.summary
+      ? `<div style="background:${riskBg};border:1px solid ${riskBorder};border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+          <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:${riskColour};text-transform:uppercase;letter-spacing:.08em;">Current Situation — ${destination}</p>
+          <p style="margin:0;font-size:13px;color:#374151;line-height:1.6;">${riskBrief.summary}</p>
+        </div>`
+      : ''
+
+    const keyRisksHtml = riskBrief?.key_risks?.length
+      ? `<p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.08em;">Key Risks</p>
+        <ul style="margin:0 0 20px;padding-left:18px;">
+          ${riskBrief.key_risks.map(r => `<li style="font-size:13px;color:#374151;line-height:1.6;margin-bottom:4px;">${r}</li>`).join('')}
+        </ul>`
+      : ''
+
+    const recommendationsHtml = riskBrief?.recommendations?.length
+      ? `<p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.08em;">Recommendations</p>
+        <ul style="margin:0 0 20px;padding-left:18px;">
+          ${riskBrief.recommendations.map(r => `<li style="font-size:13px;color:#374151;line-height:1.6;margin-bottom:4px;">${r}</li>`).join('')}
+        </ul>`
+      : ''
+
+    const trainingHtml = modules.length
+      ? `<p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.08em;">Required Pre-Travel Training (${modules.length} modules)</p>
+        <ul style="margin:0 0 20px;padding-left:18px;">
+          ${modules.map(m => `<li style="font-size:13px;color:#374151;line-height:1.6;margin-bottom:4px;">${m.name}</li>`).join('')}
+        </ul>`
+      : ''
+
+    const briefingCta = briefingId
+      ? `<div style="text-align:center;margin-bottom:20px;">
+          <a href="${APP_URL}/briefing/${briefingId}"
+            style="display:inline-block;background:#0118A1;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:14px 32px;border-radius:10px;">
+            Read &amp; Acknowledge Full Briefing →
+          </a>
+          ${briefingRef ? `<p style="margin:8px 0 0;font-size:11px;color:#9ca3af;">Document ref: <strong style="font-family:monospace;">${briefingRef}</strong></p>` : ''}
+        </div>`
+      : `<div style="text-align:center;margin-bottom:20px;">
+          <a href="${APP_URL}/itinerary"
+            style="display:inline-block;background:#0118A1;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:14px 32px;border-radius:10px;">
+            View My Trips →
+          </a>
+        </div>`
+
+    const subject = briefingId
+      ? `✈️ Trip Approved + Security Briefing Required — ${trip.trip_name}`
+      : `✅ Trip Approved — ${trip.trip_name}`
+
+    await sendEmail(travEmail, subject, `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"/></head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 0;">
 <tr><td align="center">
-<table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+<table width="580" cellpadding="0" cellspacing="0" style="max-width:580px;width:100%;">
+
+  <!-- Header -->
   <tr><td style="background:#0118A1;padding:24px 28px;border-radius:10px 10px 0 0;">
-    <h1 style="margin:0;font-size:18px;font-weight:700;color:#fff;">Action Required: Pre-Travel Security Briefing</h1>
-    <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.7);">ISO 31030:2021 — Travel Risk Management</p>
+    <p style="margin:0;font-size:20px;font-weight:800;color:#fff;">Safeguard 360</p>
+    <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,.7);">Travel Risk Intelligence Platform · ISO 31030:2021</p>
   </td></tr>
-  <tr><td style="background:#fff;padding:28px;border:1px solid #e5e7eb;border-top:none;">
-    <p style="margin:0 0 16px;font-size:13px;color:#374151;line-height:1.6;">
-      Hi ${travName},<br/><br/>
-      Your travel request for <strong>${trip.trip_name}</strong> has been approved.
-      Before you depart, you are required to read and acknowledge your
-      <strong>Pre-Travel Security Briefing</strong> in compliance with ISO 31030:2021.
-    </p>
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
-      <tr>
-        <td style="padding:4px 0;font-size:12px;color:#9ca3af;width:140px;">Document Ref</td>
-        <td style="padding:4px 0;font-size:12px;font-weight:700;font-family:monospace;color:#111827;">${briefingRef}</td>
-      </tr>
-      <tr>
-        <td style="padding:4px 0;font-size:12px;color:#9ca3af;">Destination</td>
-        <td style="padding:4px 0;font-size:13px;color:#374151;">${trip.arrival_city || trip.trip_name}</td>
-      </tr>
-      <tr>
-        <td style="padding:4px 0;font-size:12px;color:#9ca3af;">Travel Dates</td>
-        <td style="padding:4px 0;font-size:13px;color:#374151;">${trip.depart_date} → ${trip.return_date}</td>
-      </tr>
-      <tr>
-        <td style="padding:4px 0;font-size:12px;color:#9ca3af;">Risk Level</td>
-        <td style="padding:4px 0;font-size:13px;font-weight:700;color:${riskColour};">${riskLevel}</td>
-      </tr>
-    </table>
-    <div style="text-align:center;margin-bottom:24px;">
-      <a href="${briefingUrl}" style="display:inline-block;background:#0118A1;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:14px 32px;border-radius:10px;">
-        Read &amp; Acknowledge Briefing →
-      </a>
+
+  <!-- Body -->
+  <tr><td style="background:#fff;padding:28px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;">
+
+    <!-- Approval badge -->
+    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:14px 18px;margin-bottom:24px;display:flex;align-items:center;gap:10px;">
+      <p style="margin:0;font-size:15px;font-weight:700;color:#15803D;">✅ Your travel request has been approved</p>
     </div>
-    <div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;">
+
+    <p style="margin:0 0 20px;font-size:14px;color:#374151;line-height:1.6;">
+      Hi ${travName},<br/><br/>
+      Your trip <strong>${trip.trip_name}</strong> to <strong>${destination}</strong> has been approved.
+      Below is a summary of the current security situation for your destination, along with your pre-travel requirements.
+    </p>
+
+    <!-- Trip details -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:24px;">
+      <tr><td style="padding:14px 18px;">
+        <p style="margin:0 0 4px;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;">Trip Details</p>
+        <p style="margin:0;font-size:13px;color:#111827;line-height:1.8;">
+          Destination: <strong>${destination}</strong><br/>
+          Dates: <strong>${trip.depart_date} → ${trip.return_date}</strong><br/>
+          ${trip.flight_number ? `Flight: <strong>${trip.flight_number}</strong><br/>` : ''}
+          ${trip.hotel_name ? `Hotel: <strong>${trip.hotel_name}</strong><br/>` : ''}
+          Risk Level: <strong style="color:${riskColour};">${riskLevel}</strong>
+        </p>
+      </td></tr>
+    </table>
+
+    <!-- Divider -->
+    <p style="margin:0 0 16px;font-size:13px;font-weight:700;color:#111827;border-bottom:2px solid #0118A1;padding-bottom:8px;">
+      🌍 Current Country Risk Report — ${destination}
+    </p>
+
+    ${riskSummaryHtml}
+    ${keyRisksHtml}
+    ${recommendationsHtml}
+
+    <!-- Training -->
+    ${trainingHtml}
+
+    <!-- CTA -->
+    ${briefingCta}
+
+    <!-- Deadline warning -->
+    <div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;margin-top:8px;">
       <p style="margin:0;font-size:12px;color:#92400E;font-weight:600;">
-        ⚠️ Your acknowledgement must be completed before your departure date of ${trip.depart_date}.
+        ⚠️ Complete all pre-travel training and acknowledge your briefing before your departure on ${trip.depart_date}.
       </p>
     </div>
+
   </td></tr>
-  <tr><td style="background:#f9fafb;padding:14px 28px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;">
-    <p style="margin:0;font-size:11px;color:#9ca3af;">Safeguard 360 — ISO 31030:2021 Travel Risk Management</p>
+
+  <!-- Footer -->
+  <tr><td style="padding:16px 28px;">
+    <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;">
+      Safeguard 360 — ISO 31030:2021 Travel Risk Management<br/>
+      This report was generated using live intelligence feeds at the time of approval.
+    </p>
   </td></tr>
+
 </table>
 </td></tr>
 </table>
-</body></html>`
-      ).catch(() => {})
-    }
+</body></html>`).catch(err => console.error('[travel-approval] Email send failed:', err.message))
   }
 
   return res.json({
-    ok:          true,
-    action:      'approved',
-    modules:     modules.length,
-    checkins:    checkinRows.length,
-    briefing_id: briefingId,
+    ok:           true,
+    action:       'approved',
+    modules:      modules.length,
+    checkins:     checkinRows.length,
+    briefing_id:  briefingId,
     briefing_ref: briefingRef,
-    schedule:    checkinRows.map(c => ({ type: c.checkin_type, due: c.due_at, label: c.label })),
+    risk_level:   riskBrief?.threat_level || riskLevel,
+    schedule:     checkinRows.map(c => ({ type: c.checkin_type, due: c.due_at, label: c.label })),
   })
 }
 

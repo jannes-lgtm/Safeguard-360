@@ -12,7 +12,7 @@
     "api/weather-alerts.js":   { "maxDuration": 30 },
     "api/loadshedding.js":     { "maxDuration": 20 },
     "api/feed-status.js":      { "maxDuration": 10 },
-    "api/travel-approval.js":  { "maxDuration": 30 },
+    "api/travel-approval.js":  { "maxDuration": 90 },
     "api/scan-all.js":         { "maxDuration": 300 },
     "api/invite-user.js":      { "maxDuration": 20 },
     "api/accept-invite.js":    { "maxDuration": 10 },
