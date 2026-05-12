@@ -34,6 +34,7 @@ import ResetPassword from './pages/ResetPassword'
 import PendingApproval from './pages/PendingApproval'
 import TripShare from './pages/TripShare'
 import Briefing from './pages/Briefing'
+import Debrief from './pages/Debrief'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="/org-onboarding" element={<OrgOnboarding />} />
         <Route path="/trip-share/:token" element={<TripShare />} />
         <Route path="/briefing/:briefingId" element={<Briefing />} />
+        <Route path="/debrief/:tripId" element={<Debrief />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/itinerary" element={<ProtectedRoute><Itinerary /></ProtectedRoute>} />
         <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />

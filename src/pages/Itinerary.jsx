@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   MapPin, Plane, Hotel, AlertTriangle, Pencil, Trash2,
   CheckCircle2, BookOpen, Lock, ChevronDown, ChevronUp,
@@ -67,6 +68,7 @@ const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm tex
 const labelCls = 'block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide'
 
 export default function Itinerary() {
+  const navigate                      = useNavigate()
   const [trips, setTrips]             = useState([])
   const [loading, setLoading]         = useState(true)
   const [loadError, setLoadError]     = useState(null)
@@ -80,6 +82,7 @@ export default function Itinerary() {
   const [tripAlertMap, setTripAlertMap]       = useState({})
   const [showUpload, setShowUpload]           = useState(false)
   const [trainingMap, setTrainingMap]         = useState({})
+  const [debriefSet, setDebriefSet]           = useState(new Set())
   const [expandedTraining, setExpandedTraining] = useState({})
   const [form, setForm]               = useState(emptyForm)
 
@@ -141,6 +144,15 @@ export default function Itinerary() {
           }
           setTrainingMap(tmap)
         }
+      }
+
+      if (tripIds.length) {
+        const { data: debriefs } = await supabase
+          .from('trip_debriefs')
+          .select('trip_id')
+          .in('trip_id', tripIds)
+          .eq('user_id', uid)
+        setDebriefSet(new Set((debriefs || []).map(d => d.trip_id)))
       }
 
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', uid).single()
@@ -923,6 +935,26 @@ export default function Itinerary() {
                             <p className="text-[10px] text-gray-400 pl-1">+{tripAlertMap[trip.id].length - 3} more — check Dashboard</p>
                           )}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Post-travel debrief CTA */}
+                    {trip.status === 'Completed' && (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        {debriefSet.has(trip.id) ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-xl">
+                            <CheckCircle2 size={12} className="text-green-500 shrink-0" />
+                            Debrief submitted
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => navigate(`/debrief/${trip.id}`)}
+                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all"
+                            style={{ background: '#AACC00', color: '#0118A1', minHeight: 44 }}
+                          >
+                            Complete post-travel debrief →
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

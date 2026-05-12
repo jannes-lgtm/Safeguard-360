@@ -28,7 +28,9 @@
     "api/missed-checkins.js":      { "maxDuration": 60 },
     "api/generate-briefing.js":   { "maxDuration": 60 },
     "api/acknowledge-briefing.js": { "maxDuration": 15 },
-    "api/passport-expiry.js":      { "maxDuration": 30 }
+    "api/passport-expiry.js":      { "maxDuration": 30 },
+    "api/post-travel-debrief.js":  { "maxDuration": 15 },
+    "api/trigger-debriefs.js":     { "maxDuration": 60 }
   },
   "crons": [
     {
@@ -42,6 +44,10 @@
     {
       "path": "/api/passport-expiry",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/trigger-debriefs",
+      "schedule": "0 9 * * *"
     }
   ],
   "headers": [
