@@ -587,24 +587,42 @@ Respond ONLY with valid JSON, no markdown:
  * @param {string} apiKey
  * @returns {Promise<string|null>}
  */
-export async function askAssistant(userMessage, context = {}, apiKey) {
+export async function askAssistant(userMessage, context = {}, apiKey, history = []) {
   if (!apiKey || !userMessage?.trim()) return null
 
   const today = new Date().toISOString().split('T')[0]
   const contextLines = [
-    context.country      && `Destination: ${context.country}`,
-    context.travelerName && `Traveler: ${context.travelerName}`,
-    context.tripName     && `Trip: ${context.tripName}`,
-    context.activeAlerts && `Active alerts: ${context.activeAlerts}`,
+    context.country      && `Traveller destination: ${context.country}`,
+    context.travelerName && `Traveller name: ${context.travelerName}`,
+    context.tripName     && `Active trip: ${context.tripName}`,
+    context.activeTrips  && `Upcoming trips: ${context.activeTrips}`,
+    context.orgName      && `Organisation: ${context.orgName}`,
+    context.activeAlerts && `Active platform alerts: ${context.activeAlerts}`,
   ].filter(Boolean).join('\n')
 
-  const system = `You are an expert travel security AI assistant embedded in SafeGuard360, a corporate travel risk management platform.
-You help security managers, risk officers and travellers understand threats, make decisions and stay safe.
-Be concise, factual and actionable. If you are uncertain about real-time conditions, say so and reference official sources (FCDO, US State Dept, ACLED).
-Today: ${today}.${contextLines ? `\n\nCurrent context:\n${contextLines}` : ''}`
+  const system = `You are an expert travel security AI analyst embedded in SafeGuard360, a corporate travel risk management platform used by security managers, risk officers, and business travellers.
+
+Your role:
+- Answer questions about destination risk, threat landscapes, safety procedures, duty of care, and travel security
+- Be concise, specific, and actionable — avoid vague generalisations
+- When discussing real-time conditions you cannot verify, explicitly say your knowledge has a cutoff and recommend checking FCDO (gov.uk/foreign-travel-advice), US State Dept (travel.state.gov), or ACLED for latest data
+- Never fabricate security incidents, casualty figures, or advisory levels — if unsure, say so
+- For medical/legal advice, direct users to qualified professionals
+- Maintain full awareness of the conversation history — refer back to prior messages naturally
+
+Today's date: ${today}
+${contextLines ? `\nTraveller context:\n${contextLines}` : ''}`
+
+  // Build multi-turn message history — skip the initial greeting (index 0)
+  const apiMessages = [
+    ...history.slice(1).map(m => ({
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: m.text,
+    })),
+    { role: 'user', content: userMessage },
+  ]
 
   try {
-    const model = await resolveModel(apiKey)
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -613,12 +631,12 @@ Today: ${today}.${contextLines ? `\n\nCurrent context:\n${contextLines}` : ''}`
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model,
-        max_tokens: 600,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 900,
         system,
-        messages: [{ role: 'user', content: userMessage }],
+        messages: apiMessages,
       }),
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(20000),
     })
 
     if (!res.ok) return null

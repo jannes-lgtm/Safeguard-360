@@ -1065,6 +1065,7 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
     const text = (msg || input).trim()
     if (!text || sending) return
     setInput('')
+    const history = messages  // capture full history before state update
     setMessages(prev => [...prev, { role: 'user', text }])
     setSending(true)
 
@@ -1075,10 +1076,13 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token || ''}` },
         body: JSON.stringify({
           message: text,
+          history,
           context: {
             travelerName: profile?.full_name,
             activeTrips:  tripSummary,
             orgName,
+            country: trips[0] ? (cityToCountry(trips[0].arrival_city) || trips[0].arrival_city) : null,
+            tripName: trips[0]?.trip_name,
             mode: 'dashboard',
           },
         }),
@@ -1086,62 +1090,83 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
       const data = await res.json()
       setMessages(prev => [...prev, { role: 'assistant', text: data.reply || data.error || 'No response received.' }])
     } catch {
-      setMessages(prev => [...prev, { role: 'assistant', text: 'Failed to reach AI assistant. Please try again.' }])
+      setMessages(prev => [...prev, { role: 'assistant', text: 'Connection error. Please try again.' }])
     }
     setSending(false)
   }
 
   const accentColor = dark ? BRAND_GREEN : BRAND_BLUE
-  const msgBg       = dark ? '#1A2235' : '#F9FAFB'
-  const divider     = dark ? 'rgba(255,255,255,0.07)' : '#F1F5F9'
+  const msgBg       = dark ? '#0D1526' : '#F8FAFC'
+  const divider     = dark ? 'rgba(255,255,255,0.06)' : '#F1F5F9'
 
   return (
     <div className="rounded-2xl overflow-hidden"
-      style={{ background: dark ? '#111827' : '#FFFFFF', border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}`, boxShadow: dark ? '0 2px 20px rgba(0,0,0,0.4)' : '0 1px 3px rgba(0,0,0,0.06)' }}>
-      {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-4" style={{ background: dark ? `${BRAND_GREEN}10` : `${BRAND_BLUE}08`, borderBottom: `1px solid ${dark ? `${BRAND_GREEN}18` : `${BRAND_BLUE}12`}` }}>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: dark ? BRAND_GREEN : BRAND_BLUE }}>
-          <Brain size={16} color={dark ? '#090D1A' : 'white'} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold" style={{ color: dark ? '#F9FAFB' : '#111827' }}>AI Security Analyst</span>
-            <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full"
-              style={{ background: `${accentColor}20`, color: accentColor }}>
-              <Zap size={7} /> LIVE
-            </span>
+      style={{
+        background: dark ? '#111827' : '#FFFFFF',
+        border: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(1,24,161,0.10)'}`,
+        boxShadow: dark ? '0 4px 32px rgba(0,0,0,0.5)' : '0 4px 24px rgba(1,24,161,0.08)',
+      }}>
+
+      {/* Gradient header */}
+      <div className="relative px-5 py-4 overflow-hidden"
+        style={{ background: dark ? 'linear-gradient(135deg,#0D1A3A 0%,#0A2A1A 100%)' : 'linear-gradient(135deg,#0118A1 0%,#0A3D6B 100%)' }}>
+        {/* Subtle background glow */}
+        <div className="absolute inset-0 opacity-20"
+          style={{ background: `radial-gradient(ellipse at 80% 50%, ${dark ? BRAND_GREEN : '#60A5FA'} 0%, transparent 70%)` }} />
+        <div className="relative flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: dark ? `${BRAND_GREEN}25` : 'rgba(255,255,255,0.15)', border: `1px solid ${dark ? `${BRAND_GREEN}40` : 'rgba(255,255,255,0.25)'}` }}>
+            <Sparkles size={17} color={dark ? BRAND_GREEN : '#AACC00'} />
           </div>
-          <p className="text-[11px] mt-0.5" style={{ color: dark ? 'rgba(255,255,255,0.35)' : '#9CA3AF' }}>Ask anything about travel risk, destinations, or security</p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-white">AI Security Analyst</span>
+              <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-white/80">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> LIVE
+              </span>
+            </div>
+            <p className="text-[11px] mt-0.5 text-white/50">Powered by Claude · ask anything about travel risk or your destinations</p>
+          </div>
+          {messages.length > 1 && (
+            <button onClick={() => setMessages([{ role: 'assistant', text: initialMsg }])}
+              className="text-[10px] font-semibold text-white/40 hover:text-white/70 shrink-0 transition-colors">
+              Clear
+            </button>
+          )}
         </div>
       </div>
 
       {/* Messages */}
-      <div className="p-4 space-y-3 max-h-72 overflow-y-auto" style={{ background: msgBg }}>
+      <div className="p-4 space-y-3 overflow-y-auto" style={{ background: msgBg, minHeight: 160, maxHeight: 340 }}>
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {m.role === 'assistant' && (
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2 mt-0.5" style={{ background: `${accentColor}18` }}>
-                <Brain size={11} style={{ color: accentColor }} />
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2 mt-0.5 flex-shrink-0"
+                style={{ background: dark ? `${BRAND_GREEN}20` : `${BRAND_BLUE}12` }}>
+                <Sparkles size={10} style={{ color: dark ? BRAND_GREEN : BRAND_BLUE }} />
               </div>
             )}
-            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${m.role === 'user' ? 'text-white rounded-br-[4px]' : 'rounded-bl-[4px]'}`}
+            <div className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed whitespace-pre-wrap ${m.role === 'user' ? 'rounded-br-[4px]' : 'rounded-bl-[4px]'}`}
               style={m.role === 'user'
-                ? { backgroundColor: accentColor, color: dark ? '#090D1A' : 'white' }
-                : { background: dark ? '#1E2D42' : '#FFFFFF', border: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : '#F3F4F6'}`, color: dark ? 'rgba(255,255,255,0.8)' : '#374151' }}>
+                ? { background: 'linear-gradient(135deg,#0118A1,#0A3D6B)', color: 'white' }
+                : { background: dark ? '#162033' : '#FFFFFF', border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : '#EFF2F8'}`, color: dark ? 'rgba(255,255,255,0.82)' : '#1F2937' }}>
               {m.text}
             </div>
           </div>
         ))}
         {sending && (
           <div className="flex justify-start">
-            <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2 mt-0.5" style={{ background: `${accentColor}18` }}>
-              <Brain size={11} style={{ color: accentColor }} />
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2 mt-0.5"
+              style={{ background: dark ? `${BRAND_GREEN}20` : `${BRAND_BLUE}12` }}>
+              <Sparkles size={10} style={{ color: dark ? BRAND_GREEN : BRAND_BLUE }} />
             </div>
-            <div className="rounded-2xl rounded-bl-[4px] px-3.5 py-2.5" style={{ background: dark ? '#1E2D42' : '#FFFFFF', border: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : '#F3F4F6'}` }}>
+            <div className="rounded-2xl rounded-bl-[4px] px-4 py-3"
+              style={{ background: dark ? '#162033' : '#FFFFFF', border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : '#EFF2F8'}` }}>
               <div className="flex gap-1 items-center">
-                <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: dark ? 'rgba(255,255,255,0.3)' : '#D1D5DB', animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: dark ? 'rgba(255,255,255,0.3)' : '#D1D5DB', animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: dark ? 'rgba(255,255,255,0.3)' : '#D1D5DB', animationDelay: '300ms' }} />
+                {[0, 150, 300].map(d => (
+                  <span key={d} className="w-1.5 h-1.5 rounded-full animate-bounce"
+                    style={{ background: dark ? BRAND_GREEN : BRAND_BLUE, animationDelay: `${d}ms`, opacity: 0.6 }} />
+                ))}
               </div>
             </div>
           </div>
@@ -1151,11 +1176,11 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
 
       {/* Quick suggestions */}
       {messages.length <= 1 && (
-        <div className="px-4 py-3 flex flex-wrap gap-2" style={{ borderTop: `1px solid ${divider}`, background: dark ? '#111827' : '#FFFFFF' }}>
+        <div className="px-4 py-3 flex flex-wrap gap-1.5" style={{ borderTop: `1px solid ${divider}`, background: dark ? '#111827' : '#FFFFFF' }}>
           {QUICK.map((q, i) => (
             <button key={i} onClick={() => send(q)}
-              className="text-[11px] font-medium px-3 py-1.5 rounded-full border transition-colors"
-              style={{ color: dark ? 'rgba(255,255,255,0.45)' : '#6B7280', borderColor: dark ? 'rgba(255,255,255,0.12)' : '#E5E7EB', background: 'transparent' }}>
+              className="text-[11px] font-medium px-3 py-1.5 rounded-full border transition-all hover:scale-[1.02]"
+              style={{ color: dark ? 'rgba(255,255,255,0.5)' : BRAND_BLUE, borderColor: dark ? 'rgba(255,255,255,0.10)' : `${BRAND_BLUE}25`, background: dark ? 'transparent' : `${BRAND_BLUE}05` }}>
               {q}
             </button>
           ))}
@@ -2128,6 +2153,18 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ── AI SECURITY ANALYST (traveller) ── */}
+      {role === 'traveller' && !loading && (
+        <div className="mb-7">
+          <DashboardAiChat
+            profile={profile}
+            trips={myTrips}
+            orgName={profile?.organisations?.name}
+            role={role}
+          />
+        </div>
+      )}
+
       {/* ── BOTTOM PANELS ── */}
       <div className="flex flex-col lg:flex-row gap-5">
 
@@ -2176,24 +2213,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Right column — compliance + AI chat for org travellers */}
+        {/* Right column — compliance for org travellers */}
         {role === 'traveller' && (
           <div className="lg:w-2/5 flex flex-col gap-5">
             <ComplianceScoreCard breakdown={complianceBreakdown} loading={loading} />
-            <div>
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}12` }}>
-                  <Brain size={13} style={{ color: BRAND_BLUE }} />
-                </div>
-                <h2 className="text-sm font-bold text-gray-900">AI Security Analyst</h2>
-              </div>
-              <DashboardAiChat
-                profile={profile}
-                trips={myTrips}
-                orgName={profile?.organisations?.name}
-                role={role}
-              />
-            </div>
           </div>
         )}
         {(role === 'admin' || role === 'org_admin') && (

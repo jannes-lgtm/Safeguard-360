@@ -54,12 +54,12 @@ async function _handler(req, res) {
     }
   }
 
-  const { message, context = {} } = req.body || {}
+  const { message, context = {}, history = [] } = req.body || {}
   if (!message?.trim()) {
     return res.status(400).json({ error: 'message is required' })
   }
 
-  const reply = await askAssistant(message, context, ANTHROPIC_API_KEY)
+  const reply = await askAssistant(message, context, ANTHROPIC_API_KEY, history)
   if (!reply) {
     return res.status(502).json({ error: 'AI service temporarily unavailable. Please try again.' })
   }
