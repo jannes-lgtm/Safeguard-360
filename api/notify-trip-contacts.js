@@ -14,7 +14,7 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY,
 )
 
-const APP_URL = process.env.APP_URL || 'https://safeguard360.co.za'
+const APP_URL = process.env.APP_URL || 'https://www.risk360.co'
 
 function generateToken() {
   return crypto.randomBytes(24).toString('hex')
@@ -127,7 +127,7 @@ function buildContactEmail({ traveller, trip, contact, shareUrl, passcode }) {
   <tr><td style="background:#f9fafb;padding:14px 28px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;">
     <p style="margin:0;font-size:11px;color:#9ca3af;">
       Safeguard 360 &mdash; Travel Risk Intelligence &mdash;
-      <a href="https://safeguard360.co.za" style="color:#6b7280;">safeguard360.co.za</a>
+      <a href="https://www.risk360.co" style="color:#6b7280;">risk360.co</a>
     </p>
   </td></tr>
 

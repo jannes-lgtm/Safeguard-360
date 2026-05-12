@@ -218,6 +218,68 @@ async function _handler(req, res) {
       metadata:    { trip_name: trip.trip_name, traveller_id: trip.user_id, risk_level: trip.risk_level, notes },
     })
 
+    // Email the traveller
+    const { data: rejTravProfile } = await supabaseAdmin
+      .from('profiles').select('full_name, email').eq('id', trip.user_id).single()
+
+    if (rejTravProfile?.email) {
+      const travName  = rejTravProfile.full_name || 'Traveller'
+      const dest      = trip.arrival_city || trip.trip_name
+      const hasReason = !!(notes?.trim())
+
+      await sendEmail(
+        rejTravProfile.email,
+        `Travel request not approved — ${trip.trip_name}`,
+        `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 0;">
+<tr><td align="center">
+<table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+  <tr><td style="background:#0118A1;padding:24px 28px;border-radius:10px 10px 0 0;">
+    <p style="margin:0;font-size:20px;font-weight:800;color:#fff;">Safeguard 360</p>
+    <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,.7);">Travel Risk Management</p>
+  </td></tr>
+  <tr><td style="background:#fff;padding:28px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;">
+
+    <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
+      <p style="margin:0;font-size:14px;font-weight:700;color:#DC2626;">❌ Your travel request was not approved</p>
+    </div>
+
+    <p style="margin:0 0 16px;font-size:13px;color:#374151;line-height:1.6;">
+      Hi ${travName},<br/><br/>
+      Your travel request for <strong>${trip.trip_name}</strong> to <strong>${dest}</strong>
+      (${trip.depart_date} → ${trip.return_date}) has not been approved at this time.
+    </p>
+
+    ${hasReason ? `
+    <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:16px 20px;margin-bottom:24px;">
+      <p style="margin:0 0 6px;font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;">Reason provided</p>
+      <p style="margin:0;font-size:13px;color:#374151;line-height:1.6;">${notes}</p>
+    </div>` : ''}
+
+    <p style="margin:0 0 24px;font-size:13px;color:#6B7280;line-height:1.6;">
+      If you have questions about this decision, please contact your line manager or travel administrator directly.
+      You can also update your travel request and resubmit for consideration.
+    </p>
+
+    <a href="${APP_URL}/itinerary"
+      style="display:inline-block;background:#0118A1;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;">
+      View My Trips →
+    </a>
+
+    <p style="margin:20px 0 0;font-size:11px;color:#9CA3AF;">
+      This notification was sent automatically by Safeguard 360.
+    </p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`
+      ).catch(err => console.error('[travel-approval] Rejection email failed:', err.message))
+    }
+
     return res.json({ ok: true, action: 'rejected' })
   }
 

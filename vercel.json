@@ -30,7 +30,8 @@
     "api/acknowledge-briefing.js": { "maxDuration": 15 },
     "api/passport-expiry.js":      { "maxDuration": 30 },
     "api/post-travel-debrief.js":  { "maxDuration": 15 },
-    "api/trigger-debriefs.js":     { "maxDuration": 60 }
+    "api/trigger-debriefs.js":     { "maxDuration": 60 },
+    "api/notify-trip-submitted.js": { "maxDuration": 20 }
   },
   "crons": [
     {

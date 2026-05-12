@@ -239,6 +239,21 @@ export default function Itinerary() {
           }
         } catch {}
       }
+
+      if (!isSolo && savedTripId) {
+        try {
+          const { data: { session: s } } = await supabase.auth.getSession()
+          if (s?.access_token) {
+            await fetch('/api/notify-trip-submitted', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s.access_token}` },
+              body: JSON.stringify({ trip_id: savedTripId }),
+            })
+          }
+        } catch (notifyErr) {
+          console.warn('[notify-trip-submitted] Failed silently:', notifyErr)
+        }
+      }
     }
 
     const msg = editingId ? 'Trip updated successfully.'
