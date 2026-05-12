@@ -1053,7 +1053,7 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
   const [sending, setSending]   = useState(false)
   const bottomRef               = useRef(null)
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  useEffect(() => { if (messages.length > 1) bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   const QUICK = role === 'admin' || role === 'org_admin'
     ? ['What are the highest risk destinations my staff may travel to?', 'What is our duty of care?', 'Summarise current global threat landscape']
