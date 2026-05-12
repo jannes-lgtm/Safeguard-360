@@ -83,7 +83,12 @@ export default function Profile() {
     e.preventDefault()
     setSaving(true)
     const { data: { session } } = await supabase.auth.getSession()
-    const { error } = await supabase.from('profiles').update(form).eq('id', session.user.id)
+    const payload = {
+      ...form,
+      date_of_birth:   form.date_of_birth   || null,
+      passport_expiry: form.passport_expiry  || null,
+    }
+    const { error } = await supabase.from('profiles').update(payload).eq('id', session.user.id)
     if (!error) {
       setToast('Profile saved.')
       setTimeout(() => setToast(''), 4000)

@@ -237,9 +237,12 @@ export default function Onboarding() {
   const validateStep = () => {
     setError('')
     if (currentStepId === 'personal') {
-      if (!personal.full_name.trim())   { setError('Please enter your full name.'); return false }
-      if (!personal.phone.trim())       { setError('Please enter your phone number.'); return false }
-      if (!personal.nationality.trim()) { setError('Please enter your nationality.'); return false }
+      if (!personal.full_name.trim())     { setError('Please enter your full name.'); return false }
+      if (!personal.phone.trim())         { setError('Please enter your phone number.'); return false }
+      if (!personal.date_of_birth)        { setError('Please enter your date of birth.'); return false }
+      if (!personal.nationality.trim())   { setError('Please enter your nationality.'); return false }
+      if (!personal.passport_number.trim()) { setError('Please enter your passport number.'); return false }
+      if (!personal.passport_expiry)      { setError('Please enter your passport expiry date.'); return false }
     }
     if (currentStepId === 'contacts') {
       if (!contacts[0].full_name.trim())  { setError('Please enter your primary emergency contact name.'); return false }
@@ -247,7 +250,8 @@ export default function Onboarding() {
     }
     if (currentStepId === 'manager') {
       if (!manager.manager_name.trim())  { setError('Please enter your line manager\'s name.'); return false }
-      if (!manager.manager_email.trim()) { setError('Please enter your line manager\'s email.'); return false }
+      if (!manager.manager_email.trim()) { setError('Please enter your line manager\'s email address.'); return false }
+      if (!manager.manager_phone.trim()) { setError('Please enter your line manager\'s phone number.'); return false }
     }
     if (currentStepId === 'policy' || currentStepId === 'solo_terms') {
       if (!signedName.trim()) { setError('Please type your full name to sign.'); return false }
@@ -396,7 +400,7 @@ export default function Onboarding() {
                       value={personal.phone} onChange={e => setP('phone', e.target.value)} />
                   </div>
                   <div>
-                    <label className={labelClass}>Date of Birth</label>
+                    <label className={labelClass}>Date of Birth *</label>
                     <input className={inputClass} type="date"
                       value={personal.date_of_birth} onChange={e => setP('date_of_birth', e.target.value)} />
                   </div>
@@ -406,12 +410,12 @@ export default function Onboarding() {
                       value={personal.nationality} onChange={e => setP('nationality', e.target.value)} />
                   </div>
                   <div>
-                    <label className={labelClass}>Passport Number</label>
+                    <label className={labelClass}>Passport Number *</label>
                     <input className={inputClass} placeholder="A12345678"
                       value={personal.passport_number} onChange={e => setP('passport_number', e.target.value)} />
                   </div>
                   <div>
-                    <label className={labelClass}>Passport Expiry Date</label>
+                    <label className={labelClass}>Passport Expiry Date *</label>
                     <input className={inputClass} type="date"
                       value={personal.passport_expiry} onChange={e => setP('passport_expiry', e.target.value)} />
                   </div>
@@ -526,7 +530,7 @@ export default function Onboarding() {
                       value={manager.manager_email} onChange={e => setM('manager_email', e.target.value)} />
                   </div>
                   <div>
-                    <label className={labelClass}>Phone Number</label>
+                    <label className={labelClass}>Phone Number *</label>
                     <input className={inputClass} type="tel" placeholder="+27 11 000 0000"
                       value={manager.manager_phone} onChange={e => setM('manager_phone', e.target.value)} />
                   </div>
