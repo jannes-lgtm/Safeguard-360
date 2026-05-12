@@ -125,7 +125,11 @@ async function _handler(req, res) {
   const { destination, country, depart_date } = req.body || {}
   if (!destination && !country) return res.status(400).json({ error: 'destination required' })
 
-  const result = await fetchRequirements(destination || country, country || destination, depart_date, apiKey)
+  // country is the resolved country name (e.g. "Democratic Republic of the Congo")
+  // destination is the city (e.g. "Kinshasa") — used for display in the AI prompt
+  const resolvedCountry = country || destination
+  const displayDest     = destination || country
+  const result = await fetchRequirements(displayDest, resolvedCountry, depart_date, apiKey)
   if (!result) return res.status(502).json({ error: 'Could not generate health requirements. Please try again.' })
 
   return res.json(result)

@@ -401,7 +401,7 @@ export async function fetchHealthOutbreaks(country) {
     // NOTE: 'america'/'american' removed from US aliases — they match 'Americas' (PAHO region
     // covering all of North/South America) and 'pan-american', causing false positives for
     // Chile, Canada etc. 'usa' is matched with a word-boundary regex instead.
-    if (q === 'democratic republic of congo') aliases.push('drc', 'dr congo', 'congo')
+    if (q === 'democratic republic of congo' || q === 'democratic republic of the congo') aliases.push('drc', 'dr congo', 'congo', 'kinshasa', 'goma', 'bukavu')
     if (q === 'united states')               aliases.push('u.s.', 'u.s.a.')
     if (q === 'united kingdom')              aliases.push('britain', 'england', 'scotland', 'wales', 'uk')
     if (q === 'united arab emirates')        aliases.push('uae', 'dubai', 'abu dhabi')

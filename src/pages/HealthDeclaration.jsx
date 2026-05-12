@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
+import { resolveCountry } from '../lib/cityToCountry'
 
 const inputCls  = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
 const labelCls  = 'block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide'
@@ -87,12 +88,13 @@ export default function HealthDeclaration() {
       setReqsLoading(true)
       const { data: { session: s2 } } = await supabase.auth.getSession()
       try {
+        const resolvedCountry = resolveCountry(tripData.arrival_city) || tripData.arrival_city
         const res = await fetch('/api/health-requirements', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${s2?.access_token}` },
           body: JSON.stringify({
             destination: tripData.arrival_city,
-            country: tripData.arrival_city,
+            country: resolvedCountry,
             depart_date: tripData.depart_date,
           }),
         })

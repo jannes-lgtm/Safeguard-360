@@ -85,6 +85,45 @@ const RAW_CITY_MAP = {
   'lusaka': 'Zambia', 'ndola': 'Zambia', 'kitwe': 'Zambia', 'livingstone': 'Zambia',
   // Zimbabwe
   'harare': 'Zimbabwe', 'bulawayo': 'Zimbabwe', 'mutare': 'Zimbabwe',
+  // UAE
+  'dubai': 'United Arab Emirates', 'abu dhabi': 'United Arab Emirates',
+  'sharjah': 'United Arab Emirates', 'ajman': 'United Arab Emirates',
+  // Middle East (extra)
+  'doha': 'Qatar', 'kuwait city': 'Kuwait', 'manama': 'Bahrain',
+  'muscat': 'Oman', 'istanbul': 'Turkey', 'ankara': 'Turkey',
+  // Asia Pacific
+  'singapore': 'Singapore', 'kuala lumpur': 'Malaysia', 'kl': 'Malaysia',
+  'bangkok': 'Thailand', 'jakarta': 'Indonesia', 'manila': 'Philippines',
+  'hong kong': 'Hong Kong', 'beijing': 'China', 'shanghai': 'China',
+  'shenzhen': 'China', 'guangzhou': 'China', 'mumbai': 'India',
+  'delhi': 'India', 'new delhi': 'India', 'bangalore': 'India',
+  'colombo': 'Sri Lanka', 'dhaka': 'Bangladesh', 'kathmandu': 'Nepal',
+  // Europe
+  'london': 'United Kingdom', 'paris': 'France', 'berlin': 'Germany',
+  'amsterdam': 'Netherlands', 'brussels': 'Belgium', 'madrid': 'Spain',
+  'rome': 'Italy', 'milan': 'Italy', 'vienna': 'Austria',
+  'warsaw': 'Poland', 'prague': 'Czech Republic', 'budapest': 'Hungary',
+  'bucharest': 'Romania', 'sofia': 'Bulgaria', 'athens': 'Greece',
+  'moscow': 'Russia', 'kyiv': 'Ukraine', 'kiev': 'Ukraine',
+  'belgrade': 'Serbia', 'zagreb': 'Croatia', 'sarajevo': 'Bosnia',
+  'tirana': 'Albania', 'podgorica': 'Montenegro', 'skopje': 'North Macedonia',
+  'chisinau': 'Moldova', 'minsk': 'Belarus', 'baku': 'Azerbaijan',
+  'yerevan': 'Armenia', 'tbilisi': 'Georgia',
+  // Americas
+  'new york': 'United States', 'los angeles': 'United States',
+  'washington': 'United States', 'chicago': 'United States',
+  'miami': 'United States', 'houston': 'United States',
+  'toronto': 'Canada', 'montreal': 'Canada', 'vancouver': 'Canada',
+  'mexico city': 'Mexico', 'guadalajara': 'Mexico', 'monterrey': 'Mexico',
+  'bogota': 'Colombia', 'medellin': 'Colombia', 'cali': 'Colombia',
+  'lima': 'Peru', 'santiago': 'Chile', 'buenos aires': 'Argentina',
+  'sao paulo': 'Brazil', 'rio de janeiro': 'Brazil', 'brasilia': 'Brazil',
+  'caracas': 'Venezuela', 'quito': 'Ecuador', 'la paz': 'Bolivia',
+  'port-au-prince': 'Haiti', 'port au prince': 'Haiti',
+  'havana': 'Cuba', 'santo domingo': 'Dominican Republic',
+  'panama city': 'Panama', 'san jose': 'Costa Rica',
+  'tegucigalpa': 'Honduras', 'managua': 'Nicaragua', 'san salvador': 'El Salvador',
+  'guatemala city': 'Guatemala',
 }
 
 export function cityToCountry(city) {
