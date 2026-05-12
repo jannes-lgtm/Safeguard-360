@@ -11,9 +11,11 @@ import {
   Swords, HeartPulse, CloudRain, ChevronRight, ArrowUpRight,
   UserCheck, UserX, Plus, X, Loader2, Pencil, Trash2,
   Globe, BookOpen, Newspaper, Link2, Link2Off, Mail,
+  ClipboardList, ChevronDown, ChevronUp, Download,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
+import { logAudit } from '../lib/audit'
 
 const BRAND_BLUE  = '#0118A1'
 const BRAND_GREEN = '#AACC00'
@@ -25,6 +27,7 @@ const TABS = [
   { id: 'feeds',       label: 'Intel Feeds',     icon: Radio },
   { id: 'policies',    label: 'Policies',        icon: FileText },
   { id: 'training',    label: 'Training',        icon: GraduationCap },
+  { id: 'audit',       label: 'Audit Log',       icon: ClipboardList },
 ]
 
 const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1]'
@@ -631,6 +634,11 @@ export default function AdminControlCenter() {
   const [customFeeds, setCustomFeeds] = useState([])
   const [policies, setPolicies] = useState([])
   const [modules, setModules]   = useState([])
+  const [auditLogs, setAuditLogs]   = useState([])
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [auditSearch, setAuditSearch]   = useState('')
+  const [auditAction, setAuditAction]   = useState('all')
+  const [auditExpanded, setAuditExpanded] = useState({})
 
   const [search, setSearch]     = useState('')
   const [orgFilter, setOrgFilter]   = useState('all')
@@ -670,7 +678,19 @@ export default function AdminControlCenter() {
     setLoading(false); setRefreshing(false)
   }
 
+  const loadAuditLogs = async () => {
+    setAuditLoading(true)
+    const { data } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500)
+    setAuditLogs(data || [])
+    setAuditLoading(false)
+  }
+
   useEffect(() => { load() }, [])
+  useEffect(() => { if (tab === 'audit') loadAuditLogs() }, [tab])
 
   const refresh = () => load(true)
 
@@ -716,28 +736,46 @@ export default function AdminControlCenter() {
   }
 
   const handleOrgApproval = async (org, status) => {
-    const action = status === 'approved' ? 'approve' : 'reject'
-    if (!confirm(`Are you sure you want to ${action} "${org.name}"?`)) return
+    const verb = status === 'approved' ? 'approve' : 'reject'
+    if (!confirm(`Are you sure you want to ${verb} "${org.name}"?`)) return
     await supabase.from('organisations').update({ approval_status: status }).eq('id', org.id)
     fetch('/api/notify-org-approval', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ org_id: org.id, org_name: org.name, status }),
     }).catch(() => {})
+    logAudit({
+      action:      `org.${status}`,
+      entity_type: 'org',
+      entity_id:   org.id,
+      description: `Organisation "${org.name}" ${status}`,
+      metadata:    { org_name: org.name, previous_status: org.approval_status },
+    })
     refresh()
   }
 
   const handleDeleteOrg = async (org) => {
     if (!confirm(`Permanently delete "${org.name}"? This cannot be undone.`)) return
     await supabase.from('organisations').delete().eq('id', org.id)
+    logAudit({
+      action:      'org.deleted',
+      entity_type: 'org',
+      entity_id:   org.id,
+      description: `Organisation "${org.name}" permanently deleted`,
+      metadata:    { org_name: org.name },
+    })
     refresh()
   }
 
   const handleDeleteProfile = async (profile) => {
     if (!confirm(`Permanently delete "${profile.full_name || profile.email}"? This removes their account and cannot be undone.`)) return
+    const { data: { session } } = await supabase.auth.getSession()
     await fetch('/api/delete-user', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session?.access_token}`,
+      },
       body: JSON.stringify({ user_id: profile.id }),
     })
     refresh()
@@ -1275,6 +1313,165 @@ export default function AdminControlCenter() {
           </div>
         </div>
       )}
+
+      {/* ── AUDIT LOG TAB ── */}
+      {tab === 'audit' && (() => {
+        const ACTION_COLORS = {
+          'trip.approved':  'bg-blue-100 text-blue-700 border-blue-200',
+          'trip.rejected':  'bg-red-100 text-red-700 border-red-200',
+          'trip.submitted': 'bg-indigo-100 text-indigo-700 border-indigo-200',
+          'user.deleted':   'bg-red-100 text-red-700 border-red-200',
+          'user.role_changed': 'bg-purple-100 text-purple-700 border-purple-200',
+          'user.org_assigned': 'bg-violet-100 text-violet-700 border-violet-200',
+          'org.approved':   'bg-green-100 text-green-700 border-green-200',
+          'org.rejected':   'bg-red-100 text-red-700 border-red-200',
+          'org.deleted':    'bg-red-100 text-red-700 border-red-200',
+          'checkin.submitted': 'bg-emerald-100 text-emerald-700 border-emerald-200',
+          'sos.triggered':  'bg-red-100 text-red-800 border-red-300',
+          'policy.created': 'bg-amber-100 text-amber-700 border-amber-200',
+          'policy.deleted': 'bg-amber-100 text-amber-700 border-amber-200',
+          'training.completed': 'bg-teal-100 text-teal-700 border-teal-200',
+        }
+
+        const ACTION_CATEGORIES = ['all', 'trip', 'user', 'org', 'checkin', 'sos', 'policy', 'training']
+
+        const filtered = auditLogs.filter(log => {
+          const matchCat = auditAction === 'all' || log.action?.startsWith(auditAction + '.')
+          const q = auditSearch.toLowerCase()
+          const matchSearch = !q || log.actor_email?.toLowerCase().includes(q)
+            || log.description?.toLowerCase().includes(q)
+            || log.action?.toLowerCase().includes(q)
+            || log.entity_id?.toLowerCase().includes(q)
+          return matchCat && matchSearch
+        })
+
+        const exportCSV = () => {
+          const headers = ['Timestamp','Actor','Role','Action','Entity Type','Entity ID','Description']
+          const rows = filtered.map(l => [
+            new Date(l.created_at).toISOString(),
+            l.actor_email || '',
+            l.actor_role || '',
+            l.action || '',
+            l.entity_type || '',
+            l.entity_id || '',
+            (l.description || '').replace(/,/g, ';'),
+          ])
+          const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
+          const blob = new Blob([csv], { type: 'text/csv' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `audit-log-${new Date().toISOString().slice(0,10)}.csv`
+          a.click()
+          URL.revokeObjectURL(url)
+        }
+
+        return (
+          <div className="space-y-4">
+            {/* Header + controls */}
+            <div className="flex flex-wrap items-center gap-3 justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    value={auditSearch} onChange={e => setAuditSearch(e.target.value)}
+                    placeholder="Search actor, action, description…"
+                    className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-[#0118A1]"
+                  />
+                </div>
+                <select value={auditAction} onChange={e => setAuditAction(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]">
+                  {ACTION_CATEGORIES.map(c => (
+                    <option key={c} value={c}>{c === 'all' ? 'All actions' : c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                  ))}
+                </select>
+                <button onClick={loadAuditLogs} disabled={auditLoading}
+                  className="flex items-center gap-1.5 text-sm text-[#0118A1] font-medium hover:underline disabled:opacity-40">
+                  <RefreshCw size={13} className={auditLoading ? 'animate-spin' : ''} />Refresh
+                </button>
+              </div>
+              <button onClick={exportCSV}
+                className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                <Download size={13} />Export CSV
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
+              {auditLoading ? (
+                <div className="py-16 text-center text-sm text-gray-400">Loading audit logs…</div>
+              ) : filtered.length === 0 ? (
+                <div className="py-16 text-center text-sm text-gray-400">No audit events found</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50">
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide w-36">Timestamp</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Actor</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Action</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden md:table-cell">Description</th>
+                      <th className="px-4 py-3 w-8"/>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filtered.map(log => {
+                      const expanded = auditExpanded[log.id]
+                      const colorCls = ACTION_COLORS[log.action] || 'bg-gray-100 text-gray-600 border-gray-200'
+                      return (
+                        <>
+                          <tr key={log.id}
+                            className="hover:bg-gray-50 transition-colors cursor-pointer"
+                            onClick={() => setAuditExpanded(prev => ({ ...prev, [log.id]: !prev[log.id] }))}>
+                            <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                              {new Date(log.created_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="text-xs font-medium text-gray-800">{log.actor_email || '—'}</div>
+                              <div className="text-[10px] text-gray-400 capitalize">{log.actor_role || ''}</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border ${colorCls}`}>
+                                {log.action}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-500 hidden md:table-cell max-w-xs truncate">
+                              {log.description || '—'}
+                            </td>
+                            <td className="px-4 py-3 text-gray-300">
+                              {expanded ? <ChevronUp size={13}/> : <ChevronDown size={13}/>}
+                            </td>
+                          </tr>
+                          {expanded && (
+                            <tr key={log.id + '-detail'} className="bg-gray-50">
+                              <td colSpan={5} className="px-6 py-4">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs mb-3">
+                                  <div><p className="font-bold text-gray-400 uppercase tracking-wider mb-0.5">Entity Type</p><p className="text-gray-700">{log.entity_type || '—'}</p></div>
+                                  <div><p className="font-bold text-gray-400 uppercase tracking-wider mb-0.5">Entity ID</p><p className="text-gray-700 font-mono truncate">{log.entity_id || '—'}</p></div>
+                                  <div><p className="font-bold text-gray-400 uppercase tracking-wider mb-0.5">IP Address</p><p className="text-gray-700">{log.ip_address || '—'}</p></div>
+                                  <div><p className="font-bold text-gray-400 uppercase tracking-wider mb-0.5">Full Timestamp</p><p className="text-gray-700">{new Date(log.created_at).toISOString()}</p></div>
+                                </div>
+                                {log.metadata && Object.keys(log.metadata).length > 0 && (
+                                  <div>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Metadata</p>
+                                    <pre className="text-[11px] text-gray-600 bg-white rounded-lg border border-gray-100 p-3 overflow-x-auto">
+                                      {JSON.stringify(log.metadata, null, 2)}
+                                    </pre>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 text-right">Showing {filtered.length} of {auditLogs.length} events · Last 500 records</p>
+          </div>
+        )
+      })()}
     </Layout>
   )
 }

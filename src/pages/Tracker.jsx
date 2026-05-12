@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { X, MapPin, Plane, Hotel, Users, Bell, AlertTriangle, RefreshCw, Globe, FileText, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { X, MapPin, Plane, Hotel, Users, Bell, RefreshCw, Globe, FileText, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import L from 'leaflet'
 import Layout from '../components/Layout'
 import W3WAddress from '../components/W3WAddress'
@@ -144,18 +144,8 @@ function MiniMap({ lat, lng }) {
 
   useEffect(() => {
     if (!lat || !lng || !containerRef.current || mapRef.current) return
-
-    const map = L.map(containerRef.current, {
-      center: [lat, lng],
-      zoom: 15,
-      zoomControl: true,
-      scrollWheelZoom: false,
-    })
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-    }).addTo(map)
-
+    const map = L.map(containerRef.current, { center: [lat, lng], zoom: 15, zoomControl: true, scrollWheelZoom: false })
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map)
     const icon = L.divIcon({
       className: '',
       html: '<div style="width:14px;height:14px;background:#E11B1B;border:2px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
@@ -163,29 +153,15 @@ function MiniMap({ lat, lng }) {
     })
     L.marker([lat, lng], { icon }).addTo(map)
     mapRef.current = map
-
-    return () => {
-      mapRef.current.remove()
-      mapRef.current = null
-    }
+    return () => { mapRef.current.remove(); mapRef.current = null }
   }, [lat, lng])
 
-  return (
-    <div
-      ref={containerRef}
-      className="w-full rounded-xl overflow-hidden border border-gray-200"
-      style={{ height: 200 }}
-    />
-  )
+  return <div ref={containerRef} className="w-full rounded-xl overflow-hidden border border-gray-200" style={{ height: 200 }} />
 }
 
 // ── Expandable check-in card ──────────────────────────────────────────────────
 function CheckInCard({ ci }) {
   const [open, setOpen] = useState(false)
-
-  const lat = Number(ci.latitude)
-  const lng = Number(ci.longitude)
-  const hasLocation = lat && lng
 
   const isOverdue = ci.next_checkin_due && new Date(ci.next_checkin_due) < new Date()
   const minsAgo   = Math.floor((Date.now() - new Date(ci.created_at)) / 60000)
@@ -208,15 +184,15 @@ function CheckInCard({ ci }) {
           style={{ background: BRAND_BLUE }}>
           {(ci.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
         </div>
-        <span className="text-xs font-medium text-gray-800 w-32 shrink-0">{ci.full_name || '—'}</span>
+        <span className="text-xs font-medium text-gray-800 w-32 shrink-0 truncate">{ci.full_name || '—'}</span>
         <span className="shrink-0">
           {ci.status === 'distress'
             ? <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 border border-red-200 text-red-700"><AlertCircle size={9}/>DISTRESS</span>
             : <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 border border-green-200 text-green-700"><CheckCircle2 size={9}/>Safe</span>
           }
         </span>
-        <span className="flex-1 text-xs text-gray-400 truncate px-2 flex items-center gap-1">
-          {hasLocation ? <><MapPin size={9} className="text-gray-300 shrink-0"/>{lat.toFixed(5)}, {lng.toFixed(5)}</> : ci.arrival_city || '—'}
+        <span className="flex-1 text-xs text-gray-400 truncate px-2">
+          {ci.trip_name || '—'}{ci.arrival_city ? ` · ${ci.arrival_city}` : ''}
         </span>
         <span className="text-xs text-gray-400 shrink-0 w-16 text-right">{timeLabel}</span>
         <span className={`text-xs shrink-0 w-28 text-right font-medium ${isOverdue ? 'text-red-600' : 'text-gray-400'}`}>
@@ -228,51 +204,59 @@ function CheckInCard({ ci }) {
       </button>
 
       {/* ── Expanded detail ── */}
-      {open && (
-        <div className="px-5 pb-5 pt-3 border-t border-gray-100 bg-gray-50/50">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-            {/* Map */}
-            {hasLocation
-              ? <MiniMap lat={lat} lng={lng} />
-              : <div className="h-48 rounded-xl bg-gray-100 flex items-center justify-center text-xs text-gray-400 border border-gray-200">No location data</div>
-            }
-
-            {/* Details */}
-            <div className="space-y-3">
+      {open && (() => {
+        const lat = Number(ci.latitude)
+        const lng = Number(ci.longitude)
+        const hasLocation = lat && lng
+        return (
+          <div className="px-5 pb-5 pt-3 border-t border-gray-100 bg-gray-50/50">
+            <div className={`grid gap-4 ${hasLocation ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 max-w-md'}`}>
               {hasLocation && (
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Location</p>
-                  <W3WAddress lat={lat} lng={lng} />
+                <div className="space-y-3">
+                  <MiniMap lat={lat} lng={lng} />
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">What3Words</p>
+                    <W3WAddress lat={lat} lng={lng} />
+                  </div>
                 </div>
               )}
-              {ci.trip_name && (
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Trip</p>
-                  <p className="text-xs text-gray-700">{ci.trip_name}{ci.arrival_city ? ` · ${ci.arrival_city}` : ''}</p>
+              <div className="space-y-3">
+                {ci.trip_name && (
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Trip</p>
+                    <p className="text-xs text-gray-700">{ci.trip_name}{ci.arrival_city ? ` · ${ci.arrival_city}` : ''}</p>
+                  </div>
+                )}
+                {ci.message && (
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Message</p>
+                    <p className="text-xs text-gray-500 italic">{ci.message}</p>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Checked In</p>
+                    <p className="text-xs text-gray-700">{new Date(ci.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Next Due</p>
+                    <p className={`text-xs font-medium ${isOverdue ? 'text-red-600' : 'text-gray-700'}`}>
+                      {ci.next_checkin_due ? fmtDue(ci.next_checkin_due) : '—'}
+                      {isOverdue && <span className="ml-1 text-[9px] bg-red-100 px-1.5 py-0.5 rounded-full">OVERDUE</span>}
+                    </p>
+                  </div>
                 </div>
-              )}
-              <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Message</p>
-                <p className="text-xs text-gray-500 italic">{ci.message || 'No message'}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Checked In</p>
-                  <p className="text-xs text-gray-700">{new Date(ci.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Next Due</p>
-                  <p className={`text-xs font-medium ${isOverdue ? 'text-red-600' : 'text-gray-700'}`}>
-                    {ci.next_checkin_due ? fmtDue(ci.next_checkin_due) : '—'}
-                    {isOverdue && <span className="ml-1 text-[9px] bg-red-100 px-1.5 py-0.5 rounded-full">OVERDUE</span>}
-                  </p>
-                </div>
+                {hasLocation && (
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Coordinates</p>
+                    <p className="text-xs text-gray-500">{lat.toFixed(5)}, {lng.toFixed(5)}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
@@ -298,21 +282,28 @@ export default function Tracker() {
       { data: profiles },
       { data: activeTrips },
       { count: alertCount },
-      { data: allCheckins },
+      { data: rawCheckins },
     ] = await Promise.all([
       supabase.from('profiles').select('*'),
       supabase.from('itineraries').select('*').lte('depart_date', today).gte('return_date', today),
       supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
-      supabase.from('staff_checkins').select('*').order('created_at', { ascending: false }).limit(50),
+      supabase
+        .from('staff_checkins')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100),
     ])
 
-    // Build latest check-in per user
+    // Merge profile data client-side (staff_checkins already stores full_name/trip_name inline)
+    const allCheckins = rawCheckins || []
+
+    // Build latest check-in per user (staff_checkins ordered newest first)
     const latestCheckin = {}
-    for (const c of allCheckins || []) {
+    for (const c of allCheckins) {
       if (!latestCheckin[c.user_id]) latestCheckin[c.user_id] = c
     }
     setCheckinMap(latestCheckin)
-    setRecentCheckins((allCheckins || []).slice(0, 20))
+    setRecentCheckins(allCheckins.slice(0, 20))
 
     const tripMap = {}
     for (const trip of activeTrips || []) {
@@ -480,20 +471,10 @@ export default function Tracker() {
                       const label = minsAgo < 60 ? `${minsAgo}m ago`
                         : minsAgo < 1440 ? `${Math.floor(minsAgo/60)}h ago`
                         : `${Math.floor(minsAgo/1440)}d ago`
-                      const isOverdue = ci.next_checkin_due && new Date(ci.next_checkin_due) < new Date()
                       return (
                         <div className="flex items-center gap-1.5">
-                          {isOverdue
-                            ? <AlertCircle size={11} className="text-red-500 shrink-0" />
-                            : <CheckCircle2 size={11} className="text-green-500 shrink-0" />}
-                          <span className={`text-xs font-medium ${isOverdue ? 'text-red-600' : 'text-gray-600'}`}>
-                            {label}
-                          </span>
-                          {isOverdue && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 border border-red-200">
-                              Overdue
-                            </span>
-                          )}
+                          <CheckCircle2 size={11} className="text-green-500 shrink-0" />
+                          <span className="text-xs font-medium text-gray-600">{label}</span>
                         </div>
                       )
                     })()}

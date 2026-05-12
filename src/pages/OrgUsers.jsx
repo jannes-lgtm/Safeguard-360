@@ -35,7 +35,7 @@ function complianceColor(pct) {
 }
 
 // ── User row ──────────────────────────────────────────────────────────────────
-function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals }) {
+function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, onReinvite, onRemove, reinviting, removing }) {
   const [open, setOpen] = useState(false)
 
   const totalModules    = trainingRecs.length
@@ -231,6 +231,16 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals })
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors">
               <Clock size={12}/> Send Reminder
             </a>
+            <button onClick={() => onReinvite(user)} disabled={reinviting}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors disabled:opacity-50">
+              {reinviting
+                ? <><div className="w-3 h-3 border border-blue-700 border-t-transparent rounded-full animate-spin" /> Sending…</>
+                : <><UserPlus size={12}/> Resend Invite</>}
+            </button>
+            <button onClick={() => onRemove(user)} disabled={removing}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-red-700 bg-red-50 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50">
+              <X size={12}/> Remove from Org
+            </button>
           </div>
         </div>
       )}
@@ -255,6 +265,9 @@ export default function OrgUsers() {
   const [inviteRole,  setInviteRole]    = useState('traveller')
   const [inviting,    setInviting]      = useState(false)
   const [inviteResult, setInviteResult] = useState(null)  // { ok, invite_url, email_sent } | { error }
+  const [reinvitingId, setReinvitingId] = useState(null)
+  const [removingId,   setRemovingId]   = useState(null)
+  const [confirmRemove, setConfirmRemove] = useState(null) // user object
 
   const loadData = async () => {
     setLoading(true)
@@ -367,6 +380,36 @@ export default function OrgUsers() {
     }
   }
 
+  const handleReinvite = async (user) => {
+    setReinvitingId(user.id)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ email: user.email, role: user.role || 'traveller' }),
+      })
+    } finally {
+      setReinvitingId(null)
+    }
+  }
+
+  const doRemove = async (user) => {
+    setRemovingId(user.id)
+    setConfirmRemove(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      await fetch('/api/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ user_id: user.id }),
+      })
+      setUsers(prev => prev.filter(u => u.id !== user.id))
+    } finally {
+      setRemovingId(null)
+    }
+  }
+
   const travelling = users.filter(u => tripMap[u.id])
   const overdue    = users.filter(u => {
     const pending = (checkinMap[u.id] || []).filter(c => !c.completed && new Date(c.due_at) < new Date())
@@ -398,8 +441,9 @@ export default function OrgUsers() {
       {/* Tab toggle */}
       <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
         {[
-          { id: 'travellers', label: 'Travellers',   icon: Users    },
-          { id: 'visa',       label: 'Visa Letters', icon: FileText },
+          { id: 'travellers', label: 'Travellers',    icon: Users       },
+          { id: 'pending',    label: 'Pending Setup', icon: AlertCircle, count: users.filter(u => !u.onboarding_completed_at).length },
+          { id: 'visa',       label: 'Visa Letters',  icon: FileText    },
         ].map(t => {
           const Icon = t.icon
           return (
@@ -409,6 +453,9 @@ export default function OrgUsers() {
                 ? { background: 'white', color: BRAND_BLUE, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
                 : { color: '#64748B' }}>
               <Icon size={14} /> {t.label}
+              {t.count > 0 && (
+                <span className="ml-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{t.count}</span>
+              )}
             </button>
           )
         })}
@@ -490,6 +537,42 @@ export default function OrgUsers() {
         </div>
       )}
 
+      {/* ── Pending Setup Tab ── */}
+      {activeTab === 'pending' && (() => {
+        const pending = users.filter(u => !u.onboarding_completed_at)
+        return loading ? (
+          <div className="space-y-3">
+            {[1,2].map(i => <div key={i} className="h-16 bg-white rounded-xl border animate-pulse"/>)}
+          </div>
+        ) : pending.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-16 text-center">
+            <CheckCircle2 size={36} className="text-green-200 mx-auto mb-3" />
+            <p className="text-gray-400 font-medium">All travellers have completed setup</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800 mb-3">
+              <strong>{pending.length} traveller{pending.length !== 1 ? 's' : ''}</strong> {pending.length === 1 ? 'has' : 'have'} not completed onboarding.
+              Use <strong>Resend Invite</strong> to send them a fresh signup link, or <strong>Remove from Org</strong> to revoke access.
+            </div>
+            {pending.map(u => (
+              <UserRow
+                key={u.id}
+                user={u}
+                trainingRecs={trainingMap[u.id] || []}
+                checkins={checkinMap[u.id] || []}
+                activeTrip={tripMap[u.id]}
+                pendingApprovals={approvalMap[u.id] || 0}
+                onReinvite={handleReinvite}
+                onRemove={u => setConfirmRemove(u)}
+                reinviting={reinvitingId === u.id}
+                removing={removingId === u.id}
+              />
+            ))}
+          </div>
+        )
+      })()}
+
       {/* ── Travellers Tab ── */}
       {activeTab === 'travellers' && (
         loading ? (
@@ -512,10 +595,47 @@ export default function OrgUsers() {
                 checkins={checkinMap[u.id] || []}
                 activeTrip={tripMap[u.id]}
                 pendingApprovals={approvalMap[u.id] || 0}
+                onReinvite={handleReinvite}
+                onRemove={u => setConfirmRemove(u)}
+                reinviting={reinvitingId === u.id}
+                removing={removingId === u.id}
               />
             ))}
           </div>
         )
+      )}
+
+      {/* Remove confirmation modal */}
+      {confirmRemove && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <X size={18} className="text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Remove from Organisation</h2>
+                <p className="text-xs text-gray-500 mt-0.5">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mb-5">
+              Are you sure you want to remove <strong>{confirmRemove.full_name || confirmRemove.email}</strong> from your organisation?
+              Their account will be permanently deleted.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmRemove(null)}
+                className="flex-1 py-2.5 text-sm font-semibold rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={() => doRemove(confirmRemove)} disabled={removingId === confirmRemove.id}
+                className="flex-1 py-2.5 text-sm font-bold rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                {removingId === confirmRemove.id
+                  ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Removing…</>
+                  : 'Yes, Remove'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Invite modal */}

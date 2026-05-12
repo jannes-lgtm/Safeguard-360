@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   User, Phone, Globe, CreditCard, Heart, Shield,
   ChevronRight, ChevronLeft, CheckCircle2, MapPin,
-  Loader2, AlertTriangle, ChevronDown, Briefcase,
+  Loader2, AlertTriangle, ChevronDown, Briefcase, Plus, Trash2,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -13,14 +13,9 @@ const BRAND_GREEN = '#AACC00'
 const inputClass = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
 const labelClass = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
 
-const STEPS = [
-  { id: 'personal',  label: 'Personal',   icon: User },
-  { id: 'kin',       label: 'Next of Kin', icon: Heart },
-  { id: 'insurance', label: 'Insurance',   icon: Shield },
-  { id: 'policy',    label: 'Policy',      icon: CreditCard },
-]
+const BLANK_CONTACT = { full_name: '', relationship: '', phone: '', email: '' }
 
-// ── Mini policy document (read-only for signing step) ─────────────────────────
+// ── Mini org policy (read-only for signing step) ──────────────────────────────
 function MiniPolicy({ config }) {
   const c = config || {}
   const Field = ({ value, fallback = '___' }) =>
@@ -37,11 +32,9 @@ function MiniPolicy({ config }) {
           <Field value={c.company_name} fallback="Your Organisation" /> · v{c.policy_version || '1.0'} · ISO 31030:2021
         </p>
       </div>
-
       <p>
         <Field value={c.company_name} fallback="Your organisation" /> is committed to the health, safety, and security of all travelling employees. This policy establishes the framework for managing travel-related risks in accordance with ISO 31030:2021.
       </p>
-
       <div>
         <p className="font-bold text-gray-800 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>As a traveller you agree to:</p>
         <ul className="list-disc list-inside space-y-1 ml-1">
@@ -54,58 +47,109 @@ function MiniPolicy({ config }) {
           <li>Keep your profile and next of kin details current at all times</li>
         </ul>
       </div>
-
       <div className="rounded-lg p-3" style={{ background: '#FFF5F5', border: '1px solid #FCA5A5' }}>
         <p className="font-bold text-red-800 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>Emergency</p>
         <p>24/7 Emergency Line: <Field value={c.emergency_number} fallback="[see full policy]" /></p>
         <p className="mt-1">Activate SOS in SafeGuard360 immediately in any life-threatening situation.</p>
       </div>
-
-      <p>
-        By signing below you confirm you have read, understood, and agree to comply with the full Travel Risk Management Policy available in the platform. This signature is legally binding.
-      </p>
-
-      <p className="text-gray-400 text-[10px]">
-        Full policy available under Compliance → Travel Policy at any time.
-      </p>
+      <p>By signing below you confirm you have read, understood, and agree to comply with the full Travel Risk Management Policy. This signature is legally binding.</p>
     </div>
   )
 }
 
-// ── Main onboarding page ──────────────────────────────────────────────────────
+// ── SafeGuard360 Solo Traveller Agreement ─────────────────────────────────────
+function SoloTerms() {
+  return (
+    <div className="text-xs text-gray-600 leading-relaxed space-y-4" style={{ fontFamily: 'Georgia, serif' }}>
+      <div className="text-center pb-3 border-b border-gray-200">
+        <h3 className="font-bold text-gray-900 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
+          SafeGuard360 — Solo Traveller Agreement
+        </h3>
+        <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+          Personal Travel Safety & Platform Terms · v1.0
+        </p>
+      </div>
+
+      <p>SafeGuard360 provides you with real-time travel risk intelligence, emergency check-in tools, and a direct line to our 24/7 control room. By using the platform you agree to the following.</p>
+
+      <div>
+        <p className="font-bold text-gray-800 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>Your responsibilities:</p>
+        <ul className="list-disc list-inside space-y-1 ml-1">
+          <li>Keep your profile, passport details, and emergency contacts accurate and up to date</li>
+          <li>Log all trips before you depart so your contacts can be notified</li>
+          <li>Complete your agreed check-ins at the frequency you set per trip</li>
+          <li>Activate SOS immediately in any life-threatening emergency</li>
+          <li>Allow the platform to access your location only during active check-ins or SOS events</li>
+          <li>Not share your account credentials or secure itinerary passcode with untrusted parties</li>
+        </ul>
+      </div>
+
+      <div>
+        <p className="font-bold text-gray-800 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>What SafeGuard360 provides:</p>
+        <ul className="list-disc list-inside space-y-1 ml-1">
+          <li>Real-time risk alerts relevant to your travel destinations</li>
+          <li>Automated notifications to your emergency contacts on missed check-ins</li>
+          <li>24/7 control room monitoring and SOS response coordination</li>
+          <li>A secure, shareable itinerary link for your emergency contacts</li>
+          <li>Access to general travel safety training</li>
+        </ul>
+      </div>
+
+      <div>
+        <p className="font-bold text-gray-800 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>Data &amp; Privacy (POPIA):</p>
+        <ul className="list-disc list-inside space-y-1 ml-1">
+          <li>Your personal data is stored securely and used only to deliver the services described above</li>
+          <li>Emergency contact details are used solely for notifying those contacts in your interest</li>
+          <li>You may request a copy of your data or deletion of your account at any time</li>
+          <li>Location data is captured only at check-in or SOS events and is never sold to third parties</li>
+        </ul>
+      </div>
+
+      <div className="rounded-lg p-3" style={{ background: '#FFF5F5', border: '1px solid #FCA5A5' }}>
+        <p className="font-bold text-red-800 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>SOS &amp; Missed Check-in</p>
+        <p>If you miss a check-in, your emergency contacts will be notified automatically. Activating SOS alerts the SafeGuard360 control room and all your emergency contacts simultaneously. Use it only in genuine emergencies.</p>
+      </div>
+
+      <p>By signing below you confirm you have read and agree to these terms. This agreement is legally binding and recorded with a timestamp and location for your protection.</p>
+    </div>
+  )
+}
+
+// ── Main onboarding ───────────────────────────────────────────────────────────
 export default function Onboarding() {
   const navigate = useNavigate()
   const [step, setStep]       = useState(0)
   const [userId, setUserId]   = useState(null)
   const [orgId, setOrgId]     = useState(null)
+  const [role, setRole]       = useState(null)
   const [orgPolicy, setOrgPolicy] = useState(null)
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
 
-  // Form state
   const [personal, setPersonal] = useState({
     full_name: '', phone: '', date_of_birth: '',
     nationality: '', passport_number: '', passport_expiry: '',
   })
-  const [kin, setKin] = useState({
-    kin_name: '', kin_relationship: '', kin_phone: '', kin_email: '',
-  })
+
+  // Up to 3 emergency contacts — first is required
+  const [contacts, setContacts] = useState([
+    { ...BLANK_CONTACT },
+    { ...BLANK_CONTACT },
+    { ...BLANK_CONTACT },
+  ])
+
   const [manager, setManager] = useState({
     manager_name: '', manager_title: '', manager_email: '', manager_phone: '',
   })
-  const [insurance, setInsurance] = useState({
-    insurance_provider: '', insurance_policy: '',
-    medical_aid: '', medical_aid_num: '',
-    blood_type: '', allergies: '', medications: '',
-  })
 
-  // Policy signing
   const scrollRef = useRef(null)
-  const [scrolled, setScrolled]   = useState(false)
+  const [scrolled, setScrolled]     = useState(false)
   const [signedName, setSignedName] = useState('')
-  const [location, setLocation]   = useState(null)
-  const [locating, setLocating]   = useState(false)
-  const [locError, setLocError]   = useState('')
+  const [location, setLocation]     = useState(null)
+  const [locating, setLocating]     = useState(false)
+  const [locError, setLocError]     = useState('')
+
+  const isSolo = role === 'solo' || (!orgId && role !== 'admin' && role !== 'developer' && role !== 'org_admin')
 
   useEffect(() => {
     const init = async () => {
@@ -115,31 +159,44 @@ export default function Onboarding() {
 
       const { data: prof } = await supabase
         .from('profiles')
-        .select('full_name, phone, org_id, onboarding_completed_at')
+        .select('full_name, phone, org_id, role, onboarding_completed_at')
         .eq('id', user.id).single()
 
       if (prof?.onboarding_completed_at) { navigate('/dashboard'); return }
       if (prof?.full_name) setPersonal(p => ({ ...p, full_name: prof.full_name }))
       if (prof?.phone)     setPersonal(p => ({ ...p, phone: prof.phone }))
       if (prof?.org_id)    setOrgId(prof.org_id)
+      if (prof?.role)      setRole(prof.role)
 
-      // Load org policy for signing step
+      // Load org policy for org members
       if (prof?.org_id) {
         const { data: pol } = await supabase
           .from('travel_policies')
           .select('*')
           .eq('org_id', prof.org_id)
           .eq('is_active', true)
-          .limit(1)
-          .maybeSingle()
+          .limit(1).maybeSingle()
         setOrgPolicy(pol)
+      }
+
+      // Pre-fill existing emergency contacts
+      const { data: existingContacts } = await supabase
+        .from('emergency_contacts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('priority')
+      if (existingContacts?.length) {
+        setContacts(prev => prev.map((c, i) => existingContacts[i]
+          ? { full_name: existingContacts[i].full_name || '', relationship: existingContacts[i].relationship || '', phone: existingContacts[i].phone || '', email: existingContacts[i].email || '' }
+          : c
+        ))
       }
     }
     init()
   }, [])
 
   useEffect(() => {
-    if (step === 3) {
+    if (currentStepId === 'policy' || currentStepId === 'solo_terms') {
       const el = scrollRef.current
       if (el && el.scrollHeight <= el.clientHeight) setScrolled(true)
       setSignedName(personal.full_name || '')
@@ -147,26 +204,21 @@ export default function Onboarding() {
   }, [step])
 
   const setP = (k, v) => setPersonal(f => ({ ...f, [k]: v }))
-  const setK = (k, v) => setKin(f => ({ ...f, [k]: v }))
+  const setC = (i, k, v) => setContacts(cs => cs.map((c, idx) => idx === i ? { ...c, [k]: v } : c))
   const setM = (k, v) => setManager(f => ({ ...f, [k]: v }))
-  const setI = (k, v) => setInsurance(f => ({ ...f, [k]: v }))
-
-  // Dynamic step list based on org membership + policy
   const stepIds = [
     'personal',
-    'kin',
+    'contacts',
     ...(orgId ? ['manager'] : []),
-    'insurance',
-    ...(orgPolicy ? ['policy'] : []),
+    ...(orgPolicy ? ['policy'] : isSolo ? ['solo_terms'] : []),
   ]
   const currentStepId = stepIds[step]
   const totalSteps    = stepIds.length
 
   const getLocation = () => {
-    setLocating(true)
-    setLocError('')
+    setLocating(true); setLocError('')
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+      async pos => {
         const { latitude, longitude } = pos.coords
         let locationName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
         try {
@@ -189,15 +241,15 @@ export default function Onboarding() {
       if (!personal.phone.trim())       { setError('Please enter your phone number.'); return false }
       if (!personal.nationality.trim()) { setError('Please enter your nationality.'); return false }
     }
-    if (currentStepId === 'kin') {
-      if (!kin.kin_name.trim())  { setError('Please enter your next of kin name.'); return false }
-      if (!kin.kin_phone.trim()) { setError('Please enter your next of kin phone number.'); return false }
+    if (currentStepId === 'contacts') {
+      if (!contacts[0].full_name.trim())  { setError('Please enter your primary emergency contact name.'); return false }
+      if (!contacts[0].phone.trim())      { setError('Please enter your primary emergency contact phone number.'); return false }
     }
     if (currentStepId === 'manager') {
       if (!manager.manager_name.trim())  { setError('Please enter your line manager\'s name.'); return false }
       if (!manager.manager_email.trim()) { setError('Please enter your line manager\'s email.'); return false }
     }
-    if (currentStepId === 'policy') {
+    if (currentStepId === 'policy' || currentStepId === 'solo_terms') {
       if (!signedName.trim()) { setError('Please type your full name to sign.'); return false }
       if (!scrolled) { setError('Please scroll to the bottom before signing.'); return false }
     }
@@ -212,35 +264,67 @@ export default function Onboarding() {
 
   const handleComplete = async () => {
     if (!validateStep()) return
-    setSaving(true)
-    setError('')
+    setSaving(true); setError('')
 
     try {
-      // Save all profile data
+      // Save profile data (keep primary contact in kin_ fields for compatibility)
+      const primary = contacts[0]
       const { error: profErr } = await supabase.from('profiles').update({
         ...personal,
-        ...kin,
         ...(orgId ? manager : {}),
-        ...insurance,
+        kin_name:         primary.full_name,
+        kin_relationship: primary.relationship,
+        kin_phone:        primary.phone,
+        kin_email:        primary.email,
         onboarding_completed_at: new Date().toISOString(),
       }).eq('id', userId)
-
       if (profErr) throw new Error(profErr.message)
 
-      // Save policy signature if we have a policy
-      if (orgPolicy && signedName.trim()) {
-        const { data: prof } = await supabase.from('profiles').select('org_id').eq('id', userId).single()
-        await supabase.from('policy_signatures').upsert({
-          policy_id:      orgPolicy.id,
+      // Save all emergency contacts to dedicated table
+      const validContacts = contacts
+        .map((c, i) => ({ ...c, priority: i + 1 }))
+        .filter(c => c.full_name.trim() && c.phone.trim())
+
+      if (validContacts.length > 0) {
+        await supabase.from('emergency_contacts').delete().eq('user_id', userId)
+        await supabase.from('emergency_contacts').insert(
+          validContacts.map(c => ({
+            user_id:      userId,
+            priority:     c.priority,
+            full_name:    c.full_name.trim(),
+            relationship: c.relationship || null,
+            phone:        c.phone.trim(),
+            email:        c.email.trim() || null,
+          }))
+        )
+      }
+
+      // Save policy / terms signature
+      if ((orgPolicy && signedName.trim()) || (isSolo && signedName.trim())) {
+        const sigPayload = {
           user_id:        userId,
-          org_id:         prof?.org_id,
           signed_name:    signedName.trim(),
           signed_at:      new Date().toISOString(),
-          policy_version: orgPolicy.policy_version,
-          latitude:       location?.latitude || null,
+          latitude:       location?.latitude  || null,
           longitude:      location?.longitude || null,
           location_name:  location?.locationName || null,
-        }, { onConflict: 'user_id,policy_id' })
+        }
+        if (orgPolicy) {
+          const { data: prof } = await supabase.from('profiles').select('org_id').eq('id', userId).single()
+          await supabase.from('policy_signatures').upsert({
+            ...sigPayload,
+            policy_id:      orgPolicy.id,
+            org_id:         prof?.org_id,
+            policy_version: orgPolicy.policy_version,
+          }, { onConflict: 'user_id,policy_id' })
+        } else {
+          // Solo: store in policy_signatures with a sentinel policy_id
+          await supabase.from('policy_signatures').upsert({
+            ...sigPayload,
+            policy_id:      '00000000-0000-0000-0000-000000000001',
+            policy_version: '1.0',
+          }, { onConflict: 'user_id,policy_id' })
+        }
       }
 
       navigate('/dashboard')
@@ -248,6 +332,11 @@ export default function Onboarding() {
       setError(err.message || 'Something went wrong. Please try again.')
       setSaving(false)
     }
+  }
+
+  const stepLabel = id => {
+    const map = { personal: 'Personal', contacts: 'Contacts', manager: 'Manager', insurance: 'Insurance', policy: 'Policy', solo_terms: 'Terms' }
+    return map[id] || id
   }
 
   const pct = Math.round((step / totalSteps) * 100)
@@ -262,24 +351,21 @@ export default function Onboarding() {
             <img src="/logo-blue.png" alt="SafeGuard360" className="h-7 w-auto" />
             <span className="text-xs text-gray-400 font-medium">Step {step + 1} of {totalSteps}</span>
           </div>
-          {/* Progress bar */}
           <div className="w-full h-1.5 rounded-full bg-gray-100">
             <div className="h-1.5 rounded-full transition-all duration-500"
               style={{ width: `${pct}%`, background: BRAND_GREEN }} />
           </div>
-          {/* Step labels */}
           <div className="flex justify-between mt-2">
             {stepIds.map((id, i) => (
               <span key={id} className="text-[9px] font-bold uppercase tracking-wide"
                 style={{ color: i <= step ? BRAND_BLUE : '#CBD5E1' }}>
-                {id === 'personal' ? 'Personal' : id === 'kin' ? 'Next of Kin' : id === 'manager' ? 'Manager' : id === 'insurance' ? 'Insurance' : 'Policy'}
+                {stepLabel(id)}
               </span>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 flex items-start justify-center px-4 py-8">
         <div className="w-full max-w-2xl">
 
@@ -334,58 +420,78 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* ── STEP: Next of Kin ── */}
-          {currentStepId === 'kin' && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#e53e3e' }}>
-                    <Heart size={18} color="white" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-gray-900">Next of Kin</h2>
-                    <p className="text-xs text-gray-400 mt-0.5">Emergency contact — notified if you cannot be reached</p>
+          {/* ── STEP: Emergency Contacts ── */}
+          {currentStepId === 'contacts' && (
+            <div className="space-y-4">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#e53e3e' }}>
+                      <Heart size={18} color="white" />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-gray-900">Emergency Contacts</h2>
+                      <p className="text-xs text-gray-400 mt-0.5">Up to 3 contacts — notified automatically if you cannot be reached</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="p-6 space-y-4">
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-                  This person will be contacted by the SafeGuard360 control room in the event of an emergency where you cannot be reached. Please ensure the details are accurate and up to date.
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelClass}>Full Name *</label>
-                    <input className={inputClass} placeholder="Jane Smith"
-                      value={kin.kin_name} onChange={e => setK('kin_name', e.target.value)} />
+                <div className="p-6 space-y-6">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                    These contacts are notified automatically on missed check-ins and SOS events. They will also receive your trip itinerary by email when you log a new trip. No platform account is needed.
                   </div>
-                  <div>
-                    <label className={labelClass}>Relationship</label>
-                    <select className={inputClass} value={kin.kin_relationship} onChange={e => setK('kin_relationship', e.target.value)}>
-                      <option value="">Select relationship</option>
-                      <option>Spouse / Partner</option>
-                      <option>Parent</option>
-                      <option>Sibling</option>
-                      <option>Child</option>
-                      <option>Friend</option>
-                      <option>Other</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Phone Number *</label>
-                    <input className={inputClass} type="tel" placeholder="+27 82 000 0000"
-                      value={kin.kin_phone} onChange={e => setK('kin_phone', e.target.value)} />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Email Address</label>
-                    <input className={inputClass} type="email" placeholder="jane@example.com"
-                      value={kin.kin_email} onChange={e => setK('kin_email', e.target.value)} />
-                  </div>
+
+                  {contacts.map((c, i) => (
+                    <div key={i}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                          style={{ background: i === 0 ? '#e53e3e' : BRAND_BLUE }}>
+                          {i + 1}
+                        </div>
+                        <span className="text-sm font-semibold text-gray-700">
+                          {i === 0 ? 'Primary Contact *' : i === 1 ? 'Secondary Contact' : 'Tertiary Contact'}
+                        </span>
+                        {i === 0 && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">Required</span>}
+                        {i > 0 && <span className="text-[10px] text-gray-400">(optional)</span>}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-8">
+                        <div>
+                          <label className={labelClass}>Full Name {i === 0 ? '*' : ''}</label>
+                          <input className={inputClass} placeholder="Jane Smith"
+                            value={c.full_name} onChange={e => setC(i, 'full_name', e.target.value)} />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Relationship</label>
+                          <select className={inputClass} value={c.relationship} onChange={e => setC(i, 'relationship', e.target.value)}>
+                            <option value="">Select relationship</option>
+                            <option>Spouse / Partner</option>
+                            <option>Parent</option>
+                            <option>Sibling</option>
+                            <option>Child</option>
+                            <option>Friend</option>
+                            <option>Colleague</option>
+                            <option>Other</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className={labelClass}>Phone Number {i === 0 ? '*' : ''}</label>
+                          <input className={inputClass} type="tel" placeholder="+27 82 000 0000"
+                            value={c.phone} onChange={e => setC(i, 'phone', e.target.value)} />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Email Address</label>
+                          <input className={inputClass} type="email" placeholder="jane@example.com"
+                            value={c.email} onChange={e => setC(i, 'email', e.target.value)} />
+                        </div>
+                      </div>
+                      {i < contacts.length - 1 && <div className="mt-5 border-b border-gray-100" />}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── STEP: Line Manager ── */}
+          {/* ── STEP: Line Manager (org only) ── */}
           {currentStepId === 'manager' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
@@ -401,7 +507,7 @@ export default function Onboarding() {
               </div>
               <div className="p-6 space-y-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800">
-                  Your line manager's details will be used on visa support letters and travel approval requests. Make sure they are accurate.
+                  Your line manager's details will be used on visa support letters and travel approval requests.
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -411,7 +517,7 @@ export default function Onboarding() {
                   </div>
                   <div>
                     <label className={labelClass}>Job Title</label>
-                    <input className={inputClass} placeholder="e.g. HR Manager / Director"
+                    <input className={inputClass} placeholder="e.g. HR Manager"
                       value={manager.manager_title} onChange={e => setM('manager_title', e.target.value)} />
                   </div>
                   <div>
@@ -429,167 +535,37 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* ── STEP: Insurance & Medical ── */}
-          {currentStepId === 'insurance' && (
-            <div className="space-y-4">
-              {/* Insurance */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#0118A1' }}>
-                      <Shield size={18} color="white" />
-                    </div>
-                    <div>
-                      <h2 className="font-bold text-gray-900">Travel Insurance</h2>
-                      <p className="text-xs text-gray-400 mt-0.5">Your personal travel insurance details</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClass}>Insurance Provider</label>
-                      <input className={inputClass} placeholder="e.g. Hollard Travel Insurance"
-                        value={insurance.insurance_provider} onChange={e => setI('insurance_provider', e.target.value)} />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Policy Number</label>
-                      <input className={inputClass} placeholder="POL-000000"
-                        value={insurance.insurance_policy} onChange={e => setI('insurance_policy', e.target.value)} />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Medical Aid Provider</label>
-                      <input className={inputClass} placeholder="e.g. Discovery Health"
-                        value={insurance.medical_aid} onChange={e => setI('medical_aid', e.target.value)} />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Medical Aid Number</label>
-                      <input className={inputClass} placeholder="MED-000000"
-                        value={insurance.medical_aid_num} onChange={e => setI('medical_aid_num', e.target.value)} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Medical info */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-50">
-                  <h3 className="font-bold text-gray-900 text-sm">Medical Information</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Shared with emergency responders only</p>
-                </div>
-                <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className={labelClass}>Blood Type</label>
-                      <select className={inputClass} value={insurance.blood_type} onChange={e => setI('blood_type', e.target.value)}>
-                        <option value="">Unknown</option>
-                        {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => <option key={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className={labelClass}>Known Allergies</label>
-                      <input className={inputClass} placeholder="e.g. Penicillin, Peanuts — or None"
-                        value={insurance.allergies} onChange={e => setI('allergies', e.target.value)} />
-                    </div>
-                    <div className="md:col-span-3">
-                      <label className={labelClass}>Current Medications</label>
-                      <input className={inputClass} placeholder="e.g. Metformin 500mg — or None"
-                        value={insurance.medications} onChange={e => setI('medications', e.target.value)} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── STEP: Travel Policy Signing ── */}
+          {/* ── STEP: Org Travel Policy Signing ── */}
           {currentStepId === 'policy' && orgPolicy && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: BRAND_GREEN }}>
-                    <CreditCard size={18} color={BRAND_BLUE} />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-gray-900">Travel Policy</h2>
-                    <p className="text-xs text-gray-400 mt-0.5">Read and sign to complete your profile</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Scrollable policy */}
-              <div
-                ref={scrollRef}
-                onScroll={e => {
-                  const el = e.target
-                  if (el.scrollHeight - el.scrollTop - el.clientHeight < 80) setScrolled(true)
-                }}
-                className="h-64 overflow-y-auto p-6 border-b border-gray-100"
-                style={{ scrollbarWidth: 'thin' }}
-              >
-                <MiniPolicy config={orgPolicy} />
-                <div className="h-4" />
-              </div>
-
-              {!scrolled && (
-                <div className="px-6 py-2 flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border-b border-gray-100">
-                  <ChevronDown size={12} className="animate-bounce" />
-                  Scroll to the bottom to unlock signing
-                </div>
-              )}
-
-              {/* Signing */}
-              <div className={`p-6 space-y-4 transition-opacity ${!scrolled ? 'opacity-40 pointer-events-none' : ''}`}>
-                <div>
-                  <label className={labelClass}>Type your full name to sign *</label>
-                  <input className={inputClass} placeholder="e.g. Jane Smith"
-                    value={signedName} onChange={e => setSignedName(e.target.value)} />
-                </div>
-
-                <div>
-                  <label className={labelClass}>Location at signing <span className="font-normal normal-case text-gray-400">(recommended)</span></label>
-                  {location ? (
-                    <div className="flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-800">
-                      <MapPin size={12} className="shrink-0" />
-                      {location.locationName}
-                    </div>
-                  ) : (
-                    <button onClick={getLocation} disabled={locating}
-                      className="flex items-center gap-2 px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all disabled:opacity-50 w-full">
-                      {locating ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
-                      {locating ? 'Getting location…' : 'Capture my current location'}
-                    </button>
-                  )}
-                  {locError && <p className="text-xs text-amber-600 mt-1">{locError}</p>}
-                </div>
-
-                <p className="text-[11px] text-gray-400">
-                  Signing timestamp: <strong className="text-gray-600">
-                    {new Date().toLocaleString('en-GB', { dateStyle: 'full', timeStyle: 'short' })}
-                  </strong>
-                </p>
-              </div>
-            </div>
+            <SigningStep scrollRef={scrollRef} scrolled={scrolled} setScrolled={setScrolled}
+              signedName={signedName} setSignedName={setSignedName}
+              location={location} locating={locating} locError={locError} getLocation={getLocation}
+              title="Travel Policy" subtitle="Read and sign to complete your profile">
+              <MiniPolicy config={orgPolicy} />
+            </SigningStep>
           )}
 
-          {/* Error */}
+          {/* ── STEP: Solo Traveller Terms ── */}
+          {currentStepId === 'solo_terms' && (
+            <SigningStep scrollRef={scrollRef} scrolled={scrolled} setScrolled={setScrolled}
+              signedName={signedName} setSignedName={setSignedName}
+              location={location} locating={locating} locError={locError} getLocation={getLocation}
+              title="SafeGuard360 Agreement" subtitle="Read and sign to activate your solo traveller account">
+              <SoloTerms />
+            </SigningStep>
+          )}
+
           {error && (
             <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 mt-4">
-              <AlertTriangle size={14} className="shrink-0" />
-              {error}
+              <AlertTriangle size={14} className="shrink-0" />{error}
             </div>
           )}
 
-          {/* Navigation */}
           <div className="flex items-center justify-between mt-6">
-            <button
-              onClick={() => { setError(''); setStep(s => s - 1) }}
-              disabled={step === 0}
-              className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-white transition-all disabled:opacity-0"
-            >
+            <button onClick={() => { setError(''); setStep(s => s - 1) }} disabled={step === 0}
+              className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-white transition-all disabled:opacity-0">
               <ChevronLeft size={16} /> Back
             </button>
-
             {step < totalSteps - 1 ? (
               <button onClick={handleNext}
                 className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all"
@@ -606,8 +582,68 @@ export default function Onboarding() {
               </button>
             )}
           </div>
-
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Shared signing step wrapper ───────────────────────────────────────────────
+function SigningStep({ scrollRef, scrolled, setScrolled, signedName, setSignedName, location, locating, locError, getLocation, title, subtitle, children }) {
+  const BRAND_BLUE  = '#0118A1'
+  const BRAND_GREEN = '#AACC00'
+  const inputClass  = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
+  const labelClass  = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: BRAND_GREEN }}>
+            <CreditCard size={18} color={BRAND_BLUE} />
+          </div>
+          <div>
+            <h2 className="font-bold text-gray-900">{title}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
+          </div>
+        </div>
+      </div>
+      <div ref={scrollRef}
+        onScroll={e => { const el = e.target; if (el.scrollHeight - el.scrollTop - el.clientHeight < 80) setScrolled(true) }}
+        className="h-64 overflow-y-auto p-6 border-b border-gray-100" style={{ scrollbarWidth: 'thin' }}>
+        {children}
+        <div className="h-4" />
+      </div>
+      {!scrolled && (
+        <div className="px-6 py-2 flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border-b border-gray-100">
+          <ChevronDown size={12} className="animate-bounce" />Scroll to the bottom to unlock signing
+        </div>
+      )}
+      <div className={`p-6 space-y-4 transition-opacity ${!scrolled ? 'opacity-40 pointer-events-none' : ''}`}>
+        <div>
+          <label className={labelClass}>Type your full name to sign *</label>
+          <input className={inputClass} placeholder="e.g. Jane Smith"
+            value={signedName} onChange={e => setSignedName(e.target.value)} />
+        </div>
+        <div>
+          <label className={labelClass}>Location at signing <span className="font-normal normal-case text-gray-400">(recommended)</span></label>
+          {location ? (
+            <div className="flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-800">
+              <MapPin size={12} className="shrink-0" />{location.locationName}
+            </div>
+          ) : (
+            <button onClick={getLocation} disabled={locating}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all disabled:opacity-50 w-full">
+              {locating ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
+              {locating ? 'Getting location…' : 'Capture my current location'}
+            </button>
+          )}
+          {locError && <p className="text-xs text-amber-600 mt-1">{locError}</p>}
+        </div>
+        <p className="text-[11px] text-gray-400">
+          Signing timestamp: <strong className="text-gray-600">
+            {new Date().toLocaleString('en-GB', { dateStyle: 'full', timeStyle: 'short' })}
+          </strong>
+        </p>
       </div>
     </div>
   )

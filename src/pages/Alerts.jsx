@@ -111,17 +111,23 @@ function AddAlertModal({ onClose, onAdded }) {
   )
 }
 
+const TRAVELLER_ROLES = ['traveller', 'solo']
+const ADMIN_ROLES     = ['admin', 'developer', 'org_admin']
+
 export default function Alerts() {
   const [alerts, setAlerts]               = useState([])
   const [loading, setLoading]             = useState(true)
-  const [isAdmin, setIsAdmin]             = useState(false)
+  const [role, setRole]                   = useState(null)
   const [severityFilter, setSeverityFilter] = useState('All')
   const [statusFilter, setStatusFilter]   = useState('All')
   const [countrySearch, setCountrySearch] = useState('')
-  const [myDestinations, setMyDestinations] = useState([])  // countries from user's trips
-  const [myDestsOnly, setMyDestsOnly]     = useState(false) // toggle
+  const [myDestinations, setMyDestinations] = useState([])
+  const [myDestsOnly, setMyDestsOnly]     = useState(false) // travellers start true
   const [showModal, setShowModal]         = useState(false)
   const [intelCountry, setIntelCountry]   = useState(null)
+
+  const isTraveller = TRAVELLER_ROLES.includes(role)
+  const isAdmin     = ADMIN_ROLES.includes(role)
 
   const loadAlerts = async () => {
     const { data } = await supabase
@@ -142,11 +148,13 @@ export default function Alerts() {
             .eq('user_id', session.user.id)
             .gte('return_date', new Date().toISOString().split('T')[0]),
         ])
-        setIsAdmin(prof?.role === 'admin')
+        setRole(prof?.role || null)
         const countries = [...new Set(
           (trips || []).map(t => cityToCountry(t.arrival_city)).filter(Boolean)
         )]
         setMyDestinations(countries)
+        // Default travellers to their destinations view
+        if (TRAVELLER_ROLES.includes(prof?.role)) setMyDestsOnly(true)
       }
       await loadAlerts()
     }
@@ -167,9 +175,15 @@ export default function Alerts() {
     if (severityFilter !== 'All' && a.severity !== severityFilter) return false
     if (statusFilter !== 'All' && a.status !== statusFilter) return false
     if (countrySearch && !a.country?.toLowerCase().includes(countrySearch.toLowerCase())) return false
-    if (myDestsOnly && myDestinations.length > 0) {
+
+    if (myDestsOnly) {
       const country = (a.country || '').toLowerCase()
-      if (!myDestinations.some(d => country.includes(d.toLowerCase()))) return false
+      const isMyDest = myDestinations.some(d => country.includes(d.toLowerCase()) || d.toLowerCase().includes(country))
+      const isCritical = a.severity === 'Critical'
+      // Travellers: show destination matches + Critical global events
+      if (isTraveller) return isMyDest || isCritical
+      // Admins with toggle on: destinations only
+      if (myDestinations.length > 0) return isMyDest
     }
     return true
   })
@@ -191,7 +205,11 @@ export default function Alerts() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Risk Alerts</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Live risk intelligence for your destinations</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {isTraveller
+              ? 'Alerts relevant to your active travel and critical global events'
+              : 'Live risk intelligence across all destinations'}
+          </p>
         </div>
         {isAdmin && (
           <button
@@ -204,27 +222,43 @@ export default function Alerts() {
         )}
       </div>
 
-      {/* My destinations banner */}
+      {/* Traveller — no active trips notice */}
+      {isTraveller && myDestinations.length === 0 && !loading && (
+        <div className="bg-gray-50 border border-gray-200 rounded-[8px] px-4 py-3 mb-4 flex items-center gap-2">
+          <MapPin size={13} className="text-gray-400 shrink-0"/>
+          <span className="text-xs text-gray-500">
+            You have no active trips — showing Critical global alerts only.
+            <button onClick={() => setMyDestsOnly(false)} className="ml-1 text-[#0118A1] font-semibold hover:underline">View all alerts</button>
+          </span>
+        </div>
+      )}
+
+      {/* Destinations banner */}
       {myDestinations.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-[8px] px-4 py-3 mb-4 flex items-center justify-between gap-3 flex-wrap">
+        <div className={`border rounded-[8px] px-4 py-3 mb-4 flex items-center justify-between gap-3 flex-wrap ${isTraveller ? 'bg-[#0118A1]/5 border-[#0118A1]/20' : 'bg-blue-50 border-blue-200'}`}>
           <div className="flex items-center gap-2 flex-wrap">
-            <MapPin size={13} className="text-blue-500 shrink-0"/>
-            <span className="text-xs font-semibold text-blue-800">Your active travel:</span>
+            <MapPin size={13} className={isTraveller ? 'text-[#0118A1] shrink-0' : 'text-blue-500 shrink-0'}/>
+            <span className={`text-xs font-semibold ${isTraveller ? 'text-[#0118A1]' : 'text-blue-800'}`}>
+              {isTraveller ? 'Your active travel:' : 'Your travel destinations:'}
+            </span>
             {myDestinations.map(c => (
               <button key={c} onClick={() => setIntelCountry(c)}
-                className="text-xs px-2 py-0.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full font-medium transition-colors flex items-center gap-1">
+                className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors flex items-center gap-1 ${isTraveller ? 'bg-[#0118A1]/10 hover:bg-[#0118A1]/20 text-[#0118A1]' : 'bg-blue-100 hover:bg-blue-200 text-blue-700'}`}>
                 <Globe size={9}/>{c}
               </button>
             ))}
+            {isTraveller && (
+              <span className="text-[10px] text-gray-400 italic">+ Critical global events</span>
+            )}
           </div>
           <button
             onClick={() => setMyDestsOnly(p => !p)}
             className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors border ${
               myDestsOnly
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'
+                ? 'bg-[#0118A1] text-white border-[#0118A1]'
+                : 'bg-white text-[#0118A1] border-[#0118A1]/30 hover:bg-[#0118A1]/5'
             }`}>
-            {myDestsOnly ? '✓ My Destinations' : 'My Destinations only'}
+            {myDestsOnly ? '✓ My Travel' : 'My Travel only'}
           </button>
         </div>
       )}
@@ -263,7 +297,11 @@ export default function Alerts() {
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-10 text-center">
           <p className="text-gray-500 text-sm">
-            {myDestsOnly ? `No alerts for your destinations (${myDestinations.join(', ')}).` : 'No alerts match your filters.'}
+            {isTraveller && myDestsOnly
+              ? myDestinations.length > 0
+                ? `No active alerts for ${myDestinations.join(', ')} and no critical global events — you're clear to travel.`
+                : 'No critical global alerts at this time.'
+              : 'No alerts match your filters.'}
           </p>
         </div>
       ) : (
