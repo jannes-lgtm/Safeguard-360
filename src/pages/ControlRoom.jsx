@@ -306,19 +306,38 @@ export default function ControlRoom() {
   }, [filter, profile])
 
   useEffect(() => {
-    // Real-time subscription
-    const channel = supabase
-      .channel('control-room')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'control_room_requests',
-      }, () => {
-        loadRequests()
-      })
-      .subscribe()
+    // Real-time subscription with reconnection on error/timeout
+    let channel
+    let reconnectTimer
 
-    return () => supabase.removeChannel(channel)
+    function subscribe() {
+      channel = supabase
+        .channel('control-room')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'control_room_requests',
+        }, () => {
+          loadRequests()
+        })
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            console.warn('[ControlRoom] realtime channel lost (%s) — reconnecting in 5s', status)
+            supabase.removeChannel(channel)
+            reconnectTimer = setTimeout(() => { loadRequests(); subscribe() }, 5000)
+          }
+        })
+    }
+
+    subscribe()
+    // Fallback poll every 2 min in case WebSocket stays silently stale
+    const poll = setInterval(loadRequests, 120_000)
+
+    return () => {
+      clearTimeout(reconnectTimer)
+      clearInterval(poll)
+      supabase.removeChannel(channel)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile])
 
@@ -381,7 +400,7 @@ export default function ControlRoom() {
         ].map(t => (
           <button key={t.key} onClick={() => setFilter(t.key)}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              filter === t.key ? 'bg-white text-[#0118A1] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              filter === t.key ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'
             }`}>
             {t.label}
           </button>

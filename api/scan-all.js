@@ -20,6 +20,7 @@
 
 import { comprehensiveRiskScan, fetchGDACS, fetchUSGS, fetchHealthOutbreaks } from './_claudeSynth.js'
 import { notifyAlert } from './_notify.js'
+import { CITY_COUNTRY } from './_cityCountry.js'
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000  // don't re-alert same user within 6 hours
 const notifiedAt   = {}                    // { [userId]: timestamp } — in-memory, resets on cold start
@@ -300,29 +301,6 @@ async function _handler(req, res) {
     notified:  notifiedCount,
     countries: Object.keys(countryTrips).length,
   })
-}
-
-// ── City → country map (shared with trip-alert-scan) ─────────────────────────
-const CITY_COUNTRY = {
-  'johannesburg': 'South Africa', 'cape town': 'South Africa', 'durban': 'South Africa',
-  'pretoria': 'South Africa', 'lagos': 'Nigeria', 'abuja': 'Nigeria', 'nairobi': 'Kenya',
-  'mombasa': 'Kenya', 'kampala': 'Uganda', 'dar es salaam': 'Tanzania', 'accra': 'Ghana',
-  'addis ababa': 'Ethiopia', 'luanda': 'Angola', 'kinshasa': 'Democratic Republic of the Congo',
-  'harare': 'Zimbabwe', 'lusaka': 'Zambia', 'maputo': 'Mozambique', 'dakar': 'Senegal',
-  'bamako': 'Mali', 'ouagadougou': 'Burkina Faso', 'niamey': 'Niger', 'ndjamena': 'Chad',
-  'yaounde': 'Cameroon', 'douala': 'Cameroon', 'mogadishu': 'Somalia', 'juba': 'South Sudan',
-  'khartoum': 'Sudan', 'cairo': 'Egypt', 'tripoli': 'Libya', 'tunis': 'Tunisia',
-  'algiers': 'Algeria', 'casablanca': 'Morocco', 'rabat': 'Morocco',
-  'london': 'United Kingdom', 'paris': 'France', 'berlin': 'Germany',
-  'amsterdam': 'Netherlands', 'madrid': 'Spain', 'rome': 'Italy',
-  'dubai': 'United Arab Emirates', 'abu dhabi': 'United Arab Emirates',
-  'riyadh': 'Saudi Arabia', 'doha': 'Qatar', 'tehran': 'Iran', 'baghdad': 'Iraq',
-  'beirut': 'Lebanon', 'amman': 'Jordan', 'tel aviv': 'Israel',
-  'karachi': 'Pakistan', 'mumbai': 'India', 'delhi': 'India', 'new delhi': 'India',
-  'beijing': 'China', 'shanghai': 'China', 'hong kong': 'Hong Kong',
-  'tokyo': 'Japan', 'singapore': 'Singapore', 'bangkok': 'Thailand',
-  'sydney': 'Australia', 'new york': 'United States', 'toronto': 'Canada',
-  'mexico city': 'Mexico', 'bogota': 'Colombia', 'sao paulo': 'Brazil',
 }
 
 import { adapt } from './_adapter.js'

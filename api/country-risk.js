@@ -15,12 +15,13 @@
 
 import { comprehensiveRiskScan, synthesiseBrief, fetchGDACS, fetchUSGS, fetchHealthOutbreaks } from './_claudeSynth.js'
 import { checkRateLimit } from './_rateLimit.js'
+import { dbCacheGet, dbCacheSet } from './_dbCache.js'
 
 let issCache    = []
 let issCacheTime = 0
 
-const FCDO_CACHE     = {}   // { [slug]: { data, ts } }
-const AI_BRIEF_CACHE = {}   // { [countryLower]: { data, ts } }
+const FCDO_CACHE     = {}   // { [slug]: { data, ts } }  — in-memory (short-lived, cheap to re-fetch)
+const AI_BRIEF_CACHE = {}   // { [countryLower]: { data, ts } }  — in-memory L1; Supabase is L2
 const CACHE_TTL      = 60 * 60 * 1000       // 1 hour
 const ISS_CACHE_TTL  = 4  * 60 * 60 * 1000  // 4 hours
 
@@ -230,17 +231,29 @@ async function getCountryRisk(country) {
     // comprehensiveRiskScan manages its own cache internally; AI_BRIEF_CACHE here
     // is kept for compatibility but the function deduplicates itself.
     const cacheKey = country.toLowerCase()
-    const cached   = AI_BRIEF_CACHE[cacheKey]
+    const dbKey    = `country-risk:ai:${cacheKey}`
+
+    // L1 — in-memory (fastest, resets on cold start)
+    const cached = AI_BRIEF_CACHE[cacheKey]
     if (cached && Date.now() - cached.ts < CACHE_TTL) {
       ai_brief = cached.data
     } else {
-      // Use comprehensive scan (all RSS feeds + FCDO + GDACS + USGS + health)
-      ai_brief = await comprehensiveRiskScan(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
-      // Fall back to basic synthesis if comprehensive scan fails
-      if (!ai_brief) {
-        ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
+      // L2 — Supabase persistent cache (survives cold starts)
+      const persisted = await dbCacheGet(dbKey)
+      if (persisted) {
+        ai_brief = persisted
+        AI_BRIEF_CACHE[cacheKey] = { data: ai_brief, ts: Date.now() }
+      } else {
+        // Cache miss — run AI synthesis
+        ai_brief = await comprehensiveRiskScan(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
+        if (!ai_brief) {
+          ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
+        }
+        if (ai_brief) {
+          AI_BRIEF_CACHE[cacheKey] = { data: ai_brief, ts: Date.now() }
+          dbCacheSet(dbKey, ai_brief, CACHE_TTL)  // fire-and-forget
+        }
       }
-      AI_BRIEF_CACHE[cacheKey] = { data: ai_brief, ts: Date.now() }
     }
   }
 

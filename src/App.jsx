@@ -50,8 +50,8 @@ export default function App() {
         <Route path="/pending-approval" element={<PendingApproval />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/terms" element={<TermsAndConditions />} />
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/org-onboarding" element={<OrgOnboarding />} />
+        <Route path="/onboarding" element={<ProtectedRoute noGates><Onboarding /></ProtectedRoute>} />
+        <Route path="/org-onboarding" element={<ProtectedRoute noGates><OrgOnboarding /></ProtectedRoute>} />
         <Route path="/trip-share/:token" element={<TripShare />} />
         <Route path="/briefing/:briefingId" element={<ProtectedRoute><Briefing /></ProtectedRoute>} />
         <Route path="/debrief/:tripId"      element={<ProtectedRoute><Debrief /></ProtectedRoute>} />

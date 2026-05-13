@@ -18,6 +18,7 @@
 
 import { comprehensiveRiskScan, fetchGDACS, fetchUSGS, fetchHealthOutbreaks, generateMorningBrief } from './_claudeSynth.js'
 import { notifyAlert } from './_notify.js'
+import { cityToCountry } from './_cityCountry.js'
 
 // ── In-memory cache: { [userId]: { ts, result } }
 const userCache = {}
@@ -34,58 +35,6 @@ function magnitudeToSeverity(mag) {
   if (mag >= 7) return 'Critical'
   if (mag >= 6) return 'High'
   return 'Medium'
-}
-
-// ── City → country map ────────────────────────────────────────────────────────
-const CITY_COUNTRY = {
-  'johannesburg': 'South Africa', 'cape town': 'South Africa', 'durban': 'South Africa',
-  'pretoria': 'South Africa', 'lagos': 'Nigeria', 'abuja': 'Nigeria', 'kano': 'Nigeria',
-  'nairobi': 'Kenya', 'mombasa': 'Kenya', 'kampala': 'Uganda', 'dar es salaam': 'Tanzania',
-  'accra': 'Ghana', 'kumasi': 'Ghana', 'addis ababa': 'Ethiopia', 'luanda': 'Angola',
-  'kinshasa': 'Democratic Republic of the Congo', 'harare': 'Zimbabwe', 'lusaka': 'Zambia',
-  'lilongwe': 'Malawi', 'maputo': 'Mozambique', 'antananarivo': 'Madagascar',
-  'port louis': 'Mauritius', 'dakar': 'Senegal', 'bamako': 'Mali', 'ouagadougou': 'Burkina Faso',
-  'niamey': 'Niger', 'ndjamena': 'Chad', 'yaounde': 'Cameroon', 'douala': 'Cameroon',
-  'libreville': 'Gabon', 'brazzaville': 'Republic of the Congo',
-  'mogadishu': 'Somalia', 'juba': 'South Sudan', 'khartoum': 'Sudan',
-  'cairo': 'Egypt', 'alexandria': 'Egypt', 'tripoli': 'Libya', 'tunis': 'Tunisia',
-  'algiers': 'Algeria', 'casablanca': 'Morocco', 'rabat': 'Morocco',
-  'london': 'United Kingdom', 'manchester': 'United Kingdom', 'edinburgh': 'United Kingdom',
-  'paris': 'France', 'lyon': 'France', 'berlin': 'Germany', 'munich': 'Germany',
-  'frankfurt': 'Germany', 'amsterdam': 'Netherlands', 'brussels': 'Belgium',
-  'madrid': 'Spain', 'barcelona': 'Spain', 'lisbon': 'Portugal', 'rome': 'Italy',
-  'milan': 'Italy', 'vienna': 'Austria', 'zurich': 'Switzerland', 'geneva': 'Switzerland',
-  'stockholm': 'Sweden', 'oslo': 'Norway', 'copenhagen': 'Denmark', 'helsinki': 'Finland',
-  'warsaw': 'Poland', 'prague': 'Czech Republic', 'budapest': 'Hungary',
-  'bucharest': 'Romania', 'sofia': 'Bulgaria', 'athens': 'Greece',
-  'istanbul': 'Turkey', 'ankara': 'Turkey', 'moscow': 'Russia', 'kyiv': 'Ukraine',
-  'dubai': 'United Arab Emirates', 'abu dhabi': 'United Arab Emirates',
-  'riyadh': 'Saudi Arabia', 'jeddah': 'Saudi Arabia', 'doha': 'Qatar',
-  'kuwait city': 'Kuwait', 'muscat': 'Oman', 'manama': 'Bahrain',
-  'tehran': 'Iran', 'baghdad': 'Iraq', 'beirut': 'Lebanon', 'amman': 'Jordan',
-  'tel aviv': 'Israel', 'jerusalem': 'Israel',
-  'karachi': 'Pakistan', 'lahore': 'Pakistan', 'islamabad': 'Pakistan',
-  'mumbai': 'India', 'delhi': 'India', 'new delhi': 'India', 'bangalore': 'India',
-  'chennai': 'India', 'kolkata': 'India', 'hyderabad': 'India',
-  'dhaka': 'Bangladesh', 'colombo': 'Sri Lanka', 'kathmandu': 'Nepal',
-  'beijing': 'China', 'shanghai': 'China', 'hong kong': 'Hong Kong',
-  'tokyo': 'Japan', 'osaka': 'Japan', 'seoul': 'South Korea', 'taipei': 'Taiwan',
-  'singapore': 'Singapore', 'kuala lumpur': 'Malaysia', 'jakarta': 'Indonesia',
-  'manila': 'Philippines', 'bangkok': 'Thailand', 'ho chi minh city': 'Vietnam',
-  'hanoi': 'Vietnam', 'phnom penh': 'Cambodia', 'vientiane': 'Laos',
-  'yangon': 'Myanmar', 'sydney': 'Australia', 'melbourne': 'Australia',
-  'brisbane': 'Australia', 'perth': 'Australia', 'auckland': 'New Zealand',
-  'new york': 'United States', 'los angeles': 'United States', 'chicago': 'United States',
-  'houston': 'United States', 'miami': 'United States', 'washington': 'United States',
-  'toronto': 'Canada', 'montreal': 'Canada', 'vancouver': 'Canada',
-  'mexico city': 'Mexico', 'bogota': 'Colombia', 'lima': 'Peru',
-  'santiago': 'Chile', 'buenos aires': 'Argentina', 'sao paulo': 'Brazil',
-  'rio de janeiro': 'Brazil', 'brasilia': 'Brazil',
-}
-
-export function cityToCountry(city) {
-  if (!city) return null
-  return CITY_COUNTRY[city.toLowerCase().trim()] || null
 }
 
 // ── Supabase REST helpers ─────────────────────────────────────────────────────

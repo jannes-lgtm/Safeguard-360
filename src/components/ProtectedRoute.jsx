@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 const TERMS_VERSION = '1.0'
 const ONBOARDING_ROLES = ['traveller', 'solo']
 
-export default function ProtectedRoute({ children, adminOnly = false, orgAdminAllowed = false }) {
+export default function ProtectedRoute({ children, adminOnly = false, orgAdminAllowed = false, noGates = false }) {
   const navigate = useNavigate()
   const [checking, setChecking] = useState(true)
 
@@ -13,6 +13,9 @@ export default function ProtectedRoute({ children, adminOnly = false, orgAdminAl
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { navigate('/login'); return }
+
+      // noGates — auth-only check used for onboarding routes to avoid redirect loops
+      if (noGates) { setChecking(false); return }
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -71,7 +74,7 @@ export default function ProtectedRoute({ children, adminOnly = false, orgAdminAl
     }
 
     checkAuth()
-  }, [navigate, adminOnly, orgAdminAllowed])
+  }, [navigate, adminOnly, orgAdminAllowed, noGates])
 
   if (checking) {
     return (
