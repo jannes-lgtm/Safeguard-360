@@ -362,8 +362,8 @@ function FeedTable({ feeds, onDelete, emptyMsg }) {
   })).filter(g => g.feeds.length > 0)
 
   return (
-    <div className="bg-white rounded-[8px] border border-gray-200 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-      <table className="w-full border-collapse">
+    <div className="bg-white rounded-[8px] border border-gray-200 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-x-auto">
+      <table className="w-full border-collapse min-w-[640px]">
         <thead>
           <tr className="border-b-2 border-gray-200 bg-gray-50/80">
             <th className="px-4 py-2.5 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Feed</th>
@@ -810,7 +810,7 @@ export default function IntelFeeds() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {[
           { label: 'Total Feeds', value: allFeeds.length },
           { label: 'Live & Active', value: liveCount, color: 'text-green-600' },

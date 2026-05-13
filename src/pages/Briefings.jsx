@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import {
   Newspaper, ExternalLink, Globe, MapPin, Search,
   AlertTriangle, BookOpen, Calendar, Shield,
-  Wind, Thermometer, RefreshCw, ChevronRight, Clock
+  Wind, Thermometer, RefreshCw, ChevronRight, ChevronUp, ChevronDown, Clock
 } from 'lucide-react'
 import Layout from '../components/Layout'
 
@@ -366,7 +366,7 @@ function CountryProfile({ country, meta, allArticles, feedsLoading }) {
                 </div>
                 {/* 4-day forecast */}
                 {weather.daily?.time && (
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {weather.daily.time.slice(0, 4).map((_, i) => (
                       <div key={i} className="text-center bg-gray-50 rounded-[6px] px-2 py-2.5">
                         <div className="text-[10px] font-bold text-gray-500 uppercase mb-1">{dayLabel(i)}</div>
@@ -447,43 +447,78 @@ function CountryProfile({ country, meta, allArticles, feedsLoading }) {
 
 // ── Country advisory (search + select) ───────────────────────────────────────
 function CountryAdvisory({ allArticles, feedsLoading }) {
-  const [search, setSearch]   = useState('')
-  const [selected, setSelected] = useState(null)
+  const [search,        setSearch]       = useState('')
+  const [selected,      setSelected]     = useState(null)
+  const [mobilePicker,  setMobilePicker] = useState(false)
 
   const filtered = COUNTRIES.filter(c => c.toLowerCase().includes(search.toLowerCase()))
 
+  const countryListItems = filtered.map(c => (
+    <button key={c} onClick={() => { setSelected(c); setMobilePicker(false) }}
+      className={`w-full text-left flex items-center justify-between px-3 py-2 rounded-[6px] text-sm transition-colors
+        ${selected === c ? 'bg-[#0118A1] text-white font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}>
+      <span>{c}</span>
+      {selected === c && <ChevronRight size={14} />}
+    </button>
+  ))
+
   return (
-    <div className="flex gap-6 items-start">
-      {/* Left: country selector */}
-      <div className="w-64 shrink-0">
+    <div className="flex flex-col lg:flex-row gap-6 items-start">
+
+      {/* ── Mobile country picker (lg and below) ── */}
+      <div className="block lg:hidden w-full">
+        <div className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+          <button
+            onClick={() => setMobilePicker(p => !p)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <span className="flex items-center gap-2">
+              <Search size={13} className="text-[#0118A1]" />
+              <span className={selected ? 'text-[#0118A1] font-semibold' : 'text-gray-500'}>
+                {selected || 'Select a country…'}
+              </span>
+            </span>
+            {mobilePicker
+              ? <ChevronUp size={15} className="text-gray-400" />
+              : <ChevronDown size={15} className="text-gray-400" />}
+          </button>
+          {mobilePicker && (
+            <div className="border-t border-gray-100">
+              <div className="p-3">
+                <div className="relative">
+                  <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input value={search} onChange={e => setSearch(e.target.value)}
+                    placeholder="Search country…"
+                    className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"
+                  />
+                </div>
+              </div>
+              <div className="overflow-y-auto border-t border-gray-100 p-2 space-y-0.5" style={{ maxHeight: 240 }}>
+                {countryListItems}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Desktop sidebar (lg+) ── */}
+      <div className="hidden lg:block w-64 shrink-0">
         <div className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4">
           <h3 className="text-sm font-bold text-gray-900 mb-3">Select Country</h3>
           <div className="relative mb-3">
             <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+            <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search…"
               className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"
             />
           </div>
           <div className="space-y-0.5 max-h-[calc(100vh-280px)] overflow-y-auto">
-            {filtered.map(c => (
-              <button key={c} onClick={() => setSelected(c)}
-                className={`w-full text-left flex items-center justify-between px-3 py-2 rounded-[6px] text-sm transition-colors
-                  ${selected === c
-                    ? 'bg-[#0118A1] text-white font-semibold'
-                    : 'text-gray-700 hover:bg-gray-50'}`}>
-                <span>{c}</span>
-                {selected === c && <ChevronRight size={14} />}
-              </button>
-            ))}
+            {countryListItems}
           </div>
         </div>
       </div>
 
-      {/* Right: country profile */}
-      <div className="flex-1 min-w-0">
+      {/* ── Right: country profile ── */}
+      <div className="flex-1 min-w-0 w-full">
         {selected ? (
           <CountryProfile
             key={selected}
@@ -598,18 +633,20 @@ export default function Briefings() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-100 rounded-[8px] p-1 w-fit">
-        {tabs.map(tab => {
-          const Icon = tab.icon
-          return (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors
-                ${activeTab === tab.id ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'}`}>
-              <Icon size={14} />
-              {tab.label}
-            </button>
-          )
-        })}
+      <div className="mb-6 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-1 bg-gray-100 rounded-[8px] p-1 w-fit min-w-max">
+          {tabs.map(tab => {
+            const Icon = tab.icon
+            return (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors whitespace-nowrap
+                  ${activeTab === tab.id ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'}`}>
+                <Icon size={14} />
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* ── Intel News ── */}
@@ -635,8 +672,8 @@ export default function Briefings() {
           )}
 
           {/* Filters */}
-          <div className="flex items-center gap-4 mb-4 flex-wrap">
-            <div className="flex gap-1">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
+            <div className="flex gap-1 flex-wrap">
               {CATS.map(c => (
                 <button key={c.id} onClick={() => setCatFilter(c.id)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
@@ -647,7 +684,7 @@ export default function Briefings() {
                 </button>
               ))}
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-wrap">
               {['All', 'Africa', 'Middle East'].map(r => (
                 <button key={r} onClick={() => setRegionFilter(r)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
@@ -659,7 +696,7 @@ export default function Briefings() {
               ))}
             </div>
             {!isLoading && (
-              <span className="text-xs text-gray-400 ml-auto">
+              <span className="text-xs text-gray-400 sm:ml-auto">
                 {filteredArticles.length} articles · {loadedCount} sources
               </span>
             )}

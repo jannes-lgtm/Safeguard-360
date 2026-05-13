@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import L from 'leaflet'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import { MAP_STYLES } from '../lib/mapConfig'
 import {
   Shield, Search, RefreshCw, ExternalLink, Wind, Thermometer,
   ChevronRight, AlertTriangle, MapPin, Brain, Zap, Clock,
@@ -555,7 +557,7 @@ function CountryReport({ country }) {
             </div>
           </div>
           {weather.daily?.time && (
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {weather.daily.time.slice(0,4).map((_,i) => (
                 <div key={i} className="text-center bg-gray-50 rounded-[6px] px-2 py-2.5">
                   <div className="text-[10px] font-bold text-gray-500 uppercase mb-1">{dayLabel(i, weather.daily.time)}</div>
@@ -617,14 +619,13 @@ function CountryReport({ country }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function CountryRiskReport() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [search,        setSearch]        = useState('')
-  const [regionFilter,  setRegionFilter]  = useState('All')
-  const [mapReady,      setMapReady]      = useState(false)
+  const [search,        setSearch]      = useState('')
+  const [regionFilter,  setRegionFilter] = useState('All')
+  const [mobilePicker,  setMobilePicker] = useState(false)
 
-  const containerRef       = useRef(null)
-  const mapRef             = useRef(null)
-  const markersRef         = useRef([])
-  const selectCountryRef   = useRef(null)  // always-current ref for map popup callbacks
+  const containerRef     = useRef(null)
+  const mapRef           = useRef(null)
+  const selectCountryRef = useRef(null)
 
   const selectedParam = searchParams.get('country') || ''
   const [selected, setSelected] = useState(
@@ -643,6 +644,7 @@ export default function CountryRiskReport() {
   const selectCountry = (c) => {
     setSelected(c)
     setSearchParams({ country: c })
+    setMobilePicker(false)
   }
 
   const backToMap = () => {
@@ -650,108 +652,138 @@ export default function CountryRiskReport() {
     setSearchParams({})
   }
 
-  // Keep the ref current on every render so map popup buttons always call the latest version
+  // Keep ref current so MapLibre popup buttons never use a stale closure
   selectCountryRef.current = selectCountry
 
-  // Register map popup button handler once — uses ref to avoid stale closure
-  useEffect(() => {
-    window.__riskReportGoto = (country) => selectCountryRef.current?.(country)
-    return () => { delete window.__riskReportGoto }
-  }, [])
-
-  // Initialise Leaflet map only when the map section is visible (selected === null).
-  // Initialising on a display:none container produces a 0×0 map and can crash the effect.
-  // When a country report is open, tear the map down cleanly so it re-inits fresh on return.
+  // ── MapLibre map init ──────────────────────────────────────────────────────
   useEffect(() => {
     if (selected) {
-      // Report is open — tear down the map if it exists
-      if (mapRef.current) {
-        mapRef.current.remove()
-        mapRef.current = null
-        markersRef.current = []
-        setMapReady(false)
-      }
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null }
       return
     }
-
-    // Map section is visible — initialise if not already done
     if (!containerRef.current || mapRef.current) return
 
-    const map = L.map(containerRef.current, {
-      center: [5, 20], zoom: 3,
-      zoomControl: true, scrollWheelZoom: true,
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: MAP_STYLES.standard,
+      center: [20, 5],
+      zoom: 2.5,
+    })
+    mapRef.current = map
+
+    const buildData = (filter) => ({
+      type: 'FeatureCollection',
+      features: Object.entries(RISK_MAP)
+        .filter(([, c]) => filter === 'All' || c.region === filter)
+        .map(([name, c]) => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [c.lon, c.lat] },
+          properties: { name, risk: c.risk, region: c.region },
+        }))
     })
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://carto.com">CARTO</a>',
-      subdomains: 'abcd', maxZoom: 19,
-    }).addTo(map)
+    map.on('load', () => {
+      map.addSource('risk-countries', { type: 'geojson', data: buildData(regionFilter) })
 
-    mapRef.current = map
-    setMapReady(true)
-
-    return () => {
-      map.remove()
-      mapRef.current = null
-      markersRef.current = []
-      setMapReady(false)
-    }
-  }, [selected])
-
-  // Add / refresh risk markers whenever region filter or map readiness changes
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !mapReady) return
-
-    markersRef.current.forEach(m => m.remove())
-    markersRef.current = []
-
-    const filtered = Object.entries(RISK_MAP).filter(([, c]) =>
-      regionFilter === 'All' || c.region === regionFilter
-    )
-
-    filtered.forEach(([name, c]) => {
-      const s        = rs(c.risk)
-      const safeName = name.replace(/'/g, "\\'")
-      const riskColor = c.risk === 'Medium' ? '#1f2937' : '#fff'
-
-      const marker = L.circleMarker([c.lat, c.lon], {
-        radius: s.radius, color: s.color,
-        fillColor: s.fillColor, fillOpacity: 0.65, weight: 1.5,
+      map.addLayer({
+        id: 'risk-circles',
+        type: 'circle',
+        source: 'risk-countries',
+        paint: {
+          'circle-radius': ['match', ['get', 'risk'], 'Critical', 18, 'High', 14, 'Medium', 11, 8],
+          'circle-color':  ['match', ['get', 'risk'], 'Critical', '#dc2626', 'High', '#ea580c', 'Medium', '#eab308', '#22c55e'],
+          'circle-opacity': 0.75,
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': ['match', ['get', 'risk'], 'Critical', '#b91c1c', 'High', '#c2410c', 'Medium', '#ca8a04', '#16a34a'],
+          'circle-stroke-opacity': 0.9,
+        }
       })
 
-      marker.bindPopup(`
-        <div style="font-family:sans-serif;padding:4px 0;min-width:170px">
-          <div style="font-weight:700;font-size:14px;margin-bottom:6px">${name}</div>
-          <div style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;
-            background:${s.fillColor};color:${riskColor};margin-bottom:8px">
-            ${c.risk} Risk
-          </div>
-          <div style="font-size:11px;color:#6b7280;margin-bottom:10px">${c.region}</div>
-          <button onclick="window.__riskReportGoto('${safeName}')"
-            style="display:block;width:100%;background:#0118A1;color:#fff;border:none;
-              border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer">
-            View Full Report →
-          </button>
-        </div>`)
+      map.on('click', 'risk-circles', (e) => {
+        const props     = e.features[0].properties
+        const rStyle    = RISK_STYLE[props.risk] || RISK_STYLE.Low
+        const textColor = props.risk === 'Medium' ? '#1f2937' : '#fff'
 
-      marker.addTo(map)
-      markersRef.current.push(marker)
+        const wrap = document.createElement('div')
+        wrap.style.cssText = 'font-family:sans-serif;padding:4px 0;min-width:170px'
+
+        const nameEl = document.createElement('div')
+        nameEl.style.cssText = 'font-weight:700;font-size:14px;margin-bottom:6px'
+        nameEl.textContent = props.name
+
+        const badge = document.createElement('div')
+        badge.style.cssText = `display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${rStyle.fillColor};color:${textColor};margin-bottom:8px`
+        badge.textContent = `${props.risk} Risk`
+
+        const regionEl = document.createElement('div')
+        regionEl.style.cssText = 'font-size:11px;color:#6b7280;margin-bottom:10px'
+        regionEl.textContent = props.region
+
+        const btn = document.createElement('button')
+        btn.textContent = 'View Full Report →'
+        btn.style.cssText = 'display:block;width:100%;background:#0118A1;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer'
+        btn.onclick = () => selectCountryRef.current?.(props.name)
+
+        wrap.appendChild(nameEl); wrap.appendChild(badge)
+        wrap.appendChild(regionEl); wrap.appendChild(btn)
+
+        new maplibregl.Popup({ closeButton: true, maxWidth: '220px' })
+          .setLngLat(e.features[0].geometry.coordinates.slice())
+          .setDOMContent(wrap)
+          .addTo(map)
+      })
+
+      map.on('mouseenter', 'risk-circles', () => { map.getCanvas().style.cursor = 'pointer' })
+      map.on('mouseleave', 'risk-circles', () => { map.getCanvas().style.cursor = '' })
     })
-  }, [mapReady, regionFilter])
 
-  // Fly to selected country on map when it changes
-  useEffect(() => {
-    if (!mapRef.current || !selected) return
-    const c = RISK_MAP[selected]
-    if (c) mapRef.current.flyTo([c.lat, c.lon], 5, { duration: 1.2 })
+    return () => { map.remove(); mapRef.current = null }
   }, [selected])
+
+  // Update GeoJSON data when region filter changes
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const apply = () => {
+      const src = map.getSource('risk-countries')
+      if (!src) return
+      src.setData({
+        type: 'FeatureCollection',
+        features: Object.entries(RISK_MAP)
+          .filter(([, c]) => regionFilter === 'All' || c.region === regionFilter)
+          .map(([name, c]) => ({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [c.lon, c.lat] },
+            properties: { name, risk: c.risk, region: c.region },
+          }))
+      })
+    }
+    if (map.isStyleLoaded()) apply(); else map.once('load', apply)
+  }, [regionFilter])
 
   const filtered = COUNTRIES.filter(c => c.toLowerCase().includes(search.toLowerCase()))
 
   // Risk counts for the summary strip
   const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 }
   Object.values(RISK_MAP).forEach(c => { if (counts[c.risk] !== undefined) counts[c.risk]++ })
+
+  // Shared country list (rendered in both sidebar + mobile picker)
+  const countryListItems = filtered.map(c => {
+    const riskLevel = RISK_MAP[c]?.risk
+    const rStyle    = riskLevel ? RISK_STYLE[riskLevel] : null
+    return (
+      <button key={c} onClick={() => selectCountry(c)}
+        className={`w-full text-left flex items-center gap-2 px-3 py-2.5 border-b border-gray-50 text-sm transition-colors
+          ${selected === c ? 'bg-[#0118A1] text-white font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}>
+        {rStyle && (
+          <div className="w-2 h-2 rounded-full shrink-0"
+            style={{ background: selected === c ? 'white' : rStyle.fillColor }} />
+        )}
+        <span className="text-xs flex-1 truncate">{c}</span>
+        {selected === c && <ChevronRight size={13} />}
+      </button>
+    )
+  })
 
   return (
     <Layout>
@@ -768,7 +800,7 @@ export default function CountryRiskReport() {
       </div>
 
       {/* Risk count strip — always visible */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         {['Critical', 'High', 'Medium', 'Low'].map(level => {
           const s = SEV[level]
           return (
@@ -784,10 +816,57 @@ export default function CountryRiskReport() {
         })}
       </div>
 
-      <div className="flex gap-5 items-start">
+      {/* ── Mobile country picker (hidden on lg+) ── */}
+      <div className="block lg:hidden mb-4">
+        <div className="bg-white rounded-[10px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+          <button
+            onClick={() => setMobilePicker(p => !p)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <span className="flex items-center gap-2">
+              <Search size={13} className="text-[#0118A1]" />
+              <span className={selected ? 'text-[#0118A1] font-semibold' : 'text-gray-500'}>
+                {selected || 'Select a country…'}
+              </span>
+            </span>
+            {mobilePicker
+              ? <ChevronUp size={15} className="text-gray-400" />
+              : <ChevronDown size={15} className="text-gray-400" />}
+          </button>
+          {mobilePicker && (
+            <div className="border-t border-gray-100">
+              <div className="p-3">
+                <div className="relative">
+                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search country…"
+                    className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-xs focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"
+                  />
+                </div>
+              </div>
+              <div className="overflow-y-auto border-t border-gray-100" style={{ maxHeight: 240 }}>
+                {filtered.length === 0 && (
+                  <p className="text-xs text-gray-400 text-center py-4">No results</p>
+                )}
+                {countryListItems}
+              </div>
+            </div>
+          )}
+        </div>
+        {selected && (
+          <button onClick={backToMap}
+            className="mt-2 w-full flex items-center gap-2 justify-center px-3 py-2.5 bg-white border border-gray-200 rounded-[8px] text-xs text-gray-600 font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+            <ArrowLeft size={12} className="text-[#0118A1]" />
+            Back to Risk Map
+          </button>
+        )}
+      </div>
 
-        {/* ── Left sidebar — always visible ── */}
-        <div className="w-52 shrink-0 sticky top-6 space-y-3">
+      <div className="flex flex-col lg:flex-row gap-5 items-start">
+
+        {/* ── Desktop sidebar (lg+) ── */}
+        <div className="hidden lg:block w-52 shrink-0 sticky top-6 space-y-3">
           <div className="bg-white rounded-[10px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
             <div className="p-3 border-b border-gray-100">
               <div className="relative">
@@ -804,24 +883,7 @@ export default function CountryRiskReport() {
               {filtered.length === 0 && (
                 <p className="text-xs text-gray-400 text-center py-4">No results</p>
               )}
-              {filtered.map(c => {
-                const riskLevel = RISK_MAP[c]?.risk
-                const rStyle    = riskLevel ? RISK_STYLE[riskLevel] : null
-                return (
-                  <button key={c} onClick={() => selectCountry(c)}
-                    className={`w-full text-left flex items-center gap-2 px-3 py-2.5 border-b border-gray-50 text-sm transition-colors
-                      ${selected === c
-                        ? 'bg-[#0118A1] text-white font-semibold'
-                        : 'text-gray-700 hover:bg-gray-50'}`}>
-                    {rStyle && (
-                      <div className="w-2 h-2 rounded-full shrink-0"
-                        style={{ background: selected === c ? 'white' : rStyle.fillColor }} />
-                    )}
-                    <span className="text-xs flex-1 truncate">{c}</span>
-                    {selected === c && <ChevronRight size={13} />}
-                  </button>
-                )
-              })}
+              {countryListItems}
             </div>
           </div>
 
@@ -835,7 +897,7 @@ export default function CountryRiskReport() {
         </div>
 
         {/* ── Right content area ── */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 w-full">
 
           {/* Map view — always mounted, hidden when report is open */}
           <div style={{ display: selected ? 'none' : 'block' }}>
@@ -859,8 +921,8 @@ export default function CountryRiskReport() {
             </div>
 
             {/* Legend */}
-            <div className="mt-3 flex items-center gap-5 bg-white border border-gray-200 rounded-[8px] px-4 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1">Risk Level</span>
+            <div className="mt-3 flex items-center gap-4 flex-wrap bg-white border border-gray-200 rounded-[8px] px-4 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Risk Level</span>
               {['Critical', 'High', 'Medium', 'Low'].map(level => {
                 const s = RISK_STYLE[level]
                 return (
@@ -871,7 +933,7 @@ export default function CountryRiskReport() {
                   </div>
                 )
               })}
-              <span className="ml-auto text-[10px] text-gray-400">
+              <span className="ml-auto text-[10px] text-gray-400 hidden sm:block">
                 {Object.entries(RISK_MAP).filter(([, c]) => regionFilter === 'All' || c.region === regionFilter).length} countries · click any circle for report
               </span>
             </div>
