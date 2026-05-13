@@ -15,15 +15,12 @@
  *   APP_URL (optional, defaults to https://www.risk360.co)
  */
 
-import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from './_notify.js'
 import { adapt } from './_adapter.js'
+import { getSupabaseAdmin } from './_supabase.js'
+import { createLogger } from './_logger.js'
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-const APP_URL      = process.env.APP_URL || 'https://www.risk360.co'
-
-const sb = createClient(SUPABASE_URL, SERVICE_KEY)
+const APP_URL = process.env.APP_URL || 'https://www.risk360.co'
 
 function fmtDate(d) {
   if (!d) return '—'
@@ -110,7 +107,14 @@ function buildDebriefEmail({ trip, userEmail }) {
 }
 
 async function _handler(req, res) {
+  const log = createLogger(req, 'trigger-debriefs')
   if (req.method === 'OPTIONS') return res.status(200).end()
+
+  let sb
+  try { sb = getSupabaseAdmin() } catch (e) {
+    log.error('Supabase init failed', e)
+    return res.status(503).json({ error: e.message })
+  }
 
   const cronSecret = process.env.CRON_SECRET
   const authHeader = req.headers['authorization'] || req.headers['x-cron-secret'] || ''
@@ -203,6 +207,8 @@ async function _handler(req, res) {
     }
   }
 
+  log.info('cron complete', { checked: trips.length, pending: pending.length, throttled: pending.length - toRemind.length, emailed })
+  log.done(200)
   return res.status(200).json({
     checked:  trips.length,
     pending:  pending.length,

@@ -21,6 +21,8 @@
  *   notifySos({ event, contacts, adminEmail, adminPhone, adminWhatsApp })
  */
 
+import { fetchWithRetry } from './_retry.js'
+
 const FROM_NAME = 'Safeguard 360'
 
 function escapeHtml(s) {
@@ -39,27 +41,31 @@ export async function sendEmail(to, subject, html) {
   if (!apiKey || !to) return false
 
   try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+    const res = await fetchWithRetry(
+      'https://api.resend.com/emails',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: `${FROM_NAME} <${from}>`,
+          to:   Array.isArray(to) ? to : [to],
+          subject,
+          html,
+        }),
       },
-      body: JSON.stringify({
-        from: `${FROM_NAME} <${from}>`,
-        to:   Array.isArray(to) ? to : [to],
-        subject,
-        html,
-      }),
-    })
+      { attempts: 3, baseMs: 800, retryCodes: [429, 502, 503, 504], label: 'resend-email' }
+    )
     if (!res.ok) {
       const err = await res.text()
-      console.error('[notify] Resend error:', res.status, err)
+      console.error(JSON.stringify({ level: 'error', msg: 'Resend error', status: res.status, to, err }))
       return false
     }
     return true
   } catch (e) {
-    console.error('[notify] sendEmail failed:', e.message)
+    console.error(JSON.stringify({ level: 'error', msg: 'sendEmail failed', error: e.message, to }))
     return false
   }
 }
@@ -103,7 +109,7 @@ export async function sendWhatsApp(to, body) {
 // ── Shared Twilio sender ──────────────────────────────────────────────────────
 async function twilioSend(sid, token, params, label) {
   try {
-    const res = await fetch(
+    const res = await fetchWithRetry(
       `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
       {
         method: 'POST',
@@ -112,16 +118,17 @@ async function twilioSend(sid, token, params, label) {
           'Content-Type':  'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams(params).toString(),
-      }
+      },
+      { attempts: 3, baseMs: 800, retryCodes: [429, 502, 503, 504], label: `twilio-${label.toLowerCase()}` }
     )
     if (!res.ok) {
       const err = await res.text()
-      console.error(`[notify] Twilio ${label} error:`, res.status, err)
+      console.error(JSON.stringify({ level: 'error', msg: `Twilio ${label} error`, status: res.status, err }))
       return false
     }
     return true
   } catch (e) {
-    console.error(`[notify] send${label} failed:`, e.message)
+    console.error(JSON.stringify({ level: 'error', msg: `send${label} failed`, error: e.message }))
     return false
   }
 }

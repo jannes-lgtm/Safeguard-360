@@ -7,6 +7,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail, sendSms, sendWhatsApp } from './_notify.js'
 import { adapt } from './_adapter.js'
+import { createLogger } from './_logger.js'
 
 function getSupabaseAdmin() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
@@ -187,6 +188,8 @@ function buildControlRoomEmail({ traveller, trip, checkin, overdueMins }) {
 }
 
 async function _handler(req, res) {
+  const log = createLogger(req, 'missed-checkins')
+  log.info('cron started')
   // Allow GET (Vercel cron) or POST (manual trigger)
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -245,14 +248,16 @@ async function _handler(req, res) {
   }
 
   if (!missed?.length) {
-    console.log('[missed-checkins] No overdue check-ins found.')
+    log.info('no overdue check-ins found')
+    log.done(200, { processed: 0 })
     return res.json({ ok: true, processed: 0 })
   }
 
-  return processMissed(missed, res, supabaseAdmin)
+  log.info('overdue check-ins found', { count: missed.length })
+  return processMissed(missed, res, supabaseAdmin, log)
 }
 
-async function processMissed(missed, res, supabaseAdmin) {
+async function processMissed(missed, res, supabaseAdmin, log) {
   let processed = 0
   let notified  = 0
 
@@ -340,13 +345,16 @@ async function processMissed(missed, res, supabaseAdmin) {
         .update({ missed_notified_at: new Date().toISOString() })
         .eq('id', checkin.id)
 
-      console.log(`[missed-checkins] Processed ${checkin.id}: ${sentCount}/${sends.length} notifications sent, overdue ${overdueMins_}m`)
+      if (log) log.info('checkin processed', { checkin_id: checkin.id, sent: sentCount, total: sends.length, overdue_mins: overdueMins_ })
+      else console.log(`[missed-checkins] Processed ${checkin.id}: ${sentCount}/${sends.length} notifications sent, overdue ${overdueMins_}m`)
       processed++
     } catch (err) {
-      console.error(`[missed-checkins] Error processing checkin ${checkin.id}:`, err.message)
+      if (log) log.error('error processing checkin', { checkin_id: checkin.id, error: err.message })
+      else console.error(`[missed-checkins] Error processing checkin ${checkin.id}:`, err.message)
     }
   }
 
+  if (log) { log.info('cron complete', { processed, notified }); log.done(200) }
   return res.json({ ok: true, processed, notified })
 }
 

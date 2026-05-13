@@ -2,6 +2,8 @@
 // Used by Intel Feeds panel to preview articles from security/terror/risk RSS sources
 // No API key needed — all feeds listed below are free and public
 
+import { fetchWithRetry } from './_retry.js'
+
 const cache = {}
 const CACHE_TTL = 30 * 60 * 1000 // 30 minutes — shorter TTL so outbreak news surfaces faster
 
@@ -301,10 +303,11 @@ async function fetchRss(url, ms = 8000) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), ms)
   try {
-    const r = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': 'SafeGuard360/1.0 (travel risk platform)' },
-    })
+    const r = await fetchWithRetry(
+      url,
+      { signal: controller.signal, headers: { 'User-Agent': 'SafeGuard360/1.0 (travel risk platform)' } },
+      { attempts: 2, baseMs: 800, retryCodes: [500, 502, 503, 504], label: 'rss-fetch' }
+    )
     clearTimeout(timeout)
     if (!r.ok) return null
     return await r.text()

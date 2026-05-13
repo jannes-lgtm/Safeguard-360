@@ -17,6 +17,7 @@
 
 import { sendEmail } from './_notify.js'
 import { getSupabaseAdmin } from './_supabase.js'
+import { createLogger } from './_logger.js'
 
 const APP_URL = process.env.APP_URL || 'https://www.risk360.co'
 
@@ -142,9 +143,11 @@ function adminEmail(traveller, days, org) {
 }
 
 export default async function handler(req, res) {
+  const log = createLogger(req, 'passport-expiry')
   try {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
+  log.info('cron started')
   let sb
   try { sb = getSupabaseAdmin() } catch (e) {
     return res.status(503).json({ error: e.message })
@@ -250,9 +253,11 @@ export default async function handler(req, res) {
     notified++
   }
 
+  log.info('cron complete', { checked: profiles.length, notified })
+  log.done(200)
   return res.status(200).json({ checked: profiles.length, notified })
   } catch (err) {
-    console.error('[passport-expiry] unhandled error:', err)
+    log.error('unhandled error', err)
     return res.status(500).json({ error: 'Internal server error' })
   }
 }

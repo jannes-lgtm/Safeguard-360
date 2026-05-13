@@ -21,6 +21,7 @@
 import { comprehensiveRiskScan, fetchGDACS, fetchUSGS, fetchHealthOutbreaks } from './_claudeSynth.js'
 import { notifyAlert } from './_notify.js'
 import { CITY_COUNTRY } from './_cityCountry.js'
+import { createLogger } from './_logger.js'
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000  // don't re-alert same user within 6 hours
 const notifiedAt   = {}                    // { [userId]: timestamp } — in-memory, resets on cold start
@@ -67,6 +68,8 @@ function quakeSeverity(mag) {
 }
 
 async function _handler(req, res) {
+  const log = createLogger(req, 'scan-all')
+  log.info('cron started')
   const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
   const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
   const AI_KEY       = process.env.ANTHROPIC_API_KEY || ''
@@ -295,6 +298,13 @@ async function _handler(req, res) {
     }
   }
 
+  log.info('cron complete', {
+    scanned:   itineraries.length,
+    inserted:  inserted.length,
+    notified:  notifiedCount,
+    countries: Object.keys(countryTrips).length,
+  })
+  log.done(200)
   return res.status(200).json({
     scanned:   itineraries.length,
     inserted:  inserted.length,
