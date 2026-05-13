@@ -21,7 +21,7 @@
  */
 
 import { adapt } from './_adapter.js'
-import { getSupabaseAdmin } from './_supabase.js'
+import { getSupabaseAdmin, verifyAdminJwt } from './_supabase.js'
 import { createLogger } from './_logger.js'
 import { dbCacheEvict } from './_dbCache.js'
 
@@ -39,13 +39,16 @@ async function _handler(req, res) {
   try {
     if (req.method === 'OPTIONS') return res.status(204).end()
 
-    // Auth
+    // Auth — accept Vercel cron header, CRON_SECRET, or admin/developer Supabase JWT
     const cronSecret = process.env.CRON_SECRET
     const authHeader = req.headers['authorization'] || ''
     const isCron     = req.headers['x-vercel-cron'] === '1'
     if (!isCron) {
-      if (!cronSecret) return res.status(503).json({ error: 'CRON_SECRET not configured' })
-      if (authHeader !== `Bearer ${cronSecret}`) return res.status(401).json({ error: 'Unauthorised' })
+      const isCronSecret = cronSecret && authHeader === `Bearer ${cronSecret}`
+      if (!isCronSecret) {
+        const jwt = await verifyAdminJwt(authHeader)
+        if (!jwt.ok) return res.status(jwt.status).json({ error: jwt.error })
+      }
     }
 
     let sb

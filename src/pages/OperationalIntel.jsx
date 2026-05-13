@@ -134,13 +134,19 @@ export default function OperationalIntel() {
 
   useEffect(() => { fetchReport() }, [fetchReport])
 
+  const getAuthHeader = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
+  }
+
   const runAnalysis = async () => {
     setRunningAnalysis(true)
     setAnalysisMsg(null)
     try {
+      const headers = await getAuthHeader()
       const res = await fetch('/api/ops-analyze', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${process.env.VITE_CRON_SECRET || ''}`, 'Content-Type': 'application/json' },
+        headers: { ...headers, 'Content-Type': 'application/json' },
       })
       const json = await res.json()
       if (res.ok) {
@@ -161,9 +167,10 @@ export default function OperationalIntel() {
     setChaosResult(null)
     setChaosExpanded(true)
     try {
+      const headers = await getAuthHeader()
       const res = await fetch('/api/chaos-test', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${process.env.VITE_CRON_SECRET || ''}`, 'Content-Type': 'application/json' },
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       })
       const json = await res.json()
