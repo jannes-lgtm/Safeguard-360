@@ -1430,6 +1430,20 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
           <Send size={13} color={dark ? '#090D1A' : 'white'} />
         </button>
       </div>
+
+      {/* CAIRO CTA */}
+      <div className="px-4 py-2.5 flex items-center justify-between"
+        style={{ borderTop: `1px solid ${divider}`, background: dark ? 'rgba(170,204,0,0.04)' : 'rgba(1,24,161,0.03)' }}>
+        <span className="text-[10px]" style={{ color: dark ? 'rgba(255,255,255,0.35)' : '#9CA3AF' }}>
+          Need a full operational risk advisory?
+        </span>
+        <Link to="/journey-agent"
+          className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-1 rounded-full transition-all hover:opacity-80"
+          style={{ background: dark ? 'rgba(170,204,0,0.15)' : `${BRAND_BLUE}12`, color: dark ? '#AACC00' : BRAND_BLUE, border: `1px solid ${dark ? 'rgba(170,204,0,0.25)' : `${BRAND_BLUE}20`}` }}>
+          <Navigation size={9} />
+          Ask CAIRO →
+        </Link>
+      </div>
     </div>
   )
 }

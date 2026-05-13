@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   MapPin, Plane, Hotel, AlertTriangle, Pencil, Trash2,
   CheckCircle2, BookOpen, Lock, ChevronDown, ChevronUp,
-  Sparkles, Send, Upload, Plus, X, Edit3, Shield,
+  Sparkles, Send, Upload, Plus, X, Edit3, Shield, Compass, Zap,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import SeverityBadge from '../components/SeverityBadge'
@@ -36,7 +36,7 @@ const FIELD_LABELS = {
   flight_number: 'Flight', hotel_name: 'Hotel', meetings: 'Notes',
 }
 const REQUIRED_FIELDS = ['trip_name', 'departure_city', 'arrival_city', 'depart_date', 'return_date']
-const AI_GREETING = "Hi! I'm your trip planning assistant. Let's get your trip set up. Where are you heading, and when do you depart?"
+const AI_GREETING = "Tell me about your trip — destination, dates, and purpose — and I'll set it up for you. Once the details are confirmed you can also launch a full CAIRO operational intelligence advisory for your journey."
 
 function parseTripData(text) {
   const idx = text.lastIndexOf('<<TRIP_DATA:')
@@ -439,19 +439,20 @@ export default function Itinerary() {
               {/* Chat */}
               <div className="flex flex-col" style={{ height: 440 }}>
                 <div className="px-5 py-3 flex items-center justify-between shrink-0"
-                  style={{ background: 'linear-gradient(135deg,#0118A1,#0A3D6B)' }}>
+                  style={{ background: 'linear-gradient(135deg,#080C14 0%,#0D1A3A 60%,#0A2A1A 100%)' }}>
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.12)' }}>
-                      <Sparkles size={13} color="#AACC00" />
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                      style={{ background: 'rgba(170,204,0,0.15)', border: '1px solid rgba(170,204,0,0.3)' }}>
+                      <Compass size={13} color="#AACC00" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-white leading-none">AI Trip Planner</p>
-                      <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.55)' }}>Powered by Safeguard 360</p>
+                      <p className="text-xs font-bold text-white leading-none">Journey Planner</p>
+                      <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>SafeGuard 360 · Describe your trip in plain language</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#AACC00] animate-pulse" />
-                    <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.55)' }}>Active</span>
+                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#AACC00' }} />
+                    <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.45)' }}>Active</span>
                   </div>
                 </div>
 
@@ -460,8 +461,9 @@ export default function Itinerary() {
                   {aiMessages.map((m, i) => (
                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                       {m.role === 'assistant' && (
-                        <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2 mt-0.5" style={{ background: '#EEF1FF' }}>
-                          <Sparkles size={10} color="#0118A1" />
+                        <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2 mt-0.5"
+                          style={{ background: 'rgba(170,204,0,0.12)', border: '1px solid rgba(170,204,0,0.2)' }}>
+                          <Compass size={10} color="#AACC00" />
                         </div>
                       )}
                       {m.role === 'assistant' ? (
@@ -477,8 +479,9 @@ export default function Itinerary() {
                   ))}
                   {aiThinking && (
                     <div className="flex justify-start">
-                      <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2" style={{ background: '#EEF1FF' }}>
-                        <Sparkles size={10} color="#0118A1" />
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2"
+                        style={{ background: 'rgba(170,204,0,0.12)', border: '1px solid rgba(170,204,0,0.2)' }}>
+                        <Compass size={10} color="#AACC00" />
                       </div>
                       <div className="px-3.5 py-2.5 rounded-2xl rounded-tl-sm bg-white border border-gray-100 shadow-sm flex items-center gap-1 h-9">
                         <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -572,13 +575,39 @@ export default function Itinerary() {
                 {/* Submit */}
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   {aiReady ? (
-                    <button onClick={handleSubmit} disabled={submitting}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-60"
-                      style={{ background: '#AACC00', color: '#0118A1' }}>
-                      {submitting
-                        ? <><div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" />Saving…</>
-                        : <><CheckCircle2 size={15} />{profile?.role === 'solo' ? 'Save trip' : 'Submit for approval'}</>}
-                    </button>
+                    <>
+                      <button onClick={handleSubmit} disabled={submitting}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-60"
+                        style={{ background: '#AACC00', color: '#0118A1' }}>
+                        {submitting
+                          ? <><div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" />Saving…</>
+                          : <><CheckCircle2 size={15} />{profile?.role === 'solo' ? 'Save trip' : 'Submit for approval'}</>}
+                      </button>
+                      {/* Risk Advisory CTA */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sessionStorage.setItem('journeyAgentPreload', JSON.stringify({
+                            origin:       detectedFields.departure_city || '',
+                            destination:  detectedFields.arrival_city   || '',
+                            departDate:   detectedFields.depart_date    || '',
+                            returnDate:   detectedFields.return_date    || '',
+                            purpose:      detectedFields.meetings       || detectedFields.trip_name || '',
+                            tripName:     detectedFields.trip_name      || '',
+                            travellerCount: detectedFields.traveller_count || 1,
+                          }))
+                          navigate('/journey-agent')
+                        }}
+                        className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all hover:opacity-90"
+                        style={{
+                          background: 'rgba(170,204,0,0.10)',
+                          color: '#AACC00',
+                          border: '1px solid rgba(170,204,0,0.28)',
+                        }}>
+                        <Compass size={12} />
+                        Get CAIRO advisory for this trip →
+                      </button>
+                    </>
                   ) : (
                     <div className="w-full py-3 rounded-xl text-xs text-gray-400 text-center border border-dashed border-gray-200 bg-gray-50">
                       {Object.keys(detectedFields).length === 0

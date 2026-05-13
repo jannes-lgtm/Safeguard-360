@@ -41,6 +41,7 @@ import OrgAnalytics from './pages/OrgAnalytics'
 import CrisisBroadcast from './pages/CrisisBroadcast'
 import HealthDeclaration from './pages/HealthDeclaration'
 import OperationalIntel from './pages/OperationalIntel'
+import JourneyAgent from './pages/JourneyAgent'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -90,6 +91,7 @@ export default function App() {
         <Route path="/visa"            element={<ProtectedRoute><Visa /></ProtectedRoute>} />
         <Route path="/ops-intel"       element={<ProtectedRoute adminOnly><OperationalIntel /></ProtectedRoute>} />
         <Route path="/billing"         element={<ProtectedRoute orgAdminAllowed><Billing /></ProtectedRoute>} />
+        <Route path="/journey-agent"   element={<ProtectedRoute><JourneyAgent /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

@@ -44,7 +44,8 @@
     "api/ops-analyze.js":           { "maxDuration": 90 },
     "api/ops-report.js":            { "maxDuration": 15 },
     "api/ops-ingest.js":            { "maxDuration": 10 },
-    "api/chaos-test.js":            { "maxDuration": 90 }
+    "api/chaos-test.js":            { "maxDuration": 90 },
+    "api/journey-agent.js":         { "maxDuration": 60 }
   },
   "crons": [
     {
