@@ -197,12 +197,12 @@ export default function HeatMap() {
         },
       })
 
-      // ── Country name labels (bubble mode, zoom ≥ 5) ───────────────────
+      // ── Country name labels (bubble mode, always visible) ─────────────
       map.addLayer({
         id:     'risk-labels',
         type:   'symbol',
         source: 'countries',
-        minzoom: 5,
+        minzoom: 2,
         layout: {
           visibility:    'none',
           'text-field':  ['get', 'name'],
