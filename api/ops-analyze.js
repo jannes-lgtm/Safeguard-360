@@ -24,6 +24,7 @@ import { adapt } from './_adapter.js'
 import { getSupabaseAdmin, verifyAdminJwt } from './_supabase.js'
 import { createLogger } from './_logger.js'
 import { dbCacheEvict } from './_dbCache.js'
+import { sendEmail } from './_notify.js'
 
 // ── Scoring weights for composite health score ────────────────────────────────
 const WEIGHTS = {
@@ -303,6 +304,7 @@ async function _handler(req, res) {
 
     // ── 6. Dedup and write anomalies ─────────────────────────────────────────
     let anomaliesInserted = 0
+    const newCriticalHigh = []   // track for alert email
     for (const a of [...anomalies, ...predictive]) {
       // Don't insert if we already have an unresolved anomaly for same type+subject
       const { data: existing } = await sb
@@ -323,7 +325,15 @@ async function _handler(req, res) {
           predictive:    a.predictive || false,
         })
         anomaliesInserted++
+        if (a.severity === 'critical' || a.severity === 'high') {
+          newCriticalHigh.push(a)
+        }
       }
+    }
+
+    // Fire anomaly alert email (non-blocking — never delays analysis response)
+    if (newCriticalHigh.length > 0) {
+      alertAdmins(sb, newCriticalHigh).catch(() => {})
     }
 
     // ── 7. Composite health score ─────────────────────────────────────────────
@@ -488,6 +498,81 @@ function buildFeedStats(events24h, events7d, events30d) {
   }
 
   return stats
+}
+
+// ── Anomaly alert email ───────────────────────────────────────────────────────
+async function alertAdmins(sb, newAnomalies) {
+  // Get all admin + developer emails
+  const { data: admins } = await sb
+    .from('profiles')
+    .select('email, full_name, role')
+    .in('role', ['admin', 'developer'])
+
+  if (!admins?.length) return
+
+  const critCount  = newAnomalies.filter(a => a.severity === 'critical').length
+  const highCount  = newAnomalies.filter(a => a.severity === 'high').length
+  const subject    = critCount > 0
+    ? `🚨 [Safeguard 360] ${critCount} critical anomal${critCount === 1 ? 'y' : 'ies'} detected`
+    : `⚠️ [Safeguard 360] ${highCount} high-severity anomal${highCount === 1 ? 'y' : 'ies'} detected`
+
+  const SEV_COLOR = { critical: '#ef4444', high: '#f97316' }
+  const rows = newAnomalies.map(a => `
+    <tr>
+      <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;">
+        <span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:${a.severity === 'critical' ? '#fef2f2' : '#fff7ed'};color:${SEV_COLOR[a.severity]};border:1px solid ${SEV_COLOR[a.severity]}33;text-transform:uppercase;letter-spacing:0.05em;">
+          ${a.severity}
+        </span>
+      </td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;font-size:13px;font-weight:600;color:#111827;">${(a.type || '').replace(/_/g, ' ')}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#6b7280;">${a.subject || '—'}</td>
+      <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#374151;">${a.description || ''}</td>
+    </tr>
+  `).join('')
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:700px;margin:0 auto;background:#fff;">
+      <div style="background:#0118A1;padding:28px 32px;">
+        <p style="margin:0;font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.15em;text-transform:uppercase;">Safeguard 360 — Operational Intelligence</p>
+        <h1 style="margin:8px 0 0;font-size:22px;font-weight:800;color:#fff;">
+          ${critCount > 0 ? '🚨' : '⚠️'} Anomaly Alert
+        </h1>
+      </div>
+      <div style="padding:28px 32px;">
+        <p style="margin:0 0 20px;font-size:14px;color:#374151;">
+          The autonomous analysis engine detected <strong>${newAnomalies.length} new anomal${newAnomalies.length === 1 ? 'y' : 'ies'}</strong>
+          requiring attention${critCount > 0 ? ' — <span style="color:#ef4444;font-weight:700;">critical issues detected</span>' : ''}.
+        </p>
+        <table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+          <thead>
+            <tr style="background:#f9fafb;">
+              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e5e7eb;">Severity</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e5e7eb;">Type</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e5e7eb;">Subject</th>
+              <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e5e7eb;">Detail</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="margin-top:24px;">
+          <a href="https://www.risk360.co/ops-intel"
+             style="display:inline-block;background:#0118A1;color:#fff;padding:12px 24px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;">
+            View Operational Intelligence →
+          </a>
+        </div>
+        <p style="margin-top:24px;font-size:11px;color:#9ca3af;">
+          This alert was generated automatically by the ops-analyze engine. Critical anomalies require manual resolution.
+        </p>
+      </div>
+    </div>
+  `
+
+  // Send to each admin — fire and forget per recipient
+  await Promise.allSettled(
+    admins.map(admin =>
+      sendEmail(admin.email, subject, html, { notificationType: 'ops_anomaly_alert' })
+    )
+  )
 }
 
 function extractFeedTrends(summaries) {
