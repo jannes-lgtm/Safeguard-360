@@ -1,6 +1,10 @@
 {
   "installCommand": "npm install --legacy-peer-deps",
   "functions": {
+    "api/create-checkout-session.js": { "maxDuration": 20 },
+    "api/stripe-webhook.js":          { "maxDuration": 20 },
+    "api/billing-portal.js":          { "maxDuration": 15 },
+    "api/enterprise-inquiry.js":      { "maxDuration": 10 },
     "api/parse-itinerary.js":  { "maxDuration": 45 },
     "api/country-risk.js":     { "maxDuration": 45 },
     "api/trip-alert-scan.js":  { "maxDuration": 120 },

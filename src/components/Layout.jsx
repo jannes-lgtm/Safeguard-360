@@ -6,6 +6,7 @@ import {
   AlertOctagon, Navigation, Shield, Siren, ClipboardList,
   Building2, GraduationCap, BookOpen, Globe, Settings,
   BarChart2, Code2, Headphones, Menu, X, Megaphone, Activity,
+  CreditCard,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import usePassiveLocation from '../hooks/usePassiveLocation'
@@ -181,6 +182,7 @@ function OrgAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
 
       <NavSection label="Account" />
+      <NavItem to="/billing"        icon={CreditCard}   label="Billing & Plan" />
       <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
     </>
   )

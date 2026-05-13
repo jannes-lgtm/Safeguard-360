@@ -1,4 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import Pricing from './pages/Pricing'
+import Billing from './pages/Billing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import ComingSoon from './pages/ComingSoon'
@@ -46,6 +48,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/pricing" element={<Pricing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/pending-approval" element={<PendingApproval />} />
@@ -86,6 +89,7 @@ export default function App() {
         <Route path="/assistance"      element={<ProtectedRoute><Assistance /></ProtectedRoute>} />
         <Route path="/visa"            element={<ProtectedRoute><Visa /></ProtectedRoute>} />
         <Route path="/ops-intel"       element={<ProtectedRoute adminOnly><OperationalIntel /></ProtectedRoute>} />
+        <Route path="/billing"         element={<ProtectedRoute orgAdminAllowed><Billing /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )
