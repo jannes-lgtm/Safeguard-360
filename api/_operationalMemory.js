@@ -67,7 +67,7 @@ const COUNTRY_NORMALISE = {
   'beirut':                         'Lebanon',
   'tel aviv':                       'Israel',
   'jerusalem':                      'Israel',
-  'sana''a':                        'Yemen',
+  "sana'a":                         'Yemen',
   'aden':                           'Yemen',
 }
 
