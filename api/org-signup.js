@@ -77,7 +77,7 @@ export default async function handler(req, res) {
       name:              company_name.trim(),
       country:           country?.trim() || null,
       is_active:         true,
-      subscription_plan: null,   // set via Stripe after payment
+      subscription_plan: 'solo',   // default tier — upgraded via Stripe after payment
       billing_status:    'inactive',
     })
     orgId = org.id
