@@ -143,7 +143,7 @@ export default function Signup() {
       fetch('/api/notify-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ full_name: fullName.trim(), email: inviteData.email, role: inviteData.role || 'traveller' }),
+        body: JSON.stringify({ full_name: fullName.trim(), email: inviteData?.email || email, role: inviteData?.role || 'traveller' }),
       }).catch(() => {})
 
       setDone(true)
