@@ -264,27 +264,29 @@ export default function Alerts() {
       )}
 
       {/* Filter bar */}
-      <div className="flex flex-wrap gap-3 mb-5">
-        <select value={severityFilter} onChange={e => setSeverityFilter(e.target.value)} className={selectClass}>
+      <div className="flex flex-wrap gap-2 mb-5">
+        <select value={severityFilter} onChange={e => setSeverityFilter(e.target.value)}
+          className={`${selectClass} flex-1 sm:flex-none`}>
           <option value="All">All severities</option>
           <option value="Critical">Critical</option>
           <option value="High">High</option>
           <option value="Medium">Medium</option>
           <option value="Low">Low</option>
         </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={selectClass}>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className={`${selectClass} flex-1 sm:flex-none`}>
           <option value="All">All statuses</option>
           <option value="Active">Active</option>
           <option value="Resolved">Resolved</option>
         </select>
-        <div className="relative">
+        <div className="relative w-full sm:w-52">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             placeholder="Search by country..."
             value={countrySearch}
             onChange={e => setCountrySearch(e.target.value)}
-            className="border border-gray-300 rounded-[6px] pl-8 pr-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1E2461] w-52"
+            className="w-full border border-gray-300 rounded-[6px] pl-8 pr-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1E2461]"
           />
         </div>
       </div>

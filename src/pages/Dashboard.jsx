@@ -8,13 +8,15 @@ import {
   Clock, Building2, Headphones, Shield, GraduationCap,
   Pencil, Navigation, MapPin, Send, MessageSquare, Sparkles, Activity, Stethoscope,
 } from 'lucide-react'
-import L from 'leaflet'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import Layout from '../components/Layout'
 import MetricCard from '../components/MetricCard'
 import SeverityBadge from '../components/SeverityBadge'
 import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
 import { cityToCountry, SEVERITY_STYLE, COUNTRY_META } from '../data/intelData'
+import { MAP_STYLES } from '../lib/mapConfig'
 
 const BRAND_BLUE  = '#0118A1'
 const BRAND_GREEN = '#AACC00'
@@ -618,71 +620,98 @@ const RISK_PIN = {
 function TripMapSection({ trips, destRisk, onCountryClick }) {
   const containerRef = useRef(null)
   const mapRef       = useRef(null)
+  const clickRef     = useRef(onCountryClick)
+  useEffect(() => { clickRef.current = onCountryClick }, [onCountryClick])
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current || !trips.length) return
 
-    const map = L.map(containerRef.current, {
-      center: [20, 20], zoom: 2,
-      zoomControl: true, scrollWheelZoom: false,
+    const map = new maplibregl.Map({
+      container:   containerRef.current,
+      style:       MAP_STYLES.standard,
+      center:      [20, 10],
+      zoom:        1.8,
+      scrollZoom:  false,
+      minZoom:     1,
     })
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://carto.com">CARTO</a>',
-      subdomains: 'abcd', maxZoom: 19,
-    }).addTo(map)
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right')
 
-    const todayISO = new Date().toISOString().split('T')[0]
-    const bounds   = []
+    map.on('load', () => {
+      const todayISO = new Date().toISOString().split('T')[0]
+      const features = []
+      const lnglats  = []
 
-    trips.forEach(trip => {
-      const country = cityToCountry(trip.arrival_city) || trip.arrival_city
-      const coords  = COUNTRY_META[country]
-      if (!coords) return
-
-      const isActive = trip.depart_date <= todayISO && trip.return_date >= todayISO
-      const sev      = destRisk[country]?.severity || 'default'
-      const pin      = RISK_PIN[sev] || RISK_PIN.default
-      const r        = isActive ? pin.r + 3 : pin.r
-
-      const marker = L.circleMarker([coords.lat, coords.lon], {
-        radius: r, color: pin.stroke, fillColor: pin.fill,
-        fillOpacity: isActive ? 0.9 : 0.65, weight: 2,
+      trips.forEach(trip => {
+        const country  = cityToCountry(trip.arrival_city) || trip.arrival_city
+        const coords   = COUNTRY_META[country]
+        if (!coords) return
+        const isActive = trip.depart_date <= todayISO && trip.return_date >= todayISO
+        const sev      = destRisk[country]?.severity || 'default'
+        const pin      = RISK_PIN[sev] || RISK_PIN.default
+        features.push({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [coords.lon, coords.lat] },
+          properties: {
+            tripName: trip.trip_name, arrivalCity: trip.arrival_city, country,
+            isActive, color: pin.fill, radius: isActive ? pin.r + 3 : pin.r,
+            departDate: trip.depart_date, returnDate: trip.return_date,
+          },
+        })
+        lnglats.push([coords.lon, coords.lat])
       })
 
-      marker.bindPopup(`
-        <div style="font-family:sans-serif;padding:4px 0;min-width:160px">
-          <div style="font-weight:700;font-size:13px;margin-bottom:4px">${trip.trip_name}</div>
-          <div style="font-size:11px;color:#6b7280;margin-bottom:6px">${trip.arrival_city}${country !== trip.arrival_city ? ` · ${country}` : ''}</div>
-          ${isActive ? '<div style="font-size:10px;font-weight:700;color:#0118A1;margin-bottom:8px">✈️ Active now</div>' : `<div style="font-size:10px;color:#9ca3af;margin-bottom:8px">${trip.depart_date} → ${trip.return_date}</div>`}
-          <button onclick="window.__dashGoto('${country.replace(/'/g, "\\'")}')"
-            style="display:block;width:100%;background:#0118A1;color:#fff;border:none;
-              border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer">
-            View Risk Report →
-          </button>
-        </div>`)
+      map.addSource('trips', { type: 'geojson', data: { type: 'FeatureCollection', features } })
+      map.addLayer({
+        id: 'trip-circles', type: 'circle', source: 'trips',
+        paint: {
+          'circle-radius':          ['get', 'radius'],
+          'circle-color':           ['get', 'color'],
+          'circle-opacity':         ['case', ['get', 'isActive'], 0.9, 0.65],
+          'circle-stroke-width':    2,
+          'circle-stroke-color':    ['get', 'color'],
+          'circle-stroke-opacity':  0.9,
+        },
+      })
 
-      marker.addTo(map)
-      bounds.push([coords.lat, coords.lon])
+      map.on('click', 'trip-circles', e => {
+        const p  = e.features[0].properties
+        const el = document.createElement('div')
+        el.style.cssText = 'font-family:system-ui,sans-serif;min-width:160px'
+        el.innerHTML = `
+          <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#111827">${p.tripName}</div>
+          <div style="font-size:11px;color:#6b7280;margin-bottom:6px">
+            ${p.arrivalCity}${p.country !== p.arrivalCity ? ` · ${p.country}` : ''}
+          </div>
+          ${p.isActive
+            ? '<div style="font-size:10px;font-weight:700;color:#0118A1;margin-bottom:8px">✈️ Active now</div>'
+            : `<div style="font-size:10px;color:#9ca3af;margin-bottom:8px">${p.departDate} → ${p.returnDate}</div>`}
+        `
+        const btn = document.createElement('button')
+        btn.textContent = 'View Risk Report →'
+        btn.style.cssText = 'display:block;width:100%;background:#0118A1;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer'
+        btn.onclick = () => { clickRef.current(p.country); popup.remove() }
+        el.appendChild(btn)
+        const popup = new maplibregl.Popup({ offset: 10 }).setLngLat(e.lngLat).setDOMContent(el).addTo(map)
+      })
+      map.on('mouseenter', 'trip-circles', () => { map.getCanvas().style.cursor = 'pointer' })
+      map.on('mouseleave', 'trip-circles', () => { map.getCanvas().style.cursor = '' })
+
+      if (lnglats.length === 1) {
+        map.flyTo({ center: lnglats[0], zoom: 5 })
+      } else if (lnglats.length > 1) {
+        const bounds = lnglats.reduce(
+          (b, ll) => b.extend(ll),
+          new maplibregl.LngLatBounds(lnglats[0], lnglats[0]),
+        )
+        map.fitBounds(bounds, { padding: 50, maxZoom: 6 })
+      }
     })
 
-    if (bounds.length > 0) {
-      try { map.fitBounds(bounds, { padding: [40, 40], maxZoom: 6 }) } catch { /* ignore */ }
-    }
-
-    window.__dashGoto = (country) => {
-      onCountryClick(country)
-      map.closePopup()
-    }
-
     mapRef.current = map
-
-    return () => {
-      delete window.__dashGoto
-      map.remove()
-      mapRef.current = null
-    }
-  }, [trips, destRisk, onCountryClick])
+    return () => { map.remove(); mapRef.current = null }
+  }, [trips, destRisk])
 
   if (!trips.length) return null
 
@@ -695,7 +724,7 @@ function TripMapSection({ trips, destRisk, onCountryClick }) {
           </div>
           <h2 className="text-sm font-bold text-gray-900">My Travel Map</h2>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {Object.entries(RISK_PIN).filter(([k]) => k !== 'default').map(([k, v]) => (
             <div key={k} className="flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: v.fill }} />
@@ -753,65 +782,101 @@ const MAJOR_CITIES = [
 function SoloWorldMap({ trips, onCountryClick, T = {} }) {
   const containerRef = useRef(null)
   const mapRef       = useRef(null)
+  const clickRef     = useRef(onCountryClick)
+  useEffect(() => { clickRef.current = onCountryClick }, [onCountryClick])
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
 
-    const map = L.map(containerRef.current, {
-      center: [20, 10], zoom: 2,
-      zoomControl: false, scrollWheelZoom: false,
+    const map = new maplibregl.Map({
+      container:        containerRef.current,
+      style:            MAP_STYLES.operational,
+      center:           [20, 10],
+      zoom:             1.8,
+      scrollZoom:       false,
+      minZoom:          1,
       attributionControl: false,
     })
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd', maxZoom: 19,
-    }).addTo(map)
+    map.on('load', () => {
+      // Major city glow dots
+      map.addSource('cities', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: MAJOR_CITIES.map(c => ({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [c.lng, c.lat] },
+            properties: { name: c.name },
+          })),
+        },
+      })
+      map.addLayer({
+        id: 'city-glow', type: 'circle', source: 'cities',
+        paint: {
+          'circle-radius':  2.5,
+          'circle-color':   '#AACC00',
+          'circle-opacity': 0.55,
+          'circle-stroke-width': 0,
+        },
+      })
 
-    // Major city glow dots
-    MAJOR_CITIES.forEach(city => {
-      L.circleMarker([city.lat, city.lng], {
-        radius: 2.5, color: 'transparent',
-        fillColor: '#AACC00', fillOpacity: 0.55, weight: 0,
-      }).bindTooltip(city.name, { permanent: false, direction: 'top', className: 'leaflet-solo-tip' })
-       .addTo(map)
+      // Trip destinations
+      const todayISO = new Date().toISOString().split('T')[0]
+      const features = trips.map(trip => {
+        const country  = cityToCountry(trip.arrival_city) || trip.arrival_city
+        const coords   = COUNTRY_META[country]
+        if (!coords) return null
+        const isActive = trip.depart_date <= todayISO && trip.return_date >= todayISO
+        return {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [coords.lon, coords.lat] },
+          properties: {
+            tripName: trip.trip_name, arrivalCity: trip.arrival_city, country,
+            isActive, departDate: trip.depart_date, returnDate: trip.return_date,
+          },
+        }
+      }).filter(Boolean)
+
+      if (features.length) {
+        map.addSource('solo-trips', { type: 'geojson', data: { type: 'FeatureCollection', features } })
+        map.addLayer({
+          id: 'solo-circles', type: 'circle', source: 'solo-trips',
+          paint: {
+            'circle-radius':         ['case', ['get', 'isActive'], 12, 8],
+            'circle-color':          ['case', ['get', 'isActive'], '#AACC00', '#1E40AF'],
+            'circle-opacity':        ['case', ['get', 'isActive'], 0.85, 0.65],
+            'circle-stroke-width':   2.5,
+            'circle-stroke-color':   ['case', ['get', 'isActive'], '#AACC00', '#4F83F4'],
+          },
+        })
+
+        map.on('click', 'solo-circles', e => {
+          const p  = e.features[0].properties
+          const el = document.createElement('div')
+          el.style.cssText = 'font-family:system-ui,sans-serif;min-width:150px'
+          el.innerHTML = `
+            <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#111827">${p.tripName}</div>
+            <div style="font-size:11px;color:#9ca3af;margin-bottom:6px">${p.arrivalCity}</div>
+            ${p.isActive
+              ? '<div style="font-size:10px;font-weight:700;color:#AACC00;margin-bottom:8px">✈️ Active now</div>'
+              : `<div style="font-size:10px;color:#9ca3af;margin-bottom:8px">${p.departDate} → ${p.returnDate}</div>`}
+          `
+          const btn = document.createElement('button')
+          btn.textContent = 'View Intel →'
+          btn.style.cssText = 'display:block;width:100%;background:#0118A1;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer'
+          btn.onclick = () => { clickRef.current(p.country); popup.remove() }
+          el.appendChild(btn)
+          const popup = new maplibregl.Popup({ offset: 10 }).setLngLat(e.lngLat).setDOMContent(el).addTo(map)
+        })
+        map.on('mouseenter', 'solo-circles', () => { map.getCanvas().style.cursor = 'pointer' })
+        map.on('mouseleave', 'solo-circles', () => { map.getCanvas().style.cursor = '' })
+      }
     })
 
-    // Trip destinations
-    const todayISO = new Date().toISOString().split('T')[0]
-    trips.forEach(trip => {
-      const country = cityToCountry(trip.arrival_city) || trip.arrival_city
-      const coords  = COUNTRY_META[country]
-      if (!coords) return
-      const isActive = trip.depart_date <= todayISO && trip.return_date >= todayISO
-
-      L.circleMarker([coords.lat, coords.lon], {
-        radius: isActive ? 12 : 8,
-        color: isActive ? '#AACC00' : '#4F83F4',
-        fillColor: isActive ? '#AACC00' : '#1E40AF',
-        fillOpacity: isActive ? 0.85 : 0.65, weight: 2.5,
-      }).bindPopup(`
-        <div style="font-family:sans-serif;padding:4px 0;min-width:150px">
-          <div style="font-weight:700;font-size:13px;margin-bottom:4px">${trip.trip_name}</div>
-          <div style="font-size:11px;color:#9ca3af;margin-bottom:6px">${trip.arrival_city}</div>
-          ${isActive ? '<div style="font-size:10px;font-weight:700;color:#AACC00;margin-bottom:8px">✈️ Active now</div>' : `<div style="font-size:10px;color:#9ca3af;margin-bottom:8px">${trip.depart_date} → ${trip.return_date}</div>`}
-          <button onclick="window.__soloMapGoto('${country.replace(/'/g, "\\'")}')"
-            style="display:block;width:100%;background:#0118A1;color:#fff;border:none;
-              border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer">
-            View Intel →
-          </button>
-        </div>`)
-      .addTo(map)
-    })
-
-    window.__soloMapGoto = (country) => { onCountryClick(country); map.closePopup() }
     mapRef.current = map
-
-    return () => {
-      delete window.__soloMapGoto
-      map.remove()
-      mapRef.current = null
-    }
-  }, [trips, onCountryClick])
+    return () => { map.remove(); mapRef.current = null }
+  }, [trips])
 
   return (
     <div className="mb-7">
@@ -1906,7 +1971,7 @@ export default function Dashboard() {
       {role === 'developer' && (
         <>
           {/* Compact stat strip */}
-          <div className="grid grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             {[
               { label: 'Orgs',         value: devMetrics.orgs,        to: '/organisations', color: BRAND_BLUE },
               { label: 'Travellers',   value: devMetrics.travellers,  to: '/admin',         color: BRAND_BLUE },
