@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     const { data: { user }, error: authErr } = await sb.auth.getUser(token)
     if (authErr || !user) return res.status(401).json({ error: 'Invalid token' })
 
-    const { data: profile } = await sb.from('profiles').select('role, organisation_id').eq('id', user.id).single()
+    const { data: profile } = await sb.from('profiles').select('role, org_id').eq('id', user.id).single()
     if (!profile) return res.status(403).json({ error: 'Profile not found' })
 
     const allowedRoles = ['admin', 'developer', 'org_admin']
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Insufficient role' })
     }
 
-    const orgId = profile.organisation_id
+    const orgId = profile.org_id
     if (!orgId) return res.status(400).json({ error: 'No organisation linked' })
 
     const { data: org } = await sb.from('organisations').select('stripe_customer_id').eq('id', orgId).single()

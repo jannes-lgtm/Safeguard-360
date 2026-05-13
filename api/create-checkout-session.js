@@ -46,7 +46,7 @@ export default async function handler(req, res) {
     const { data: { user }, error: authErr } = await sb.auth.getUser(token)
     if (authErr || !user) return res.status(401).json({ error: 'Invalid token' })
 
-    const { data: profile } = await sb.from('profiles').select('role, organisation_id').eq('id', user.id).single()
+    const { data: profile } = await sb.from('profiles').select('role, org_id').eq('id', user.id).single()
     if (!profile) return res.status(403).json({ error: 'Profile not found' })
 
     const allowedRoles = ['admin', 'developer', 'org_admin']
@@ -63,10 +63,10 @@ export default async function handler(req, res) {
     }
 
     // Resolve org — admins can pass any orgId; org_admin must own it
-    const targetOrgId = orgId || profile.organisation_id
+    const targetOrgId = orgId || profile.org_id
     if (!targetOrgId) return res.status(400).json({ error: 'orgId required' })
 
-    if (profile.role === 'org_admin' && targetOrgId !== profile.organisation_id) {
+    if (profile.role === 'org_admin' && targetOrgId !== profile.org_id) {
       return res.status(403).json({ error: 'Cannot manage billing for another organisation' })
     }
 

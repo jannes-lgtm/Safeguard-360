@@ -111,21 +111,21 @@ export default function Billing() {
 
       const { data: prof } = await supabase
         .from('profiles')
-        .select('role, organisation_id')
+        .select('role, org_id')
         .eq('id', session.user.id)
         .single()
 
       setProfile(prof)
 
-      if (prof?.organisation_id) {
+      if (prof?.org_id) {
         const [{ data: orgData }, { count }] = await Promise.all([
           supabase.from('organisations')
             .select('id, name, subscription_plan, billing_status, max_travellers, stripe_customer_id, subscription_current_period_end')
-            .eq('id', prof.organisation_id)
+            .eq('id', prof.org_id)
             .single(),
           supabase.from('profiles')
             .select('id', { count: 'exact', head: true })
-            .eq('organisation_id', prof.organisation_id)
+            .eq('org_id', prof.org_id)
             .in('role', ['traveller', 'solo']),
         ])
         setOrg(orgData)
