@@ -125,8 +125,8 @@ export default function Signup() {
         options: {
           data: {
             full_name: fullName.trim(),
-            role:      inviteData.role || 'traveller',
-            org_id:    inviteData.org_id,
+            role:      inviteData?.role || 'traveller',
+            org_id:    inviteData?.org_id || null,
           },
         },
       })
