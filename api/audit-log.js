@@ -3,16 +3,15 @@
  * Append-only audit log writer. Only authenticated users may write.
  * Uses service role so logs cannot be tampered with from the client.
  */
-import { createClient } from '@supabase/supabase-js'
 import { adapt } from './_adapter.js'
-
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-)
+import { getSupabaseAdmin } from './_supabase.js'
 
 async function _handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  let supabaseAdmin
+  try { supabaseAdmin = getSupabaseAdmin() } catch (e) {
+    return res.status(503).json({ error: e.message })
+  }
 
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return res.status(401).json({ error: 'Unauthorised' })

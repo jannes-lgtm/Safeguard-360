@@ -28,7 +28,7 @@ async function _handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   const apiKey = process.env.ESKOMSEPUSH_API_KEY
-  if (!apiKey) return res.status(503).json({ error: 'Load shedding service not configured' })
+  if (!apiKey) return res.status(200).json({ configured: false, stage: 0, note: 'Add ESKOMSEPUSH_API_KEY to Vercel to enable load shedding data' })
 
   const { area } = req.query
 

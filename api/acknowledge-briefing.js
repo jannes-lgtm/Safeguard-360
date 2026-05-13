@@ -12,14 +12,9 @@
  * Returns: { ok, acknowledged_at, document_ref }
  */
 
-import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from './_notify.js'
 import { adapt } from './_adapter.js'
-
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-)
+import { getSupabaseAdmin } from './_supabase.js'
 
 const APP_URL = process.env.APP_URL || 'https://safeguard360.co.za'
 const SUPABASE_URL = () => process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
@@ -189,6 +184,11 @@ function buildTravellerConfirmEmail({ traveller, briefing }) {
 
 async function _handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  let supabaseAdmin
+  try { supabaseAdmin = getSupabaseAdmin() } catch (e) {
+    return res.status(503).json({ error: e.message })
+  }
 
   const token = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim()
   if (!token) return res.status(401).json({ error: 'Missing auth token' })

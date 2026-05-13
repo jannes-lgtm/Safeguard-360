@@ -195,16 +195,32 @@ export default function SOS() {
       date_issued: new Date().toISOString().split('T')[0],
     })
 
-    // Fire-and-forget: send email + SMS to admin and emergency contacts
+    // Send SOS notifications with retry — critical path, must not silently fail
     if (session?.access_token) {
-      fetch('/api/notify', {
-        method: 'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ type: 'sos', ...payload }),
-      }).catch(e => console.warn('[SOS] notify failed:', e.message))
+      const notifyWithRetry = async (attempt = 1) => {
+        try {
+          const r = await fetch('/api/notify', {
+            method: 'POST',
+            headers: {
+              'Content-Type':  'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ type: 'sos', ...payload }),
+          })
+          if (!r.ok && attempt < 3) {
+            await new Promise(res => setTimeout(res, attempt * 2000))
+            return notifyWithRetry(attempt + 1)
+          }
+          if (!r.ok) console.error('[SOS] notify failed after 3 attempts:', r.status)
+        } catch (e) {
+          if (attempt < 3) {
+            await new Promise(res => setTimeout(res, attempt * 2000))
+            return notifyWithRetry(attempt + 1)
+          }
+          console.error('[SOS] notify network failure after 3 attempts:', e.message)
+        }
+      }
+      notifyWithRetry()
     }
 
     setStep('sent')

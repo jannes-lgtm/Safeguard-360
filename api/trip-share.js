@@ -3,17 +3,24 @@
  * Public endpoint — no auth required.
  * Verifies share token + passcode, returns safe trip data.
  */
-import { createClient } from '@supabase/supabase-js'
 import { adapt } from './_adapter.js'
+import { getSupabaseAdmin } from './_supabase.js'
+import crypto from 'crypto'
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-)
+function safeEqual(a, b) {
+  // Constant-time string comparison — prevents timing attacks on passcode brute-force
+  if (!a || !b || a.length !== b.length) return false
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b))
+}
 
 async function _handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end()
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  let supabaseAdmin
+  try { supabaseAdmin = getSupabaseAdmin() } catch (e) {
+    return res.status(503).json({ error: e.message })
+  }
 
   const { token, passcode } = req.query
   if (!token || !passcode) return res.status(400).json({ error: 'token and passcode are required' })
@@ -25,7 +32,7 @@ async function _handler(req, res) {
     .single()
 
   if (!trip) return res.status(404).json({ error: 'Trip not found' })
-  if (trip.share_passcode !== passcode) return res.status(401).json({ error: 'Incorrect passcode' })
+  if (!safeEqual(trip.share_passcode, passcode)) return res.status(401).json({ error: 'Incorrect passcode' })
 
   // Load traveller name (no sensitive data)
   const { data: profile } = await supabaseAdmin

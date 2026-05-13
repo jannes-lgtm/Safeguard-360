@@ -4,15 +4,10 @@
  * 1. Generates a secure share token + passcode on the itinerary
  * 2. Emails all emergency contacts the trip details + share link
  */
-import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from './_notify.js'
 import { adapt } from './_adapter.js'
+import { getSupabaseAdmin } from './_supabase.js'
 import crypto from 'crypto'
-
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-)
 
 const APP_URL = process.env.APP_URL || 'https://www.risk360.co'
 
@@ -139,6 +134,11 @@ function buildContactEmail({ traveller, trip, contact, shareUrl, passcode }) {
 
 async function _handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  let supabaseAdmin
+  try { supabaseAdmin = getSupabaseAdmin() } catch (e) {
+    return res.status(503).json({ error: e.message })
+  }
 
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) return res.status(401).json({ error: 'Unauthorised' })

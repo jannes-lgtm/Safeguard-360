@@ -54,16 +54,12 @@
  * );
  */
 
-import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from './_notify.js'
 import { synthesiseBrief, fetchGDACS, fetchUSGS, fetchHealthOutbreaks } from './_claudeSynth.js'
 
 const APP_URL = process.env.APP_URL || 'https://www.risk360.co'
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-)
+import { getSupabaseAdmin } from './_supabase.js'
 
 // ── Training modules required per risk level ──────────────────────────────────
 const RISK_MODULES = {
@@ -154,6 +150,11 @@ async function getCompletedModules(userId) {
 // ── Main handler ──────────────────────────────────────────────────────────────
 async function _handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  let supabaseAdmin
+  try { supabaseAdmin = getSupabaseAdmin() } catch (e) {
+    return res.status(503).json({ error: e.message })
+  }
 
   // Verify caller is authenticated admin
   const token = req.headers.authorization?.replace('Bearer ', '')
@@ -492,10 +493,20 @@ async function _handler(req, res) {
     <!-- CTA -->
     ${briefingCta}
 
+    <!-- Health declaration CTA -->
+    <div style="background:#EEF1FF;border:1px solid #C7D2FE;border-radius:8px;padding:14px 18px;margin-bottom:16px;">
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#0118A1;text-transform:uppercase;letter-spacing:.08em;">🏥 Pre-Travel Health Declaration Required</p>
+      <p style="margin:0 0 12px;font-size:13px;color:#374151;line-height:1.5;">Confirm your vaccination status and medical fitness to travel before departure.</p>
+      <a href="${APP_URL}/health/${trip_id}"
+        style="display:inline-block;background:#0118A1;color:#fff;text-decoration:none;font-weight:700;font-size:13px;padding:10px 22px;border-radius:8px;">
+        Complete Health Declaration →
+      </a>
+    </div>
+
     <!-- Deadline warning -->
     <div style="background:#FEF3C7;border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;margin-top:8px;">
       <p style="margin:0;font-size:12px;color:#92400E;font-weight:600;">
-        ⚠️ Complete all pre-travel training and acknowledge your briefing before your departure on ${trip.depart_date}.
+        ⚠️ Complete all pre-travel training, your health declaration, and acknowledge your briefing before your departure on ${trip.depart_date}.
       </p>
     </div>
 
