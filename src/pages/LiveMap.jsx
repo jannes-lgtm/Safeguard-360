@@ -1,34 +1,43 @@
-// Live Location & Map Page
-// Required Supabase table:
-// create table staff_locations (
-//   id uuid primary key default gen_random_uuid(),
-//   user_id uuid references auth.users(id) on delete cascade,
-//   full_name text,
-//   latitude decimal(10,8) not null, longitude decimal(11,8) not null,
-//   accuracy decimal,
-//   trip_name text, arrival_city text,
-//   is_sharing boolean not null default true,
-//   recorded_at timestamptz not null default now()
-// );
-// alter table staff_locations enable row level security;
-// create policy "users_own"  on staff_locations for all using (auth.uid() = user_id);
-// create policy "admin_all"  on staff_locations for all using (
-//   exists (select 1 from profiles where id = auth.uid() and role = 'admin')
-// );
+/**
+ * LiveMap — Operational Geospatial Intelligence
+ *
+ * Engine: MapLibre GL JS (WebGL, GPU-accelerated, 60fps)
+ * Tiles:  CartoDB Dark Matter (free, no key) | MapTiler (with VITE_MAPTILER_KEY)
+ *
+ * Features:
+ *  - Realtime traveller positions via Supabase Realtime channel (no polling)
+ *  - WS reconnect with exponential backoff
+ *  - Location write throttled to 30s (vs previous 500ms)
+ *  - Risk zone overlays coloured by severity
+ *  - Proximity alerts (haversine, client-side)
+ *  - Style switching: Operational Dark / Standard / Satellite / Terrain
+ *  - Layer toggles: Travellers / Risk Zones
+ *  - Full-height responsive layout (not fixed 480px)
+ *  - Mobile-optimised floating control panel
+ *  - No window.* global pollution
+ */
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import L from 'leaflet'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import {
-  Navigation, MapPin, RefreshCw, Radio,
-  EyeOff, Users, Clock, AlertCircle, CheckCircle, AlertTriangle
+  Navigation, MapPin, RefreshCw, Radio, EyeOff, Users,
+  AlertCircle, AlertTriangle, Layers, Satellite, Map,
+  Wifi, WifiOff, ChevronDown, ChevronUp, X, Mountain,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
 import { cityToCountry, COUNTRY_META } from '../data/intelData'
+import {
+  MAP_STYLES, MAP_DEFAULTS, RISK_STYLE,
+  PROXIMITY_KM, WS_RECONNECT, LOCATION_WRITE_THROTTLE_MS, HAS_MAPTILER,
+} from '../lib/mapConfig'
 
 const BRAND_BLUE  = '#0118A1'
 const BRAND_GREEN = '#AACC00'
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function timeAgo(d) {
   if (!d) return '—'
@@ -41,37 +50,6 @@ function timeAgo(d) {
   return `${Math.floor(h / 24)}d ago`
 }
 
-// Build a pin-shaped div icon
-function makeIcon(color, initials) {
-  return L.divIcon({
-    className: '',
-    html: `<div style="
-      background:${color};color:white;
-      width:32px;height:32px;border-radius:50% 50% 50% 0;
-      transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;
-      font-weight:bold;font-size:10px;font-family:sans-serif;
-      box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid white;">
-      <span style="transform:rotate(45deg)">${initials}</span></div>`,
-    iconSize:    [32, 32],
-    iconAnchor:  [16, 32],
-    popupAnchor: [0, -36],
-  })
-}
-
-function myIcon(color) {
-  return L.divIcon({
-    className: '',
-    html: `<div style="
-      background:${color};width:20px;height:20px;border-radius:50%;
-      box-shadow:0 0 0 4px ${color}40,0 2px 6px rgba(0,0,0,0.3);
-      border:2px solid white;"></div>`,
-    iconSize:    [20, 20],
-    iconAnchor:  [10, 10],
-    popupAnchor: [0, -14],
-  })
-}
-
-// Haversine distance in km between two GPS coordinates
 function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -81,30 +59,117 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+function initials(name) {
+  return (name || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+}
+
+// Build a traveller marker element (custom HTML → maplibre Marker)
+function buildMarkerEl(name, color, isMe = false, isSOS = false) {
+  const el = document.createElement('div')
+  el.className = 'op-marker'
+  el.style.cssText = `
+    position: relative;
+    width: ${isMe ? '20px' : '32px'};
+    height: ${isMe ? '20px' : '32px'};
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    background: ${color};
+    border: 2px solid white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+  `
+  if (isMe) {
+    el.style.borderRadius = '50%'
+    el.style.transform = 'none'
+    el.style.width = '18px'
+    el.style.height = '18px'
+    el.style.boxShadow = `0 0 0 4px ${color}40, 0 2px 8px rgba(0,0,0,0.4)`
+  }
+
+  if (!isMe) {
+    const inner = document.createElement('span')
+    inner.style.cssText = `
+      display: inline-flex; align-items: center; justify-content: center;
+      transform: rotate(45deg);
+      color: white;
+      font-family: system-ui, sans-serif;
+      font-weight: 700;
+      font-size: ${isSOS ? '9px' : '10px'};
+      line-height: 1;
+      text-align: center;
+      width: 100%;
+    `
+    inner.textContent = isSOS ? '🆘' : initials(name)
+    el.appendChild(inner)
+  }
+
+  // Pulse ring for SOS or active sharing
+  if (isSOS) {
+    const pulse = document.createElement('div')
+    pulse.style.cssText = `
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) rotate(45deg);
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: rgba(239,68,68,0.3);
+      animation: op-pulse 1.5s ease-out infinite;
+      pointer-events: none;
+      z-index: -1;
+    `
+    el.appendChild(pulse)
+  }
+
+  return el
+}
+
+// ── Style switcher config ─────────────────────────────────────────────────────
+const STYLE_OPTIONS = [
+  { id: 'operational', label: 'Operational', icon: Radio,    dark: true  },
+  { id: 'standard',    label: 'Standard',    icon: Map,      dark: false },
+  { id: 'satellite',   label: 'Satellite',   icon: Satellite,dark: true  },
+  { id: 'terrain',     label: 'Terrain',     icon: Mountain, dark: false },
+]
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function LiveMap() {
-  const [profile,       setProfile]       = useState(null)
-  const [activeTrip,    setActiveTrip]    = useState(null)
-  const [isAdmin,       setIsAdmin]       = useState(false)
-  const [sharing,       setSharing]       = useState(false)
-  const [myPos,         setMyPos]         = useState(null)
-  const [gpsErr,        setGpsErr]        = useState(null)
-  const [locations,     setLocations]     = useState([])
-  const [loading,       setLoading]       = useState(true)
-  const [intelCountry,  setIntelCountry]  = useState(null)
-  const [mapReady,      setMapReady]      = useState(false)
-  const [tripAlerts,    setTripAlerts]    = useState([])   // live risk alerts from AI scan
-  const [proximityWarnings, setProximityWarnings] = useState([])  // nearby risk zones
+  const [profile,            setProfile]            = useState(null)
+  const [activeTrip,         setActiveTrip]         = useState(null)
+  const [isAdmin,            setIsAdmin]            = useState(false)
+  const [sharing,            setSharing]            = useState(false)
+  const [myPos,              setMyPos]              = useState(null)
+  const [gpsErr,             setGpsErr]             = useState(null)
+  const [locations,          setLocations]          = useState([])
+  const [loading,            setLoading]            = useState(true)
+  const [tripAlerts,         setTripAlerts]         = useState([])
+  const [proximityWarnings,  setProximityWarnings]  = useState([])
+  const [intelCountry,       setIntelCountry]       = useState(null)
+  const [activeStyle,        setActiveStyle]        = useState('operational')
+  const [layersOpen,         setLayersOpen]         = useState(false)
+  const [panelOpen,          setPanelOpen]          = useState(true)
+  const [showTravellers,     setShowTravellers]     = useState(true)
+  const [showRiskZones,      setShowRiskZones]      = useState(true)
+  const [wsStatus,           setWsStatus]           = useState('connecting') // 'connected'|'reconnecting'|'offline'
+  const [reconnectAttempts,  setReconnectAttempts]  = useState(0)
 
-  const containerRef   = useRef(null)   // DOM div
-  const mapRef         = useRef(null)   // L.Map instance
-  const myMarkerRef    = useRef(null)   // my position marker
-  const staffMarkers   = useRef({})     // { user_id: L.Marker }
-  const alertMarkers   = useRef([])     // L.CircleMarker[] for risk alerts
-  const watchRef       = useRef(null)
-  const updateRef      = useRef(null)
+  // Refs
+  const containerRef     = useRef(null)
+  const mapRef           = useRef(null)
+  const markersRef       = useRef({})        // { user_id: maplibregl.Marker }
+  const myMarkerRef      = useRef(null)
+  const channelRef       = useRef(null)
+  const watchRef         = useRef(null)
+  const lastWriteRef     = useRef(0)
+  const reconnectTimer   = useRef(null)
+  const styleChanging    = useRef(false)
+  const locationsRef     = useRef([])        // keep ref in sync for closure access
 
-  // ── Data loading ────────────────────────────────────────────────────────────
-  const loadData = useCallback(async () => {
+  // ── Initial data load ───────────────────────────────────────────────────────
+  const loadInitialData = useCallback(async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
@@ -114,44 +179,34 @@ export default function LiveMap() {
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('itineraries').select('*')
         .eq('user_id', user.id).lte('depart_date', today).gte('return_date', today)
-        .limit(1).single(),
+        .limit(1).maybeSingle(),
       supabase.from('staff_locations').select('*')
         .eq('is_sharing', true)
-        .gte('recorded_at', new Date(Date.now() - 86400000).toISOString())
+        .gte('recorded_at', new Date(Date.now() - 86_400_000).toISOString())
         .order('recorded_at', { ascending: false }),
     ])
 
     const role = prof?.role || user.app_metadata?.role || 'traveller'
-    setIsAdmin(role === 'admin')
+    setIsAdmin(role === 'admin' || role === 'developer')
     setProfile({ ...prof, id: user.id, email: user.email })
     setActiveTrip(trip || null)
 
+    // Deduplicate to latest position per user
     const seen = new Set()
-    const dedup = (locs || []).filter(l => {
-      if (seen.has(l.user_id)) return false
-      seen.add(l.user_id)
-      return true
-    })
+    const dedup = (locs || []).filter(l => { if (seen.has(l.user_id)) return false; seen.add(l.user_id); return true })
+    locationsRef.current = dedup
     setLocations(dedup)
     setLoading(false)
 
-    // Fetch trip alerts in the background (fire & forget)
+    // Background: fetch trip alerts for risk zone overlay
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.access_token) {
-        fetch('/api/trip-alert-scan', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        })
+        fetch('/api/trip-alert-scan', { headers: { Authorization: `Bearer ${session.access_token}` } })
           .then(r => r.ok ? r.json() : null)
           .then(data => {
             if (data?.alerts) {
-              // Only show Critical / High severity alerts on the map
-              const mapAlerts = data.alerts.filter(a =>
-                ['Critical', 'High'].includes(a.severity) &&
-                a.alert_type !== 'ai_brief' &&
-                a.country
-              )
-              setTripAlerts(mapAlerts)
+              setTripAlerts(data.alerts.filter(a => ['Critical', 'High'].includes(a.severity) && a.country))
             }
           })
           .catch(() => {})
@@ -159,219 +214,400 @@ export default function LiveMap() {
     } catch {}
   }, [])
 
-  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => { loadInitialData() }, [loadInitialData])
 
-  // ── Leaflet init ────────────────────────────────────────────────────────────
+  // ── Supabase Realtime subscription ─────────────────────────────────────────
+  const subscribeRealtime = useCallback(() => {
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current)
+      channelRef.current = null
+    }
+    clearTimeout(reconnectTimer.current)
+
+    const channel = supabase
+      .channel('op-staff-locations')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table:  'staff_locations',
+      }, (payload) => {
+        const updated = payload.new
+        if (!updated?.is_sharing || !updated?.user_id) return
+
+        setLocations(prev => {
+          const exists = prev.findIndex(l => l.user_id === updated.user_id)
+          const next = exists >= 0
+            ? prev.map(l => l.user_id === updated.user_id ? updated : l)
+            : [updated, ...prev]
+          locationsRef.current = next
+          return next
+        })
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setWsStatus('connected')
+          setReconnectAttempts(0)
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setWsStatus('reconnecting')
+          supabase.removeChannel(channel)
+          channelRef.current = null
+
+          // Exponential backoff reconnect
+          setReconnectAttempts(prev => {
+            const attempt = prev + 1
+            if (attempt > WS_RECONNECT.maxAttempts) { setWsStatus('offline'); return prev }
+            const delay = Math.min(WS_RECONNECT.baseDelayMs * 2 ** (attempt - 1), WS_RECONNECT.maxDelayMs)
+            reconnectTimer.current = setTimeout(subscribeRealtime, delay)
+            return attempt
+          })
+        }
+      })
+
+    channelRef.current = channel
+  }, [])   // eslint-disable-line
+
+  useEffect(() => {
+    subscribeRealtime()
+    return () => {
+      clearTimeout(reconnectTimer.current)
+      if (channelRef.current) supabase.removeChannel(channelRef.current)
+    }
+  }, [subscribeRealtime])
+
+  // ── MapLibre initialisation ─────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
 
-    const map = L.map(containerRef.current, {
-      center:      [-1.2921, 36.8219],   // Nairobi default
-      zoom:        5,
-      zoomControl: true,
+    const style = MAP_STYLES[activeStyle] || MAP_STYLES.operational
+    if (!style) return   // satellite/terrain without key — don't init
+
+    const map = new maplibregl.Map({
+      container:    containerRef.current,
+      style,
+      center:       MAP_DEFAULTS.center,
+      zoom:         MAP_DEFAULTS.zoom,
+      minZoom:      MAP_DEFAULTS.minZoom,
+      maxZoom:      MAP_DEFAULTS.maxZoom,
+      attributionControl: false,
     })
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(map)
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right')
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left')
+
+    // Inject CSS for pulse animation once
+    if (!document.getElementById('op-map-styles')) {
+      const styleEl = document.createElement('style')
+      styleEl.id = 'op-map-styles'
+      styleEl.textContent = `
+        @keyframes op-pulse {
+          0%   { transform: translate(-50%,-50%) scale(0.8); opacity: 0.8; }
+          100% { transform: translate(-50%,-50%) scale(2.2); opacity: 0; }
+        }
+        .op-marker:hover { filter: brightness(1.2); }
+        .maplibregl-popup-content {
+          border-radius: 10px !important;
+          padding: 12px 14px !important;
+          font-family: system-ui, sans-serif !important;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important;
+          min-width: 160px;
+          max-width: 240px;
+        }
+        .maplibregl-popup-tip { display: none !important; }
+      `
+      document.head.appendChild(styleEl)
+    }
 
     mapRef.current = map
-    setMapReady(true)
 
     return () => {
+      // Remove all custom markers before destroying
+      Object.values(markersRef.current).forEach(m => m.remove())
+      markersRef.current = {}
+      if (myMarkerRef.current) { myMarkerRef.current.remove(); myMarkerRef.current = null }
       map.remove()
-      mapRef.current       = null
-      myMarkerRef.current  = null
-      staffMarkers.current = {}
-      alertMarkers.current = []
-      setMapReady(false)
+      mapRef.current = null
     }
-  }, [])
+  }, [])  // eslint-disable-line
 
-  // ── Update my position marker ───────────────────────────────────────────────
-  useEffect(() => {
-    if (!mapRef.current || !mapReady || !myPos) return
-    const pos = [myPos.latitude, myPos.longitude]
-    if (myMarkerRef.current) {
-      myMarkerRef.current.setLatLng(pos)
-    } else {
-      myMarkerRef.current = L.marker(pos, { icon: myIcon(BRAND_GREEN) })
-        .addTo(mapRef.current)
-    }
-    mapRef.current.setView(pos, 12, { animate: true })
-  }, [myPos, mapReady])
-
-  // ── Update staff markers ────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!mapRef.current || !mapReady) return
-
-    const currentIds = new Set(locations.map(l => l.user_id))
-
-    // Remove markers for users no longer in list
-    Object.keys(staffMarkers.current).forEach(uid => {
-      if (!currentIds.has(uid)) {
-        staffMarkers.current[uid].remove()
-        delete staffMarkers.current[uid]
-      }
-    })
-
-    // Add / update markers
-    locations.forEach(loc => {
-      if (loc.user_id === profile?.id) return   // skip self (shown separately)
-      const pos    = [loc.latitude, loc.longitude]
-      const inits  = (loc.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-      const country = loc.arrival_city ? cityToCountry(loc.arrival_city) : null
-
-      const popupHtml = `
-        <div style="font-family:sans-serif;font-size:12px;min-width:140px">
-          <p style="font-weight:700;font-size:14px;margin:0 0 4px">${loc.full_name || 'Unknown'}</p>
-          ${loc.trip_name ? `<p style="color:#374151;margin:0 0 2px">${loc.trip_name}</p>` : ''}
-          ${loc.arrival_city ? `<p style="color:#6b7280;margin:0 0 2px">📍 ${loc.arrival_city}</p>` : ''}
-          <p style="color:#9ca3af;margin:0 0 6px">Updated ${timeAgo(loc.recorded_at)}</p>
-          ${country ? `<button onclick="window.__livemapIntel('${country.replace(/'/g, "\\'")}')"
-            style="background:none;border:none;color:#0118A1;font-weight:600;cursor:pointer;padding:0;font-size:12px">
-            ${country} intel brief →</button>` : ''}
-        </div>`
-
-      if (staffMarkers.current[loc.user_id]) {
-        staffMarkers.current[loc.user_id].setLatLng(pos)
-        staffMarkers.current[loc.user_id].getPopup()?.setContent(popupHtml)
-      } else {
-        const marker = L.marker(pos, { icon: makeIcon(BRAND_BLUE, inits) })
-          .bindPopup(popupHtml)
-          .addTo(mapRef.current)
-        staffMarkers.current[loc.user_id] = marker
-      }
-    })
-  }, [locations, profile, mapReady])
-
-  // ── Risk alert markers (trip_alerts → map) ─────────────────────────────────
+  // ── Style switching ─────────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !mapReady) return
+    if (!map || styleChanging.current) return
+    const style = MAP_STYLES[activeStyle]
+    if (!style) return   // no key for satellite/terrain
 
-    // Remove old alert markers
-    alertMarkers.current.forEach(m => m.remove())
-    alertMarkers.current = []
+    styleChanging.current = true
+    // Preserve current viewport
+    const center  = map.getCenter()
+    const zoom    = map.getZoom()
+    const bearing = map.getBearing()
+    const pitch   = map.getPitch()
 
-    // Group alerts by country — show one marker per country (worst severity)
+    map.setStyle(style)
+    map.once('styledata', () => {
+      map.setCenter(center)
+      map.setZoom(zoom)
+      map.setBearing(bearing)
+      map.setPitch(pitch)
+      styleChanging.current = false
+      // Re-add risk zone overlay after style change
+      addRiskZoneLayers(map, tripAlerts, showRiskZones)
+    })
+  }, [activeStyle])  // eslint-disable-line
+
+  // ── Risk zone overlay (GeoJSON fill + circle layers) ───────────────────────
+  const addRiskZoneLayers = useCallback((map, alerts, visible) => {
+    if (!map) return
+    // Remove if exists
+    ['risk-zones-fill', 'risk-zones-stroke', 'risk-zones-labels'].forEach(id => {
+      if (map.getLayer(id)) map.removeLayer(id)
+    })
+    if (map.getSource('risk-zones')) map.removeSource('risk-zones')
+
+    // Build GeoJSON from country alerts
     const byCountry = {}
-    for (const alert of tripAlerts) {
-      const country = alert.country
-      const meta    = COUNTRY_META[country]
+    const SEV_ORDER = { Critical: 4, High: 3, Medium: 2, Low: 1 }
+    for (const alert of alerts) {
+      const meta = COUNTRY_META[alert.country]
       if (!meta) continue
-      if (!byCountry[country]) {
-        byCountry[country] = { meta, alerts: [], severity: alert.severity }
-      }
-      byCountry[country].alerts.push(alert)
-      const order = { Critical: 4, High: 3, Medium: 2, Low: 1 }
-      if ((order[alert.severity] || 0) > (order[byCountry[country].severity] || 0)) {
-        byCountry[country].severity = alert.severity
+      if (!byCountry[alert.country]) byCountry[alert.country] = { ...meta, severity: alert.severity, alerts: [] }
+      byCountry[alert.country].alerts.push(alert)
+      if ((SEV_ORDER[alert.severity] || 0) > (SEV_ORDER[byCountry[alert.country].severity] || 0)) {
+        byCountry[alert.country].severity = alert.severity
       }
     }
 
-    for (const [country, { meta, alerts, severity }] of Object.entries(byCountry)) {
-      const color  = severity === 'Critical' ? '#dc2626' : '#f97316'
-      const radius = severity === 'Critical' ? 18 : 14
+    const features = Object.entries(byCountry).map(([country, data]) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [data.lon, data.lat] },
+      properties: {
+        country,
+        severity:    data.severity,
+        alertCount:  data.alerts.length,
+        title:       data.alerts[0]?.title?.slice(0, 80) || '',
+        color:       RISK_STYLE[data.severity]?.color || '#ef4444',
+        radius:      RISK_STYLE[data.severity]?.radius || 16,
+      },
+    }))
 
-      const safeName  = country.replace(/'/g, "\\'")
-      const alertList = alerts.slice(0, 3).map(a =>
-        `<li style="margin:2px 0;color:#374151">• <b>${a.alert_type}:</b> ${(a.title || '').slice(0, 60)}</li>`
-      ).join('')
-
-      // Show distance from user if GPS is available
-      const distLine = myPos
-        ? (() => {
-            const km = Math.round(haversineKm(myPos.latitude, myPos.longitude, meta.lat, meta.lon))
-            return `<p style="font-size:10px;color:#6b7280;margin:0 0 6px">📍 ~${km.toLocaleString()} km from your position</p>`
-          })()
-        : ''
-
-      const popupHtml = `
-        <div style="font-family:sans-serif;font-size:12px;min-width:180px;max-width:220px">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-            <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0"></span>
-            <b style="font-size:13px;color:#111">${country}</b>
-            <span style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;
-              background:${color}20;color:${color};border:1px solid ${color}50">${severity}</span>
-          </div>
-          ${distLine}
-          <ul style="margin:0 0 6px;padding:0;list-style:none;font-size:11px">${alertList}</ul>
-          ${alerts.length > 3 ? `<p style="font-size:10px;color:#9ca3af;margin:0 0 6px">+${alerts.length - 3} more alerts</p>` : ''}
-          <button onclick="window.__livemapIntel('${safeName}')"
-            style="width:100%;background:#0118A1;color:white;border:none;border-radius:4px;
-            padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer;text-align:center">
-            View ${country} Intel →
-          </button>
-        </div>`
-
-      const marker = L.circleMarker([meta.lat, meta.lon], {
-        radius,
-        color,
-        fillColor: color,
-        fillOpacity: 0.25,
-        weight: 2,
-        opacity: 0.8,
-        className: 'risk-pulse',
+    try {
+      map.addSource('risk-zones', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features },
       })
-        .bindPopup(popupHtml, { maxWidth: 240 })
-        .addTo(map)
 
-      alertMarkers.current.push(marker)
+      map.addLayer({
+        id:     'risk-zones-fill',
+        type:   'circle',
+        source: 'risk-zones',
+        layout: { visibility: visible ? 'visible' : 'none' },
+        paint: {
+          'circle-radius':          ['interpolate', ['linear'], ['zoom'], 2, 10, 6, ['get', 'radius'], 12, 28],
+          'circle-color':           ['get', 'color'],
+          'circle-opacity':         0.18,
+          'circle-stroke-color':    ['get', 'color'],
+          'circle-stroke-width':    2,
+          'circle-stroke-opacity':  0.7,
+        },
+      })
+
+      // Pop-up on click
+      map.on('click', 'risk-zones-fill', (e) => {
+        const f = e.features?.[0]
+        if (!f) return
+        const { country, severity, alertCount, title, color } = f.properties
+        const html = `
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+              <span style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block"></span>
+              <b style="font-size:13px;color:#111">${country}</b>
+              <span style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px;background:${color}20;color:${color};border:1px solid ${color}40">${severity}</span>
+            </div>
+            <p style="font-size:11px;color:#555;margin:0 0 8px;line-height:1.4">${title}${alertCount > 1 ? ` +${alertCount - 1} more` : ''}</p>
+            <button id="intel-btn-${country.replace(/\s/g, '_')}"
+              style="width:100%;background:#0118A1;color:white;border:none;border-radius:6px;padding:6px 8px;font-size:11px;font-weight:600;cursor:pointer">
+              View ${country} Intel →
+            </button>
+          </div>`
+
+        const popup = new maplibregl.Popup({ closeButton: false, offset: 5 })
+          .setLngLat(e.lngLat)
+          .setHTML(html)
+          .addTo(map)
+
+        // Attach click handler after popup renders
+        setTimeout(() => {
+          document.getElementById(`intel-btn-${country.replace(/\s/g, '_')}`)?.addEventListener('click', () => {
+            popup.remove()
+            setIntelCountry(country)
+          })
+        }, 50)
+      })
+
+      map.on('mouseenter', 'risk-zones-fill', () => { map.getCanvas().style.cursor = 'pointer' })
+      map.on('mouseleave', 'risk-zones-fill', () => { map.getCanvas().style.cursor = '' })
+
+    } catch {
+      // Source may already exist during rapid style change — ignore
     }
-  }, [tripAlerts, myPos, mapReady])
+  }, [])  // eslint-disable-line
 
-  // ── Proximity warnings — how close is the user to active risk zones? ────────
+  // Re-apply risk zones when alerts or visibility changes
   useEffect(() => {
-    if (!myPos || tripAlerts.length === 0) {
-      setProximityWarnings([])
-      return
+    const map = mapRef.current
+    if (!map) return
+
+    const tryAdd = () => addRiskZoneLayers(map, tripAlerts, showRiskZones)
+
+    if (map.isStyleLoaded()) {
+      tryAdd()
+    } else {
+      map.once('load', tryAdd)
+    }
+  }, [tripAlerts, showRiskZones, addRiskZoneLayers])
+
+  // ── Layer visibility toggle ─────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !map.isStyleLoaded()) return
+    if (map.getLayer('risk-zones-fill')) {
+      map.setLayoutProperty('risk-zones-fill', 'visibility', showRiskZones ? 'visible' : 'none')
+    }
+  }, [showRiskZones])
+
+  // ── Traveller markers (HTML markers, live-updated) ──────────────────────────
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    const waitForMap = () => {
+      if (!map.isStyleLoaded()) { setTimeout(waitForMap, 100); return }
+
+      const currentIds = new Set(locations.map(l => l.user_id))
+
+      // Remove stale markers
+      Object.keys(markersRef.current).forEach(uid => {
+        if (!currentIds.has(uid)) {
+          markersRef.current[uid].remove()
+          delete markersRef.current[uid]
+        }
+      })
+
+      locations.forEach(loc => {
+        const isMe    = loc.user_id === profile?.id
+        const lnglat  = [parseFloat(loc.longitude), parseFloat(loc.latitude)]
+        const color   = isMe ? BRAND_GREEN : BRAND_BLUE
+        const el      = buildMarkerEl(loc.full_name, color, isMe, false)
+        const country = loc.arrival_city ? cityToCountry(loc.arrival_city) : null
+
+        const popupHtml = `
+          <div>
+            <p style="font-weight:700;font-size:13px;margin:0 0 4px;color:#111">${loc.full_name || 'Unknown'}${isMe ? ' (you)' : ''}</p>
+            ${loc.trip_name  ? `<p style="font-size:11px;color:#555;margin:0 0 2px">✈️ ${loc.trip_name}</p>` : ''}
+            ${loc.arrival_city ? `<p style="font-size:11px;color:#6b7280;margin:0 0 4px">📍 ${loc.arrival_city}</p>` : ''}
+            <p style="font-size:10px;color:#9ca3af;margin:0 0 6px">Updated ${timeAgo(loc.recorded_at)}</p>
+            ${country ? `<button id="intel-${loc.user_id}" style="width:100%;background:#0118A1;color:white;border:none;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer">${country} intel →</button>` : ''}
+          </div>`
+
+        if (markersRef.current[loc.user_id]) {
+          markersRef.current[loc.user_id].setLngLat(lnglat)
+          markersRef.current[loc.user_id].getPopup()?.setHTML(popupHtml)
+        } else {
+          if (!showTravellers) return
+          const popup = new maplibregl.Popup({ closeButton: false, offset: 20 }).setHTML(popupHtml)
+          popup.on('open', () => {
+            setTimeout(() => {
+              document.getElementById(`intel-${loc.user_id}`)?.addEventListener('click', () => {
+                popup.remove()
+                setIntelCountry(country)
+              })
+            }, 50)
+          })
+          markersRef.current[loc.user_id] = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+            .setLngLat(lnglat)
+            .setPopup(popup)
+            .addTo(map)
+        }
+      })
+
+      // Auto-fit to all visible travellers on first load
+      if (locations.length > 0 && !sharing) {
+        const bounds = new maplibregl.LngLatBounds()
+        locations.forEach(l => bounds.extend([parseFloat(l.longitude), parseFloat(l.latitude)]))
+        if (!bounds.isEmpty()) {
+          map.fitBounds(bounds, { padding: 80, maxZoom: 8, duration: 1000 })
+        }
+      }
     }
 
-    // Distance thresholds by severity (km)
-    const THRESHOLD = { Critical: 500, High: 300, Medium: 200 }
+    waitForMap()
+  }, [locations, profile, showTravellers])  // eslint-disable-line
 
-    // Group by country, escalate to worst severity
+  // Toggle traveller marker visibility
+  useEffect(() => {
+    Object.values(markersRef.current).forEach(m => {
+      m.getElement().style.display = showTravellers ? 'flex' : 'none'
+    })
+    if (myMarkerRef.current) {
+      myMarkerRef.current.getElement().style.display = showTravellers ? 'block' : 'none'
+    }
+  }, [showTravellers])
+
+  // ── My position marker ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !myPos) return
+
+    const pos = [myPos.longitude, myPos.latitude]
+
+    const waitForStyle = () => {
+      if (!map.isStyleLoaded()) { setTimeout(waitForStyle, 100); return }
+      if (myMarkerRef.current) {
+        myMarkerRef.current.setLngLat(pos)
+      } else {
+        const el = buildMarkerEl('me', BRAND_GREEN, true)
+        myMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
+          .setLngLat(pos)
+          .addTo(map)
+      }
+      map.easeTo({ center: pos, zoom: Math.max(map.getZoom(), 11), duration: 800 })
+    }
+    waitForStyle()
+  }, [myPos])
+
+  // ── Proximity warnings ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!myPos || !tripAlerts.length) { setProximityWarnings([]); return }
     const byCountry = {}
+    const SEV_ORDER = { Critical: 4, High: 3, Medium: 2, Low: 1 }
     for (const alert of tripAlerts) {
-      const country = alert.country
-      if (!country) continue
-      const meta = COUNTRY_META[country]
+      const meta = COUNTRY_META[alert.country]
       if (!meta) continue
-      if (!byCountry[country]) {
-        byCountry[country] = { country, meta, severity: alert.severity, alerts: [] }
-      }
-      byCountry[country].alerts.push(alert)
-      const order = { Critical: 4, High: 3, Medium: 2, Low: 1 }
-      if ((order[alert.severity] || 0) > (order[byCountry[country].severity] || 0)) {
-        byCountry[country].severity = alert.severity
+      if (!byCountry[alert.country]) byCountry[alert.country] = { country: alert.country, meta, severity: alert.severity, alerts: [] }
+      byCountry[alert.country].alerts.push(alert)
+      if ((SEV_ORDER[alert.severity] || 0) > (SEV_ORDER[byCountry[alert.country].severity] || 0)) {
+        byCountry[alert.country].severity = alert.severity
       }
     }
-
-    const warnings = []
-    for (const { country, meta, severity, alerts } of Object.values(byCountry)) {
-      const km = haversineKm(myPos.latitude, myPos.longitude, meta.lat, meta.lon)
-      const threshold = THRESHOLD[severity] || 300
-      if (km <= threshold) {
-        warnings.push({ country, severity, distanceKm: Math.round(km), alerts })
-      }
-    }
-
-    warnings.sort((a, b) => a.distanceKm - b.distanceKm)
+    const warnings = Object.values(byCountry)
+      .map(({ country, meta, severity, alerts }) => {
+        const km = haversineKm(myPos.latitude, myPos.longitude, meta.lat, meta.lon)
+        return { country, severity, distanceKm: Math.round(km), alerts, threshold: PROXIMITY_KM[severity] || 300 }
+      })
+      .filter(w => w.distanceKm <= w.threshold)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
     setProximityWarnings(warnings)
   }, [myPos, tripAlerts])
 
-  // Register intel brief global handler
-  useEffect(() => {
-    window.__livemapIntel = (country) => setIntelCountry(country)
-    return () => { delete window.__livemapIntel }
-  }, [])
-
   // ── Location sharing ────────────────────────────────────────────────────────
   const pushLocation = useCallback(async (coords) => {
+    const now = Date.now()
+    if (now - lastWriteRef.current < LOCATION_WRITE_THROTTLE_MS) return
+    lastWriteRef.current = now
+
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
-
     await supabase.from('staff_locations').insert({
       user_id:      session.user.id,
       full_name:    profile?.full_name || profile?.email || 'Unknown',
@@ -383,29 +619,20 @@ export default function LiveMap() {
       is_sharing:   true,
       recorded_at:  new Date().toISOString(),
     })
-
-    if (session.access_token) {
-      fetch('/api/trip-alert-scan', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      }).catch(() => {})
-    }
-
-    loadData()
-  }, [profile, activeTrip, loadData])
+    // Realtime subscription will pick up the change — no manual loadData() needed
+  }, [profile, activeTrip])
 
   const startSharing = () => {
     if (!navigator.geolocation) { setGpsErr('GPS not supported on this device'); return }
     setGpsErr(null)
     setSharing(true)
-
     watchRef.current = navigator.geolocation.watchPosition(
       pos => {
         setMyPos(pos.coords)
-        if (updateRef.current) clearTimeout(updateRef.current)
-        updateRef.current = setTimeout(() => pushLocation(pos.coords), 500)
+        pushLocation(pos.coords)
       },
       err => { setGpsErr(err.message); setSharing(false) },
-      { enableHighAccuracy: true, maximumAge: 30000 }
+      { enableHighAccuracy: true, maximumAge: 30_000, timeout: 15_000 }
     )
   }
 
@@ -413,209 +640,278 @@ export default function LiveMap() {
     if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current)
     watchRef.current = null
     setSharing(false)
+    setMyPos(null)
+    if (myMarkerRef.current) { myMarkerRef.current.remove(); myMarkerRef.current = null }
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('staff_locations')
-        .update({ is_sharing: false })
-        .eq('user_id', user.id)
-    }
-    loadData()
+    if (user) await supabase.from('staff_locations').update({ is_sharing: false }).eq('user_id', user.id)
   }
 
-  useEffect(() => () => {
-    if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current)
-  }, [])
+  useEffect(() => () => { if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current) }, [])
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // ── Style switch handler ────────────────────────────────────────────────────
+  const switchStyle = (styleId) => {
+    if (!MAP_STYLES[styleId]) {
+      alert('Satellite and terrain modes require a MapTiler API key.\nAdd VITE_MAPTILER_KEY to your Vercel environment variables.')
+      return
+    }
+    setActiveStyle(styleId)
+    setLayersOpen(false)
+  }
+
+  // ── Derived state ───────────────────────────────────────────────────────────
+  const isDark    = STYLE_OPTIONS.find(s => s.id === activeStyle)?.dark ?? true
+  const textColor = isDark ? 'text-white' : 'text-gray-900'
+  const panelBg   = isDark ? 'bg-gray-900/90 border-white/10' : 'bg-white/95 border-gray-200'
+  const panelText = isDark ? 'text-gray-100' : 'text-gray-800'
+  const subText   = isDark ? 'text-gray-400' : 'text-gray-500'
+
   return (
     <Layout>
       {intelCountry && <IntelBrief country={intelCountry} onClose={() => setIntelCountry(null)} />}
 
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: BRAND_BLUE }}>
-          <Navigation size={20} color="white" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Live Location</h1>
-          <p className="text-sm text-gray-500">Share your position and see your team on the map</p>
-        </div>
-      </div>
+      {/* ── Full-height operational map container ── */}
+      <div className="relative -mx-4 lg:-mx-7 -mt-0" style={{ height: 'calc(100vh - 56px)' }}>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-4 gap-4 mb-5">
-        {[
-          { label: 'Sharing Location', value: locations.length,                                         color: 'text-[#0118A1]' },
-          { label: 'Active Trips',     value: locations.filter(l => l.trip_name).length,                color: 'text-green-600' },
-          { label: 'Risk Alerts',      value: tripAlerts.length,                                        color: tripAlerts.some(a => a.severity === 'Critical') ? 'text-red-600' : tripAlerts.length > 0 ? 'text-orange-500' : 'text-gray-500' },
-          { label: 'Last Updated',     value: locations[0] ? timeAgo(locations[0].recorded_at) : '—',  color: 'text-gray-600' },
-        ].map(s => (
-          <div key={s.label} className="bg-white rounded-[8px] border border-gray-200 p-4 text-center shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-            <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
-          </div>
-        ))}
-      </div>
+        {/* Map canvas */}
+        <div ref={containerRef} className="absolute inset-0" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
-        {/* ── Map ── */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-[12px] border border-gray-200 overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-            style={{ height: 480 }}>
-            <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
+        {/* ── WS status pill ── */}
+        <div className="absolute top-3 left-3 z-20">
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold backdrop-blur-sm border
+            ${wsStatus === 'connected'     ? 'bg-green-500/20 border-green-500/40 text-green-300' :
+              wsStatus === 'reconnecting'  ? 'bg-amber-500/20 border-amber-500/40 text-amber-300' :
+                                             'bg-red-500/20 border-red-500/40 text-red-300'}`}>
+            {wsStatus === 'connected'
+              ? <><Wifi size={10} /> LIVE</>
+              : wsStatus === 'reconnecting'
+              ? <><RefreshCw size={10} className="animate-spin" /> RECONNECTING</>
+              : <><WifiOff size={10} /> OFFLINE</>}
           </div>
         </div>
 
-        {/* ── Side panel ── */}
-        <div className="space-y-4">
+        {/* ── Style + layer switcher ── */}
+        <div className="absolute top-3 right-12 z-20">
+          <button
+            onClick={() => setLayersOpen(p => !p)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold backdrop-blur-sm border bg-gray-900/70 border-white/15 text-white hover:bg-gray-900/90 transition"
+          >
+            <Layers size={13} /> Map
+          </button>
 
-          {/* My location sharing toggle */}
-          <div className="bg-white border border-gray-200 rounded-[12px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">My Location</p>
-
-            {sharing ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-sm text-green-700 font-medium">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  Sharing live location
-                </div>
-                {myPos && (
-                  <p className="text-xs text-gray-500">
-                    {myPos.latitude.toFixed(5)}, {myPos.longitude.toFixed(5)}<br />
-                    Accuracy ±{Math.round(myPos.accuracy || 0)}m
-                  </p>
-                )}
-                {activeTrip && (
-                  <p className="text-xs text-blue-600 flex items-center gap-1">
-                    <MapPin size={9} />{activeTrip.trip_name} · {activeTrip.arrival_city}
-                  </p>
-                )}
-                <button onClick={stopSharing}
-                  className="w-full flex items-center justify-center gap-2 py-2 border border-gray-200 rounded-[6px] text-sm text-gray-600 hover:bg-gray-50">
-                  <EyeOff size={13} />Stop Sharing
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-xs text-gray-500">Your location is not being shared.</p>
-                {gpsErr && <p className="text-xs text-red-500">{gpsErr}</p>}
-                <button onClick={startSharing}
-                  style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
-                  className="w-full flex items-center justify-center gap-2 font-bold py-2.5 rounded-[6px] text-sm hover:opacity-90">
-                  <Navigation size={13} />Share My Location
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Proximity warnings — only when GPS is active and risks are nearby */}
-          {proximityWarnings.length > 0 && (
-            <div className="bg-white border-2 border-red-400 rounded-[12px] p-4 shadow-[0_2px_8px_rgba(220,38,38,0.15)]">
-              <div className="flex items-center gap-2 mb-3">
-                <AlertCircle size={13} className="text-red-600" />
-                <p className="text-xs font-bold text-red-700 uppercase tracking-wider flex-1">Nearby Risk Zones</p>
-                <span className="text-[10px] font-bold bg-red-100 text-red-700 rounded-full px-2 py-0.5">{proximityWarnings.length}</span>
-              </div>
-              <div className="space-y-2">
-                {proximityWarnings.map((w, i) => (
-                  <div key={i}
-                    className={`p-2.5 rounded-[6px] border cursor-pointer hover:opacity-80 transition-opacity
-                      ${w.severity === 'Critical' ? 'bg-red-50 border-red-300' : 'bg-orange-50 border-orange-300'}`}
-                    onClick={() => setIntelCountry(w.country)}>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase
-                        ${w.severity === 'Critical' ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'}`}>
-                        {w.severity}
-                      </span>
-                      <span className="text-[10px] font-semibold text-gray-700 flex-1">{w.country}</span>
-                      <span className="text-[10px] font-bold text-gray-500">~{w.distanceKm.toLocaleString()} km</span>
-                    </div>
-                    <p className="text-[11px] text-gray-600 leading-snug">
-                      {w.alerts[0]?.title?.slice(0, 65) || 'Active risk zone'}
-                      {w.alerts.length > 1 ? ` +${w.alerts.length - 1} more` : ''}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[9px] text-gray-400 mt-2 text-center">Based on your current GPS position · Click for full intel</p>
-            </div>
-          )}
-
-          {/* Risk alerts panel */}
-          {tripAlerts.length > 0 && (
-            <div className="bg-white border border-red-200 rounded-[12px] p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-              <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle size={13} className="text-red-500" />
-                <p className="text-xs font-bold text-red-600 uppercase tracking-wider flex-1">Live Risk Alerts</p>
-                <span className="text-[10px] font-bold bg-red-100 text-red-600 rounded-full px-2 py-0.5">{tripAlerts.length}</span>
-              </div>
-              <div className="space-y-2 max-h-52 overflow-y-auto">
-                {tripAlerts.slice(0, 8).map((a, i) => (
-                  <div key={i}
-                    className={`p-2.5 rounded-[6px] border cursor-pointer hover:opacity-80 transition-opacity
-                      ${a.severity === 'Critical' ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'}`}
-                    onClick={() => a.country && setIntelCountry(a.country)}>
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase
-                        ${a.severity === 'Critical' ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'}`}>
-                        {a.severity}
-                      </span>
-                      <span className="text-[10px] font-semibold text-gray-600">{a.country}</span>
-                    </div>
-                    <p className="text-[11px] text-gray-700 font-medium leading-snug line-clamp-2">{a.title}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Staff list */}
-          <div className="bg-white border border-gray-200 rounded-[12px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                {isAdmin ? 'All Staff Locations' : 'My Team'}
-              </p>
-              <button onClick={loadData} className="text-gray-400 hover:text-gray-600">
-                <RefreshCw size={13} />
+          {layersOpen && (
+            <div className="absolute top-9 right-0 w-52 rounded-xl border bg-gray-900/95 border-white/15 text-white backdrop-blur-md shadow-xl overflow-hidden">
+              {/* Base styles */}
+              <div className="px-3 pt-2.5 pb-1 text-[9px] font-bold uppercase tracking-widest text-gray-500">Base Layer</div>
+              {STYLE_OPTIONS.map(s => {
+                const Icon = s.icon
+                const available = !!MAP_STYLES[s.id]
+                return (
+                  <button key={s.id} onClick={() => switchStyle(s.id)}
+                    disabled={!available}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition
+                      ${activeStyle === s.id ? 'bg-white/15 text-white' : 'text-gray-300 hover:bg-white/8 disabled:opacity-40 disabled:cursor-not-allowed'}`}>
+                    <Icon size={13} />
+                    {s.label}
+                    {!available && <span className="ml-auto text-[9px] text-gray-500">Key required</span>}
+                    {activeStyle === s.id && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-green-400" />}
+                  </button>
+                )
+              })}
+              {/* Operational layers */}
+              <div className="px-3 pt-2.5 pb-1 mt-1 border-t border-white/10 text-[9px] font-bold uppercase tracking-widest text-gray-500">Layers</div>
+              <button onClick={() => setShowTravellers(p => !p)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-300 hover:bg-white/8 transition">
+                <Users size={13} />
+                Travellers
+                <span className={`ml-auto w-8 h-4 rounded-full transition-colors ${showTravellers ? 'bg-green-500' : 'bg-gray-600'}`} />
               </button>
+              <button onClick={() => setShowRiskZones(p => !p)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-gray-300 hover:bg-white/8 transition">
+                <AlertTriangle size={13} />
+                Risk Zones
+                <span className={`ml-auto w-8 h-4 rounded-full transition-colors ${showRiskZones ? 'bg-green-500' : 'bg-gray-600'}`} />
+              </button>
+              {!HAS_MAPTILER && (
+                <div className="px-3 py-2 mt-1 border-t border-white/10">
+                  <p className="text-[9px] text-gray-500 leading-relaxed">Add <code className="text-amber-400">VITE_MAPTILER_KEY</code> to unlock satellite, terrain, and vector tiles.</p>
+                </div>
+              )}
             </div>
-
-            {loading ? (
-              <div className="space-y-2">
-                {[1, 2, 3].map(i => <div key={i} className="h-12 bg-gray-50 rounded animate-pulse" />)}
-              </div>
-            ) : locations.length === 0 ? (
-              <p className="text-xs text-gray-400 italic text-center py-4">No staff are currently sharing location.</p>
-            ) : (
-              <div className="space-y-2 max-h-72 overflow-y-auto">
-                {locations.map(loc => {
-                  const country = loc.arrival_city ? cityToCountry(loc.arrival_city) : null
-                  const isMe    = loc.user_id === profile?.id
-                  return (
-                    <div key={loc.id}
-                      className={`flex items-center gap-2.5 p-2.5 rounded-[8px] border ${isMe ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                        style={{ background: isMe ? BRAND_GREEN : BRAND_BLUE, color: isMe ? BRAND_BLUE : 'white' }}>
-                        {(loc.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-900 truncate">{loc.full_name}{isMe && ' (you)'}</p>
-                        <p className="text-[10px] text-gray-400">{loc.arrival_city || 'Unknown'} · {timeAgo(loc.recorded_at)}</p>
-                      </div>
-                      {country && (
-                        <button onClick={() => setIntelCountry(country)}
-                          className="text-[9px] text-[#0118A1] hover:underline font-medium shrink-0">
-                          Intel
-                        </button>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+          )}
         </div>
+
+        {/* ── Floating side panel ── */}
+        <div className={`absolute top-3 bottom-3 right-3 z-10 flex flex-col gap-3 transition-all duration-300
+          ${panelOpen ? 'w-72 sm:w-80' : 'w-9'}`}>
+
+          {/* Collapse toggle */}
+          <button
+            onClick={() => setPanelOpen(p => !p)}
+            className="absolute -left-8 top-0 flex items-center justify-center w-7 h-7 rounded-l-lg bg-gray-900/80 border border-white/15 border-r-0 text-white hover:bg-gray-900 transition z-10"
+          >
+            {panelOpen ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+          </button>
+
+          {panelOpen && (
+            <>
+              {/* Stats strip */}
+              <div className={`grid grid-cols-3 gap-1.5 rounded-xl p-2.5 border backdrop-blur-md ${panelBg}`}>
+                {[
+                  { label: 'Sharing',  value: locations.length,    color: '#0118A1' },
+                  { label: 'Alerts',   value: tripAlerts.length,   color: tripAlerts.some(a => a.severity === 'Critical') ? '#ef4444' : '#f59e0b' },
+                  { label: 'Nearby',   value: proximityWarnings.length, color: proximityWarnings.length ? '#ef4444' : '#6b7280' },
+                ].map(s => (
+                  <div key={s.label} className="text-center py-1.5 px-1 rounded-lg" style={{ background: s.color + '18' }}>
+                    <p className="text-lg font-black leading-none" style={{ color: s.color }}>{s.value}</p>
+                    <p className={`text-[9px] font-bold uppercase tracking-wide mt-0.5 ${subText}`}>{s.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* My location */}
+              <div className={`rounded-xl p-3 border backdrop-blur-md ${panelBg}`}>
+                <p className={`text-[9px] font-bold uppercase tracking-widest mb-2 ${subText}`}>My Location</p>
+                {sharing ? (
+                  <div className="space-y-2">
+                    <div className={`flex items-center gap-2 text-xs font-semibold text-green-400`}>
+                      <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                      Sharing live
+                    </div>
+                    {myPos && (
+                      <p className={`text-[10px] ${subText}`}>
+                        {myPos.latitude.toFixed(4)}, {myPos.longitude.toFixed(4)} · ±{Math.round(myPos.accuracy || 0)}m
+                      </p>
+                    )}
+                    <button onClick={stopSharing}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 border border-white/15 rounded-lg text-xs text-gray-300 hover:bg-white/10 transition">
+                      <EyeOff size={11} /> Stop sharing
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {gpsErr && <p className="text-[10px] text-red-400">{gpsErr}</p>}
+                    <button onClick={startSharing}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition"
+                      style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+                      <Navigation size={12} /> Share My Location
+                    </button>
+                    <p className={`text-[9px] text-center ${subText}`}>Shares every 30s — not continuous</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Proximity warnings */}
+              {proximityWarnings.length > 0 && (
+                <div className="rounded-xl border-2 border-red-500/60 backdrop-blur-md overflow-hidden" style={{ background: 'rgba(239,68,68,0.12)' }}>
+                  <div className="flex items-center gap-2 px-3 py-2 border-b border-red-500/30">
+                    <AlertCircle size={12} className="text-red-400" />
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-red-300 flex-1">Nearby Risk Zones</p>
+                    <span className="text-[9px] font-black bg-red-500 text-white rounded-full px-1.5 py-0.5">{proximityWarnings.length}</span>
+                  </div>
+                  <div className="px-2 py-2 space-y-1.5 max-h-40 overflow-y-auto">
+                    {proximityWarnings.map((w, i) => (
+                      <button key={i} onClick={() => setIntelCountry(w.country)}
+                        className="w-full text-left p-2 rounded-lg transition hover:bg-white/10"
+                        style={{ background: 'rgba(239,68,68,0.12)' }}>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${w.severity === 'Critical' ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'}`}>
+                            {w.severity}
+                          </span>
+                          <span className="text-[10px] font-semibold text-white flex-1">{w.country}</span>
+                          <span className="text-[9px] text-gray-400">~{w.distanceKm.toLocaleString()} km</span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 leading-tight truncate">{w.alerts[0]?.title?.slice(0, 55)}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Staff list */}
+              <div className={`rounded-xl border backdrop-blur-md flex-1 min-h-0 flex flex-col ${panelBg}`}>
+                <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10">
+                  <p className={`text-[9px] font-bold uppercase tracking-widest ${subText}`}>
+                    {isAdmin ? 'All Staff' : 'My Team'}
+                  </p>
+                  <button onClick={loadInitialData} className="text-gray-500 hover:text-gray-300 transition">
+                    <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+                  </button>
+                </div>
+                {loading ? (
+                  <div className="p-3 space-y-2">
+                    {[1, 2, 3].map(i => <div key={i} className="h-9 rounded-lg animate-pulse" style={{ background: 'rgba(255,255,255,0.06)' }} />)}
+                  </div>
+                ) : locations.length === 0 ? (
+                  <p className={`text-[10px] italic text-center py-6 ${subText}`}>No staff sharing location</p>
+                ) : (
+                  <div className="overflow-y-auto flex-1 p-2 space-y-1">
+                    {locations.map(loc => {
+                      const isMe    = loc.user_id === profile?.id
+                      const country = loc.arrival_city ? cityToCountry(loc.arrival_city) : null
+                      return (
+                        <div key={loc.id}
+                          className="flex items-center gap-2 p-2 rounded-lg cursor-pointer hover:bg-white/8 transition"
+                          style={{ background: isMe ? 'rgba(170,204,0,0.12)' : 'rgba(255,255,255,0.04)' }}
+                          onClick={() => {
+                            const map = mapRef.current
+                            if (map && loc.latitude && loc.longitude) {
+                              map.easeTo({ center: [parseFloat(loc.longitude), parseFloat(loc.latitude)], zoom: 12, duration: 800 })
+                            }
+                          }}>
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
+                            style={{ background: isMe ? BRAND_GREEN : BRAND_BLUE, color: isMe ? BRAND_BLUE : 'white' }}>
+                            {initials(loc.full_name)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-[11px] font-semibold truncate ${panelText}`}>{loc.full_name}{isMe && ' (you)'}</p>
+                            <p className={`text-[9px] truncate ${subText}`}>{loc.arrival_city || '—'} · {timeAgo(loc.recorded_at)}</p>
+                          </div>
+                          {country && (
+                            <button onClick={e => { e.stopPropagation(); setIntelCountry(country) }}
+                              className="text-[9px] text-blue-400 hover:text-blue-200 font-semibold shrink-0 transition">
+                              Intel
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ── Mobile bottom sheet: proximity warning pill ── */}
+        {proximityWarnings.length > 0 && (
+          <div className="absolute bottom-4 left-4 right-4 sm:hidden z-20">
+            <button
+              onClick={() => setIntelCountry(proximityWarnings[0].country)}
+              className="w-full flex items-center gap-2 bg-red-600/90 text-white backdrop-blur-sm px-4 py-3 rounded-xl text-xs font-bold shadow-lg">
+              <AlertCircle size={14} />
+              <span className="flex-1 text-left">{proximityWarnings[0].country} risk zone within {proximityWarnings[0].distanceKm.toLocaleString()} km</span>
+              <ChevronUp size={14} />
+            </button>
+          </div>
+        )}
+
       </div>
     </Layout>
+  )
+}
+
+// Small arrow icons needed for panel collapse
+function ChevronRight({ size, className }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  )
+}
+function ChevronLeft({ size, className }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
   )
 }
