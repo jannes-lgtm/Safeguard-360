@@ -417,11 +417,11 @@ export default function Itinerary() {
               {!editingId && (
                 <div className="flex items-center bg-gray-100 rounded-xl p-1">
                   <button onClick={() => setPlanMode('ai')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${planMode === 'ai' ? 'bg-white text-[#0118A1] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${planMode === 'ai' ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'}`}>
                     <Sparkles size={11} /> AI Planner
                   </button>
                   <button onClick={() => setPlanMode('manual')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${planMode === 'manual' ? 'bg-white text-[#0118A1] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${planMode === 'manual' ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'}`}>
                     <Edit3 size={11} /> Manual
                   </button>
                 </div>
@@ -605,8 +605,7 @@ export default function Itinerary() {
                 <div className="flex gap-1 mb-5 bg-gray-100 rounded-xl p-1 w-fit">
                   {['Flight', 'Hotel', 'Meeting', 'Ground transport'].map(tab => (
                     <button key={tab} onClick={() => setActiveTab(tab)}
-                      className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeTab === tab ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                      style={activeTab === tab ? { color: '#0118A1' } : {}}>
+                      className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeTab === tab ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'}`}>
                       {tab}
                     </button>
                   ))}

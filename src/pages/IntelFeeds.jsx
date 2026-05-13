@@ -831,11 +831,11 @@ export default function IntelFeeds() {
           return (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors
-                ${activeTab === tab.id ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                ${activeTab === tab.id ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'}`}>
               <Icon size={14} />
               {tab.label}
               {tab.count !== null && (
-                <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-1.5">{tab.count}</span>
+                <span className={`text-xs rounded-full px-1.5 ${activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-500'}`}>{tab.count}</span>
               )}
             </button>
           )

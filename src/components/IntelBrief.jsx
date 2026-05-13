@@ -295,67 +295,92 @@ function AlertsSection({ country }) {
   )
 }
 
-// ── Intel feed section (live RSS articles) ────────────────────────────────────
-function IntelFeedSection({ country }) {
+// ── Live news feed (Google News RSS + security intel feeds) ───────────────────
+const CAT_PILL = {
+  news:     { bg: '#EFF6FF', color: '#1D4ED8' },
+  security: { bg: '#FEF3C7', color: '#92400E' },
+  health:   { bg: '#F0FDF4', color: '#166534' },
+  conflict: { bg: '#FEF2F2', color: '#991B1B' },
+  weather:  { bg: '#F0F9FF', color: '#0369A1' },
+}
+
+function LiveNewsSection({ country, city }) {
   const [articles, setArticles] = useState([])
-  const [loaded, setLoaded]     = useState(0)
-  const total = INTEL_FEEDS.length
+  const [loading, setLoading]   = useState(true)
+  const [retryTs, setRetryTs]   = useState(0)
 
   useEffect(() => {
+    if (!country) return
     setArticles([])
-    setLoaded(0)
-    INTEL_FEEDS.forEach(feed => {
-      fetch(`/api/rss-ingest?id=${feed.id}&limit=20`)
-        .then(r => r.json())
-        .then(d => {
-          const matched = (d.articles || []).filter(a =>
-            matchesCountry(`${a.title || ''} ${a.description || ''}`, country)
-          ).map(a => ({ ...a, feedName: feed.name }))
-          setArticles(prev =>
-            [...prev, ...matched]
-              .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-              .slice(0, 10)
-          )
-          setLoaded(p => p + 1)
-        })
-        .catch(() => setLoaded(p => p + 1))
-    })
-  }, [country])
+    setLoading(true)
+    const params = new URLSearchParams({ country })
+    if (city && city !== country) params.set('city', city)
+    fetch(`/api/destination-feed?${params}`)
+      .then(r => r.json())
+      .then(d => { setArticles(d.articles || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [country, city, retryTs])
 
-  const pct = Math.round((loaded / total) * 100)
+  const label = city && city !== country ? `${city} · ${country}` : country
 
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <SectionHeader label="Intelligence Feed" icon={Newspaper}/>
-        {loaded < total && (
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
-            <RefreshCw size={9} className="animate-spin"/>{loaded}/{total} feeds
-          </div>
-        )}
-      </div>
-      {loaded < total && (
-        <div className="h-1 bg-gray-100 rounded-full overflow-hidden mb-3">
-          <div className="h-full bg-[#0118A1]/30 rounded-full transition-all duration-500" style={{ width: `${pct}%` }}/>
+        <SectionHeader label="Live News Feed" icon={Newspaper}/>
+        <div className="flex items-center gap-2">
+          {loading && (
+            <span className="flex items-center gap-1 text-[10px] text-gray-400">
+              <RefreshCw size={9} className="animate-spin"/> Fetching…
+            </span>
+          )}
+          {!loading && (
+            <button onClick={() => setRetryTs(Date.now())}
+              className="text-[10px] text-gray-400 hover:text-[#0118A1] flex items-center gap-0.5 transition-colors">
+              <RefreshCw size={9}/> Refresh
+            </button>
+          )}
         </div>
-      )}
-      {articles.length === 0 && loaded === total ? (
-        <p className="text-xs text-gray-400 italic py-3 text-center">No recent intel articles found for {country}.</p>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="animate-pulse bg-gray-50 border border-gray-100 rounded-[8px] px-3 py-2.5">
+              <div className="h-2.5 bg-gray-200 rounded w-5/6 mb-2"/>
+              <div className="h-2 bg-gray-100 rounded w-2/5"/>
+            </div>
+          ))}
+        </div>
+      ) : articles.length === 0 ? (
+        <p className="text-xs text-gray-400 italic py-3 text-center">No recent news found for {label}.</p>
       ) : (
         <div className="space-y-2">
-          {articles.map((a, i) => (
-            <a key={i} href={a.link || '#'} target="_blank" rel="noopener noreferrer"
-              className="block bg-white border border-gray-200 rounded-[8px] px-3 py-2.5 hover:border-[#0118A1]/30 hover:shadow-sm transition-all group">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs font-medium text-gray-800 leading-snug group-hover:text-[#0118A1] line-clamp-2 flex-1">{a.title}</p>
-                <ExternalLink size={10} className="text-gray-300 group-hover:text-[#0118A1] shrink-0 mt-0.5"/>
-              </div>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{a.feedName}</span>
-                {a.date && <span className="text-[10px] text-gray-400">{timeAgo(a.date)}</span>}
-              </div>
-            </a>
-          ))}
+          {articles.map((a, i) => {
+            const pill = CAT_PILL[a.category] || CAT_PILL.news
+            return (
+              <a key={i} href={a.url || '#'} target="_blank" rel="noopener noreferrer"
+                className="block bg-white border border-gray-100 rounded-[8px] px-3 py-2.5 hover:border-[#0118A1]/30 hover:shadow-sm transition-all group">
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <p className="text-xs font-medium text-gray-800 leading-snug group-hover:text-[#0118A1] line-clamp-2 flex-1">
+                    {a.title}
+                  </p>
+                  <ExternalLink size={10} className="text-gray-300 group-hover:text-[#0118A1] shrink-0 mt-0.5"/>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                    style={{ background: pill.bg, color: pill.color }}>
+                    {a.category}
+                  </span>
+                  {a.source && (
+                    <span className="text-[10px] text-gray-400">{a.source}</span>
+                  )}
+                  {a.pubDate && (
+                    <span className="text-[10px] text-gray-300">· {timeAgo(a.pubDate)}</span>
+                  )}
+                </div>
+              </a>
+            )
+          })}
         </div>
       )}
     </div>
@@ -604,7 +629,7 @@ function ProvidersSection({ country }) {
 }
 
 // ── Main IntelBrief drawer ────────────────────────────────────────────────────
-export default function IntelBrief({ country, travelerName, returnDate, tripName, onClose }) {
+export default function IntelBrief({ country, city, travelerName, returnDate, tripName, onClose }) {
   const [riskData, setRiskData]   = useState(null)
   const [riskLoading, setRiskLoading] = useState(true)
   const [refreshTs, setRefreshTs] = useState(0)
@@ -698,8 +723,8 @@ export default function IntelBrief({ country, travelerName, returnDate, tripName
             loading={riskLoading}
           />
 
-          {/* 6. Live intel feed */}
-          <IntelFeedSection country={country}/>
+          {/* 6. Live news feed */}
+          <LiveNewsSection country={country} city={city}/>
 
           {/* 7. AI Chat assistant */}
           <AiChatSection country={country} travelerName={travelerName} tripName={tripName}/>

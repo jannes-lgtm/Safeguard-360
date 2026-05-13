@@ -93,7 +93,7 @@ function SlidePanel({ staff, countryRisk, onClose, onOpenIntel }) {
                       </p>
                     ))}
                   </div>
-                  <button onClick={() => { onClose(); onOpenIntel(country, staff.full_name || staff.email, trip.return_date) }}
+                  <button onClick={() => { onClose(); onOpenIntel(country, staff.full_name || staff.email, trip.return_date, trip.arrival_city) }}
                     className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-[#0118A1] hover:underline">
                     <FileText size={11}/>Full Country Intel Brief →
                   </button>
@@ -268,6 +268,7 @@ export default function Tracker() {
   const [loading, setLoading]               = useState(true)
   const [selectedStaff, setSelectedStaff]   = useState(null)
   const [intelCountry, setIntelCountry]     = useState(null)
+  const [intelCity, setIntelCity]           = useState(null)
   const [intelTraveler, setIntelTraveler]   = useState(null)
   const [intelReturn, setIntelReturn]       = useState(null)
   const [recentCheckins, setRecentCheckins] = useState([])   // last 20 check-ins across all staff
@@ -348,12 +349,13 @@ export default function Tracker() {
 
   const travelling = staffList.filter(s => s.trip).length
 
-  const openIntel = (country, traveler, returnDate) => {
+  const openIntel = (country, traveler, returnDate, city = null) => {
     setIntelCountry(country)
+    setIntelCity(city)
     setIntelTraveler(traveler)
     setIntelReturn(returnDate)
   }
-  const closeIntel = () => { setIntelCountry(null); setIntelTraveler(null); setIntelReturn(null) }
+  const closeIntel = () => { setIntelCountry(null); setIntelCity(null); setIntelTraveler(null); setIntelReturn(null) }
 
   return (
     <Layout>
@@ -368,6 +370,7 @@ export default function Tracker() {
       {intelCountry && (
         <IntelBrief
           country={intelCountry}
+          city={intelCity}
           travelerName={intelTraveler}
           returnDate={intelReturn}
           onClose={closeIntel}
@@ -446,7 +449,7 @@ export default function Tracker() {
                         <div className="text-gray-700 text-sm">{staff.trip.arrival_city}</div>
                         {country && (
                           <button
-                            onClick={() => openIntel(country, staff.full_name || staff.email, staff.trip.return_date)}
+                            onClick={() => openIntel(country, staff.full_name || staff.email, staff.trip.return_date, staff.trip.arrival_city)}
                             className="text-[10px] text-[#0118A1] hover:underline flex items-center gap-0.5 font-medium mt-0.5">
                             <Globe size={9}/>{country} intel →
                           </button>

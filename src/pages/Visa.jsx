@@ -641,8 +641,8 @@ export default function Visa() {
             <button key={t.id} onClick={() => setTab(t.id)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
               style={tab === t.id
-                ? { background: 'white', color: BRAND_BLUE, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
-                : { color: '#64748B' }}>
+                ? { background: BRAND_BLUE, color: '#fff', boxShadow: '0 2px 8px rgba(1,24,161,0.2)' }
+                : { color: '#374151' }}>
               <Icon size={14} /> {t.label}
             </button>
           )

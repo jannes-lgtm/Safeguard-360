@@ -387,13 +387,13 @@ export default function TravelApprovals() {
         {STATUS_TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
-              tab === t ? 'bg-white text-[#0118A1] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              tab === t ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'
             }`}>
             {t}
             {counts[t] > 0 && (
               <span className={`text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 ${
                 tab === t
-                  ? t === 'pending' ? 'bg-amber-500 text-white' : 'bg-[#0118A1] text-white'
+                  ? 'bg-white text-[#0118A1]'
                   : 'bg-gray-300 text-gray-600'
               }`}>
                 {counts[t]}
