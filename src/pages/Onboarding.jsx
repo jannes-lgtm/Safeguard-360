@@ -23,12 +23,12 @@ function MiniPolicy({ config }) {
            : <span className="text-gray-400">{fallback}</span>
 
   return (
-    <div className="text-xs text-gray-600 leading-relaxed space-y-4" style={{ fontFamily: 'Georgia, serif' }}>
+    <div className="text-xs text-gray-600 leading-relaxed space-y-4">
       <div className="text-center pb-3 border-b border-gray-200">
-        <h3 className="font-bold text-gray-900 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
+        <h3 className="font-bold text-gray-900 text-sm">
           Corporate Travel Risk Management Policy
         </h3>
-        <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+        <p className="text-xs text-gray-500 mt-1">
           <Field value={c.company_name} fallback="Your Organisation" /> · v{c.policy_version || '1.0'} · ISO 31030:2021
         </p>
       </div>
@@ -36,7 +36,7 @@ function MiniPolicy({ config }) {
         <Field value={c.company_name} fallback="Your organisation" /> is committed to the health, safety, and security of all travelling employees. This policy establishes the framework for managing travel-related risks in accordance with ISO 31030:2021.
       </p>
       <div>
-        <p className="font-bold text-gray-800 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>As a traveller you agree to:</p>
+        <p className="font-bold text-gray-800 mb-1">As a traveller you agree to:</p>
         <ul className="list-disc list-inside space-y-1 ml-1">
           <li>Submit all trips for approval before booking</li>
           <li>Complete mandatory pre-travel safety training</li>
@@ -48,7 +48,7 @@ function MiniPolicy({ config }) {
         </ul>
       </div>
       <div className="rounded-lg p-3" style={{ background: '#FFF5F5', border: '1px solid #FCA5A5' }}>
-        <p className="font-bold text-red-800 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>Emergency</p>
+        <p className="font-bold text-red-800 mb-1">Emergency</p>
         <p>24/7 Emergency Line: <Field value={c.emergency_number} fallback="[see full policy]" /></p>
         <p className="mt-1">Activate SOS in SafeGuard360 immediately in any life-threatening situation.</p>
       </div>
@@ -60,12 +60,12 @@ function MiniPolicy({ config }) {
 // ── SafeGuard360 Solo Traveller Agreement ─────────────────────────────────────
 function SoloTerms() {
   return (
-    <div className="text-xs text-gray-600 leading-relaxed space-y-4" style={{ fontFamily: 'Georgia, serif' }}>
+    <div className="text-xs text-gray-600 leading-relaxed space-y-4">
       <div className="text-center pb-3 border-b border-gray-200">
-        <h3 className="font-bold text-gray-900 text-sm" style={{ fontFamily: 'Inter, sans-serif' }}>
+        <h3 className="font-bold text-gray-900 text-sm">
           SafeGuard360 — Solo Traveller Agreement
         </h3>
-        <p className="text-xs text-gray-500 mt-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+        <p className="text-xs text-gray-500 mt-1">
           Personal Travel Safety & Platform Terms · v1.0
         </p>
       </div>
@@ -73,7 +73,7 @@ function SoloTerms() {
       <p>SafeGuard360 provides you with real-time travel risk intelligence, emergency check-in tools, and a direct line to our 24/7 control room. By using the platform you agree to the following.</p>
 
       <div>
-        <p className="font-bold text-gray-800 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>Your responsibilities:</p>
+        <p className="font-bold text-gray-800 mb-1">Your responsibilities:</p>
         <ul className="list-disc list-inside space-y-1 ml-1">
           <li>Keep your profile, passport details, and emergency contacts accurate and up to date</li>
           <li>Log all trips before you depart so your contacts can be notified</li>
@@ -85,7 +85,7 @@ function SoloTerms() {
       </div>
 
       <div>
-        <p className="font-bold text-gray-800 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>What SafeGuard360 provides:</p>
+        <p className="font-bold text-gray-800 mb-1">What SafeGuard360 provides:</p>
         <ul className="list-disc list-inside space-y-1 ml-1">
           <li>Real-time risk alerts relevant to your travel destinations</li>
           <li>Automated notifications to your emergency contacts on missed check-ins</li>
@@ -96,7 +96,7 @@ function SoloTerms() {
       </div>
 
       <div>
-        <p className="font-bold text-gray-800 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>Data &amp; Privacy (POPIA):</p>
+        <p className="font-bold text-gray-800 mb-1">Data &amp; Privacy (POPIA):</p>
         <ul className="list-disc list-inside space-y-1 ml-1">
           <li>Your personal data is stored securely and used only to deliver the services described above</li>
           <li>Emergency contact details are used solely for notifying those contacts in your interest</li>
@@ -106,7 +106,7 @@ function SoloTerms() {
       </div>
 
       <div className="rounded-lg p-3" style={{ background: '#FFF5F5', border: '1px solid #FCA5A5' }}>
-        <p className="font-bold text-red-800 mb-1" style={{ fontFamily: 'Inter, sans-serif' }}>SOS &amp; Missed Check-in</p>
+        <p className="font-bold text-red-800 mb-1">SOS &amp; Missed Check-in</p>
         <p>If you miss a check-in, your emergency contacts will be notified automatically. Activating SOS alerts the SafeGuard360 control room and all your emergency contacts simultaneously. Use it only in genuine emergencies.</p>
       </div>
 
