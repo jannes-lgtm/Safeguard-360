@@ -1,12 +1,14 @@
 import { useEffect, useState, useRef } from 'react'
 import { X, MapPin, Plane, Hotel, Users, Bell, RefreshCw, Globe, FileText, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
-import L from 'leaflet'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import Layout from '../components/Layout'
 import W3WAddress from '../components/W3WAddress'
 import MetricCard from '../components/MetricCard'
 import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
 import { cityToCountry, SEVERITY_STYLE } from '../data/intelData'
+import { MAP_STYLES } from '../lib/mapConfig'
 
 const BRAND_BLUE = '#0118A1'
 
@@ -137,23 +139,23 @@ function SlidePanel({ staff, countryRisk, onClose, onOpenIntel }) {
   )
 }
 
-// ── Mini Leaflet map ──────────────────────────────────────────────────────────
+// ── Mini map (MapLibre) ───────────────────────────────────────────────────────
 function MiniMap({ lat, lng }) {
   const containerRef = useRef(null)
   const mapRef       = useRef(null)
 
   useEffect(() => {
     if (!lat || !lng || !containerRef.current || mapRef.current) return
-    const map = L.map(containerRef.current, { center: [lat, lng], zoom: 15, zoomControl: true, scrollWheelZoom: false })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map)
-    const icon = L.divIcon({
-      className: '',
-      html: '<div style="width:14px;height:14px;background:#E11B1B;border:2px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
-      iconAnchor: [7, 7],
+    const map = new maplibregl.Map({
+      container:   containerRef.current,
+      style:       MAP_STYLES.standard,
+      center:      [lng, lat],
+      zoom:        14,
+      interactive: false,
     })
-    L.marker([lat, lng], { icon }).addTo(map)
+    new maplibregl.Marker({ color: '#E11B1B' }).setLngLat([lng, lat]).addTo(map)
     mapRef.current = map
-    return () => { mapRef.current.remove(); mapRef.current = null }
+    return () => { map.remove(); mapRef.current = null }
   }, [lat, lng])
 
   return <div ref={containerRef} className="w-full rounded-xl overflow-hidden border border-gray-200" style={{ height: 200 }} />
@@ -172,35 +174,51 @@ function CheckInCard({ ci }) {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   })
 
+  const avatar = (ci.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+  const badge  = ci.status === 'distress'
+    ? <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 border border-red-200 text-red-700 shrink-0"><AlertCircle size={9}/>DISTRESS</span>
+    : <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 border border-green-200 text-green-700 shrink-0"><CheckCircle2 size={9}/>Safe</span>
+
   return (
     <div className={`border-b border-gray-50 last:border-0 ${ci.status === 'distress' ? 'bg-red-50' : ''}`}>
 
       {/* ── Collapsed row ── */}
       <button
-        className="w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-gray-50 transition-colors"
+        className="w-full px-4 sm:px-5 py-3 text-left hover:bg-gray-50 transition-colors"
         onClick={() => setOpen(p => !p)}
       >
-        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-          style={{ background: BRAND_BLUE }}>
-          {(ci.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+        {/* Mobile layout */}
+        <div className="flex sm:hidden items-center gap-3">
+          <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+            style={{ background: BRAND_BLUE }}>{avatar}</div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-800 truncate">{ci.full_name || '—'}</span>
+              {badge}
+            </div>
+            <div className="text-[11px] text-gray-400 truncate mt-0.5">
+              {ci.trip_name || '—'}{ci.arrival_city ? ` · ${ci.arrival_city}` : ''}
+              <span className="ml-2 font-medium text-gray-500">{timeLabel}</span>
+            </div>
+          </div>
+          <span className="shrink-0 text-gray-300">{open ? <ChevronUp size={13}/> : <ChevronDown size={13}/>}</span>
         </div>
-        <span className="text-xs font-medium text-gray-800 w-32 shrink-0 truncate">{ci.full_name || '—'}</span>
-        <span className="shrink-0">
-          {ci.status === 'distress'
-            ? <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 border border-red-200 text-red-700"><AlertCircle size={9}/>DISTRESS</span>
-            : <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 border border-green-200 text-green-700"><CheckCircle2 size={9}/>Safe</span>
-          }
-        </span>
-        <span className="flex-1 text-xs text-gray-400 truncate px-2">
-          {ci.trip_name || '—'}{ci.arrival_city ? ` · ${ci.arrival_city}` : ''}
-        </span>
-        <span className="text-xs text-gray-400 shrink-0 w-16 text-right">{timeLabel}</span>
-        <span className={`text-xs shrink-0 w-28 text-right font-medium ${isOverdue ? 'text-red-600' : 'text-gray-400'}`}>
-          {ci.next_checkin_due ? `${isOverdue ? '⚠ ' : ''}${fmtDue(ci.next_checkin_due)}` : '—'}
-        </span>
-        <span className="ml-2 shrink-0 text-gray-300">
-          {open ? <ChevronUp size={13}/> : <ChevronDown size={13}/>}
-        </span>
+
+        {/* Desktop layout */}
+        <div className="hidden sm:flex items-center gap-3">
+          <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+            style={{ background: BRAND_BLUE }}>{avatar}</div>
+          <span className="text-xs font-medium text-gray-800 w-32 shrink-0 truncate">{ci.full_name || '—'}</span>
+          <span className="shrink-0">{badge}</span>
+          <span className="flex-1 text-xs text-gray-400 truncate px-2">
+            {ci.trip_name || '—'}{ci.arrival_city ? ` · ${ci.arrival_city}` : ''}
+          </span>
+          <span className="text-xs text-gray-400 shrink-0 w-16 text-right">{timeLabel}</span>
+          <span className={`text-xs shrink-0 w-28 text-right font-medium ${isOverdue ? 'text-red-600' : 'text-gray-400'}`}>
+            {ci.next_checkin_due ? `${isOverdue ? '⚠ ' : ''}${fmtDue(ci.next_checkin_due)}` : '—'}
+          </span>
+          <span className="ml-2 shrink-0 text-gray-300">{open ? <ChevronUp size={13}/> : <ChevronDown size={13}/>}</span>
+        </div>
       </button>
 
       {/* ── Expanded detail ── */}
@@ -396,9 +414,83 @@ export default function Tracker() {
         <MetricCard label="Active Alerts"         value={loading ? '–' : activeAlertCount}     valueColor="text-[#D97706]"  icon={Bell}  />
       </div>
 
-      {/* Staff table */}
+      {/* Staff list — mobile cards + desktop table */}
       <div className="bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
-        <table className="w-full text-sm">
+
+        {/* ── Mobile card list ── */}
+        <div className="block sm:hidden divide-y divide-gray-100">
+          {loading ? (
+            <div className="px-5 py-8 text-center text-gray-400 text-sm">Loading staff…</div>
+          ) : staffList.length === 0 ? (
+            <div className="px-5 py-8 text-center text-gray-400 text-sm">No staff found</div>
+          ) : staffList.map(staff => {
+            const country = staff.trip ? cityToCountry(staff.trip.arrival_city) : null
+            const risk    = country ? countryRisk[country] : null
+            const ci      = checkinMap[staff.id]
+            const minsAgo = ci ? Math.floor((Date.now() - new Date(ci.created_at)) / 60000) : null
+            const ciLabel = minsAgo === null ? null
+              : minsAgo < 60 ? `${minsAgo}m ago`
+              : minsAgo < 1440 ? `${Math.floor(minsAgo/60)}h ago`
+              : `${Math.floor(minsAgo/1440)}d ago`
+
+            return (
+              <div key={staff.id}
+                className={`px-4 py-3.5 ${staff.trip ? 'bg-blue-50/20' : ''}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                      style={{ background: BRAND_BLUE }}>
+                      {initials(staff.full_name || staff.email)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900 text-sm truncate">{staff.full_name || '—'}</div>
+                      <div className="text-xs text-gray-400 truncate">{staff.email}</div>
+                    </div>
+                  </div>
+                  <button onClick={() => setSelectedStaff(staff)}
+                    className="shrink-0 text-xs font-semibold text-[#1E2461] border border-[#1E2461]/25 rounded-lg px-3 py-1.5 hover:bg-[#1E2461] hover:text-white transition-colors">
+                    View
+                  </button>
+                </div>
+
+                {staff.trip ? (
+                  <div className="mt-2 ml-12 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-medium text-gray-700">{staff.trip.trip_name}</span>
+                      {risk && <RiskBadge severity={risk.severity}/>}
+                      {!risk && <span className="text-[10px] text-gray-300 italic">Checking risk…</span>}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1 text-xs text-gray-500">
+                      <MapPin size={10} className="text-gray-400 shrink-0"/>
+                      <span>{staff.trip.arrival_city}</span>
+                      {country && (
+                        <button
+                          onClick={() => openIntel(country, staff.full_name || staff.email, staff.trip.return_date, staff.trip.arrival_city)}
+                          className="text-[#0118A1] font-medium hover:underline ml-0.5">
+                          · {country} intel →
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                      {ciLabel && (
+                        <span className="flex items-center gap-1">
+                          <CheckCircle2 size={10} className="text-green-500"/>
+                          {ciLabel}
+                        </span>
+                      )}
+                      <span>Returns {staff.trip.return_date}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-1.5 ml-12 text-xs text-gray-400 italic">Not travelling</div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* ── Desktop table ── */}
+        <table className="hidden sm:table w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Staff Member</th>
@@ -412,9 +504,9 @@ export default function Tracker() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="px-5 py-8 text-center text-gray-400 text-sm">Loading staff…</td></tr>
+              <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400 text-sm">Loading staff…</td></tr>
             ) : staffList.length === 0 ? (
-              <tr><td colSpan={6} className="px-5 py-8 text-center text-gray-400 text-sm">No staff found</td></tr>
+              <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400 text-sm">No staff found</td></tr>
             ) : staffList.map(staff => {
               const country = staff.trip ? cityToCountry(staff.trip.arrival_city) : null
               const risk    = country ? countryRisk[country] : null
@@ -423,7 +515,6 @@ export default function Tracker() {
                 <tr key={staff.id}
                   className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors ${staff.trip ? 'bg-blue-50/20' : ''}`}>
 
-                  {/* Staff */}
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
@@ -437,12 +528,10 @@ export default function Tracker() {
                     </div>
                   </td>
 
-                  {/* Trip name */}
                   <td className="px-5 py-3.5 text-gray-700">
                     {staff.trip?.trip_name || <span className="text-gray-300 italic">Not travelling</span>}
                   </td>
 
-                  {/* Destination + country intel button */}
                   <td className="px-5 py-3.5">
                     {staff.trip?.arrival_city ? (
                       <div>
@@ -458,14 +547,12 @@ export default function Tracker() {
                     ) : <span className="text-gray-300">—</span>}
                   </td>
 
-                  {/* Risk badge */}
                   <td className="px-5 py-3.5">
                     {risk ? <RiskBadge severity={risk.severity}/> : staff.trip ? (
                       <span className="text-[10px] text-gray-300 italic">Loading…</span>
                     ) : <span className="text-gray-300">—</span>}
                   </td>
 
-                  {/* Last check-in */}
                   <td className="px-5 py-3.5">
                     {(() => {
                       const ci = checkinMap[staff.id]
@@ -483,10 +570,8 @@ export default function Tracker() {
                     })()}
                   </td>
 
-                  {/* Return date */}
                   <td className="px-5 py-3.5 text-gray-500 text-xs">{staff.trip?.return_date || '—'}</td>
 
-                  {/* Actions */}
                   <td className="px-5 py-3.5 text-right">
                     <button onClick={() => setSelectedStaff(staff)}
                       className="text-xs font-medium text-[#1E2461] hover:underline">
@@ -516,8 +601,8 @@ export default function Tracker() {
           <div className="px-5 py-8 text-center text-sm text-gray-400">No check-ins recorded yet</div>
         ) : (
           <div>
-            {/* Column headers */}
-            <div className="flex items-center gap-3 px-5 py-2 border-b border-gray-50 bg-white">
+            {/* Column headers — desktop only */}
+            <div className="hidden sm:flex items-center gap-3 px-5 py-2 border-b border-gray-50 bg-white">
               <div className="w-7 shrink-0" />
               <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider w-32 shrink-0">Staff Member</span>
               <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider shrink-0">Status</span>
