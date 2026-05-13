@@ -22,6 +22,7 @@
  */
 
 import { askAssistant, resolveModel } from './_claudeSynth.js'
+import { checkRateLimit } from './_rateLimit.js'
 
 async function _handler(req, res) {
   if (req.method !== 'POST') {
@@ -53,6 +54,10 @@ async function _handler(req, res) {
       return res.status(401).json({ error: 'Invalid or expired token' })
     }
   }
+
+  // Rate limit: 30 AI requests per user per hour
+  const { allowed } = checkRateLimit(req, 'ai-assistant', { max: 30, windowMs: 3_600_000 })
+  if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   const { message, context = {}, history = [] } = req.body || {}
   if (!message?.trim()) {

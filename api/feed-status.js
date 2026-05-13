@@ -2,6 +2,7 @@
 // Called by Intel Feeds page on load to override hardcoded statuses
 
 function _handler(req, res) {
+  try {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   const has = (key) => !!process.env[key]
@@ -44,6 +45,10 @@ function _handler(req, res) {
     // ── Partnership / enterprise — must be manually negotiated ───────────────
     // (not listed here so they fall back to 'partnership' status in the UI)
   })
+  } catch (err) {
+    console.error('[feed-status] unhandled error:', err)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
 }
 
 import { adapt } from './_adapter.js'

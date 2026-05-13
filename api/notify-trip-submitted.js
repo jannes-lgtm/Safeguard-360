@@ -9,23 +9,23 @@
  * Auth: Supabase JWT (traveller's own token)
  */
 
-import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from './_notify.js'
 import { adapt } from './_adapter.js'
+import { getSupabaseAdmin } from './_supabase.js'
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
-const ANON_KEY     = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-const APP_URL      = process.env.APP_URL || 'https://www.risk360.co'
-
-const sb = createClient(SUPABASE_URL, SERVICE_KEY)
+const APP_URL = process.env.APP_URL || 'https://www.risk360.co'
 
 async function getUser(token) {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { apikey: ANON_KEY, Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(4000),
-  })
-  return res.ok ? res.json() : null
+  const url  = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
+  const anon = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
+  if (!url || !anon) return null
+  try {
+    const res = await fetch(`${url}/auth/v1/user`, {
+      headers: { apikey: anon, Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(4000),
+    })
+    return res.ok ? res.json() : null
+  } catch { return null }
 }
 
 const RISK_COLOUR = {
@@ -36,8 +36,14 @@ const RISK_COLOUR = {
 }
 
 async function _handler(req, res) {
+  try {
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  let sb
+  try { sb = getSupabaseAdmin() } catch (e) {
+    return res.status(503).json({ error: e.message })
+  }
 
   const token = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim()
   if (!token) return res.status(401).json({ error: 'Missing auth token' })
@@ -150,6 +156,10 @@ async function _handler(req, res) {
   console.log(`[notify-trip-submitted] Sent to ${sent}/${admins.length} admins for trip ${trip_id}`)
 
   return res.json({ ok: true, sent, admins: admins.length })
+  } catch (err) {
+    console.error('[notify-trip-submitted] unhandled error:', err)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
 }
 
 export const handler = adapt(_handler)

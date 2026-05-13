@@ -7,24 +7,30 @@
  * Auth: Supabase JWT (traveller's own token)
  */
 
-import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from './_notify.js'
 import { adapt } from './_adapter.js'
+import { getSupabaseAdmin } from './_supabase.js'
 
-const SUPABASE_URL        = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
-const ANON_KEY            = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
-const SERVICE_KEY         = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-const APP_URL             = process.env.APP_URL || 'https://www.risk360.co'
-const CONTROL_ROOM_EMAIL  = process.env.CONTROL_ROOM_EMAIL || 'control@risk360.co'
+const APP_URL            = process.env.APP_URL || 'https://www.risk360.co'
+const CONTROL_ROOM_EMAIL = process.env.CONTROL_ROOM_EMAIL || 'control@risk360.co'
 
-const sb = createClient(SUPABASE_URL, SERVICE_KEY)
+function getAnon() {
+  return {
+    url:  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+    anon: process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '',
+  }
+}
 
 async function getUser(token) {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { apikey: ANON_KEY, Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(4000),
-  })
-  return res.ok ? res.json() : null
+  const { url, anon } = getAnon()
+  if (!url || !anon) return null
+  try {
+    const res = await fetch(`${url}/auth/v1/user`, {
+      headers: { apikey: anon, Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(4000),
+    })
+    return res.ok ? res.json() : null
+  } catch { return null }
 }
 
 const SEV_COLOR = {
@@ -123,59 +129,69 @@ function buildEmail({ incident, traveller, trip }) {
 }
 
 async function _handler(req, res) {
-  if (req.method === 'OPTIONS') return res.status(200).end()
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  try {
+    if (req.method === 'OPTIONS') return res.status(200).end()
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const token = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim()
-  if (!token) return res.status(401).json({ error: 'Missing auth token' })
-
-  const user = await getUser(token)
-  if (!user?.id) return res.status(401).json({ error: 'Invalid token' })
-
-  const { incident_id } = req.body || {}
-  if (!incident_id) return res.status(400).json({ error: 'incident_id required' })
-
-  const { data: incident } = await sb
-    .from('incidents')
-    .select('*')
-    .eq('id', incident_id)
-    .eq('user_id', user.id)
-    .single()
-
-  if (!incident) return res.status(404).json({ error: 'Incident not found' })
-
-  const [{ data: traveller }, { data: trip }] = await Promise.all([
-    sb.from('profiles').select('full_name, email, phone, org_id').eq('id', user.id).single(),
-    incident.trip_id
-      ? sb.from('itineraries').select('trip_name, arrival_city').eq('id', incident.trip_id).single().then(r => r)
-      : Promise.resolve({ data: null }),
-  ])
-
-  const html    = buildEmail({ incident, traveller, trip: trip || null })
-  const subject = `${incident.severity === 'Critical' ? '🚨' : '⚠️'} ${incident.severity} incident — ${incident.title} (${traveller?.full_name || 'Traveller'})`
-  const sends   = []
-
-  // Notify org admin(s)
-  if (traveller?.org_id) {
-    const { data: orgAdmins } = await sb
-      .from('profiles')
-      .select('email')
-      .eq('org_id', traveller.org_id)
-      .eq('role', 'org_admin')
-    for (const admin of (orgAdmins || []).filter(a => a.email)) {
-      sends.push(sendEmail(admin.email, subject, html))
+    let sb
+    try { sb = getSupabaseAdmin() } catch (e) {
+      return res.status(503).json({ error: e.message })
     }
+
+    const token = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim()
+    if (!token) return res.status(401).json({ error: 'Missing auth token' })
+
+    const user = await getUser(token)
+    if (!user?.id) return res.status(401).json({ error: 'Invalid token' })
+
+    const { incident_id } = req.body || {}
+    if (!incident_id) return res.status(400).json({ error: 'incident_id required' })
+
+    const { data: incident } = await sb
+      .from('incidents')
+      .select('*')
+      .eq('id', incident_id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (!incident) return res.status(404).json({ error: 'Incident not found' })
+
+    const [{ data: traveller }, { data: trip }] = await Promise.all([
+      sb.from('profiles').select('full_name, email, phone, org_id').eq('id', user.id).single(),
+      incident.trip_id
+        ? sb.from('itineraries').select('trip_name, arrival_city').eq('id', incident.trip_id).single().then(r => r)
+        : Promise.resolve({ data: null }),
+    ])
+
+    const html    = buildEmail({ incident, traveller, trip: trip || null })
+    const subject = `${incident.severity === 'Critical' ? '🚨' : '⚠️'} ${incident.severity} incident — ${incident.title} (${traveller?.full_name || 'Traveller'})`
+    const sends   = []
+
+    // Notify org admin(s)
+    if (traveller?.org_id) {
+      const { data: orgAdmins } = await sb
+        .from('profiles')
+        .select('email')
+        .eq('org_id', traveller.org_id)
+        .eq('role', 'org_admin')
+      for (const admin of (orgAdmins || []).filter(a => a.email)) {
+        sends.push(sendEmail(admin.email, subject, html))
+      }
+    }
+
+    // Notify control room for Critical or High
+    if (incident.severity === 'Critical' || incident.severity === 'High') {
+      sends.push(sendEmail(CONTROL_ROOM_EMAIL, subject, html))
+    }
+
+    await Promise.allSettled(sends)
+
+    console.log(`[notify-incident] Sent ${sends.length} notifications for incident ${incident_id} (${incident.severity})`)
+    return res.json({ ok: true, sent: sends.length })
+  } catch (err) {
+    console.error('[notify-incident] unhandled error:', err)
+    return res.status(500).json({ error: 'Internal server error' })
   }
-
-  // Notify control room for Critical or High
-  if (incident.severity === 'Critical' || incident.severity === 'High') {
-    sends.push(sendEmail(CONTROL_ROOM_EMAIL, subject, html))
-  }
-
-  await Promise.allSettled(sends)
-
-  console.log(`[notify-incident] Sent ${sends.length} notifications for incident ${incident_id} (${incident.severity})`)
-  return res.json({ ok: true, sent: sends.length })
 }
 
 export const handler = adapt(_handler)

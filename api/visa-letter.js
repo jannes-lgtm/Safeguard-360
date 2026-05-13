@@ -16,6 +16,7 @@
 
 import { resolveModel } from './_claudeSynth.js'
 import { adapt } from './_adapter.js'
+import { checkRateLimit } from './_rateLimit.js'
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -48,6 +49,10 @@ async function handler(req, res) {
   } catch {
     res.status(401).json({ error: 'Invalid or expired token' }); return
   }
+
+  // Rate limit: 10 letter generations per user per hour (heavy AI operation)
+  const { allowed } = checkRateLimit(req, 'visa-letter', { max: 10, windowMs: 3_600_000 })
+  if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   const {
     tripId, passportCountry, destinationCountry, travelPurpose = 'Business',

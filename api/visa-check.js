@@ -8,6 +8,7 @@
 
 import { resolveModel } from './_claudeSynth.js'
 import { adapt } from './_adapter.js'
+import { checkRateLimit } from './_rateLimit.js'
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 const ANON_KEY     = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
@@ -32,6 +33,10 @@ async function handler(req, res) {
   if (!token || !(await verifyToken(token))) {
     return res.status(401).json({ error: 'Authentication required' })
   }
+
+  // Rate limit: 20 visa checks per user per hour
+  const { allowed } = checkRateLimit(req, 'visa-check', { max: 20, windowMs: 3_600_000 })
+  if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
   if (!ANTHROPIC_API_KEY) { res.status(503).json({ error: 'AI not configured' }); return }

@@ -35,6 +35,7 @@ async function sbPatch(baseUrl, key, table, qs, patch) {
 }
 
 async function _handler(req, res) {
+  try {
   const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
   const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
@@ -87,6 +88,10 @@ async function _handler(req, res) {
   }
 
   return res.status(405).json({ error: 'Method not allowed' })
+  } catch (err) {
+    console.error('[accept-invite] unhandled error:', err)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
 }
 
 import { adapt } from './_adapter.js'

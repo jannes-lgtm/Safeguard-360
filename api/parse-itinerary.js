@@ -96,6 +96,8 @@ async function resolveModel(apiKey) {
   return 'claude-3-haiku-20240307'
 }
 
+import { checkRateLimit } from './_rateLimit.js'
+
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 const ANON_KEY     = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
 
@@ -120,6 +122,10 @@ async function _handler(req, res) {
   if (!token || !(await verifyToken(token))) {
     return res.status(401).json({ error: 'Authentication required' })
   }
+
+  // Rate limit: 20 parse requests per user per hour
+  const { allowed } = checkRateLimit(req, 'parse-itinerary', { max: 20, windowMs: 3_600_000 })
+  if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   const { content, type, filename } = req.body || {}
 

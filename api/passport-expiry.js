@@ -15,14 +15,10 @@
  *   CRON_SECRET
  */
 
-import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from './_notify.js'
+import { getSupabaseAdmin } from './_supabase.js'
 
-const SUPABASE_URL  = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
-const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-const APP_URL       = process.env.APP_URL || 'https://www.risk360.co'
-
-const sb = createClient(SUPABASE_URL, SERVICE_KEY)
+const APP_URL = process.env.APP_URL || 'https://www.risk360.co'
 
 function daysUntil(dateStr) {
   return Math.floor((new Date(dateStr) - new Date()) / 86400000)
@@ -146,7 +142,13 @@ function adminEmail(traveller, days, org) {
 }
 
 export default async function handler(req, res) {
+  try {
   if (req.method === 'OPTIONS') return res.status(200).end()
+
+  let sb
+  try { sb = getSupabaseAdmin() } catch (e) {
+    return res.status(503).json({ error: e.message })
+  }
 
   // Auth: cron secret or POST from admin
   const cronSecret = process.env.CRON_SECRET
@@ -249,4 +251,8 @@ export default async function handler(req, res) {
   }
 
   return res.status(200).json({ checked: profiles.length, notified })
+  } catch (err) {
+    console.error('[passport-expiry] unhandled error:', err)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
 }

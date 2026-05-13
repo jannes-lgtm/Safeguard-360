@@ -14,6 +14,7 @@
  */
 
 import { comprehensiveRiskScan, synthesiseBrief, fetchGDACS, fetchUSGS, fetchHealthOutbreaks } from './_claudeSynth.js'
+import { checkRateLimit } from './_rateLimit.js'
 
 let issCache    = []
 let issCacheTime = 0
@@ -26,6 +27,10 @@ const ISS_CACHE_TTL  = 4  * 60 * 60 * 1000  // 4 hours
 async function _handler(req, res) {
   const { country } = req.query
   if (!country) return res.status(400).json({ error: 'country required' })
+
+  // Rate limit: 60 country risk checks per IP/user per hour (cached, but AI is invoked for new countries)
+  const { allowed } = checkRateLimit(req, 'country-risk', { max: 60, windowMs: 3_600_000 })
+  if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   try {
     const result = await getCountryRisk(country)
