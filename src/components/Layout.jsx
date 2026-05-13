@@ -254,6 +254,53 @@ function SoloTravellerNav({ alertCount, tripAlertCount }) {
   )
 }
 
+// ── Mobile bottom navigation bar ─────────────────────────────────────────────
+function MobileBottomNav({ role, alertCount }) {
+  const location = useLocation()
+  const isActive = (path) => location.pathname === path
+
+  const Item = ({ to, icon: Icon, label, red }) => {
+    const active = isActive(to)
+    return (
+      <NavLink to={to} className="flex flex-col items-center justify-center gap-0.5 flex-1 min-w-0 py-2 relative">
+        <span className={`transition-all ${active ? (red ? 'text-red-500' : 'text-[#0118A1]') : 'text-gray-400'}`}>
+          <Icon size={22} strokeWidth={active ? 2.5 : 1.8} />
+        </span>
+        <span className={`text-[9px] font-semibold tracking-wide leading-none ${active ? (red ? 'text-red-500' : 'text-[#0118A1]') : 'text-gray-400'}`}>
+          {label}
+        </span>
+        {active && !red && (
+          <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-[2px] rounded-full" style={{ background: BRAND_BLUE }} />
+        )}
+      </NavLink>
+    )
+  }
+
+  const SOSButton = () => {
+    const active = isActive('/sos')
+    return (
+      <NavLink to="/sos" className="flex flex-col items-center justify-center flex-1 min-w-0 py-1.5 relative">
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${active ? 'bg-red-700' : 'bg-red-600'}`}
+          style={{ boxShadow: '0 0 0 3px rgba(220,38,38,0.15)' }}>
+          <AlertOctagon size={22} color="white" strokeWidth={2.5} />
+        </div>
+        <span className="text-[9px] font-semibold tracking-wide text-red-500 mt-0.5">SOS</span>
+      </NavLink>
+    )
+  }
+
+  return (
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex items-stretch"
+      style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)', borderTop: '1px solid rgba(0,0,0,0.08)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <Item to="/dashboard" icon={LayoutGrid} label="Home" />
+      <Item to="/checkin"   icon={CheckCircle} label="Check-in" />
+      <SOSButton />
+      <Item to="/alerts"    icon={Bell} label={alertCount > 0 ? `Alerts` : 'Alerts'} />
+      <Item to="/profile"   icon={UserCircle} label="Profile" />
+    </div>
+  )
+}
+
 // ── Main layout ───────────────────────────────────────────────────────────────
 export default function Layout({ children, dark = false }) {
   const navigate = useNavigate()
@@ -451,10 +498,15 @@ export default function Layout({ children, dark = false }) {
 
       {/* ── Main content ── */}
       <main className="flex-1 lg:ml-[230px] min-h-screen pt-14 lg:pt-0">
-        <div className="p-4 lg:p-7 max-w-6xl mx-auto">
+        <div className={`p-4 lg:p-7 max-w-6xl mx-auto ${['traveller','solo','org_admin','admin'].includes(profile?.role) ? 'pb-24 lg:pb-7' : ''}`}>
           {children}
         </div>
       </main>
+
+      {/* ── Mobile bottom nav (traveller / org_admin / admin) ── */}
+      {profile && ['traveller','solo','org_admin','admin'].includes(profile.role) && (
+        <MobileBottomNav role={profile.role} alertCount={activeAlertCount} />
+      )}
     </div>
   )
 }

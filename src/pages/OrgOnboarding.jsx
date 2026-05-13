@@ -247,30 +247,44 @@ export default function OrgOnboarding() {
         <div className="w-full max-w-xl">
 
           {/* Progress */}
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
+          <div className="mb-6">
+            {/* Step label + count */}
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: BRAND_BLUE }}>
+                {STEPS[step]?.label}
+              </span>
+              <span className="text-[10px] text-gray-400 font-medium">Step {step + 1} of {STEPS.length}</span>
+            </div>
+            {/* Progress bar */}
+            <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden mb-4">
+              <div className="h-2 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${Math.round((step / (STEPS.length - 1)) * 100)}%`, background: `linear-gradient(90deg, ${BRAND_BLUE}, ${BRAND_GREEN})` }} />
+            </div>
+            {/* Step circles */}
+            <div className="flex items-center gap-1 sm:gap-2">
               {STEPS.map((s, i) => {
                 const Icon = s.icon
                 const active   = i === step
                 const complete = i < step
                 return (
-                  <div key={s.id} className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="flex flex-col items-center">
+                  <div key={s.id} className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
+                    <div className="flex flex-col items-center shrink-0">
                       <div
-                        className="w-9 h-9 rounded-full flex items-center justify-center transition-all"
+                        className="w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all"
                         style={{
                           background: complete ? BRAND_GREEN : active ? BRAND_BLUE : '#E5E7EB',
                           color: complete || active ? '#fff' : '#9CA3AF',
+                          transform: active ? 'scale(1.1)' : 'scale(1)',
                         }}
                       >
-                        {complete ? <CheckCircle2 size={16} /> : <Icon size={16} />}
+                        {complete ? <CheckCircle2 size={13} /> : <Icon size={13} />}
                       </div>
-                      <span className={`text-[10px] font-semibold mt-1 ${active ? 'text-[#0118A1]' : complete ? 'text-[#AACC00]' : 'text-gray-400'}`}>
+                      <span className={`hidden sm:block text-[10px] font-semibold mt-1 ${active ? 'text-[#0118A1]' : complete ? 'text-[#AACC00]' : 'text-gray-400'}`}>
                         {s.label}
                       </span>
                     </div>
                     {i < STEPS.length - 1 && (
-                      <div className="flex-1 h-0.5 mb-4 transition-all" style={{ background: i < step ? BRAND_GREEN : '#E5E7EB' }} />
+                      <div className="flex-1 h-0.5 mb-0 sm:mb-4 transition-all" style={{ background: i < step ? BRAND_GREEN : '#E5E7EB' }} />
                     )}
                   </div>
                 )
@@ -511,22 +525,22 @@ export default function OrgOnboarding() {
             )}
 
             {/* Navigation */}
-            <div className="mt-8 flex items-center justify-between">
+            <div className="mt-8 space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
               {step > 0 && step < 3 ? (
                 <button
                   onClick={back}
-                  className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors py-3 sm:py-0 order-2 sm:order-1"
                 >
                   <ChevronLeft size={16} /> Back
                 </button>
-              ) : <div />}
+              ) : <div className="order-2 sm:order-1" />}
 
               {step < 3 ? (
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3 order-1 sm:order-2">
                   {step === 2 && !invitesDone && (
                     <button
                       onClick={async () => { setInvitesDone(true); setStep(3) }}
-                      className="text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors px-4 py-2"
+                      className="w-full sm:w-auto text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors px-4 py-3 sm:py-2 rounded-xl border border-gray-200 sm:border-0"
                     >
                       Skip
                     </button>
@@ -534,7 +548,7 @@ export default function OrgOnboarding() {
                   <button
                     onClick={next}
                     disabled={saving}
-                    className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-60"
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3.5 sm:py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-60"
                     style={{ background: BRAND_BLUE }}
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : null}
@@ -546,7 +560,7 @@ export default function OrgOnboarding() {
                 <button
                   onClick={finish}
                   disabled={saving}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-60"
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3.5 sm:py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-60 order-1 sm:order-2"
                   style={{ background: BRAND_BLUE }}
                 >
                   {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}

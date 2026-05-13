@@ -240,11 +240,11 @@ export default function SOS() {
 
   return (
     <Layout>
-      <div className="max-w-2xl">
+      <div className="max-w-2xl mx-auto">
 
         {/* Admin active SOS banner */}
         {isAdmin && allActive.length > 0 && (
-          <div className="bg-red-600 text-white rounded-[8px] p-4 mb-6 flex items-center gap-3 animate-pulse">
+          <div className="bg-red-600 text-white rounded-2xl p-4 mb-6 flex items-center gap-3 animate-pulse">
             <AlertOctagon size={20}/>
             <div>
               <p className="font-bold text-sm">{allActive.length} Active SOS Event{allActive.length !== 1 ? 's' : ''}</p>
@@ -254,13 +254,13 @@ export default function SOS() {
         )}
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center shrink-0">
             <AlertOctagon size={20} color="white"/>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">SOS Emergency</h1>
-            <p className="text-sm text-gray-500">Trigger a distress alert — response team will be notified immediately</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">SOS Emergency</h1>
+            <p className="text-xs sm:text-sm text-gray-500">Trigger a distress alert — response team notified immediately</p>
           </div>
         </div>
 
@@ -325,13 +325,13 @@ export default function SOS() {
           </div>
         ) : (
           /* Idle — big SOS trigger */
-          <div className="bg-white border border-gray-200 rounded-[12px] p-6 mb-6 text-center shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 mb-5 text-center shadow-sm">
             <button onClick={beginSOS}
-              className="w-40 h-40 mx-auto rounded-full bg-red-600 hover:bg-red-700 active:scale-95 text-white font-black text-2xl shadow-[0_0_0_8px_rgba(220,38,38,0.15),0_0_0_16px_rgba(220,38,38,0.08)] transition-all flex flex-col items-center justify-center gap-1 mb-5">
-              <AlertOctagon size={36}/>
+              className="w-44 h-44 sm:w-48 sm:h-48 mx-auto rounded-full bg-red-600 hover:bg-red-700 active:scale-95 text-white font-black text-3xl shadow-[0_0_0_10px_rgba(220,38,38,0.12),0_0_0_20px_rgba(220,38,38,0.06)] transition-all flex flex-col items-center justify-center gap-2 mb-6 select-none">
+              <AlertOctagon size={40}/>
               <span>SOS</span>
             </button>
-            <p className="text-sm text-gray-600 mb-1">Press to trigger an emergency alert</p>
+            <p className="text-sm font-medium text-gray-700 mb-1">Press to trigger an emergency alert</p>
             <p className="text-xs text-gray-400">Your location and trip details will be sent to the response team</p>
           </div>
         )}

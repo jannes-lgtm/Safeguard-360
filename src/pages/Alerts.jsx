@@ -54,7 +54,7 @@ function AddAlertModal({ onClose, onAdded }) {
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               placeholder="e.g. Civil unrest — Lagos" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>Country</label>
               <input className={inputClass} required value={form.country}
@@ -68,7 +68,7 @@ function AddAlertModal({ onClose, onAdded }) {
                 placeholder="e.g. Lagos Island" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>Severity</label>
               <select className={inputClass} value={form.severity}

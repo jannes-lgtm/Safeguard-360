@@ -353,18 +353,26 @@ export default function Onboarding() {
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-3">
             <img src="/logo-blue.png" alt="SafeGuard360" className="h-7 w-auto" />
-            <span className="text-xs text-gray-400 font-medium">Step {step + 1} of {totalSteps}</span>
-          </div>
-          <div className="w-full h-1.5 rounded-full bg-gray-100">
-            <div className="h-1.5 rounded-full transition-all duration-500"
-              style={{ width: `${pct}%`, background: BRAND_GREEN }} />
-          </div>
-          <div className="flex justify-between mt-2">
-            {stepIds.map((id, i) => (
-              <span key={id} className="text-[9px] font-bold uppercase tracking-wide"
-                style={{ color: i <= step ? BRAND_BLUE : '#CBD5E1' }}>
-                {stepLabel(id)}
+            <div className="text-right">
+              <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: BRAND_BLUE }}>
+                {stepLabel(currentStepId)}
               </span>
+              <span className="text-[10px] text-gray-400 ml-2">{step + 1}/{totalSteps}</span>
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
+            <div className="h-2 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${BRAND_BLUE}, ${BRAND_GREEN})` }} />
+          </div>
+          {/* Step dots */}
+          <div className="flex justify-between mt-2.5 px-0.5">
+            {stepIds.map((id, i) => (
+              <div key={id} className="flex flex-col items-center gap-0.5">
+                <div className="w-2 h-2 rounded-full transition-all duration-300"
+                  style={{ background: i < step ? BRAND_GREEN : i === step ? BRAND_BLUE : '#E2E8F0',
+                    transform: i === step ? 'scale(1.3)' : 'scale(1)' }} />
+              </div>
             ))}
           </div>
         </div>
@@ -565,20 +573,20 @@ export default function Onboarding() {
             </div>
           )}
 
-          <div className="flex items-center justify-between mt-6">
+          <div className="mt-6 space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
             <button onClick={() => { setError(''); setStep(s => s - 1) }} disabled={step === 0}
-              className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-white transition-all disabled:opacity-0">
+              className="flex items-center justify-center gap-2 w-full sm:w-auto px-5 py-3.5 sm:py-3 rounded-xl text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-white transition-all disabled:opacity-0 disabled:pointer-events-none order-2 sm:order-1">
               <ChevronLeft size={16} /> Back
             </button>
             {step < totalSteps - 1 ? (
               <button onClick={handleNext}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3.5 sm:py-3 rounded-xl text-sm font-bold transition-all order-1 sm:order-2"
                 style={{ background: BRAND_BLUE, color: 'white' }}>
                 Continue <ChevronRight size={16} />
               </button>
             ) : (
               <button onClick={handleComplete} disabled={saving}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-60"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto px-7 py-3.5 sm:py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-60 order-1 sm:order-2"
                 style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
                 {saving
                   ? <><Loader2 size={15} className="animate-spin" /> Saving…</>
