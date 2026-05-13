@@ -15,9 +15,13 @@ const BRAND_BLUE  = '#0118A1'
 const BRAND_GREEN = '#AACC00'
 
 const PLAN_STYLE = {
-  starter:      { label: 'Starter',      bg: 'bg-gray-100',   text: 'text-gray-600' },
-  professional: { label: 'Professional', bg: 'bg-blue-100',   text: 'text-blue-700' },
-  enterprise:   { label: 'Enterprise',   bg: 'bg-purple-100', text: 'text-purple-700' },
+  solo:         { label: 'SOLO',         bg: 'bg-gray-100',   text: 'text-gray-600' },
+  team:         { label: 'TEAM',         bg: 'bg-blue-100',   text: 'text-blue-700' },
+  operations:   { label: 'OPERATIONS',   bg: 'bg-amber-100',  text: 'text-amber-700' },
+  enterprise:   { label: 'ENTERPRISE',   bg: 'bg-purple-100', text: 'text-purple-700' },
+  // legacy fallbacks
+  starter:      { label: 'SOLO',         bg: 'bg-gray-100',   text: 'text-gray-600' },
+  professional: { label: 'TEAM',         bg: 'bg-blue-100',   text: 'text-blue-700' },
 }
 
 function fmtDate(d) {
@@ -28,7 +32,7 @@ function fmtDate(d) {
 const emptyOrg = {
   name: '', industry: '', country: '', website: '',
   primary_contact: '', contact_email: '', contact_phone: '',
-  subscription_plan: 'professional', max_travellers: 50, notes: '',
+  subscription_plan: 'team', max_travellers: 15, notes: '',
 }
 
 // ── Org card ──────────────────────────────────────────────────────────────────
@@ -181,9 +185,10 @@ function OrgModal({ org, onClose, onSaved }) {
             <div>
               <label className={labelClass}>Plan</label>
               <select className={inputClass} {...f('subscription_plan')}>
-                <option value="starter">Starter</option>
-                <option value="professional">Professional</option>
-                <option value="enterprise">Enterprise</option>
+                <option value="solo">SOLO — $18/mo (1 seat)</option>
+                <option value="team">TEAM — $210/mo (15 seats)</option>
+                <option value="operations">OPERATIONS — $580/mo (40 seats)</option>
+                <option value="enterprise">ENTERPRISE — Custom</option>
               </select>
             </div>
             <div>
@@ -339,10 +344,10 @@ export default function Organisations() {
           placeholder="Search organisations…"
           className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 flex-1 min-w-[200px]"
         />
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-          {['all', 'starter', 'professional', 'enterprise'].map(p => (
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 flex-wrap">
+          {['all', 'solo', 'team', 'operations', 'enterprise'].map(p => (
             <button key={p} onClick={() => setFilterPlan(p)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium uppercase transition-colors ${
                 filterPlan === p ? 'bg-white text-[#0118A1] shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}>
               {p}

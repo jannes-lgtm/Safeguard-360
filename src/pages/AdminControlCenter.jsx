@@ -158,14 +158,14 @@ function OrgModal({ org, onClose, onSaved }) {
   const blank = { name:'', industry:'', country:'', address:'', website:'',
     emergency_number:'', primary_contact:'', contact_email:'', contact_phone:'',
     security_contact:'', security_email:'', security_phone:'',
-    subscription_plan:'professional', max_travellers:50 }
+    subscription_plan:'team', max_travellers:15 }
   const [form, setForm] = useState(org ? {
     name: org.name||'', industry: org.industry||'', country: org.country||'',
     address: org.address||'', website: org.website||'', emergency_number: org.emergency_number||'',
     primary_contact: org.primary_contact||'', contact_email: org.contact_email||'',
     contact_phone: org.contact_phone||'', security_contact: org.security_contact||'',
     security_email: org.security_email||'', security_phone: org.security_phone||'',
-    subscription_plan: org.subscription_plan||'professional', max_travellers: org.max_travellers||50,
+    subscription_plan: org.subscription_plan||'team', max_travellers: org.max_travellers||15,
   } : blank)
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
@@ -221,9 +221,10 @@ function OrgModal({ org, onClose, onSaved }) {
           <div>
             <label className={labelCls}>Subscription Plan</label>
             <select className={inputCls} {...f('subscription_plan')}>
-              <option value="starter">Starter</option>
-              <option value="professional">Professional</option>
-              <option value="enterprise">Enterprise</option>
+              <option value="solo">SOLO — $18/mo (1 seat)</option>
+              <option value="team">TEAM — $210/mo (15 seats)</option>
+              <option value="operations">OPERATIONS — $580/mo (40 seats)</option>
+              <option value="enterprise">ENTERPRISE — Custom</option>
             </select>
           </div>
           <div>
@@ -1064,7 +1065,7 @@ export default function AdminControlCenter() {
                             : <span className="text-gray-400 text-xs">0</span>}
                         </td>
                         <td className="px-4 py-3 hidden lg:table-cell">
-                          <Pill label={(o.subscription_plan||'professional').charAt(0).toUpperCase()+(o.subscription_plan||'professional').slice(1)} color="blue"/>
+                          <Pill label={(o.subscription_plan||'—').toUpperCase()} color="blue"/>
                         </td>
                         <td className="px-4 py-3">
                           {o.approval_status === 'pending'  && <Pill label="Awaiting Approval" color="amber"/>}

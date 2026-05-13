@@ -74,9 +74,11 @@ export default async function handler(req, res) {
   try {
     // 1. Create the organisation
     const org = await restPost('organisations', {
-      name:      company_name.trim(),
-      country:   country?.trim() || null,
-      is_active: true,
+      name:              company_name.trim(),
+      country:           country?.trim() || null,
+      is_active:         true,
+      subscription_plan: null,   // set via Stripe after payment
+      billing_status:    'inactive',
     })
     orgId = org.id
 
