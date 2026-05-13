@@ -158,22 +158,32 @@ export default function OrgOnboarding() {
 
     setInviteStatus(validRows.map(() => 'sending'))
 
+    // Fetch session once — all invites share the same token
+    const { data: { session } } = await supabase.auth.getSession()
+    const authHeader = session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {}
+
     const results = await Promise.all(
-      validRows.map(async (row, i) => {
+      validRows.map(async (row) => {
         try {
           const res = await fetch('/api/invite-user', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...authHeader },
             body: JSON.stringify({
-              email:    row.email.trim(),
-              role:     row.role,
-              org_id:   orgId,
-              org_name: orgForm.name,
-              invited_by: profile?.id,
+              email:  row.email.trim(),
+              role:   row.role,
+              org_id: orgId,
             }),
           })
-          return res.ok ? 'sent' : 'error'
-        } catch {
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            console.error('[OrgOnboarding] invite failed', row.email, err)
+            return 'error'
+          }
+          return 'sent'
+        } catch (e) {
+          console.error('[OrgOnboarding] invite network error', row.email, e)
           return 'error'
         }
       })

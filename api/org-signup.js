@@ -1,3 +1,12 @@
+/**
+ * api/org-signup.js
+ *
+ * Creates a new organisation and its first org_admin user atomically.
+ * Three steps with full compensating rollback if any step fails.
+ *
+ * POST body: { email, password, full_name, company_name, country? }
+ */
+
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
@@ -7,6 +16,8 @@ const headers = () => ({
   'apikey':        SERVICE_KEY,
 })
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 async function restPost(path, body) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     method:  'POST',
@@ -14,22 +25,10 @@ async function restPost(path, body) {
     body:    JSON.stringify(body),
   })
   const text = await res.text()
-  const data = text ? JSON.parse(text) : null
+  let data
+  try { data = JSON.parse(text) } catch { data = null }
   if (!res.ok) throw new Error(data?.[0]?.message || data?.message || text || res.statusText)
   return Array.isArray(data) ? data[0] : data
-}
-
-async function restPatch(path, match, body) {
-  const params = Object.entries(match).map(([k, v]) => `${k}=eq.${v}`).join('&')
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}?${params}`, {
-    method:  'PATCH',
-    headers: { ...headers(), 'Prefer': 'return=representation' },
-    body:    JSON.stringify(body),
-  })
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(text || res.statusText)
-  }
 }
 
 async function createAuthUser(email, password, metadata) {
@@ -39,7 +38,7 @@ async function createAuthUser(email, password, metadata) {
     body: JSON.stringify({
       email,
       password,
-      email_confirm: true,
+      email_confirm: false,  // send real confirmation email — don't silently activate
       user_metadata: metadata,
     }),
   })
@@ -49,11 +48,26 @@ async function createAuthUser(email, password, metadata) {
 }
 
 async function deleteAuthUser(userId) {
-  await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
-    method:  'DELETE',
-    headers: headers(),
-  }).catch(() => {})
+  try {
+    await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+      method: 'DELETE', headers: headers(),
+    })
+  } catch (e) {
+    console.error('[org-signup] rollback: deleteAuthUser failed', e.message)
+  }
 }
+
+async function deleteOrg(orgId) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/organisations?id=eq.${orgId}`, {
+      method: 'DELETE', headers: headers(),
+    })
+  } catch (e) {
+    console.error('[org-signup] rollback: deleteOrg failed', e.message)
+  }
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
@@ -63,8 +77,8 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server configuration error.' })
   }
 
-  const { email, password, full_name, company_name, country } = req.body
-  if (!email || !password || !full_name || !company_name) {
+  const { email, password, full_name, company_name, country } = req.body || {}
+  if (!email?.trim() || !password || !full_name?.trim() || !company_name?.trim()) {
     return res.status(400).json({ error: 'Missing required fields.' })
   }
 
@@ -72,31 +86,36 @@ export default async function handler(req, res) {
   let userId = null
 
   try {
-    // 1. Create the organisation
+    // ── Step 1: Create organisation ──────────────────────────────────────────
+    // Only pass columns guaranteed to exist. billing_status/stripe fields
+    // are added via supabase-migration-billing.sql — omit here for safety
+    // so the insert works even if the migration hasn't run yet.
     const org = await restPost('organisations', {
       name:              company_name.trim(),
       country:           country?.trim() || null,
       is_active:         true,
-      subscription_plan: 'solo',   // default tier — upgraded via Stripe after payment
-      billing_status:    'inactive',
+      subscription_plan: 'starter',  // safe default — matches original DB constraint
     })
     orgId = org.id
+    console.log('[org-signup] step1 org created', orgId)
 
-    // 2. Create auth user via admin REST API
-    const user = await createAuthUser(email, password, {
+    // ── Step 2: Create auth user (sends confirmation email) ─────────────────
+    const user = await createAuthUser(email.trim(), password, {
       full_name: full_name.trim(),
       role:      'org_admin',
       org_id:    orgId,
     })
     userId = user.id
+    console.log('[org-signup] step2 auth user created', userId)
 
-    // 3. Upsert profile — works whether trigger created it or not
+    // ── Step 3: Upsert profile (DB trigger may have already created it) ──────
+    // Use merge-duplicates so this is idempotent whether or not the trigger ran.
     const profileRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
       method:  'POST',
       headers: { ...headers(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify({
         id:        userId,
-        email,
+        email:     email.trim(),
         full_name: full_name.trim(),
         role:      'org_admin',
         org_id:    orgId,
@@ -105,18 +124,30 @@ export default async function handler(req, res) {
     })
     if (!profileRes.ok) {
       const t = await profileRes.text()
-      throw new Error(`Profile error: ${t}`)
+      throw new Error(`Profile upsert failed: ${t}`)
     }
+    console.log('[org-signup] step3 profile upserted', userId)
 
     return res.status(200).json({ success: true, org_id: orgId })
+
   } catch (err) {
-    console.error('[org-signup]', err.message)
+    // ── Compensating rollback — best effort, log every failure ───────────────
+    console.error('[org-signup] failed:', err.message)
     if (userId) await deleteAuthUser(userId)
-    if (orgId)  {
-      await fetch(`${SUPABASE_URL}/rest/v1/organisations?id=eq.${orgId}`, {
-        method: 'DELETE', headers: headers(),
-      }).catch(() => {})
+    if (orgId)  await deleteOrg(orgId)
+
+    // Surface a clean message — not raw Postgres errors
+    let message = 'Signup failed. Please try again.'
+    if (err.message.includes('already registered') || err.message.includes('already exists')) {
+      message = 'An account with this email already exists. Please sign in.'
+    } else if (err.message.includes('check constraint') || err.message.includes('violates')) {
+      message = 'Account setup error — please contact support.'
+      console.error('[org-signup] CONSTRAINT VIOLATION — check subscription_plan value and DB schema:', err.message)
+    } else if (err.message.includes('not-null')) {
+      message = 'Account setup error — please contact support.'
+      console.error('[org-signup] NOT-NULL VIOLATION:', err.message)
     }
-    return res.status(400).json({ error: err.message || 'Signup failed. Please try again.' })
+
+    return res.status(400).json({ error: message })
   }
 }

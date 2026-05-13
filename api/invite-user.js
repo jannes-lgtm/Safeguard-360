@@ -152,36 +152,16 @@ async function _handler(req, res) {
 </table>
 </body></html>`
 
-  // ── Primary: Supabase auth invite (uses project's own SMTP — always works) ─
-  let emailSent = false
-  try {
-    const supabaseInviteRes = await fetch(`${SUPABASE_URL}/auth/v1/invite`, {
-      method: 'POST',
-      headers: {
-        apikey:          SERVICE_KEY,
-        Authorization:   `Bearer ${SERVICE_KEY}`,
-        'Content-Type':  'application/json',
-      },
-      body: JSON.stringify({
-        email,
-        data: { org_id: orgId, role, org_name: org.name },
-        redirect_to: inviteUrl,
-      }),
-    })
-    if (supabaseInviteRes.ok) {
-      emailSent = true
-    } else {
-      const errText = await supabaseInviteRes.text()
-      console.warn('[invite-user] Supabase invite API failed:', errText)
-    }
-  } catch (e) {
-    console.warn('[invite-user] Supabase invite error:', e.message)
-  }
-
-  // ── Secondary: Resend styled email (if configured) ───────────────────────
-  if (!emailSent) {
-    emailSent = await sendEmail(email, `You're invited to join ${org.name} on Safeguard 360`, html)
-  }
+  // ── Send invite email via Resend ─────────────────────────────────────────
+  // NOTE: We do NOT use Supabase's /auth/v1/invite API because it pre-creates
+  // an auth user, which causes a conflict when the invitee later calls
+  // supabase.auth.signUp(). The invite token in the URL is sufficient proof
+  // of intent — the invitee completes signup themselves.
+  const emailSent = await sendEmail(
+    email,
+    `You're invited to join ${org.name} on Safeguard 360`,
+    html,
+  )
 
   return res.status(200).json({
     ok:         true,

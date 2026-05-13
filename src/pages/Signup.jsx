@@ -163,10 +163,14 @@ export default function Signup() {
             style={{ background: `${BRAND_GREEN}30` }}>
             <CheckCircle2 size={28} style={{ color: BRAND_BLUE }} />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Check your email</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">
+            {tab === 'org' ? 'Account created' : 'Check your email'}
+          </h2>
           <p className="text-sm text-gray-500 leading-relaxed mb-6">
-            We sent a confirmation link to <strong>{email || inviteData?.email}</strong>.
-            Click it to activate your account and sign in.
+            {tab === 'org'
+              ? <>We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account, then sign in.</>
+              : <>We sent a confirmation link to <strong>{inviteData?.email || email}</strong>. Click it to activate your account and sign in.</>
+            }
           </p>
           <Link to="/login"
             className="inline-block w-full py-2.5 rounded-[6px] text-sm font-semibold text-center"
