@@ -109,6 +109,7 @@ function DeveloperNav({ alertCount }) {
       <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
 
       <NavSection label="Account" />
+      <NavItem to="/billing"        icon={CreditCard}   label="Billing & Plan" />
       <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
     </>
   )
@@ -146,6 +147,7 @@ function CorporateAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
 
       <NavSection label="Account" />
+      <NavItem to="/billing"        icon={CreditCard}   label="Billing & Plan" />
       <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
     </>
   )
