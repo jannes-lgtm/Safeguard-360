@@ -38,6 +38,7 @@ import Debrief from './pages/Debrief'
 import OrgAnalytics from './pages/OrgAnalytics'
 import CrisisBroadcast from './pages/CrisisBroadcast'
 import HealthDeclaration from './pages/HealthDeclaration'
+import OperationalIntel from './pages/OperationalIntel'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -84,6 +85,7 @@ export default function App() {
         <Route path="/control-room"      element={<ProtectedRoute orgAdminAllowed><ControlRoom /></ProtectedRoute>} />
         <Route path="/assistance"      element={<ProtectedRoute><Assistance /></ProtectedRoute>} />
         <Route path="/visa"            element={<ProtectedRoute><Visa /></ProtectedRoute>} />
+        <Route path="/ops-intel"       element={<ProtectedRoute adminOnly><OperationalIntel /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

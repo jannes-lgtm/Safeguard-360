@@ -5,7 +5,7 @@ import {
   Users, LogOut, UserCircle, Radio, Newspaper, Briefcase,
   AlertOctagon, Navigation, Shield, Siren, ClipboardList,
   Building2, GraduationCap, BookOpen, Globe, Settings,
-  BarChart2, Code2, Headphones, Menu, X, Megaphone,
+  BarChart2, Code2, Headphones, Menu, X, Megaphone, Activity,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import usePassiveLocation from '../hooks/usePassiveLocation'
@@ -94,6 +94,7 @@ function DeveloperNav({ alertCount }) {
       <NavSection label="Operations" />
       <NavItem to="/control-room"   icon={Headphones}   label="Live Control Room" />
       <NavItem to="/approvals"      icon={ClipboardList} label="Travel Approvals" />
+      <NavItem to="/ops-intel"      icon={Activity}     label="Operational Intelligence" />
 
       <NavSection label="Compliance" />
       <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />

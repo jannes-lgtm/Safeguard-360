@@ -22,6 +22,7 @@
  */
 
 import { fetchWithRetry } from './_retry.js'
+import { emitNotification } from './_telemetry.js'
 
 const FROM_NAME = 'Safeguard 360'
 
@@ -35,10 +36,14 @@ function escapeHtml(s) {
 }
 
 // ── Email via Resend ──────────────────────────────────────────────────────────
-export async function sendEmail(to, subject, html) {
+export async function sendEmail(to, subject, html, { notificationType, region } = {}) {
   const apiKey = process.env.RESEND_API_KEY
   const from   = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
   if (!apiKey || !to) return false
+
+  const t0 = Date.now()
+  let success = false
+  let errorCode
 
   try {
     const res = await fetchWithRetry(
@@ -60,12 +65,16 @@ export async function sendEmail(to, subject, html) {
     )
     if (!res.ok) {
       const err = await res.text()
+      errorCode = String(res.status)
       console.error(JSON.stringify({ level: 'error', msg: 'Resend error', status: res.status, to, err }))
-      return false
+    } else {
+      success = true
     }
-    return true
+    emitNotification({ channel: 'email', notificationType, recipientRaw: to, region, success, durationMs: Date.now() - t0, errorCode, provider: 'resend' })
+    return success
   } catch (e) {
     console.error(JSON.stringify({ level: 'error', msg: 'sendEmail failed', error: e.message, to }))
+    emitNotification({ channel: 'email', notificationType, recipientRaw: to, region, success: false, durationMs: Date.now() - t0, errorCode: 'network_error', provider: 'resend' })
     return false
   }
 }

@@ -3,6 +3,7 @@
 // No API key needed — all feeds listed below are free and public
 
 import { fetchWithRetry } from './_retry.js'
+import { emit } from './_telemetry.js'
 
 const cache = {}
 const CACHE_TTL = 30 * 60 * 1000 // 30 minutes — shorter TTL so outbreak news surfaces faster
@@ -374,7 +375,10 @@ async function _handler(req, res) {
     return res.json({ ...cache[feedUrl].data, cached: true })
   }
 
+  const t0 = Date.now()
   const xml = await fetchRss(feedUrl)
+  const fetchMs = Date.now() - t0
+  emit({ type: 'feed_fetch', feedId: id || null, endpoint: 'rss-ingest', success: !!xml, durationMs: fetchMs, metadata: { url: feedUrl } })
   if (!xml) return res.json({ feed: feedMeta || { url: feedUrl }, articles: [], total: 0, fetchError: true, fetchedAt: new Date().toISOString() })
 
   const items = parseRss(xml)
