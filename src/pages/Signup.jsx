@@ -112,13 +112,15 @@ export default function Signup() {
   const handleInviteSignup = async (e) => {
     e.preventDefault()
     setError('')
-    if (!inviteData) { setError('Invite details not loaded yet.'); return }
     setLoading(true)
+
+    const signupEmail = inviteData?.email || email
+    if (!signupEmail) { setError('Please enter your email address.'); setLoading(false); return }
 
     try {
       // 1. Sign up — trigger will set org_id + role from metadata
       const { error: authErr } = await supabase.auth.signUp({
-        email:    inviteData.email,
+        email:    signupEmail,
         password,
         options: {
           data: {
@@ -323,9 +325,15 @@ export default function Signup() {
 
                   <div>
                     <label className={labelClass}>Email address</label>
-                    <input className={`${inputClass} bg-gray-50 cursor-not-allowed`}
-                      type="email" value={inviteData?.email || email}
-                      readOnly disabled />
+                    {inviteData?.email ? (
+                      <input className={`${inputClass} bg-gray-50 cursor-not-allowed`}
+                        type="email" value={inviteData.email}
+                        readOnly disabled />
+                    ) : (
+                      <input className={inputClass}
+                        type="email" placeholder="you@company.com"
+                        value={email} onChange={e => setEmail(e.target.value)} required />
+                    )}
                   </div>
 
                   <div>
@@ -345,7 +353,7 @@ export default function Signup() {
                     <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-[6px] px-3 py-2">{error}</p>
                   )}
 
-                  <button type="submit" disabled={loading || !inviteData}
+                  <button type="submit" disabled={loading}
                     className="w-full py-2.5 rounded-[6px] text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
                     style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
                     {loading
