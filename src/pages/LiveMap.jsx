@@ -191,6 +191,17 @@ export default function LiveMap() {
     setProfile({ ...prof, id: user.id, email: user.email })
     setActiveTrip(trip || null)
 
+    // Clear any stale is_sharing=true rows left by a previous session that
+    // closed without calling stopSharing (e.g. browser tab closed).
+    // Rows older than 2 hours with is_sharing=true are considered abandoned.
+    const staleThreshold = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+    supabase.from('staff_locations')
+      .update({ is_sharing: false })
+      .eq('user_id', user.id)
+      .eq('is_sharing', true)
+      .lt('recorded_at', staleThreshold)
+      .then(() => {})  // fire-and-forget
+
     // Deduplicate to latest position per user
     const seen = new Set()
     const dedup = (locs || []).filter(l => { if (seen.has(l.user_id)) return false; seen.add(l.user_id); return true })
@@ -601,6 +612,11 @@ export default function LiveMap() {
   }, [myPos, tripAlerts])
 
   // ── Location sharing ────────────────────────────────────────────────────────
+  // Keep a ref to pushLocation so startSharing's watchPosition callback always
+  // calls the latest version — avoids a stale-closure where profile is still
+  // null when the user clicks "Share" before loadInitialData has returned.
+  const pushLocationRef = useRef(null)
+
   const pushLocation = useCallback(async (coords) => {
     const now = Date.now()
     if (now - lastWriteRef.current < LOCATION_WRITE_THROTTLE_MS) return
@@ -608,9 +624,19 @@ export default function LiveMap() {
 
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
+
+    // Use auth session email as the most reliable fallback — profile state
+    // may still be null if sharing started before loadInitialData resolved.
+    const displayName =
+      profile?.full_name ||
+      profile?.email     ||
+      session.user.email ||
+      session.user.user_metadata?.full_name ||
+      'Unknown'
+
     await supabase.from('staff_locations').insert({
       user_id:      session.user.id,
-      full_name:    profile?.full_name || profile?.email || 'Unknown',
+      full_name:    displayName,
       latitude:     coords.latitude,
       longitude:    coords.longitude,
       accuracy:     coords.accuracy,
@@ -622,6 +648,9 @@ export default function LiveMap() {
     // Realtime subscription will pick up the change — no manual loadData() needed
   }, [profile, activeTrip])
 
+  // Keep ref current so watchPosition callback always calls the latest version
+  useEffect(() => { pushLocationRef.current = pushLocation }, [pushLocation])
+
   const startSharing = () => {
     if (!navigator.geolocation) { setGpsErr('GPS not supported on this device'); return }
     setGpsErr(null)
@@ -629,7 +658,7 @@ export default function LiveMap() {
     watchRef.current = navigator.geolocation.watchPosition(
       pos => {
         setMyPos(pos.coords)
-        pushLocation(pos.coords)
+        pushLocationRef.current?.(pos.coords)  // always calls latest pushLocation
       },
       err => { setGpsErr(err.message); setSharing(false) },
       { enableHighAccuracy: true, maximumAge: 30_000, timeout: 15_000 }
