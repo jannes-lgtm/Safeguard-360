@@ -322,12 +322,9 @@ export default function Onboarding() {
             policy_version: orgPolicy.policy_version,
           }, { onConflict: 'user_id,policy_id' })
         } else {
-          // Solo: store in policy_signatures with a sentinel policy_id
-          await supabase.from('policy_signatures').upsert({
-            ...sigPayload,
-            policy_id:      '00000000-0000-0000-0000-000000000001',
-            policy_version: '1.0',
-          }, { onConflict: 'user_id,policy_id' })
+          // Solo: terms acceptance is already stored as terms_version + terms_accepted_at
+          // on the profile (via TermsAndConditions.jsx). No policy_signatures row needed —
+          // skipping avoids a FK violation on the travel_policies foreign key.
         }
       }
 

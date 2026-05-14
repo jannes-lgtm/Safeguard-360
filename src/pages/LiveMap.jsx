@@ -238,13 +238,17 @@ export default function LiveMap() {
     }
     clearTimeout(reconnectTimer.current)
 
+    // For solo users: filter to own location only (Supabase Realtime does not
+    // automatically apply RLS to postgres_changes — explicit filter is required
+    // to prevent cross-user location event leakage).
+    // For org/admin users: no filter — they legitimately see the whole team.
+    const realtimeFilter = (isSolo && profile?.id)
+      ? { event: '*', schema: 'public', table: 'staff_locations', filter: `user_id=eq.${profile.id}` }
+      : { event: '*', schema: 'public', table: 'staff_locations' }
+
     const channel = supabase
-      .channel('op-staff-locations')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table:  'staff_locations',
-      }, (payload) => {
+      .channel(`op-staff-locations-${profile?.id || 'shared'}`)
+      .on('postgres_changes', realtimeFilter, (payload) => {
         const updated = payload.new
         if (!updated?.is_sharing || !updated?.user_id) return
 
@@ -278,7 +282,7 @@ export default function LiveMap() {
       })
 
     channelRef.current = channel
-  }, [])   // eslint-disable-line
+  }, [isSolo, profile?.id])   // eslint-disable-line
 
   useEffect(() => {
     subscribeRealtime()

@@ -1049,18 +1049,28 @@ export default function JourneyAgent() {
   const bottomRef = useRef(null)
   const inputRef  = useRef(null)
 
-  // Load profile
+  // Load profile + org name for CAIRO context
   useEffect(() => {
-    supabase.from('profiles').select('full_name, role, org_id').eq('id', (async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      return user?.id
-    })()).maybeSingle().then(({ data }) => setProfile(data))
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('full_name, role, org_id')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (!prof) return
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        supabase.from('profiles').select('full_name, role, org_id').eq('id', user.id).maybeSingle()
-          .then(({ data }) => setProfile(data))
+      // Fetch org name if user belongs to an org — pass name, not UUID, to CAIRO
+      let orgName = null
+      if (prof.org_id) {
+        const { data: org } = await supabase
+          .from('organisations')
+          .select('name')
+          .eq('id', prof.org_id)
+          .maybeSingle()
+        orgName = org?.name || null
       }
+      setProfile({ ...prof, orgName })
     })
   }, [])
 
@@ -1148,7 +1158,7 @@ export default function JourneyAgent() {
           action,
           journey,
           history: messages,
-          orgContext: profile?.org_id ? { orgName: profile.org_id } : null,
+          orgContext: profile?.orgName ? { orgName: profile.orgName } : null,
         }),
       })
 

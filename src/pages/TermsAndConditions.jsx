@@ -69,7 +69,8 @@ export default function TermsAndConditions() {
 
       if (updateError) throw new Error(`Could not save your acceptance: ${updateError.message}`)
 
-      // If profile didn't exist yet (edge case), create a minimal one from auth metadata
+      // If profile didn't exist yet (edge case), create a minimal one from auth metadata.
+      // Use role from user_metadata so solo users keep role:'solo', not 'traveller'.
       if (count === 0) {
         const { error: insertError } = await supabase
           .from('profiles')
@@ -77,8 +78,8 @@ export default function TermsAndConditions() {
             id:                user.id,
             email:             user.email,
             full_name:         user.user_metadata?.full_name || 'New User',
-            role:              'traveller',
-            org_id:            null,
+            role:              user.user_metadata?.role || 'traveller',
+            org_id:            user.user_metadata?.org_id || null,
             status:            'active',
             terms_version:     TERMS_VERSION,
             terms_accepted_at: new Date().toISOString(),
@@ -86,7 +87,15 @@ export default function TermsAndConditions() {
         if (insertError) throw new Error(`Could not save your acceptance: ${insertError.message}`)
       }
 
-      navigate('/dashboard')
+      // Navigate directly to onboarding if not yet completed — avoids double redirect
+      // (dashboard → ProtectedRoute → onboarding) which causes a visible flash
+      const { data: freshProfile } = await supabase
+        .from('profiles')
+        .select('onboarding_completed_at')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      navigate(freshProfile?.onboarding_completed_at ? '/dashboard' : '/onboarding')
     } catch (err) {
       console.error('Accept error:', err)
       setAcceptError(err.message || 'Something went wrong. Please try again.')

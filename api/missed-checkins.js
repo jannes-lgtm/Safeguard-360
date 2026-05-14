@@ -264,7 +264,7 @@ async function processMissed(missed, res, supabaseAdmin, log) {
   for (const checkin of missed) {
     try {
       const [{ data: traveller }, { data: contacts }, { data: trip }] = await Promise.all([
-        supabaseAdmin.from('profiles').select('full_name, email, phone, whatsapp, org_id, role').eq('id', checkin.user_id).single(),
+        supabaseAdmin.from('profiles').select('full_name, email, phone, whatsapp_number, org_id, role').eq('id', checkin.user_id).single(),
         supabaseAdmin.from('emergency_contacts').select('*').eq('user_id', checkin.user_id).order('priority'),
         supabaseAdmin.from('itineraries').select('trip_name, arrival_city, depart_date, return_date').eq('id', checkin.trip_id).single(),
       ])
@@ -294,8 +294,8 @@ async function processMissed(missed, res, supabaseAdmin, log) {
       const sends = []
 
       // ── 1. Alert the traveller themselves via SMS + WhatsApp ──────────────────
-      if (traveller?.phone)    sends.push(sendSms(traveller.phone, smsTraveller).catch(() => false))
-      if (traveller?.whatsapp) sends.push(sendWhatsApp(traveller.whatsapp, waTraveller).catch(() => false))
+      if (traveller?.phone)             sends.push(sendSms(traveller.phone, smsTraveller).catch(() => false))
+      if (traveller?.whatsapp_number)   sends.push(sendWhatsApp(traveller.whatsapp_number, waTraveller).catch(() => false))
 
       // ── 2. Notify each emergency contact (email + SMS + WhatsApp) ─────────────
       const contactEmail = buildContactEmail({
@@ -321,7 +321,7 @@ async function processMissed(missed, res, supabaseAdmin, log) {
       if (traveller?.org_id) {
         const { data: orgAdmins } = await supabaseAdmin
           .from('profiles')
-          .select('full_name, email, phone, whatsapp')
+          .select('full_name, email, phone, whatsapp_number')
           .eq('org_id', traveller.org_id)
           .eq('role', 'org_admin')
         const adminEmail = buildControlRoomEmail({
@@ -329,9 +329,9 @@ async function processMissed(missed, res, supabaseAdmin, log) {
           trip, checkin, overdueMins: overdueMins_,
         })
         for (const admin of (orgAdmins || [])) {
-          if (admin.email)    sends.push(sendEmail(admin.email, emailSubjectAdmin, adminEmail).catch(() => false))
-          if (admin.phone)    sends.push(sendSms(admin.phone, smsCR).catch(() => false))
-          if (admin.whatsapp) sends.push(sendWhatsApp(admin.whatsapp, waCR).catch(() => false))
+          if (admin.email)            sends.push(sendEmail(admin.email, emailSubjectAdmin, adminEmail).catch(() => false))
+          if (admin.phone)            sends.push(sendSms(admin.phone, smsCR).catch(() => false))
+          if (admin.whatsapp_number)  sends.push(sendWhatsApp(admin.whatsapp_number, waCR).catch(() => false))
         }
       }
 

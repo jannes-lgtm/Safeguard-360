@@ -29,7 +29,8 @@ async function handler(req, res) {
   }
 
   const isOrgSignup  = role === 'org_admin' && company_name
-  const isInviteUser = role !== 'org_admin'
+  const isSoloSignup = role === 'solo'
+  const isInviteUser = role === 'traveller'
 
   const subject = isOrgSignup
     ? `New organisation signup — ${company_name}`
@@ -68,7 +69,7 @@ async function handler(req, res) {
           <tr>
             <td style="padding: 10px 12px; background: #f7f9ff; border-radius: 0 0 0 6px; color: #666; font-weight: 600;">Role</td>
             <td style="padding: 10px 12px; background: #f7f9ff; border-radius: 0 0 6px 0; color: #1a1a2e;">
-              ${role === 'org_admin' ? 'Company Administrator' : role === 'traveller' ? 'Traveller' : role || '—'}
+              ${role === 'org_admin' ? 'Company Administrator' : role === 'solo' ? 'Individual Traveller' : role === 'traveller' ? 'Org Traveller' : role || '—'}
             </td>
           </tr>
         </table>
@@ -77,7 +78,9 @@ async function handler(req, res) {
           <p style="margin: 0; font-size: 13px; color: #555;">
             ${isOrgSignup
               ? 'A new organisation has registered. They will need to confirm their email before they can log in. You may want to reach out to welcome them.'
-              : 'A new user has accepted an invite and signed up. They will need to confirm their email before they can log in.'}
+              : isSoloSignup
+                ? 'A new individual traveller has self-registered. They will need to confirm their email, accept terms, and complete onboarding before accessing the platform.'
+                : 'A new user has accepted an invite and signed up. They will need to confirm their email before they can log in.'}
           </p>
         </div>
 
