@@ -1,0 +1,26 @@
+{
+  "name": "SafeGuard360",
+  "short_name": "SafeGuard360",
+  "description": "Duty of care platform for field travellers — risk alerts, check-ins, SOS, and live intelligence.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0118A1",
+  "theme_color": "#0118A1",
+  "icons": [
+    {
+      "src": "/logo-blue.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo-blue.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["travel", "security", "utilities"],
+  "lang": "en"
+}
