@@ -527,7 +527,7 @@ export default function Pricing() {
               },
               {
                 icon: <Layers size={16} />,
-                title: 'Journey Intelligence',
+                title: 'CAIRO Intelligence',
                 body: 'Flight monitoring, itinerary parsing, visa requirements, and movement risk mapping by corridor.',
               },
             ].map((p, i) => (

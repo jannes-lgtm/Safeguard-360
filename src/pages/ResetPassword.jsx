@@ -60,7 +60,7 @@ export default function ResetPassword() {
 
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <img src="/logo-blue.png" alt="SafeGuard360" className="h-10 w-auto" />
+          <img src="/logo-colour.png" alt="SafeGuard360" className="h-10 w-auto" />
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

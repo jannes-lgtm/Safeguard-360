@@ -1,7 +1,7 @@
 /**
- * Journey Intelligence Agent
+ * CAIRO — Contextual Adaptive Intelligence for Route Operations
  *
- * Full-spectrum operational journey planner powered by Claude.
+ * Full-spectrum operational travel intelligence agent powered by Claude.
  * Dark operational aesthetic — enterprise travel risk command interface.
  */
 

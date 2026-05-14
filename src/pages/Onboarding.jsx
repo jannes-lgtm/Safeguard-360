@@ -352,7 +352,7 @@ export default function Onboarding() {
       <div className="sticky top-0 z-20 bg-white border-b border-gray-100 px-4 py-3">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-3">
-            <img src="/logo-blue.png" alt="SafeGuard360" className="h-7 w-auto" />
+            <img src="/logo-colour.png" alt="SafeGuard360" className="h-7 w-auto" />
             <div className="text-right">
               <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: BRAND_BLUE }}>
                 {stepLabel(currentStepId)}

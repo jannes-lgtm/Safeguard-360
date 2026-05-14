@@ -90,7 +90,7 @@ export default function Login() {
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="flex md:hidden items-center mb-8">
-            <img src="/logo-blue.png" alt="SafeGuard360" className="h-12 w-auto" />
+            <img src="/logo-colour.png" alt="SafeGuard360" className="h-12 w-auto" />
           </div>
 
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h2>
