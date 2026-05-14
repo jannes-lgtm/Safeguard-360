@@ -33,6 +33,20 @@ import { getSourceTier, computeSourceReliability } from './_sourceWeights.js'
 // Ordered: more specific types first
 const EVENT_CLASSIFIERS = [
   {
+    // Major events: operationally significant even when non-threatening.
+    // Summits/forums → road closures, VIP convoys, security perimeters,
+    // accommodation pressure, airport congestion. Always surfaces to advisory.
+    type: 'major_event',
+    keywords: [
+      'summit', 'africa ceo', 'ceo forum', 'world economic forum', 'african union summit',
+      'au summit', 'state visit', 'presidential visit', 'head of state visit',
+      'peace talks', 'peace negotiations', 'g20', 'g7', 'g8', 'cop30', 'cop29',
+      'un general assembly', 'unga', 'world bank annual', 'imf annual',
+      'international conference', 'world forum', 'international summit',
+      'heads of government', 'bilateral summit', 'diplomatic summit',
+    ],
+  },
+  {
     type: 'terrorism',
     keywords: ['terrorist', 'al-shabaab', 'al shabaab', 'boko haram', 'iswap',
       'al-qaeda', 'al qaeda', 'isis', 'islamic state', 'suicide bomb',
@@ -123,9 +137,11 @@ const MOVEMENT_SIGNALS = {
   severe:       ['all flights cancelled', 'airport closed', 'roads blocked', 'curfew',
                   'state of emergency', 'no-go zone', 'total shutdown', 'evacuation ordered'],
   significant:  ['flights delayed', 'partial closure', 'restricted movement', 'avoid area',
-                  'road closures', 'increased checkpoints', 'travel warning issued'],
+                  'road closures', 'increased checkpoints', 'travel warning issued',
+                  'vip convoy', 'road closures expected', 'access restricted', 'security perimeter'],
   moderate:     ['disruption', 'diversion', 'congestion', 'caution advised',
-                  'demonstrations blocking', 'some roads', 'limited access'],
+                  'demonstrations blocking', 'some roads', 'limited access',
+                  'summit', 'major conference', 'state visit', 'high security', 'hotel pressure'],
   minor:        ['monitoring', 'awareness', 'low-level', 'isolated incident',
                   'no current impact'],
 }
@@ -215,7 +231,9 @@ export function normalizeArticle(article, country, ageHours = 0) {
   const sourceReliability = computeSourceReliability(article.feedName || article.source, ageHours)
   const sourceTier = getSourceTier(article.feedName || article.source)
   const eventType = classifyEventType(text)
-  const severity = estimateSeverity(text)
+  const rawSeverity = estimateSeverity(text)
+  // Major events are always operationally significant — minimum severity 2
+  const severity = eventType === 'major_event' ? Math.max(2, rawSeverity) : rawSeverity
   const movementImpact = assessMovementImpact(text)
   const keywords = extractKeywords(text)
   const city = extractCity(text, country)
