@@ -42,8 +42,8 @@
  *   }
  */
 
-import { fetchArticlesForCountry, resolveModel } from './_claudeSynth.js'
-import { buildMemoryContext, scoreDataQuality } from './_operationalMemory.js'
+import { resolveModel } from './_claudeSynth.js'
+import { assembleContext } from './_contextAssembly.js'
 import { checkRateLimit } from './_rateLimit.js'
 
 const ANON_KEY_ENV = () =>
@@ -122,55 +122,28 @@ Set "complete":true only when you have at minimum: origin, destination, departDa
   }
 }
 
-// ── Phase 2: Operational intelligence gathering ────────────────────────────────
-async function gatherIntel(journey, apiKey) {
-  const destinations = [
-    journey.destination,
-    ...(journey.transitPoints || []),
-  ].filter(Boolean)
-
-  // Fetch live articles for all destinations in parallel
-  const intelJobs = destinations.map(async (dest) => {
-    try {
-      const articles = await fetchArticlesForCountry(dest)
-      return { dest, articles: articles.slice(0, 12) }
-    } catch {
-      return { dest, articles: [] }
-    }
-  })
-
-  const results = await Promise.allSettled(intelJobs)
-  const intelMap = {}
-  results.forEach(r => {
-    if (r.status === 'fulfilled') {
-      intelMap[r.value.dest] = r.value.articles
-    }
-  })
-
-  return intelMap
+// ── Phase 2: Context Assembly — full intelligence retrieval and packaging ──────
+// Replaced direct gatherIntel() + buildMemoryContext() calls.
+// The Context Assembly Engine (CAE) handles all retrieval, normalization,
+// deduplication, correlation, relevance scoring, and context formatting.
+async function gatherContext(journey) {
+  return await assembleContext(journey)
 }
 
-// ── Phase 3: Operational reasoning — full risk analysis with memory ────────────
-async function operationalReasoning(journey, intelMap, memoryContext, orgContext, apiKey) {
+// ── Phase 3: Operational reasoning — full risk analysis with assembled context ──
+async function operationalReasoning(journey, contextPackage, orgContext, apiKey) {
   const today = new Date().toISOString().split('T')[0]
-
-  // Build live intelligence digest
-  const intelDigest = Object.entries(intelMap).map(([dest, articles]) => {
-    if (!articles.length) return `${dest}: No recent articles retrieved.`
-    const headlines = articles.slice(0, 8).map(a => `  • [${a.feedName || 'Intel'}] ${a.title}`).join('\n')
-    return `${dest} (${articles.length} articles):\n${headlines}`
-  }).join('\n\n')
 
   const policyLines = orgContext
     ? [
-        orgContext.orgName          && `Organisation: ${orgContext.orgName}`,
-        orgContext.travelPolicy     && `Travel Policy: ${orgContext.travelPolicy}`,
+        orgContext.orgName               && `Organisation: ${orgContext.orgName}`,
+        orgContext.travelPolicy          && `Travel Policy: ${orgContext.travelPolicy}`,
         orgContext.watchedDestinations?.length && `Destinations requiring scrutiny: ${orgContext.watchedDestinations.join(', ')}`,
       ].filter(Boolean).join('\n')
     : ''
 
-  // Data quality score — tells Claude how much historical evidence backs this assessment
-  const dataQuality = scoreDataQuality(memoryContext)
+  // ACS score from Context Assembly Engine — single source of truth for confidence
+  const dataQuality = contextPackage.realTimeConfidence?.score ?? 20
 
   const system = `You are CAIRO — the operational intelligence analysis engine of SafeGuard360.
 
@@ -432,13 +405,12 @@ Transport: ${journey.transportModes?.join(', ') || 'Air'}
 Accommodation: ${journey.accommodation || 'Not specified'}
 Today: ${today}
 ${policyLines ? `\nOrg context:\n${policyLines}` : ''}
+${contextPackage.feedsFailed ? '\n⚠ LIVE FEED DEGRADATION: Apply 10–15 point confidence reduction.' : ''}
+${contextPackage.escalation?.escalating ? `\n⚠ ESCALATION PATTERN DETECTED: ${contextPackage.escalation.pattern}. Factor into risk trajectory.` : ''}
 
-${memoryContext.dataAvailable ? memoryContext.formatted : 'OPERATIONAL MEMORY: No historical database records found for this destination. Rely on training knowledge and live intel only. Set confidence scores accordingly (20-50 range unless live intel strongly supports).'}
+${contextPackage.formatted || 'CONTEXT ASSEMBLY: No intelligence retrieved. Rely on training knowledge only. Set confidence 20–35.'}
 
-LIVE INTELLIGENCE FEEDS:
-${intelDigest || 'No live articles retrieved.'}
-
-Analyse the journey using ALL three intelligence layers. Identify pattern matches, precursor signals, and trajectory direction. Return the full assessment JSON.`
+Analyse the journey using ALL three intelligence layers. Use the ACS score above as your confidence_assessment.overall_confidence baseline. Identify pattern matches, precursor signals, and trajectory direction. Return the full assessment JSON.`
 
   try {
     const raw     = await claudeCall(apiKey, system, [{ role: 'user', content: userMsg }], 2500, true)
@@ -630,24 +602,23 @@ async function _handler(req, res) {
       (journeyData?.complete && action === 'chat' && !journey?.destination)
 
     if (shouldAnalyse && journeyData?.destination) {
-      // Phase 2a: Live intel gathering (RSS feeds)
-      // Phase 2b: Operational memory (historical incidents + patterns)
-      // Run in parallel to minimise latency
-      const [intelMap, memoryContext] = await Promise.all([
-        gatherIntel(journeyData, ANTHROPIC_API_KEY),
-        buildMemoryContext(journeyData.destination, journeyData.transitPoints || []),
-      ])
+      // Phase 2: Context Assembly Engine — full intelligence retrieval and packaging
+      const contextPackage = await gatherContext(journeyData)
 
-      // Phase 3: Operational reasoning with all intelligence layers
-      analysis = await operationalReasoning(journeyData, intelMap, memoryContext, orgContext, ANTHROPIC_API_KEY)
+      // Phase 3: Operational reasoning with assembled context
+      analysis = await operationalReasoning(journeyData, contextPackage, orgContext, ANTHROPIC_API_KEY)
 
       if (analysis) {
-        // Annotate with source counts
-        const totalArticles = Object.values(intelMap).reduce((s, a) => s + a.length, 0)
-        analysis.intel_sources_used = totalArticles
-        analysis._memory_data_available = memoryContext.dataAvailable
-        analysis._incident_count = memoryContext.incidents?.length || 0
-        analysis._pattern_count  = memoryContext.patterns?.length || 0
+        analysis.intel_sources_used      = contextPackage.totalArticles || 0
+        analysis._memory_data_available  = contextPackage.memoryContext?.dataAvailable || false
+        analysis._incident_count         = contextPackage.stats?.memory_incidents || 0
+        analysis._pattern_count          = contextPackage.stats?.memory_patterns  || 0
+        analysis._live_signals           = contextPackage.stats?.live_signals || 0
+        analysis._clusters               = contextPackage.stats?.corroboration_clusters || 0
+        analysis._acs_score              = contextPackage.realTimeConfidence?.score || 0
+        analysis._acs_band               = contextPackage.realTimeConfidence?.band || 'minimal'
+        analysis._feed_status            = contextPackage.feedsFailed ? 'degraded' : 'operational'
+        analysis._escalation_pattern     = contextPackage.escalation?.pattern || null
       }
 
       // Phase 4: Asset lookup — in parallel (doesn't depend on analysis result)
@@ -671,9 +642,15 @@ async function _handler(req, res) {
       assets,
       phase:    shouldAnalyse ? 'analysis_complete' : (journeyData?.complete ? 'journey_ready' : 'gathering_info'),
       memory:   analysis ? {
-        data_available: analysis._memory_data_available || false,
-        incident_count: analysis._incident_count || 0,
-        pattern_count:  analysis._pattern_count  || 0,
+        data_available:   analysis._memory_data_available || false,
+        incident_count:   analysis._incident_count || 0,
+        pattern_count:    analysis._pattern_count  || 0,
+        live_signals:     analysis._live_signals   || 0,
+        clusters:         analysis._clusters       || 0,
+        acs_score:        analysis._acs_score      || 0,
+        acs_band:         analysis._acs_band       || 'minimal',
+        feed_status:      analysis._feed_status    || 'unknown',
+        escalation:       analysis._escalation_pattern || null,
       } : null,
       model,
       elapsed,
