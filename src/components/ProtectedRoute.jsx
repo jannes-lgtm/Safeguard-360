@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { log } from '../lib/logger'
 
 const TERMS_VERSION    = '1.0'
 const ONBOARDING_ROLES = ['traveller', 'solo']
@@ -21,7 +22,11 @@ export default function ProtectedRoute({
       try {
         // ── 1. Verify session ────────────────────────────────────────────────
         const { data: { user }, error: userErr } = await supabase.auth.getUser()
-        if (userErr || !user) { navigate('/login'); return }
+        if (userErr || !user) {
+          if (userErr) log.auth.sessionExpired({ error: userErr.message, path: window.location.pathname })
+          navigate('/login')
+          return
+        }
 
         if (noGates) { setChecking(false); return }
 
@@ -33,7 +38,7 @@ export default function ProtectedRoute({
           .maybeSingle()
 
         if (profileErr) {
-          console.error('[ProtectedRoute] profile fetch error:', profileErr.message)
+          log.auth.profileMissing({ userId: user.id, error: profileErr.message })
           navigate('/login')
           return
         }
@@ -42,7 +47,7 @@ export default function ProtectedRoute({
         //    If profile is missing entirely, the user account is broken.
         //    Redirect to onboarding which will repair the state.
         if (!profile) {
-          console.warn('[ProtectedRoute] no profile row for user', user.id, '— redirecting to onboarding')
+          log.auth.profileMissing({ userId: user.id, action: 'redirecting_to_onboarding' })
           navigate('/onboarding')
           return
         }
@@ -93,7 +98,7 @@ export default function ProtectedRoute({
 
         setChecking(false)
       } catch (err) {
-        console.error('[ProtectedRoute] unexpected error:', err)
+        log.error('AUTH', 'protected_route_crash', { error: err.message, path: window.location.pathname })
         navigate('/login')
       }
     }

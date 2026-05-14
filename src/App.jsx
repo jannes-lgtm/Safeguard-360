@@ -1,4 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { supabase } from './lib/supabase'
+import { log } from './lib/logger'
 import Pricing from './pages/Pricing'
 import Billing from './pages/Billing'
 import Login from './pages/Login'
@@ -44,10 +47,29 @@ import OperationalIntel from './pages/OperationalIntel'
 import JourneyAgent from './pages/JourneyAgent'
 import ProtectedRoute from './components/ProtectedRoute'
 
+// Listens for auth state changes inside the router context so it can navigate
+function AuthStateWatcher() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        log.auth.sessionExpired({ event })
+        navigate('/login', { replace: true })
+      }
+      if (event === 'TOKEN_REFRESHED') {
+        log.info('AUTH', 'token_refreshed', { userId: session?.user?.id })
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [navigate])
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <AuthStateWatcher />
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/login" element={<Login />} />

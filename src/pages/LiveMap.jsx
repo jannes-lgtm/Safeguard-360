@@ -28,6 +28,7 @@ import {
 import Layout from '../components/Layout'
 import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
+import { log } from '../lib/logger'
 import { cityToCountry, COUNTRY_META } from '../data/intelData'
 import {
   MAP_STYLES, MAP_DEFAULTS, RISK_STYLE,
@@ -265,6 +266,7 @@ export default function LiveMap() {
         if (status === 'SUBSCRIBED') {
           setWsStatus('connected')
           setReconnectAttempts(0)
+          log.realtime.connected({ channel: 'staff_locations', userId: profile?.id })
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           setWsStatus('reconnecting')
           supabase.removeChannel(channel)
@@ -273,8 +275,13 @@ export default function LiveMap() {
           // Exponential backoff reconnect
           setReconnectAttempts(prev => {
             const attempt = prev + 1
-            if (attempt > WS_RECONNECT.maxAttempts) { setWsStatus('offline'); return prev }
+            if (attempt > WS_RECONNECT.maxAttempts) {
+              setWsStatus('offline')
+              log.realtime.disconnected({ channel: 'staff_locations', status, attempts: attempt, userId: profile?.id })
+              return prev
+            }
             const delay = Math.min(WS_RECONNECT.baseDelayMs * 2 ** (attempt - 1), WS_RECONNECT.maxDelayMs)
+            log.realtime.reconnecting({ channel: 'staff_locations', status, attempt, delayMs: delay })
             reconnectTimer.current = setTimeout(subscribeRealtime, delay)
             return attempt
           })

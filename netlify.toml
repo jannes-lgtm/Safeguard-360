@@ -1,7 +1,15 @@
+# ── Production (main branch) ──────────────────────────────────────────────────
 [build]
   command   = "npm run build"
   publish   = "dist"
   functions = "api"
+
+# ── Staging (staging branch) — separate deploy preview ───────────────────────
+# In Netlify dashboard: set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+# as branch-specific env vars pointing to the same Supabase project.
+# Staging deploys to a separate URL so testers on main are never affected.
+[context.staging]
+  command = "npm run build"
 
 [functions]
   node_bundler = "esbuild"
