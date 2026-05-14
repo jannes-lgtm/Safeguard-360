@@ -68,8 +68,8 @@ function AuthStateWatcher() {
 export default function App() {
   return (
     <BrowserRouter>
+      <AuthStateWatcher />
       <Routes>
-        <AuthStateWatcher />
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/login" element={<Login />} />
