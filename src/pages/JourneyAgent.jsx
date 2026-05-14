@@ -283,8 +283,8 @@ function PatternAnalysisSection({ patternAnalysis, memory }) {
             style={{ background: memory.data_available ? C.accentDim : 'rgba(255,255,255,0.04)', color: memory.data_available ? C.accent : C.textDim, border: `1px solid ${memory.data_available ? C.borderHi : C.border}` }}>
             <span>{memory.data_available ? '◉' : '○'}</span>
             {memory.data_available
-              ? `Platform memory active — ${memory.incident_count} incidents, ${memory.pattern_count} patterns loaded`
-              : 'No platform memory for this destination — assessment based on live intel + AI knowledge'}
+              ? `Intelligence active — ${memory.live_signals || 0} live signals · ${memory.clusters || 0} clusters · ${memory.incident_count} incidents · ${memory.pattern_count} patterns · ACS ${memory.acs_score || '—'}/100`
+              : `Live feeds active · No historical records for this destination · ACS ${memory.acs_score || '—'}/100`}
           </div>
         )}
 
@@ -1069,7 +1069,7 @@ export default function JourneyAgent() {
     const name = profile?.full_name?.split(' ')[0]
     setMessages([{
       role: 'assistant',
-      text: `${name ? `CAIRO online. Ready, ${name}.` : 'CAIRO online.'}\n\nI'm your operational travel intelligence agent. Describe your journey and I'll produce a full risk advisory — situational awareness, threat context, historical pattern analysis, recommended mitigations, and contingency planning.\n\nI advise and contextualise. You and your team decide.\n\nExample: "Travelling to Nairobi next Monday for a 3-day board meeting, flying from London."`,
+      text: `${name ? `CAIRO online. Ready, ${name}.` : 'CAIRO online.'}\n\nOperational intelligence systems active. Live feeds, incident monitoring, and historical pattern database online.\n\nDescribe your journey and I'll produce a full risk advisory — live situational intelligence, threat context, historical pattern analysis, recommended mitigations, and contingency planning. Confidence levels are explicitly scored and evidence-attributed.\n\nI advise and contextualise. You and your team decide.\n\nExample: "Travelling to Nairobi next Monday for a 3-day board meeting, flying from London."`,
     }])
   }, [profile])
 
@@ -1134,7 +1134,7 @@ export default function JourneyAgent() {
       if (action === 'analyze' || (journey?.destination && journey?.complete)) {
         addPhaseMsg('Extracting journey parameters…')
         await new Promise(r => setTimeout(r, 300))
-        addPhaseMsg('Querying live intelligence feeds + operational memory…')
+        addPhaseMsg('Retrieving live intelligence — feeds, incidents, correlations, operational memory…')
       }
 
       const res = await fetch('/api/journey-agent', {
@@ -1207,7 +1207,7 @@ export default function JourneyAgent() {
     const name = profile?.full_name?.split(' ')[0]
     setMessages([{
       role: 'assistant',
-      text: `${name ? `CAIRO online. Ready, ${name}.` : 'CAIRO online.'}\n\nDescribe your journey and I'll produce a full operational intelligence advisory — situational awareness, threat context, pattern analysis, and contingency planning.\n\nI advise and contextualise. You and your team decide.`,
+      text: `${name ? `CAIRO online. Ready, ${name}.` : 'CAIRO online.'}\n\nOperational intelligence systems active. Describe your journey and I'll produce a full advisory — live situational intelligence, threat context, pattern analysis, and contingency planning.\n\nI advise and contextualise. You and your team decide.`,
     }])
     setTimeout(() => inputRef.current?.focus(), 100)
   }
