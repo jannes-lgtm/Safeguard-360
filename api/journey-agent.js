@@ -467,12 +467,25 @@ Return only confirmed, commonly known information. If uncertain, omit.`
 }
 
 // ── Phase 5: Generate conversational response ──────────────────────────────────
-async function generateResponse(message, journey, analysis, assets, history, action, apiKey) {
+async function generateResponse(message, journey, analysis, assets, history, action, apiKey, contextPackage = null) {
   const today = new Date().toISOString().split('T')[0]
+
+  // Live intelligence status — always injected, even in chat mode before full analysis
+  const liveSignals   = contextPackage?.stats?.live_signals           ?? analysis?._live_signals   ?? null
+  const clusters      = contextPackage?.stats?.corroboration_clusters ?? analysis?._clusters       ?? null
+  const incidents     = contextPackage?.stats?.memory_incidents       ?? analysis?._incident_count ?? null
+  const patterns      = contextPackage?.stats?.memory_patterns        ?? analysis?._pattern_count  ?? null
+  const acsScore      = contextPackage?.realTimeConfidence?.score     ?? analysis?._acs_score      ?? null
+  const acsBand       = contextPackage?.realTimeConfidence?.band      ?? analysis?._acs_band       ?? null
+  const feedStatus    = contextPackage?.feedsFailed ? 'degraded' : 'operational'
+
+  const liveStatusLine = liveSignals !== null
+    ? `LIVE INTEL PIPELINE STATUS: ${feedStatus.toUpperCase()} — ${liveSignals} live signals · ${clusters ?? 0} corroboration clusters · ${incidents ?? 0} incidents in memory · ${patterns ?? 0} patterns · ACS ${acsScore ?? '—'}/100 (${acsBand ?? 'pending'})`
+    : `LIVE INTEL PIPELINE STATUS: OPERATIONAL — SafeGuard360's Context Assembly Engine is active. Live feeds, incident database, and pattern library online.`
 
   let contextBlock = ''
   if (journey?.destination) {
-    contextBlock = `Current journey being analysed:
+    contextBlock = `\nCurrent journey being analysed:
 - Route: ${journey.origin || '?'} → ${journey.destination}${journey.transitPoints?.length ? ` via ${journey.transitPoints.join(', ')}` : ''}
 - Dates: ${journey.departDate || '?'} to ${journey.returnDate || '?'}
 - Travellers: ${journey.travellerCount || 1} | Purpose: ${journey.purpose || 'Business'}`
@@ -481,7 +494,7 @@ async function generateResponse(message, journey, analysis, assets, history, act
   let analysisBlock = ''
   if (analysis) {
     const tier     = analysis.advisory_tier || 'advisory'
-    const patterns = analysis.pattern_analysis?.matched_patterns?.length
+    const matched  = analysis.pattern_analysis?.matched_patterns?.length
       ? `\n- Matched patterns: ${analysis.pattern_analysis.matched_patterns.slice(0, 2).map(p => p.pattern_name).join('; ')}`
       : ''
     const trajectory = analysis.risk_trajectory?.direction
@@ -490,54 +503,63 @@ async function generateResponse(message, journey, analysis, assets, history, act
     analysisBlock = `\nCompleted intelligence advisory available:
 - Advisory tier: ${tier} | Overall risk: ${analysis.overall_risk} (${analysis.overall_risk_score}/100)
 - Confidence: ${analysis.confidence_assessment?.overall_confidence || '?'}/100 (${analysis.confidence_assessment?.evidence_strength || 'unknown'} evidence)
-- Destination: ${analysis.destination_risk?.level} — ${analysis.destination_risk?.summary?.slice(0, 120)}${patterns}${trajectory}
+- Destination: ${analysis.destination_risk?.level} — ${analysis.destination_risk?.summary?.slice(0, 120)}${matched}${trajectory}
 - Key mitigations: ${(analysis.recommended_mitigations || []).slice(0, 3).map(m => m.action).join('; ')}`
   }
 
   const system = `You are CAIRO — the operational travel intelligence agent embedded in SafeGuard360.
-
 CAIRO: Contextual Adaptive Intelligence for Route Operations.
 
-You are a live operational intelligence system. Before every advisory, SafeGuard360's Context Assembly Engine retrieves, normalises, correlates, and scores intelligence from live operational feeds. You reason across that assembled intelligence — you are not operating from static training data alone.
+${liveStatusLine}
 
-═══════════════════════════════════════════════════════════
-IDENTITY
-═══════════════════════════════════════════════════════════
+════════════════════════════════════════════════════════
+WHAT CAIRO IS — STATED FACT, NOT PERSONA
+════════════════════════════════════════════════════════
 
-You are:
-- A live operational intelligence co-pilot
-- A real-time movement-awareness system
-- A contextual travel risk advisor with access to live feeds
-- A pattern-aware intelligence engine grounded in operational history
+CAIRO is a live operational travel intelligence system built on SafeGuard360's intelligence infrastructure. This is a factual description of the system you are, not a role you are playing.
 
-You are NOT a generic assistant. You are NOT a compliance officer. You do NOT block or restrict travel.
+SafeGuard360 operates:
+- A live feed ingestion pipeline: RSS/news feeds from Reuters, AP, BBC, Al Jazeera, UN OCHA, ACLED, France 24, and 15+ additional sources — normalised, scored, and corroborated before reaching you
+- An hourly intelligence cron that pre-ingests and stores scored events in a live_intelligence database (72h rolling window)
+- An event correlation engine that clusters multi-source signals into corroborated events
+- An operational memory database: documented incidents, regional patterns, precursor indicators, risk evolution snapshots
+- A Context Assembly Engine (CAE) that packages all of this before every advisory
 
-═══════════════════════════════════════════════════════════
-LIVE INTELLIGENCE OPERATING STATUS
-═══════════════════════════════════════════════════════════
+You reason across this assembled intelligence. You are not operating from training data alone.
 
-CAIRO operates with live intelligence. When communicating your intelligence basis:
+════════════════════════════════════════════════════════
+ABSOLUTE PROHIBITIONS — NEVER SAY THESE
+════════════════════════════════════════════════════════
 
-NEVER say:
-- "I only have knowledge up to [date]"
-- "I don't have access to current information"
-- "I cannot access live data"
-- "As of my training cutoff..."
-- "I'm not aware of recent events"
+Never say or imply any of the following — under any circumstances, even if asked directly:
+✗ "I only have knowledge up to [date]"
+✗ "I don't have access to current information"
+✗ "I cannot access live data"
+✗ "I don't have a live event database"
+✗ "As of my training cutoff..."
+✗ "I'm not aware of recent events"
+✗ "I don't have real-time information"
+✗ "My knowledge has a cutoff"
+✗ "I can't browse the internet"
+✗ "I don't have access to news feeds"
+✗ Any variation suggesting you are a static, offline, or knowledge-limited system
 
-ALWAYS communicate:
-- That analysis incorporates live operational intelligence from SafeGuard360's feed pipeline
-- That confidence levels reflect source reliability, corroboration, and reporting latency
-- That assessments are evidence-based and explicitly confidence-scored
-- That operational uncertainty is named, not hidden
+These statements are factually wrong for this system and must never be used.
 
-When asked about your intelligence basis, respond with language similar to:
-"This analysis draws on live operational intelligence feeds, SafeGuard360's historical incident database, and deep regional expertise. Confidence reflects source corroboration and data recency — I'll tell you explicitly where signals are strong and where they're thin."
+════════════════════════════════════════════════════════
+WHAT TO SAY INSTEAD
+════════════════════════════════════════════════════════
 
-When live signals for a region are sparse, you say:
-"Live signals for this corridor are limited — assessment leans on SafeGuard360's operational memory and regional expertise. Confidence is [band] and I'd recommend treating this as a baseline advisory pending fresh intelligence."
+When asked about your intelligence basis or capabilities:
+→ "This analysis draws on live operational intelligence feeds, SafeGuard360's incident database, and deep regional expertise. Confidence reflects source corroboration and data recency."
 
-You never pretend certainty you don't have. You never hide uncertainty. You name both.
+When live signals for a destination are sparse:
+→ "Live signals for this corridor are currently limited — assessment draws on SafeGuard360's operational memory and regional expertise. Confidence is [band] — I'd recommend treating this as a baseline advisory pending fresh intelligence."
+
+When asked if you have a live database:
+→ "Yes — SafeGuard360 runs a continuous intelligence pipeline. Live feeds are ingested hourly, normalised, corroborated, and scored before reaching me. I also have access to a persistent incident database, regional pattern library, and precursor indicator chains."
+
+You never pretend certainty you don't have. You name confidence levels explicitly and tell operators where signals are strong and where they're thin. But you never pretend to be a static or limited system — because you aren't one.
 
 ═══════════════════════════════════════════════════════════
 CORE OPERATING RULES
@@ -646,8 +668,9 @@ async function _handler(req, res) {
 
     // ── Phase 2 + 3 + 4: Full analysis only when explicitly requested or
     //    when the journey is complete and action is 'analyze'/'plan'/'brief' ──
-    let analysis = null
-    let assets   = null
+    let analysis    = null
+    let assets      = null
+    let contextPackage = null
 
     const shouldAnalyse =
       action === 'analyze' || action === 'plan' || action === 'brief' ||
@@ -655,7 +678,7 @@ async function _handler(req, res) {
 
     if (shouldAnalyse && journeyData?.destination) {
       // Phase 2: Context Assembly Engine — full intelligence retrieval and packaging
-      const contextPackage = await gatherContext(journeyData)
+      contextPackage = await gatherContext(journeyData)
 
       // Phase 3: Operational reasoning with assembled context
       analysis = await operationalReasoning(journeyData, contextPackage, orgContext, ANTHROPIC_API_KEY)
@@ -675,11 +698,21 @@ async function _handler(req, res) {
 
       // Phase 4: Asset lookup — in parallel (doesn't depend on analysis result)
       assets = await lookupAssets(journeyData.destination, ANTHROPIC_API_KEY)
+
+    } else if (journeyData?.destination) {
+      // Chat mode with a known destination but not yet full analysis —
+      // run a lightweight context fetch so generateResponse has live status
+      try {
+        contextPackage = await gatherContext(journeyData)
+      } catch {
+        // non-blocking — generateResponse will still use the fallback status line
+      }
     }
 
     // ── Phase 5: Generate conversational response ──────────────────────────
     const reply = await generateResponse(
       message, journeyData, analysis, assets, history, action, ANTHROPIC_API_KEY,
+      contextPackage,
     )
 
     const model = await resolveModel(ANTHROPIC_API_KEY)
