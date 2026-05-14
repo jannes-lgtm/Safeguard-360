@@ -94,7 +94,7 @@ export default async function handler(req, res) {
       name:              company_name.trim(),
       country:           country?.trim() || null,
       is_active:         true,
-      subscription_plan: 'starter',  // safe default — matches original DB constraint
+      subscription_plan: 'solo',      // billing migration renamed 'starter' → 'solo'
     })
     orgId = org.id
     console.log('[org-signup] step1 org created', orgId)
