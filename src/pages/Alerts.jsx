@@ -6,6 +6,16 @@ import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
 import { cityToCountry } from '../data/intelData'
 
+// Default expiry days by severity
+const EXPIRY_DAYS = { Critical: 30, High: 14, Medium: 7, Low: 3 }
+
+function expiryDateFor(severity) {
+  const days = EXPIRY_DAYS[severity] || 7
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
 function AddAlertModal({ onClose, onAdded }) {
   const [form, setForm] = useState({
     title: '',
@@ -14,9 +24,15 @@ function AddAlertModal({ onClose, onAdded }) {
     severity: 'Medium',
     description: '',
     status: 'Active',
+    expires_at: expiryDateFor('Medium'),
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Auto-update expiry when severity changes
+  const handleSeverityChange = (severity) => {
+    setForm(f => ({ ...f, severity, expires_at: expiryDateFor(severity) }))
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -72,7 +88,7 @@ function AddAlertModal({ onClose, onAdded }) {
             <div>
               <label className={labelClass}>Severity</label>
               <select className={inputClass} value={form.severity}
-                onChange={e => setForm(f => ({ ...f, severity: e.target.value }))}>
+                onChange={e => handleSeverityChange(e.target.value)}>
                 <option>Critical</option>
                 <option>High</option>
                 <option>Medium</option>
@@ -93,6 +109,17 @@ function AddAlertModal({ onClose, onAdded }) {
             <textarea className={inputClass} required rows={3} value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="Describe the risk situation..." />
+          </div>
+          <div>
+            <label className={labelClass}>
+              Expires on
+              <span className="ml-1 text-gray-400 font-normal">
+                (auto-set by severity — override if needed)
+              </span>
+            </label>
+            <input type="date" className={inputClass} value={form.expires_at}
+              min={new Date().toISOString().split('T')[0]}
+              onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-3 pt-1">
@@ -130,9 +157,12 @@ export default function Alerts() {
   const isAdmin     = ADMIN_ROLES.includes(role)
 
   const loadAlerts = async () => {
+    const today = new Date().toISOString().split('T')[0]
     const { data } = await supabase
       .from('alerts')
       .select('*')
+      // Show alerts that have no expiry set, or haven't expired yet
+      .or(`expires_at.is.null,expires_at.gte.${today}`)
       .order('date_issued', { ascending: false })
     setAlerts(data || [])
     setLoading(false)
