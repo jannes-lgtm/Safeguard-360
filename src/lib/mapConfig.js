@@ -54,6 +54,33 @@ const CARTO_LIGHT_STYLE = {
   layers: [{ id: 'carto-light-tiles', type: 'raster', source: 'carto-light', paint: { 'raster-opacity': 1 } }],
 }
 
+// Blue-themed style for the World Explorer dashboard widget.
+// Uses a SafeGuard brand-blue background with semi-transparent dark tiles
+// so ocean areas appear blue while land masses show as dark navy.
+const CARTO_BLUE_STYLE = {
+  version: 8,
+  name: 'World Explorer Blue',
+  sources: {
+    'carto-dark': {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+      ],
+      tileSize: 256,
+      attribution: '© OpenStreetMap contributors © CARTO',
+      maxzoom: 19,
+    },
+  },
+  layers: [
+    // Brand blue background — shows through as the "ocean" colour
+    { id: 'background', type: 'background', paint: { 'background-color': '#0118A1' } },
+    // Dark land tiles at 75% opacity — land appears dark navy, ocean stays blue
+    { id: 'carto-dark-tiles', type: 'raster', source: 'carto-dark', paint: { 'raster-opacity': 0.75 } },
+  ],
+}
+
 // ── Style registry ────────────────────────────────────────────────────────────
 
 export const MAP_STYLES = {
@@ -67,7 +94,7 @@ export const MAP_STYLES = {
 
   standard: MAPTILER_KEY
     ? `https://api.maptiler.com/maps/basic-v2/style.json?key=${MAPTILER_KEY}`
-    : CARTO_LIGHT_STYLE,
+    : CARTO_BLUE_STYLE,
 
   terrain: MAPTILER_KEY
     ? `https://api.maptiler.com/maps/outdoor/style.json?key=${MAPTILER_KEY}`
