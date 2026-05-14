@@ -140,6 +140,7 @@ export default function LiveMap() {
   const [profile,            setProfile]            = useState(null)
   const [activeTrip,         setActiveTrip]         = useState(null)
   const [isAdmin,            setIsAdmin]            = useState(false)
+  const [isSolo,             setIsSolo]             = useState(false)
   const [sharing,            setSharing]            = useState(false)
   const [myPos,              setMyPos]              = useState(null)
   const [gpsErr,             setGpsErr]             = useState(null)
@@ -187,7 +188,9 @@ export default function LiveMap() {
     ])
 
     const role = prof?.role || user.app_metadata?.role || 'traveller'
+    const isSoloRole = role === 'solo' || (!prof?.org_id && !['admin','developer','org_admin'].includes(role))
     setIsAdmin(role === 'admin' || role === 'developer')
+    setIsSolo(isSoloRole)
     setProfile({ ...prof, id: user.id, email: user.email })
     setActiveTrip(trip || null)
 
@@ -818,7 +821,17 @@ export default function LiveMap() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {gpsErr && <p className="text-[10px] text-red-400">{gpsErr}</p>}
+                    {gpsErr && (
+                      <div className="rounded-lg px-2.5 py-2 text-[10px] leading-relaxed"
+                        style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                        <p className="text-red-400 font-semibold mb-0.5">Location access blocked</p>
+                        <p className="text-gray-400">
+                          {gpsErr.includes('denied') || gpsErr.includes('User denied')
+                            ? 'To enable: tap the lock icon in your browser address bar → Site Settings → Allow Location.'
+                            : gpsErr}
+                        </p>
+                      </div>
+                    )}
                     <button onClick={startSharing}
                       className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition"
                       style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
@@ -856,7 +869,8 @@ export default function LiveMap() {
                 </div>
               )}
 
-              {/* Staff list */}
+              {/* Staff list — hidden for solo users who have no team */}
+              {!isSolo && (
               <div className={`rounded-xl border backdrop-blur-md flex-1 min-h-0 flex flex-col ${panelBg}`}>
                 <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10">
                   <p className={`text-[9px] font-bold uppercase tracking-widest ${subText}`}>
@@ -907,6 +921,7 @@ export default function LiveMap() {
                   </div>
                 )}
               </div>
+              )}
             </>
           )}
         </div>
