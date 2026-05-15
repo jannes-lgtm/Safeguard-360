@@ -130,24 +130,25 @@ export default function SOS() {
 
   const loadData = async () => {
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const uid = session.user.id
 
     const today = new Date().toISOString().split('T')[0]
     const [{ data: prof }, { data: trip }, { data: evts }, { data: contacts }] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.from('profiles').select('*').eq('id', uid).single(),
       supabase.from('itineraries').select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', uid)
         .lte('depart_date', today).gte('return_date', today)
         .limit(1).single(),
       supabase.from('sos_events').select('*').order('created_at', { ascending: false }).limit(20),
-      supabase.from('emergency_contacts').select('*').eq('user_id', user.id).order('priority'),
+      supabase.from('emergency_contacts').select('*').eq('user_id', uid).order('priority'),
     ])
     setEmergencyContacts(contacts || [])
 
-    const role = prof?.role || user.app_metadata?.role || 'traveller'
+    const role = prof?.role || session.user.app_metadata?.role || 'traveller'
     setIsAdmin(['admin', 'org_admin', 'developer'].includes(role))
-    setProfile({ ...prof, email: user.email })
+    setProfile({ ...prof, email: session.user.email })
     setActiveTrip(trip || null)
     setEvents(evts || [])
     setLoading(false)
@@ -228,9 +229,10 @@ export default function SOS() {
   }
 
   const resolveEvent = async (id, status) => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
     await supabase.from('sos_events').update({
-      status, resolved_by: user.id, resolved_at: new Date().toISOString()
+      status, resolved_by: session.user.id, resolved_at: new Date().toISOString()
     }).eq('id', id)
     loadData()
   }

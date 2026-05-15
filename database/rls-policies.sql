@@ -97,10 +97,12 @@ alter table staff_locations           enable row level security;
 alter table sos_events                enable row level security;
 alter table emergency_contacts        enable row level security;
 alter table policy_signatures         enable row level security;
--- CAIRO Phase 4 tables
-alter table live_intelligence         enable row level security;
-alter table event_correlations        enable row level security;
-alter table feed_sources              enable row level security;
+-- CAIRO Phase 4 tables (wrapped — may not exist yet in all environments)
+do $$ begin alter table live_intelligence      enable row level security; exception when undefined_table then null; end $$;
+do $$ begin alter table event_correlations     enable row level security; exception when undefined_table then null; end $$;
+do $$ begin alter table feed_sources           enable row level security; exception when undefined_table then null; end $$;
+-- Passive location pings (wrapped — table added in later migration)
+do $$ begin alter table location_pings         enable row level security; exception when undefined_table then null; end $$;
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -475,33 +477,61 @@ create policy "policy_signatures__developer__all" on policy_signatures
   for all using (auth_user_role() = 'developer');
 
 
+-- ── location_pings (passive background tracking) ─────────────────────────────
+-- Written by usePassiveLocation hook during active trips.
+-- Missing from previous RLS runs — passive location was silently denied.
+
+do $$ begin
+  create policy "location_pings__own__all" on location_pings
+    for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+exception when undefined_table then null; end $$;
+
+do $$ begin
+  create policy "location_pings__admin__select" on location_pings
+    for select using (
+      exists (select 1 from profiles where id = auth.uid() and role in ('admin', 'developer', 'org_admin'))
+    );
+exception when undefined_table then null; end $$;
+
+
 -- ── live_intelligence (CAIRO Phase 4) ────────────────────────────────────────
--- Service role (Vercel functions) writes via service key — bypasses RLS.
--- Authenticated users: read-only (used by CAE and advisory display).
+-- Wrapped — table may not exist yet in all environments.
 
-create policy "live_intelligence__authenticated__select" on live_intelligence
-  for select using (auth.uid() is not null);
+do $$ begin
+  create policy "live_intelligence__authenticated__select" on live_intelligence
+    for select using (auth.uid() is not null);
+exception when undefined_table then null; end $$;
 
-create policy "live_intelligence__developer__all" on live_intelligence
-  for all using (auth_user_role() = 'developer');
+do $$ begin
+  create policy "live_intelligence__developer__all" on live_intelligence
+    for all using (auth_user_role() = 'developer');
+exception when undefined_table then null; end $$;
 
 
 -- ── event_correlations (CAIRO Phase 4) ───────────────────────────────────────
 
-create policy "event_correlations__authenticated__select" on event_correlations
-  for select using (auth.uid() is not null);
+do $$ begin
+  create policy "event_correlations__authenticated__select" on event_correlations
+    for select using (auth.uid() is not null);
+exception when undefined_table then null; end $$;
 
-create policy "event_correlations__developer__all" on event_correlations
-  for all using (auth_user_role() = 'developer');
+do $$ begin
+  create policy "event_correlations__developer__all" on event_correlations
+    for all using (auth_user_role() = 'developer');
+exception when undefined_table then null; end $$;
 
 
 -- ── feed_sources (CAIRO Phase 4) ──────────────────────────────────────────────
 
-create policy "feed_sources__authenticated__select" on feed_sources
-  for select using (auth.uid() is not null);
+do $$ begin
+  create policy "feed_sources__authenticated__select" on feed_sources
+    for select using (auth.uid() is not null);
+exception when undefined_table then null; end $$;
 
-create policy "feed_sources__developer__all" on feed_sources
-  for all using (auth_user_role() = 'developer');
+do $$ begin
+  create policy "feed_sources__developer__all" on feed_sources
+    for all using (auth_user_role() = 'developer');
+exception when undefined_table then null; end $$;
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════
