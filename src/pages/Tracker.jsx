@@ -310,7 +310,7 @@ export default function Tracker() {
         .from('staff_checkins')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(100),
+        .limit(1000),
     ])
 
     // Merge profile data client-side (staff_checkins already stores full_name/trip_name inline)
