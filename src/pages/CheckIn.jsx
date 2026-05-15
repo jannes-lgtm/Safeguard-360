@@ -132,6 +132,7 @@ export default function CheckIn() {
 
   // Check-in flow
   const [checking, setChecking]     = useState(false)
+  const [error, setError]           = useState('')
   const [message, setMessage]       = useState('')
   const [interval, setInterval2]    = useState(8)       // hours
   const [gpsPos, setGpsPos]         = useState(null)
@@ -211,7 +212,7 @@ export default function CheckIn() {
     const nextDue = new Date(Date.now() + interval * 3600000).toISOString()
     const now = new Date().toISOString()
 
-    await supabase.from('staff_checkins').insert({
+    const { error: checkinErr } = await supabase.from('staff_checkins').insert({
       user_id: user.id,
       full_name: profile?.full_name || profile?.email || 'Unknown',
       status: 'safe',
@@ -224,6 +225,13 @@ export default function CheckIn() {
       interval_hours: interval,
       next_checkin_due: nextDue,
     })
+
+    if (checkinErr) {
+      console.error('[CheckIn] insert failed:', checkinErr.message)
+      setChecking(false)
+      setError(`Check-in failed: ${checkinErr.message}. Please try again.`)
+      return
+    }
 
     // Auto-mark nearest scheduled check-in (within ±24h window) as complete
     if (scheduledCheckins.length > 0) {
@@ -338,6 +346,14 @@ export default function CheckIn() {
               <p className="text-[10px] text-gray-400 mt-3">
                 Check-ins auto-complete when you use the button below within the window period.
               </p>
+            </div>
+          )}
+
+          {/* Check-in error */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-[8px] px-4 py-3 text-sm text-red-700 flex items-center gap-2">
+              <span className="shrink-0">⚠</span>
+              <span>{error}</span>
             </div>
           )}
 
