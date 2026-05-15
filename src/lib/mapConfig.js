@@ -94,7 +94,7 @@ export const MAP_STYLES = {
 
   standard: MAPTILER_KEY
     ? `https://api.maptiler.com/maps/basic-v2/style.json?key=${MAPTILER_KEY}`
-    : CARTO_BLUE_STYLE,
+    : CARTO_DARK_STYLE,
 
   terrain: MAPTILER_KEY
     ? `https://api.maptiler.com/maps/outdoor/style.json?key=${MAPTILER_KEY}`
