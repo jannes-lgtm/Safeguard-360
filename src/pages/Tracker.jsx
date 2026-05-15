@@ -301,7 +301,7 @@ export default function Tracker() {
       { data: profiles },
       { data: activeTrips },
       { count: alertCount },
-      { data: rawCheckins },
+      { data: rawCheckins, error: checkinErr },
     ] = await Promise.all([
       supabase.from('profiles').select('*'),
       supabase.from('itineraries').select('*').lte('depart_date', today).gte('return_date', today),
@@ -312,6 +312,12 @@ export default function Tracker() {
         .order('created_at', { ascending: false })
         .limit(1000),
     ])
+
+    if (checkinErr) {
+      console.error('[Tracker] staff_checkins fetch failed:', checkinErr.message, checkinErr.code, checkinErr.details)
+    } else {
+      console.log('[Tracker] staff_checkins rows fetched:', rawCheckins?.length ?? 0)
+    }
 
     // Merge profile data client-side (staff_checkins already stores full_name/trip_name inline)
     const allCheckins = rawCheckins || []
