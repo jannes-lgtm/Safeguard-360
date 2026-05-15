@@ -152,29 +152,31 @@ export default function CheckIn() {
 
   const loadData = async () => {
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+
+    const uid = session.user.id
 
     const today = new Date().toISOString().split('T')[0]
     const [{ data: prof }, { data: trip }, { data: myCheckins }, { data: allCheckins }, { data: profiles }, { data: scheduled }] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.from('profiles').select('*').eq('id', uid).single(),
       supabase.from('itineraries').select('*')
-        .eq('user_id', user.id).lte('depart_date', today).gte('return_date', today)
+        .eq('user_id', uid).lte('depart_date', today).gte('return_date', today)
         .limit(1).single(),
       supabase.from('staff_checkins').select('*')
-        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+        .eq('user_id', uid).order('created_at', { ascending: false }).limit(10),
       supabase.from('staff_checkins').select('*').order('created_at', { ascending: false }),
       supabase.from('profiles').select('*'),
       supabase.from('scheduled_checkins').select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', uid)
         .eq('completed', false)
         .order('due_at', { ascending: true })
         .limit(10),
     ])
 
-    const role = prof?.role || user.app_metadata?.role || 'traveller'
+    const role = prof?.role || session.user.app_metadata?.role || 'traveller'
     setIsAdmin(role === 'admin' || role === 'developer')
-    setProfile({ ...prof, id: user.id, email: user.email })
+    setProfile({ ...prof, id: uid, email: session.user.email })
     setActiveTrip(trip || null)
     setCheckins(myCheckins || [])
     setScheduledCheckins(scheduled || [])
@@ -211,18 +213,19 @@ export default function CheckIn() {
     setError('')
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
         setChecking(false)
         setError('Session expired — please refresh the page and try again.')
         return
       }
 
+      const uid = session.user.id
       const nextDue = new Date(Date.now() + interval * 3600000).toISOString()
       const now = new Date().toISOString()
 
       const { error: checkinErr } = await supabase.from('staff_checkins').insert({
-        user_id: user.id,
+        user_id: uid,
         full_name: profile?.full_name || profile?.email || 'Unknown',
         status: 'safe',
         latitude: gpsPos?.latitude || null,
