@@ -1672,9 +1672,12 @@ export default function Dashboard() {
       setActiveTravellers(travellerList)
       setLatestCheckins(checkinList)
 
-      // Relevant alerts: destination countries of active org trips, else Critical only
+      // Relevant alerts: all countries from active org trips (arrival + departure for multi-leg)
       const cutoff7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      const orgTripCountries = [...new Set((activeTrips || []).map(t => cityToCountry(t.arrival_city)).filter(Boolean))]
+      const orgTripCountries = [...new Set((activeTrips || []).flatMap(t => [
+        cityToCountry(t.arrival_city),
+        cityToCountry(t.departure_city),
+      ]).filter(Boolean))]
       if (orgTripCountries.length > 0) {
         const perCountry = await Promise.all(orgTripCountries.map(c =>
           supabase.from('alerts').select('*').eq('status', 'Active').gte('date_issued', cutoff7d)
@@ -1781,9 +1784,14 @@ export default function Dashboard() {
       module_name:  rawNudge.training_modules?.title,
     } : null)
 
-    // Relevant alerts: trip destination countries only, else Critical global alerts only
+    // Relevant alerts: all trip countries (arrival AND departure for multi-leg trips)
+    // departure_city is included so intermediate stops like "Accra" in a
+    // JHB → Ghana → Kenya itinerary are covered, not just the final destination.
     const cutoff7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    const countries = [...new Set((trips || []).map(t => cityToCountry(t.arrival_city)).filter(Boolean))]
+    const countries = [...new Set((trips || []).flatMap(t => [
+      cityToCountry(t.arrival_city),
+      cityToCountry(t.departure_city),
+    ]).filter(Boolean))]
     if (countries.length > 0) {
       const perCountry = await Promise.all(countries.map(c =>
         supabase.from('alerts').select('*').eq('status', 'Active').gte('date_issued', cutoff7d)
