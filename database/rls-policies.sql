@@ -228,37 +228,38 @@ create policy "training_records__developer__all" on training_records
 
 
 -- ── staff_checkins ────────────────────────────────────────────────────────────
+-- NOTE: explicit WITH CHECK required so INSERT is permitted, not just SELECT.
 
 create policy "staff_checkins__own__all" on staff_checkins
-  for all using (auth.uid() = user_id);
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
-create policy "staff_checkins__admin__select" on staff_checkins
-  for select using (
-    auth_user_role() in ('admin', 'org_admin')
-    and user_id in (
-      select id from profiles where org_id = auth_user_org_id()
-    )
+create policy "staff_checkins__admin__all" on staff_checkins
+  for all
+  using (
+    exists (select 1 from profiles where id = auth.uid() and role in ('admin', 'developer', 'org_admin'))
+  )
+  with check (
+    exists (select 1 from profiles where id = auth.uid() and role in ('admin', 'developer', 'org_admin'))
   );
-
-create policy "staff_checkins__developer__all" on staff_checkins
-  for all using (auth_user_role() = 'developer');
 
 
 -- ── scheduled_checkins ───────────────────────────────────────────────────────
 
 create policy "scheduled_checkins__own__all" on scheduled_checkins
-  for all using (auth.uid() = user_id);
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
-create policy "scheduled_checkins__admin__select" on scheduled_checkins
-  for select using (
-    auth_user_role() in ('admin', 'org_admin')
-    and user_id in (
-      select id from profiles where org_id = auth_user_org_id()
-    )
+create policy "scheduled_checkins__admin__all" on scheduled_checkins
+  for all
+  using (
+    exists (select 1 from profiles where id = auth.uid() and role in ('admin', 'developer', 'org_admin'))
+  )
+  with check (
+    exists (select 1 from profiles where id = auth.uid() and role in ('admin', 'developer', 'org_admin'))
   );
-
-create policy "scheduled_checkins__developer__all" on scheduled_checkins
-  for all using (auth_user_role() = 'developer');
 
 
 -- ── trip_training_assignments ─────────────────────────────────────────────────
