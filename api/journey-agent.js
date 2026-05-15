@@ -52,9 +52,9 @@ const SUPABASE_URL_ENV = () =>
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 
 // ── Claude call helper ────────────────────────────────────────────────────────
-async function claudeCall(apiKey, system, messages, maxTokens = 1200, jsonMode = false) {
+async function claudeCall(apiKey, system, messages, maxTokens = 1200, jsonMode = false, model = 'claude-haiku-4-5-20251001') {
   const body = {
-    model: 'claude-haiku-4-5-20251001',
+    model,
     max_tokens: maxTokens,
     system,
     messages,
@@ -424,7 +424,7 @@ ${contextPackage.formatted || 'CONTEXT ASSEMBLY: Live feeds returned no data for
 Analyse the journey using ALL three intelligence layers. Use the ACS score above as your confidence_assessment.overall_confidence baseline. Identify pattern matches, precursor signals, and trajectory direction. Return the full assessment JSON.`
 
   try {
-    const raw     = await claudeCall(apiKey, system, [{ role: 'user', content: userMsg }], 2500, true)
+    const raw     = await claudeCall(apiKey, system, [{ role: 'user', content: userMsg }], 4000, true, 'claude-sonnet-4-5-20251022')
     const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim()
     return JSON.parse(cleaned)
   } catch (e) {
@@ -604,7 +604,7 @@ ${contextBlock}${analysisBlock}`
     { role: 'user', content: message },
   ]
 
-  return await claudeCall(apiKey, system, apiMessages, 900)
+  return await claudeCall(apiKey, system, apiMessages, 2000)
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
