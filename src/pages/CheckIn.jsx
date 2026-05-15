@@ -208,50 +208,64 @@ export default function CheckIn() {
 
   const doCheckIn = async () => {
     setChecking(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    const nextDue = new Date(Date.now() + interval * 3600000).toISOString()
-    const now = new Date().toISOString()
+    setError('')
 
-    const { error: checkinErr } = await supabase.from('staff_checkins').insert({
-      user_id: user.id,
-      full_name: profile?.full_name || profile?.email || 'Unknown',
-      status: 'safe',
-      latitude: gpsPos?.latitude || null,
-      longitude: gpsPos?.longitude || null,
-      location_label: gpsPos ? `${gpsPos.latitude.toFixed(5)}, ${gpsPos.longitude.toFixed(5)}` : null,
-      message: message.trim() || null,
-      trip_name: activeTrip?.trip_name || null,
-      arrival_city: activeTrip?.arrival_city || null,
-      interval_hours: interval,
-      next_checkin_due: nextDue,
-    })
-
-    if (checkinErr) {
-      console.error('[CheckIn] insert failed:', checkinErr.message)
-      setChecking(false)
-      setError(`Check-in failed: ${checkinErr.message}. Please try again.`)
-      return
-    }
-
-    // Auto-mark nearest scheduled check-in (within ±24h window) as complete
-    if (scheduledCheckins.length > 0) {
-      const nearest = scheduledCheckins.find(sc => {
-        const diff = Math.abs(new Date(sc.due_at).getTime() - Date.now())
-        return diff < sc.window_hours * 3600000
-      })
-      if (nearest) {
-        await supabase.from('scheduled_checkins').update({
-          completed: true,
-          completed_at: now,
-        }).eq('id', nearest.id)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setChecking(false)
+        setError('Session expired — please refresh the page and try again.')
+        return
       }
-    }
 
-    setChecking(false)
-    setSuccess(true)
-    setMessage('')
-    setTimeout(() => setSuccess(false), 4000)
-    await loadData()
+      const nextDue = new Date(Date.now() + interval * 3600000).toISOString()
+      const now = new Date().toISOString()
+
+      const { error: checkinErr } = await supabase.from('staff_checkins').insert({
+        user_id: user.id,
+        full_name: profile?.full_name || profile?.email || 'Unknown',
+        status: 'safe',
+        latitude: gpsPos?.latitude || null,
+        longitude: gpsPos?.longitude || null,
+        location_label: gpsPos ? `${gpsPos.latitude.toFixed(5)}, ${gpsPos.longitude.toFixed(5)}` : null,
+        message: message.trim() || null,
+        trip_name: activeTrip?.trip_name || null,
+        arrival_city: activeTrip?.arrival_city || null,
+        interval_hours: interval,
+        next_checkin_due: nextDue,
+      })
+
+      if (checkinErr) {
+        console.error('[CheckIn] insert failed:', checkinErr.message, checkinErr.code, checkinErr.details)
+        setChecking(false)
+        setError(`Check-in failed: ${checkinErr.message}. Please try again.`)
+        return
+      }
+
+      // Auto-mark nearest scheduled check-in (within ±24h window) as complete
+      if (scheduledCheckins.length > 0) {
+        const nearest = scheduledCheckins.find(sc => {
+          const diff = Math.abs(new Date(sc.due_at).getTime() - Date.now())
+          return diff < sc.window_hours * 3600000
+        })
+        if (nearest) {
+          await supabase.from('scheduled_checkins').update({
+            completed: true,
+            completed_at: now,
+          }).eq('id', nearest.id)
+        }
+      }
+
+      setChecking(false)
+      setSuccess(true)
+      setMessage('')
+      setTimeout(() => setSuccess(false), 4000)
+      await loadData()
+    } catch (err) {
+      console.error('[CheckIn] unexpected error:', err)
+      setChecking(false)
+      setError(`Unexpected error: ${err.message}. Please try again.`)
+    }
   }
 
   const lastCheckin = checkins[0]
