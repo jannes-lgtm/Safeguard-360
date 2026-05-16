@@ -37,6 +37,9 @@
     timeout = 26
     schedule = "*/30 * * * *"   # every 30 minutes
 
+  [functions."whatsapp-webhook"]
+    timeout = 26
+
 # Route /api/* calls to Netlify functions
 [[redirects]]
   from   = "/api/*"
