@@ -82,7 +82,6 @@ const COUNTRY_ALIASES = {
   'north korea':                  ['north korea', 'north korean', 'pyongyang', 'dprk', 'kim jong'],
   'united arab emirates':         ['uae', 'united arab emirates', 'dubai', 'abu dhabi'],
   'saudi arabia':                 ['saudi', 'saudi arabia', 'riyadh', 'mbs'],
-  'israel':                       ['israel', 'israeli', 'idf', 'hamas', 'hezbollah', 'tel aviv', 'gaza', 'west bank'],
 }
 
 // ── Article feed cache (per URL, 20-min TTL) ──────────────────────────────────
