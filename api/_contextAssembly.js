@@ -39,6 +39,7 @@ import { fetchArticlesForCountry } from './_claudeSynth.js'
 import { buildMemoryContext, scoreDataQuality } from './_operationalMemory.js'
 import { normalizeArticles } from './_intelNormalizer.js'
 import { correlateEvents, deduplicateIntel, resolveConflicts, detectEscalation } from './_eventCorrelator.js'
+import { assembleTrafficContext } from './_trafficContext.js'
 
 const SUPABASE_URL = () => process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 const SERVICE_KEY  = () => process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -419,17 +420,19 @@ export async function assembleContext(journey) {
   const geoContexts = buildGeoContexts(journey)
 
   // ── Retrieve all intelligence layers in parallel ──────────────────────────
-  const [liveResult, memResult, storedIntelResult, storedCorrResult] = await Promise.allSettled([
+  const [liveResult, memResult, storedIntelResult, storedCorrResult, trafficResult] = await Promise.allSettled([
     fetchLiveFeedArticles(geoContexts),
     buildMemoryContext(journey.destination, journey.transitPoints || []),
     fetchStoredIntel(geoContexts),
     fetchStoredCorrelations(geoContexts),
+    assembleTrafficContext(journey),
   ])
 
   const live         = liveResult.status     === 'fulfilled' ? liveResult.value     : { byLocation: {}, feedsFailed: true, totalFetched: 0 }
   const memory       = memResult.status      === 'fulfilled' ? memResult.value      : { dataAvailable: false, formatted: '' }
   const storedIntel  = storedIntelResult.status === 'fulfilled' ? storedIntelResult.value : []
   const storedCorr   = storedCorrResult.status  === 'fulfilled' ? storedCorrResult.value  : []
+  const traffic      = trafficResult.status     === 'fulfilled' ? trafficResult.value     : { hasData: false, corridors: [] }
 
   // Total feed failure + no stored intel = degraded mode
   if (live.feedsFailed && live.totalFetched === 0 && storedIntel.length === 0) {
@@ -480,9 +483,14 @@ export async function assembleContext(journey) {
 
   const acs = computeACS(prioritized, memory, allCorrelations)
 
-  const formatted = formatContextBlock(
+  let formatted = formatContextBlock(
     prioritized, allCorrelations, acs, memory, live.feedsFailed, journey
   )
+
+  // Append live traffic intelligence if available
+  if (traffic.hasData && traffic.formatted) {
+    formatted += '\n\n' + traffic.formatted
+  }
 
   const totalArticles = live.totalFetched + storedIntel.length
 
@@ -493,6 +501,7 @@ export async function assembleContext(journey) {
     memoryContext:      memory,
     realTimeConfidence: acs,
     escalation,
+    trafficContext:     traffic,
     dataAvailable:      memory.dataAvailable || prioritized.length > 0,
     feedsFailed:        live.feedsFailed,
     live_intel_available: !live.feedsFailed || storedIntel.length > 0,
@@ -508,6 +517,9 @@ export async function assembleContext(journey) {
       confidence_band:          acs.band,
       escalation_pattern:       escalation?.pattern || 'unknown',
       total_raw_articles:       totalArticles,
+      traffic_corridors:        traffic.corridors?.length || 0,
+      traffic_heavy:            traffic.heavyCount || 0,
+      traffic_incidents:        traffic.incidentTotal || 0,
     },
   }
 }

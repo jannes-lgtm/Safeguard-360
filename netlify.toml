@@ -33,6 +33,10 @@
   [functions."acled"]
     timeout = 26
 
+  [functions."traffic-ingest"]
+    timeout = 26
+    schedule = "*/30 * * * *"   # every 30 minutes
+
 # Route /api/* calls to Netlify functions
 [[redirects]]
   from   = "/api/*"
