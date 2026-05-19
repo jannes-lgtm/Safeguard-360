@@ -6,7 +6,7 @@ import {
   AlertOctagon, Navigation, Shield, Siren, ClipboardList,
   Building2, GraduationCap, BookOpen, Globe, Settings,
   BarChart2, Code2, Headphones, Menu, X, Megaphone, Activity,
-  CreditCard, Compass,
+  CreditCard, Compass, MonitorCheck, FolderOpen, Clock, Radar,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import usePassiveLocation from '../hooks/usePassiveLocation'
@@ -68,11 +68,13 @@ function NavItem({ to, icon: Icon, label, badge, red }) {
 
 // ── Role pill shown in the user footer ───────────────────────────────────────
 const ROLE_LABELS = {
-  developer:  { label: 'Developer',        color: '#a78bfa' },
-  admin:      { label: 'Corporate Admin',  color: BRAND_GREEN },
-  org_admin:  { label: 'Company Admin',    color: BRAND_GREEN },
-  traveller:  { label: 'Traveller',        color: '#60a5fa' },
-  solo:       { label: 'Solo Traveller',   color: '#f472b6' },
+  developer:     { label: 'Developer',        color: '#a78bfa' },
+  admin:         { label: 'Corporate Admin',  color: BRAND_GREEN },
+  org_admin:     { label: 'Company Admin',    color: BRAND_GREEN },
+  traveller:     { label: 'Traveller',        color: '#60a5fa' },
+  solo:          { label: 'Solo Traveller',   color: '#f472b6' },
+  gsoc_operator: { label: 'GSOC Operator',    color: '#f97316' },
+  gsoc_admin:    { label: 'GSOC Admin',       color: '#ef4444' },
 }
 
 // ── Nav configs per role ──────────────────────────────────────────────────────
@@ -224,6 +226,38 @@ function TravellerNav({ alertCount, tripAlertCount }) {
 
       <NavSection label="Account" />
       <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
+    </>
+  )
+}
+
+function GSOCNav({ alertCount, isAdmin }) {
+  return (
+    <>
+      <NavSection label="GSOC" />
+      <NavItem to="/gsoc"              icon={MonitorCheck} label="Watch Board" />
+      <NavItem to="/gsoc/projects"     icon={FolderOpen}   label="Projects" />
+      <NavItem to="/gsoc/shift-log"    icon={Clock}        label="Shift Log" />
+
+      <NavSection label="Intelligence" />
+      <NavItem to="/journey-agent"     icon={Compass}      label="CAIRO" />
+      <NavItem to="/country-risk"      icon={Shield}       label="Country Risk" />
+      <NavItem to="/news"              icon={Newspaper}    label="Threat News" />
+      <NavItem to="/alerts"            icon={Bell}         label="Risk Alerts" badge={alertCount} />
+
+      <NavSection label="Operations" />
+      <NavItem to="/incidents"         icon={Siren}        label="Incident Reports" />
+      <NavItem to="/tracker"           icon={Navigation}   label="Asset Tracker" />
+
+      {isAdmin && (
+        <>
+          <NavSection label="Admin" />
+          <NavItem to="/admin"         icon={BarChart2}    label="Control Center" />
+          <NavItem to="/organisations" icon={Building2}    label="Organisations" />
+        </>
+      )}
+
+      <NavSection label="Account" />
+      <NavItem to="/profile"           icon={UserCircle}   label="My Profile" />
     </>
   )
 }
@@ -405,11 +439,13 @@ export default function Layout({ children, dark = false }) {
       {profile && (
         <div className="mx-3 mb-2 px-3 py-1.5 rounded-lg flex items-center gap-2"
           style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          {role === 'developer'  && <Code2 size={11} style={{ color: roleInfo.color }} />}
-          {role === 'admin'      && <Building2 size={11} style={{ color: roleInfo.color }} />}
-          {role === 'org_admin'  && <Building2 size={11} style={{ color: roleInfo.color }} />}
-          {role === 'traveller'  && <UserCircle size={11} style={{ color: roleInfo.color }} />}
-          {role === 'solo'       && <UserCircle size={11} style={{ color: roleInfo.color }} />}
+          {role === 'developer'     && <Code2 size={11} style={{ color: roleInfo.color }} />}
+          {role === 'admin'         && <Building2 size={11} style={{ color: roleInfo.color }} />}
+          {role === 'org_admin'     && <Building2 size={11} style={{ color: roleInfo.color }} />}
+          {role === 'traveller'     && <UserCircle size={11} style={{ color: roleInfo.color }} />}
+          {role === 'solo'          && <UserCircle size={11} style={{ color: roleInfo.color }} />}
+          {role === 'gsoc_operator' && <Radar size={11} style={{ color: roleInfo.color }} />}
+          {role === 'gsoc_admin'    && <Radar size={11} style={{ color: roleInfo.color }} />}
           <span className="text-[10px] font-bold" style={{ color: roleInfo.color }}>
             {roleInfo.label}
           </span>
@@ -421,11 +457,13 @@ export default function Layout({ children, dark = false }) {
 
       {/* Nav — role-based */}
       <nav className="flex-1 py-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-        {role === 'developer' && <DeveloperNav alertCount={activeAlertCount} />}
-        {role === 'admin' && <CorporateAdminNav alertCount={activeAlertCount} pendingApprovals={pendingApprovalsCount} />}
-        {role === 'org_admin' && <OrgAdminNav alertCount={activeAlertCount} pendingApprovals={pendingApprovalsCount} />}
-        {role === 'traveller' && <TravellerNav alertCount={activeAlertCount} tripAlertCount={tripAlertCount} />}
-        {role === 'solo' && <SoloTravellerNav alertCount={activeAlertCount} tripAlertCount={tripAlertCount} />}
+        {role === 'developer'     && <DeveloperNav alertCount={activeAlertCount} />}
+        {role === 'admin'         && <CorporateAdminNav alertCount={activeAlertCount} pendingApprovals={pendingApprovalsCount} />}
+        {role === 'org_admin'     && <OrgAdminNav alertCount={activeAlertCount} pendingApprovals={pendingApprovalsCount} />}
+        {role === 'traveller'     && <TravellerNav alertCount={activeAlertCount} tripAlertCount={tripAlertCount} />}
+        {role === 'solo'          && <SoloTravellerNav alertCount={activeAlertCount} tripAlertCount={tripAlertCount} />}
+        {role === 'gsoc_operator' && <GSOCNav alertCount={activeAlertCount} isAdmin={false} />}
+        {role === 'gsoc_admin'    && <GSOCNav alertCount={activeAlertCount} isAdmin={true} />}
       </nav>
 
       {/* User footer */}

@@ -45,6 +45,9 @@ import CrisisBroadcast from './pages/CrisisBroadcast'
 import HealthDeclaration from './pages/HealthDeclaration'
 import OperationalIntel from './pages/OperationalIntel'
 import JourneyAgent from './pages/JourneyAgent'
+import WatchBoard from './pages/gsoc/WatchBoard'
+import Projects from './pages/gsoc/Projects'
+import ShiftLog from './pages/gsoc/ShiftLog'
 import ProtectedRoute from './components/ProtectedRoute'
 
 // Listens for auth state changes inside the router context so it can navigate
@@ -92,6 +95,9 @@ export default function App() {
         <Route path="/tracker" element={<ProtectedRoute orgAdminAllowed><Tracker /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/intel-feeds" element={<ProtectedRoute developerOnly><IntelFeeds /></ProtectedRoute>} />
+        <Route path="/gsoc"            element={<ProtectedRoute gsocOnly><WatchBoard /></ProtectedRoute>} />
+        <Route path="/gsoc/projects"   element={<ProtectedRoute gsocOnly><Projects /></ProtectedRoute>} />
+        <Route path="/gsoc/shift-log"  element={<ProtectedRoute gsocOnly><ShiftLog /></ProtectedRoute>} />
         <Route path="/briefings" element={<ProtectedRoute><Briefings /></ProtectedRoute>} />
         <Route path="/news" element={<ProtectedRoute><NewsUpdates /></ProtectedRoute>} />
         <Route path="/country-risk" element={<ProtectedRoute><CountryRiskReport /></ProtectedRoute>} />

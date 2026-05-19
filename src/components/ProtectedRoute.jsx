@@ -7,11 +7,13 @@ const TERMS_VERSION    = '1.0'
 const ONBOARDING_ROLES = ['traveller', 'solo']
 const ADMIN_ROLES      = ['admin', 'developer']
 const ORG_ROLES        = ['admin', 'developer', 'org_admin']
+const GSOC_ROLES       = ['gsoc_operator', 'gsoc_admin', 'developer', 'admin']
 
 export default function ProtectedRoute({
   children,
   adminOnly       = false,
   developerOnly   = false,
+  gsocOnly        = false,
   orgAdminAllowed = false,
   noGates         = false,
 }) {
@@ -91,6 +93,12 @@ export default function ProtectedRoute({
           return
         }
 
+        // ── Gate 4b: GSOC-only routes ─────────────────────────────────────────
+        if (gsocOnly && !GSOC_ROLES.includes(role)) {
+          navigate('/dashboard')
+          return
+        }
+
         // ── Gate 5: Admin-only routes ─────────────────────────────────────────
         if (adminOnly && !ADMIN_ROLES.includes(role)) {
           navigate('/dashboard')
@@ -111,7 +119,7 @@ export default function ProtectedRoute({
     }
 
     checkAuth()
-  }, [navigate, adminOnly, developerOnly, orgAdminAllowed, noGates])
+  }, [navigate, adminOnly, developerOnly, gsocOnly, orgAdminAllowed, noGates])
 
   if (checking) {
     return (
