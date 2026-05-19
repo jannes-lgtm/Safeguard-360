@@ -16,12 +16,9 @@
 import { comprehensiveRiskScan, synthesiseBrief, fetchGDACS, fetchUSGS, fetchHealthOutbreaks } from './_claudeSynth.js'
 import { checkRateLimit } from './_rateLimit.js'
 import { dbCacheGet, dbCacheSet } from './_dbCache.js'
+import { parseRssXml } from './_rssParser.js'
+import { cache } from './_cacheManager.js'
 
-let issCache    = []
-let issCacheTime = 0
-
-const FCDO_CACHE     = {}   // { [slug]: { data, ts } }  — in-memory (short-lived, cheap to re-fetch)
-const AI_BRIEF_CACHE = {}   // { [countryLower]: { data, ts } }  — in-memory L1; Supabase is L2
 const CACHE_TTL      = 60 * 60 * 1000       // 1 hour
 const ISS_CACHE_TTL  = 4  * 60 * 60 * 1000  // 4 hours
 
@@ -114,8 +111,8 @@ async function fetchWithTimeout(url, options = {}, ms = 7000) {
 // ── FCDO ─────────────────────────────────────────────────────────────────────
 async function fetchFcdo(country) {
   const slug = fcdoSlug(country)
-  const cached = FCDO_CACHE[slug]
-  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data
+  const hit = cache.get('fcdo:' + slug)
+  if (hit !== null) return hit
 
   try {
     const r = await fetchWithTimeout(
@@ -123,14 +120,14 @@ async function fetchFcdo(country) {
       { headers: { Accept: 'application/json' } }
     )
     if (!r?.ok) {
-      FCDO_CACHE[slug] = { data: null, ts: Date.now() }
+      cache.set('fcdo:' + slug, null, 60 * 60 * 1000)
       return null
     }
 
     const data = await r.json()
     const warnings = data.details?.parts?.find(p => p.slug === 'warnings-and-insurance')
     if (!warnings?.body) {
-      FCDO_CACHE[slug] = { data: null, ts: Date.now() }
+      cache.set('fcdo:' + slug, null, 60 * 60 * 1000)
       return null
     }
 
@@ -151,7 +148,7 @@ async function fetchFcdo(country) {
       message: fcdoLevelText(level),
       url: `https://www.gov.uk/foreign-travel-advice/${slug}`,
     }
-    FCDO_CACHE[slug] = { data: result, ts: Date.now() }
+    cache.set('fcdo:' + slug, result, 60 * 60 * 1000)
     return result
   } catch (e) {
     console.error('FCDO fetch error for', country, ':', e.message)
@@ -168,20 +165,20 @@ function fcdoLevelText(level) {
 
 // ── ISS Africa RSS ────────────────────────────────────────────────────────────
 async function fetchIssAlerts(country) {
-  const now = Date.now()
-  if (now - issCacheTime > ISS_CACHE_TTL) {
+  let issItems = cache.get('iss:feed')
+  if (!issItems) {
     const r = await fetchWithTimeout('https://issafrica.org/rss/iss-today', {}, 6000)
     if (r?.ok) {
       try {
-        issCache = parseRssItems(await r.text())
-        issCacheTime = now
+        issItems = parseRssXml(await r.text())
+        cache.set('iss:feed', issItems, ISS_CACHE_TTL)
       } catch { /* keep stale */ }
     }
   }
 
-  if (!issCache?.length) return null
+  if (!issItems?.length) return null
   const q = country.toLowerCase()
-  const matches = issCache
+  const matches = issItems
     .filter(item => (item.title + ' ' + item.description).toLowerCase().includes(q))
     .slice(0, 3)
   if (!matches.length) return null
@@ -192,22 +189,6 @@ async function fetchIssAlerts(country) {
   }
 }
 
-function parseRssItems(xml) {
-  const items = []
-  const re = /<item>([\s\S]*?)<\/item>/g
-  let m
-  while ((m = re.exec(xml)) !== null) {
-    const block = m[1]
-    const get = tag => {
-      const x = block.match(new RegExp(
-        `<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([^<]*)<\\/${tag}>`
-      ))
-      return x ? (x[1] || x[2] || '').trim() : ''
-    }
-    items.push({ title: get('title'), link: get('link'), description: get('description'), pubDate: get('pubDate') })
-  }
-  return items
-}
 
 // ── Combined risk + AI synthesis ──────────────────────────────────────────────
 async function getCountryRisk(country) {
@@ -228,21 +209,19 @@ async function getCountryRisk(country) {
   let ai_brief = null
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (apiKey) {
-    // comprehensiveRiskScan manages its own cache internally; AI_BRIEF_CACHE here
-    // is kept for compatibility but the function deduplicates itself.
     const cacheKey = country.toLowerCase()
     const dbKey    = `country-risk:ai:${cacheKey}`
 
     // L1 — in-memory (fastest, resets on cold start)
-    const cached = AI_BRIEF_CACHE[cacheKey]
-    if (cached && Date.now() - cached.ts < CACHE_TTL) {
-      ai_brief = cached.data
+    const l1Hit = cache.get('risk-ai:' + cacheKey)
+    if (l1Hit) {
+      ai_brief = l1Hit
     } else {
       // L2 — Supabase persistent cache (survives cold starts)
       const persisted = await dbCacheGet(dbKey)
       if (persisted) {
         ai_brief = persisted
-        AI_BRIEF_CACHE[cacheKey] = { data: ai_brief, ts: Date.now() }
+        cache.set('risk-ai:' + cacheKey, ai_brief, 60 * 60 * 1000)
       } else {
         // Cache miss — run AI synthesis
         ai_brief = await comprehensiveRiskScan(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
@@ -250,7 +229,7 @@ async function getCountryRisk(country) {
           ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
         }
         if (ai_brief) {
-          AI_BRIEF_CACHE[cacheKey] = { data: ai_brief, ts: Date.now() }
+          cache.set('risk-ai:' + cacheKey, ai_brief, 60 * 60 * 1000)
           dbCacheSet(dbKey, ai_brief, CACHE_TTL)  // fire-and-forget
         }
       }

@@ -6,6 +6,8 @@
  * Imported by country-risk.js, trip-alert-scan.js, and ai-assistant.js.
  */
 
+import { parseRssXml } from './_rssParser.js'
+
 // ── All-source risk feeds (conflict / security / weather + health) ────────────
 // Used by fetchArticlesForCountry() to build a comprehensive intelligence picture.
 const ALL_RISK_FEEDS = [
@@ -103,7 +105,7 @@ async function fetchFeedItems(url, name) {
       signal: AbortSignal.timeout(6000),
     })
     if (!r?.ok) { ARTICLE_FEED_CACHE[url] = { items: [], ts: Date.now() }; return [] }
-    const items = parseHealthRss(await r.text())   // parseHealthRss handles all RSS/Atom
+    const items = parseRssXml(await r.text())   // parseHealthRss handles all RSS/Atom
     ARTICLE_FEED_CACHE[url] = { items, ts: Date.now() }
     return items
   } catch {
@@ -350,30 +352,6 @@ const HEALTH_FEEDS = [
   { id: 'africacdc', url: 'https://africacdc.org/feed/',                                    name: 'Africa CDC' },
 ]
 
-function parseHealthRss(xml) {
-  const items = []
-  const re = /<(?:item|entry)>([\s\S]*?)<\/(?:item|entry)>/g
-  let m
-  while ((m = re.exec(xml)) !== null) {
-    const b   = m[1]
-    const get = tag => {
-      const x = b.match(new RegExp(
-        `<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([^<]*)<\\/${tag}>`
-      ))
-      return x ? (x[1] || x[2] || '').trim() : ''
-    }
-    let link = get('link')
-    if (!link) { const la = b.match(/<link[^>]+href=["']([^"']+)["']/); if (la) link = la[1] }
-    const title = get('title')
-    if (title) items.push({
-      title,
-      link,
-      description: get('description') || get('summary') || '',
-      pubDate:     get('pubDate') || get('published') || get('updated') || '',
-    })
-  }
-  return items
-}
 
 async function fetchHealthFeed(feed) {
   const cached = HEALTH_FEED_CACHE[feed.id]
@@ -385,7 +363,7 @@ async function fetchHealthFeed(feed) {
       signal: AbortSignal.timeout(6000),
     })
     if (!r?.ok) { HEALTH_FEED_CACHE[feed.id] = { items: [], ts: Date.now() }; return [] }
-    const items = parseHealthRss(await r.text())
+    const items = parseRssXml(await r.text())
     HEALTH_FEED_CACHE[feed.id] = { items, ts: Date.now() }
     return items
   } catch {

@@ -20,6 +20,7 @@
  */
 
 import crypto from 'crypto'
+import { claudeCall } from './_claudeClient.js'
 
 // ── Environment ──────────────────────────────────────────────────────────────
 const env = {
@@ -159,25 +160,16 @@ When asked about a country or region: give a concise operational assessment cove
 // Quick Haiku pass to keep journey context updated across turns
 async function extractJourney(apiKey, message, existingJourney) {
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key':         apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type':      'application/json',
-      },
-      body: JSON.stringify({
-        model:      'claude-haiku-4-5-20251001',
-        max_tokens: 400,
-        system:     'Extract journey details from this message if present. Return ONLY valid JSON with keys: origin, destination, transitPoints (array), departDate (ISO), returnDate (ISO), travellerCount (int), purpose. Use null for unknown fields. If no journey information at all, return {}.',
-        messages:   [{ role: 'user', content: `Existing: ${JSON.stringify(existingJourney || {})}. New message: "${message}"` }],
-      }),
-      signal: AbortSignal.timeout(6000),
-    })
-    if (!res.ok) return existingJourney || {}
-    const data    = await res.json()
-    const text    = data.content?.[0]?.text?.trim() || '{}'
-    const jsonStr = text.match(/\{[\s\S]*\}/)?.[0] || '{}'
+    const text = await claudeCall(apiKey, {
+      model:     'claude-haiku-4-5-20251001',
+      maxTokens: 400,
+      system:    'Extract journey details from this message if present. Return ONLY valid JSON with keys: origin, destination, transitPoints (array), departDate (ISO), returnDate (ISO), travellerCount (int), purpose. Use null for unknown fields. If no journey information at all, return {}.',
+      messages:  [{ role: 'user', content: `Existing: ${JSON.stringify(existingJourney || {})}. New message: "${message}"` }],
+      timeout:   6000,
+    }).catch(() => null)
+    if (text === null) return existingJourney || {}
+    const safeText = text || '{}'
+    const jsonStr = safeText.match(/\{[\s\S]*\}/)?.[0] || '{}'
     const extracted = JSON.parse(jsonStr)
     // Merge with existing — don't overwrite known fields with null
     const merged = { ...existingJourney }
@@ -203,29 +195,15 @@ async function generateCairoReply(apiKey, message, history, journey) {
     { role: 'user', content: message },
   ]
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key':         apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type':      'application/json',
-    },
-    body: JSON.stringify({
-      model:      'claude-haiku-4-5-20251001',
-      max_tokens: 1200,
-      system,
-      messages,
-    }),
-    signal: AbortSignal.timeout(22000),
+  const reply = await claudeCall(apiKey, {
+    model:     'claude-haiku-4-5-20251001',
+    maxTokens: 1200,
+    system,
+    messages,
+    timeout:   22000,
   })
 
-  if (!res.ok) {
-    const err = await res.text().catch(() => res.status)
-    throw new Error(`Anthropic ${res.status}: ${err}`)
-  }
-
-  const data = await res.json()
-  return data.content?.[0]?.text?.trim() || 'No response generated.'
+  return reply || 'No response generated.'
 }
 
 // ── Twilio: send reply ────────────────────────────────────────────────────────

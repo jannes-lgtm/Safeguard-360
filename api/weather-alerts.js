@@ -5,9 +5,7 @@
 //   OWM    — OpenWeatherMap One Call 3.0 (free tier, needs API key)
 // Env var: OPENWEATHERMAP_API_KEY
 
-let cache = {}
-let cacheTime = {}
-const CACHE_TTL = 30 * 60 * 1000 // 30 min
+import { cache as appCache } from './_cacheManager.js'
 
 async function fetchWithTimeout(url, options = {}, ms = 8000) {
   const controller = new AbortController()
@@ -25,9 +23,8 @@ async function fetchWithTimeout(url, options = {}, ms = 8000) {
 // ── GDACS ────────────────────────────────────────────────────────────────────
 async function fetchGdacs({ country, days = 30 } = {}) {
   const cacheKey = `gdacs-${country || 'all'}-${days}`
-  if (cache[cacheKey] && Date.now() - (cacheTime[cacheKey] || 0) < CACHE_TTL) {
-    return { ...cache[cacheKey], cached: true }
-  }
+  const hit = appCache.get('weather:' + cacheKey)
+  if (hit) return { ...hit, cached: true }
 
   // GDACS GeoJSON feed — latest events
   const url = 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=EQ,TC,FL,VO,DR,WF&alertlevel=Green,Orange,Red&limit=50'
@@ -71,17 +68,15 @@ async function fetchGdacs({ country, days = 30 } = {}) {
     redAlerts: events.filter(e => e.alertLevel === 'Red').length,
     events: events.slice(0, 10),
   }
-  cache[cacheKey] = result
-  cacheTime[cacheKey] = Date.now()
+  appCache.set('weather:' + cacheKey, result, 30 * 60 * 1000)
   return result
 }
 
 // ── USGS Earthquakes ─────────────────────────────────────────────────────────
 async function fetchUsgs({ minMagnitude = 4.5, days = 7 } = {}) {
   const cacheKey = `usgs-${minMagnitude}-${days}`
-  if (cache[cacheKey] && Date.now() - (cacheTime[cacheKey] || 0) < CACHE_TTL) {
-    return { ...cache[cacheKey], cached: true }
-  }
+  const hit = appCache.get('weather:' + cacheKey)
+  if (hit) return { ...hit, cached: true }
 
   const endTime = new Date().toISOString()
   const startTime = new Date(Date.now() - days * 86400000).toISOString()
@@ -114,8 +109,7 @@ async function fetchUsgs({ minMagnitude = 4.5, days = 7 } = {}) {
     events: events.slice(0, 10),
     period: `Last ${days} days, M${minMagnitude}+`,
   }
-  cache[cacheKey] = result
-  cacheTime[cacheKey] = Date.now()
+  appCache.set('weather:' + cacheKey, result, 30 * 60 * 1000)
   return result
 }
 
@@ -126,9 +120,8 @@ async function fetchOwmAlerts({ lat, lon, locationName } = {}) {
   if (!lat || !lon) return { source: 'OpenWeatherMap', configured: true, error: 'lat/lon required' }
 
   const cacheKey = `owm-${lat}-${lon}`
-  if (cache[cacheKey] && Date.now() - (cacheTime[cacheKey] || 0) < CACHE_TTL) {
-    return { ...cache[cacheKey], cached: true }
-  }
+  const hit = appCache.get('weather:' + cacheKey)
+  if (hit) return { ...hit, cached: true }
 
   const url = `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lon}&exclude=minutely,hourly,daily&appid=${apiKey}&units=metric`
   const r = await fetchWithTimeout(url)
@@ -159,8 +152,7 @@ async function fetchOwmAlerts({ lat, lon, locationName } = {}) {
     alerts,
     alertCount: alerts.length,
   }
-  cache[cacheKey] = result
-  cacheTime[cacheKey] = Date.now()
+  appCache.set('weather:' + cacheKey, result, 30 * 60 * 1000)
   return result
 }
 

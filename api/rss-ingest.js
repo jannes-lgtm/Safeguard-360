@@ -4,9 +4,8 @@
 
 import { fetchWithRetry } from './_retry.js'
 import { emit } from './_telemetry.js'
-
-const cache = {}
-const CACHE_TTL = 30 * 60 * 1000 // 30 minutes — shorter TTL so outbreak news surfaces faster
+import { parseRssXml } from './_rssParser.js'
+import { cache as appCache } from './_cacheManager.js'
 
 // ── Pre-configured Africa + Middle East risk/security RSS feeds ───────────────
 export const PRECONFIGURED_FEEDS = [
@@ -358,36 +357,6 @@ async function fetchRss(url, ms = 8000) {
   }
 }
 
-function parseRss(xml) {
-  const items = []
-  // Handle both RSS <item> and Atom <entry> formats
-  const itemRegex = /<(?:item|entry)>([\s\S]*?)<\/(?:item|entry)>/g
-  let match
-  while ((match = itemRegex.exec(xml)) !== null) {
-    const block = match[1]
-    const get = (tag) => {
-      const m = block.match(
-        new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([^<]*)<\\/${tag}>`, 'i')
-      )
-      return m ? (m[1] || m[2] || '').trim() : ''
-    }
-    // Atom uses <link href="..."/> or <link>url</link>
-    let link = get('link')
-    if (!link) {
-      const linkAttr = block.match(/<link[^>]+href=["']([^"']+)["']/)
-      if (linkAttr) link = linkAttr[1]
-    }
-    const title = get('title')
-    if (!title) continue
-    items.push({
-      title,
-      link,
-      description: get('description') || get('summary') || '',
-      pubDate: get('pubDate') || get('published') || get('updated') || '',
-    })
-  }
-  return items
-}
 
 async function _handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
@@ -406,12 +375,11 @@ async function _handler(req, res) {
 
     const perFeed = Math.max(3, Math.ceil(parseInt(limit) / catFeeds.length))
     const results = await Promise.allSettled(catFeeds.map(async f => {
-      if (cache[f.url] && Date.now() - cache[f.url].time < CACHE_TTL) {
-        return { feed: f, articles: cache[f.url].data.articles }
-      }
+      const hit = appCache.get('rss:' + f.url)
+      if (hit) return { feed: f, articles: hit.articles }
       const xml = await fetchRss(f.url)
       if (!xml) return { feed: f, articles: [] }
-      const items = parseRss(xml)
+      const items = parseRssXml(xml)
       const articles = items.slice(0, perFeed).map(item => ({
         title:   item.title,
         url:     item.link,
@@ -419,7 +387,7 @@ async function _handler(req, res) {
         source:  f.name,
         date:    item.pubDate ? new Date(item.pubDate).toISOString() : null,
       })).filter(a => a.title)
-      cache[f.url] = { data: { articles }, time: Date.now() }
+      appCache.set('rss:' + f.url, { articles }, 30 * 60 * 1000)
       return { feed: f, articles }
     }))
 
@@ -444,8 +412,9 @@ async function _handler(req, res) {
   if (!feedUrl) return res.status(400).json({ error: 'url or id required' })
 
   // Return cached if fresh
-  if (cache[feedUrl] && Date.now() - cache[feedUrl].time < CACHE_TTL) {
-    return res.json({ ...cache[feedUrl].data, cached: true })
+  const cachedFeed = appCache.get('rss:' + feedUrl)
+  if (cachedFeed) {
+    return res.json({ ...cachedFeed, cached: true })
   }
 
   const t0 = Date.now()
@@ -454,7 +423,7 @@ async function _handler(req, res) {
   emit({ type: 'feed_fetch', feedId: id || null, endpoint: 'rss-ingest', success: !!xml, durationMs: fetchMs, metadata: { url: feedUrl } })
   if (!xml) return res.json({ feed: feedMeta || { url: feedUrl }, articles: [], total: 0, fetchError: true, fetchedAt: new Date().toISOString() })
 
-  const items = parseRss(xml)
+  const items = parseRssXml(xml)
   const articles = items.slice(0, parseInt(limit)).map(item => ({
     title: item.title,
     url: item.link,
@@ -469,7 +438,7 @@ async function _handler(req, res) {
     fetchedAt: new Date().toISOString(),
   }
 
-  cache[feedUrl] = { data: result, time: Date.now() }
+  appCache.set('rss:' + feedUrl, result, 30 * 60 * 1000)
   res.json(result)
 }
 
