@@ -26,8 +26,13 @@ function _handler(req, res) {
     promed:              'active',
 
     // Security — public RSS feeds, always active
-    'african-arguments': 'active',
-    osac:                'active',
+    'african-arguments':  'active',
+    osac:                 'active',
+    'oxford-analytica':   'active',
+    'soufan-center':      'active',
+    'foreign-policy':     'active',
+    'africa-report':      'active',
+    csis:                 'active',
 
     // Conflict — public API/RSS, always active
     gdelt:               'active',
