@@ -10,9 +10,10 @@ const ORG_ROLES        = ['admin', 'developer', 'org_admin']
 
 export default function ProtectedRoute({
   children,
-  adminOnly      = false,
+  adminOnly       = false,
+  developerOnly   = false,
   orgAdminAllowed = false,
-  noGates        = false,
+  noGates         = false,
 }) {
   const navigate   = useNavigate()
   const [checking, setChecking] = useState(true)
@@ -84,13 +85,19 @@ export default function ProtectedRoute({
           return
         }
 
-        // ── Gate 4: Admin-only routes ─────────────────────────────────────────
+        // ── Gate 4: Developer-only routes ────────────────────────────────────
+        if (developerOnly && role !== 'developer') {
+          navigate('/dashboard')
+          return
+        }
+
+        // ── Gate 5: Admin-only routes ─────────────────────────────────────────
         if (adminOnly && !ADMIN_ROLES.includes(role)) {
           navigate('/dashboard')
           return
         }
 
-        // ── Gate 5: Org-admin-allowed routes ─────────────────────────────────
+        // ── Gate 6: Org-admin-allowed routes ─────────────────────────────────
         if (orgAdminAllowed && !ORG_ROLES.includes(role)) {
           navigate('/dashboard')
           return
@@ -104,7 +111,7 @@ export default function ProtectedRoute({
     }
 
     checkAuth()
-  }, [navigate, adminOnly, orgAdminAllowed, noGates])
+  }, [navigate, adminOnly, developerOnly, orgAdminAllowed, noGates])
 
   if (checking) {
     return (

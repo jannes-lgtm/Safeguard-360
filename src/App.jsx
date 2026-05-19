@@ -91,7 +91,7 @@ export default function App() {
         <Route path="/incidents" element={<ProtectedRoute><Incidents /></ProtectedRoute>} />
         <Route path="/tracker" element={<ProtectedRoute orgAdminAllowed><Tracker /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/intel-feeds" element={<ProtectedRoute adminOnly><IntelFeeds /></ProtectedRoute>} />
+        <Route path="/intel-feeds" element={<ProtectedRoute developerOnly><IntelFeeds /></ProtectedRoute>} />
         <Route path="/briefings" element={<ProtectedRoute><Briefings /></ProtectedRoute>} />
         <Route path="/news" element={<ProtectedRoute><NewsUpdates /></ProtectedRoute>} />
         <Route path="/country-risk" element={<ProtectedRoute><CountryRiskReport /></ProtectedRoute>} />
