@@ -48,6 +48,8 @@ import JourneyAgent from './pages/JourneyAgent'
 import WatchBoard from './pages/gsoc/WatchBoard'
 import Projects from './pages/gsoc/Projects'
 import ShiftLog from './pages/gsoc/ShiftLog'
+import ProjectsList from './pages/projects/ProjectsList'
+import ProjectDetail from './pages/projects/ProjectDetail'
 import ProtectedRoute from './components/ProtectedRoute'
 
 // Listens for auth state changes inside the router context so it can navigate
@@ -120,6 +122,8 @@ export default function App() {
         <Route path="/ops-intel"       element={<ProtectedRoute adminOnly><OperationalIntel /></ProtectedRoute>} />
         <Route path="/billing"         element={<ProtectedRoute orgAdminAllowed><Billing /></ProtectedRoute>} />
         <Route path="/journey-agent"   element={<ProtectedRoute><JourneyAgent /></ProtectedRoute>} />
+        <Route path="/projects"        element={<ProtectedRoute projectsAllowed><ProjectsList /></ProtectedRoute>} />
+        <Route path="/projects/:id"    element={<ProtectedRoute projectsAllowed><ProjectDetail /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

@@ -8,6 +8,7 @@ const ONBOARDING_ROLES = ['traveller', 'solo']
 const ADMIN_ROLES      = ['admin', 'developer']
 const ORG_ROLES        = ['admin', 'developer', 'org_admin']
 const GSOC_ROLES       = ['gsoc_operator', 'gsoc_admin', 'developer', 'admin']
+const PROJECT_ROLES    = ['project_manager', 'project_operator', 'admin', 'developer', 'gsoc_admin']
 
 export default function ProtectedRoute({
   children,
@@ -15,6 +16,7 @@ export default function ProtectedRoute({
   developerOnly   = false,
   gsocOnly        = false,
   orgAdminAllowed = false,
+  projectsAllowed = false,
   noGates         = false,
 }) {
   const navigate   = useNavigate()
@@ -111,6 +113,12 @@ export default function ProtectedRoute({
           return
         }
 
+        // ── Gate 7: Projects-allowed routes ───────────────────────────────────
+        if (projectsAllowed && !PROJECT_ROLES.includes(role)) {
+          navigate('/dashboard')
+          return
+        }
+
         setChecking(false)
       } catch (err) {
         log.error('AUTH', 'protected_route_crash', { error: err.message, path: window.location.pathname })
@@ -119,7 +127,7 @@ export default function ProtectedRoute({
     }
 
     checkAuth()
-  }, [navigate, adminOnly, developerOnly, gsocOnly, orgAdminAllowed, noGates])
+  }, [navigate, adminOnly, developerOnly, gsocOnly, orgAdminAllowed, projectsAllowed, noGates])
 
   if (checking) {
     return (

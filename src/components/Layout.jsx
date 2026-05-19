@@ -7,6 +7,7 @@ import {
   Building2, GraduationCap, BookOpen, Globe, Settings,
   BarChart2, Code2, Headphones, Menu, X, Megaphone, Activity,
   CreditCard, Compass, MonitorCheck, FolderOpen, Clock, Radar,
+  Layers, HardHat,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import usePassiveLocation from '../hooks/usePassiveLocation'
@@ -73,8 +74,10 @@ const ROLE_LABELS = {
   org_admin:     { label: 'Company Admin',    color: BRAND_GREEN },
   traveller:     { label: 'Traveller',        color: '#60a5fa' },
   solo:          { label: 'Solo Traveller',   color: '#f472b6' },
-  gsoc_operator: { label: 'GSOC Operator',    color: '#f97316' },
-  gsoc_admin:    { label: 'GSOC Admin',       color: '#ef4444' },
+  gsoc_operator:     { label: 'GSOC Operator',    color: '#f97316' },
+  gsoc_admin:        { label: 'GSOC Admin',       color: '#ef4444' },
+  project_manager:   { label: 'Project Manager',  color: '#34d399' },
+  project_operator:  { label: 'Project Operator', color: '#22d3ee' },
 }
 
 // ── Nav configs per role ──────────────────────────────────────────────────────
@@ -96,6 +99,7 @@ function DeveloperNav({ alertCount }) {
       <NavItem to="/intel-feeds"    icon={Radio}        label="Intel Feeds" />
 
       <NavSection label="Operations" />
+      <NavItem to="/projects"       icon={Layers}       label="Projects" />
       <NavItem to="/control-room"   icon={Headphones}   label="Live Control Room" />
       <NavItem to="/approvals"      icon={ClipboardList} label="Travel Approvals" />
       <NavItem to="/ops-intel"      icon={Activity}     label="Operational Intelligence" />
@@ -245,6 +249,7 @@ function GSOCNav({ alertCount, isAdmin }) {
       <NavItem to="/alerts"            icon={Bell}         label="Risk Alerts" badge={alertCount} />
 
       <NavSection label="Operations" />
+      <NavItem to="/projects"          icon={Layers}       label="Projects" />
       <NavItem to="/incidents"         icon={Siren}        label="Incident Reports" />
       <NavItem to="/tracker"           icon={Navigation}   label="Asset Tracker" />
 
@@ -258,6 +263,35 @@ function GSOCNav({ alertCount, isAdmin }) {
 
       <NavSection label="Account" />
       <NavItem to="/profile"           icon={UserCircle}   label="My Profile" />
+    </>
+  )
+}
+
+function ProjectNav({ alertCount, isManager }) {
+  return (
+    <>
+      <NavSection label="Projects" />
+      <NavItem to="/projects"       icon={Layers}        label="My Projects" />
+
+      <NavSection label="Intelligence" />
+      <NavItem to="/journey-agent"  icon={Compass}       label="CAIRO" />
+      <NavItem to="/country-risk"   icon={Shield}        label="Country Risk" />
+      <NavItem to="/news"           icon={Newspaper}     label="News Updates" />
+      <NavItem to="/alerts"         icon={Bell}          label="Risk Alerts" badge={alertCount} />
+
+      <NavSection label="Operations" />
+      <NavItem to="/incidents"      icon={Siren}         label="Incident Reports" />
+      <NavItem to="/tracker"        icon={Navigation}    label="Asset Tracker" />
+
+      {isManager && (
+        <>
+          <NavSection label="Admin" />
+          <NavItem to="/org/users"  icon={Users}         label="Personnel" />
+        </>
+      )}
+
+      <NavSection label="Account" />
+      <NavItem to="/profile"        icon={UserCircle}    label="My Profile" />
     </>
   )
 }
@@ -444,8 +478,10 @@ export default function Layout({ children, dark = false }) {
           {role === 'org_admin'     && <Building2 size={11} style={{ color: roleInfo.color }} />}
           {role === 'traveller'     && <UserCircle size={11} style={{ color: roleInfo.color }} />}
           {role === 'solo'          && <UserCircle size={11} style={{ color: roleInfo.color }} />}
-          {role === 'gsoc_operator' && <Radar size={11} style={{ color: roleInfo.color }} />}
-          {role === 'gsoc_admin'    && <Radar size={11} style={{ color: roleInfo.color }} />}
+          {role === 'gsoc_operator'    && <Radar    size={11} style={{ color: roleInfo.color }} />}
+          {role === 'gsoc_admin'       && <Radar    size={11} style={{ color: roleInfo.color }} />}
+          {role === 'project_manager'  && <HardHat  size={11} style={{ color: roleInfo.color }} />}
+          {role === 'project_operator' && <HardHat  size={11} style={{ color: roleInfo.color }} />}
           <span className="text-[10px] font-bold" style={{ color: roleInfo.color }}>
             {roleInfo.label}
           </span>
@@ -462,8 +498,10 @@ export default function Layout({ children, dark = false }) {
         {role === 'org_admin'     && <OrgAdminNav alertCount={activeAlertCount} pendingApprovals={pendingApprovalsCount} />}
         {role === 'traveller'     && <TravellerNav alertCount={activeAlertCount} tripAlertCount={tripAlertCount} />}
         {role === 'solo'          && <SoloTravellerNav alertCount={activeAlertCount} tripAlertCount={tripAlertCount} />}
-        {role === 'gsoc_operator' && <GSOCNav alertCount={activeAlertCount} isAdmin={false} />}
-        {role === 'gsoc_admin'    && <GSOCNav alertCount={activeAlertCount} isAdmin={true} />}
+        {role === 'gsoc_operator'    && <GSOCNav    alertCount={activeAlertCount} isAdmin={false} />}
+        {role === 'gsoc_admin'       && <GSOCNav    alertCount={activeAlertCount} isAdmin={true} />}
+        {role === 'project_manager'  && <ProjectNav alertCount={activeAlertCount} isManager={true} />}
+        {role === 'project_operator' && <ProjectNav alertCount={activeAlertCount} isManager={false} />}
       </nav>
 
       {/* User footer */}
