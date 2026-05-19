@@ -67,7 +67,7 @@ create table if not exists public.profiles (
   email                 text unique,
   company               text,
   role                  text default 'traveller'
-    check (role in ('admin', 'org_admin', 'traveller', 'solo', 'developer')),
+    check (role in ('admin', 'org_admin', 'traveller', 'solo', 'developer', 'gsoc_operator', 'gsoc_admin')),
   phone                 text,
   whatsapp_number       text,
   country               text,

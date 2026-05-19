@@ -392,11 +392,44 @@ function parseRss(xml) {
 async function _handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { url, id, limit = 5 } = req.query
+  const { url, id, category, limit = 5 } = req.query
 
-  // Return list of all pre-configured feeds
-  if (!url && !id) {
+  // Return list of all pre-configured feeds (or filter by category)
+  if (!url && !id && !category) {
     return res.json({ feeds: PRECONFIGURED_FEEDS })
+  }
+
+  // Multi-feed category fetch — fetch up to 4 feeds in the category in parallel
+  if (category && !url && !id) {
+    const catFeeds = PRECONFIGURED_FEEDS.filter(f => f.category === category).slice(0, 4)
+    if (!catFeeds.length) return res.json({ articles: [], total: 0 })
+
+    const perFeed = Math.max(3, Math.ceil(parseInt(limit) / catFeeds.length))
+    const results = await Promise.allSettled(catFeeds.map(async f => {
+      if (cache[f.url] && Date.now() - cache[f.url].time < CACHE_TTL) {
+        return { feed: f, articles: cache[f.url].data.articles }
+      }
+      const xml = await fetchRss(f.url)
+      if (!xml) return { feed: f, articles: [] }
+      const items = parseRss(xml)
+      const articles = items.slice(0, perFeed).map(item => ({
+        title:   item.title,
+        url:     item.link,
+        summary: item.description.replace(/<[^>]*>/g, '').slice(0, 200).trim(),
+        source:  f.name,
+        date:    item.pubDate ? new Date(item.pubDate).toISOString() : null,
+      })).filter(a => a.title)
+      cache[f.url] = { data: { articles }, time: Date.now() }
+      return { feed: f, articles }
+    }))
+
+    const allArticles = results
+      .filter(r => r.status === 'fulfilled')
+      .flatMap(r => r.value.articles)
+      .sort((a, b) => (b.date || '') > (a.date || '') ? 1 : -1)
+      .slice(0, parseInt(limit))
+
+    return res.json({ articles: allArticles, total: allArticles.length, category, fetchedAt: new Date().toISOString() })
   }
 
   // Resolve URL from id or use provided URL

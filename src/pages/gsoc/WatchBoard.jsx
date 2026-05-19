@@ -1,8 +1,8 @@
 /**
  * GSOC Global Watch Board
  * Dark operational dashboard for security operations centre staff.
- * Reads from existing platform tables (sos_events, incidents, staff_locations,
- * alerts) plus new GSOC tables (gsoc_escalations, gsoc_tasks).
+ * Map: risk heatmap (same circles as CountryRiskReport) + live asset/SOS markers.
+ * Panels: SOS, incidents, escalations, assets, tasks, threat feed, live news.
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react'
@@ -10,13 +10,14 @@ import { Link } from 'react-router-dom'
 import {
   AlertOctagon, Siren, Shield, MapPin, Activity, CheckSquare,
   Radio, Users, Clock, ChevronRight, RefreshCw, Zap, Globe,
-  TriangleAlert, TrendingUp, Layers, Plus, Eye,
+  TriangleAlert, TrendingUp, Plus, Newspaper,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { RISK_MAP, buildRiskGeoJSON } from '../../lib/riskData'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
-const DARK_MAP = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+const DARK_MAP  = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 const REFRESH_MS = 30_000
 
 // ── Severity colours ──────────────────────────────────────────────────────────
@@ -27,7 +28,6 @@ const SEV = {
   low:      { bg: 'bg-blue-500/20',   border: 'border-blue-500/40',   text: 'text-blue-400',   dot: '#3b82f6' },
   normal:   { bg: 'bg-gray-500/20',   border: 'border-gray-600',      text: 'text-gray-400',   dot: '#6b7280' },
 }
-
 function sev(s) { return SEV[s?.toLowerCase()] || SEV.normal }
 
 // ── Live clock ────────────────────────────────────────────────────────────────
@@ -79,24 +79,20 @@ function Panel({ title, icon: Icon, iconColor = '#60a5fa', children, action, cla
   )
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
 function Empty({ label }) {
-  return (
-    <div className="flex items-center justify-center h-20 text-white/20 text-xs">{label}</div>
-  )
+  return <div className="flex items-center justify-center h-20 text-white/20 text-xs">{label}</div>
 }
 
-// ── Time ago ──────────────────────────────────────────────────────────────────
 function timeAgo(ts) {
   if (!ts) return ''
   const s = Math.floor((Date.now() - new Date(ts)) / 1000)
-  if (s < 60)  return `${s}s ago`
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`
+  if (s < 60)    return `${s}s ago`
+  if (s < 3600)  return `${Math.floor(s / 60)}m ago`
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`
   return `${Math.floor(s / 86400)}d ago`
 }
 
-// ── SOS Panel ─────────────────────────────────────────────────────────────────
+// ── Panel sub-components ──────────────────────────────────────────────────────
 function SOSPanel({ events }) {
   if (!events.length) return <Empty label="No active SOS — all clear" />
   return (
@@ -108,22 +104,20 @@ function SOSPanel({ events }) {
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0 mt-1" />
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-white truncate">{e.profiles?.full_name || 'Unknown user'}</p>
-                <p className="text-[11px] text-white/50 truncate">{e.location_label || (e.latitude ? `${e.latitude?.toFixed(4)}, ${e.longitude?.toFixed(4)}` : 'Location unknown')}</p>
+                <p className="text-[11px] text-white/50 truncate">
+                  {e.location_label || (e.latitude ? `${e.latitude?.toFixed(4)}, ${e.longitude?.toFixed(4)}` : 'Location unknown')}
+                </p>
                 {e.message && <p className="text-[11px] text-red-300 mt-0.5 line-clamp-2">"{e.message}"</p>}
               </div>
             </div>
             <span className="text-[10px] text-white/30 shrink-0 mt-0.5">{timeAgo(e.created_at)}</span>
           </div>
-          {e.trip_name && (
-            <p className="text-[10px] text-white/30 mt-1 ml-4">Trip: {e.trip_name}</p>
-          )}
         </div>
       ))}
     </div>
   )
 }
 
-// ── Incidents Panel ───────────────────────────────────────────────────────────
 function IncidentsPanel({ incidents }) {
   if (!incidents.length) return <Empty label="No open incidents" />
   return (
@@ -148,7 +142,6 @@ function IncidentsPanel({ incidents }) {
   )
 }
 
-// ── Escalation Queue ──────────────────────────────────────────────────────────
 function EscalationPanel({ escalations, onAck }) {
   if (!escalations.length) return <Empty label="Escalation queue clear" />
   return (
@@ -160,7 +153,7 @@ function EscalationPanel({ escalations, onAck }) {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 mb-0.5">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0`} style={{ background: s.dot }} />
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: s.dot }} />
                   <p className="text-sm font-semibold text-white truncate">{e.title}</p>
                 </div>
                 <p className="text-[11px] text-white/40">{e.source_type} · {e.country || 'Global'} · {timeAgo(e.created_at)}</p>
@@ -179,22 +172,42 @@ function EscalationPanel({ escalations, onAck }) {
   )
 }
 
-// ── Threat Feed ───────────────────────────────────────────────────────────────
-function ThreatFeedPanel({ items }) {
-  if (!items.length) return <Empty label="Fetching threat feed…" />
+function ThreatFeedPanel({ items, loading }) {
+  if (loading) return <Empty label="Fetching threat feed…" />
+  if (!items.length) return <Empty label="No threat feed items" />
   return (
     <div>
       {items.map((item, i) => (
         <div key={i} className="px-4 py-2.5 border-b border-white/5 last:border-0">
           <p className="text-[12px] text-white/80 leading-snug line-clamp-2">{item.title}</p>
-          <p className="text-[10px] text-white/30 mt-0.5">{item.source} · {timeAgo(item.pubDate)}</p>
+          <p className="text-[10px] text-white/30 mt-0.5">{item.source} · {timeAgo(item.date)}</p>
         </div>
       ))}
     </div>
   )
 }
 
-// ── Tasks Panel ───────────────────────────────────────────────────────────────
+function NewsFeedPanel({ items, loading }) {
+  if (loading) return <Empty label="Fetching live news…" />
+  if (!items.length) return <Empty label="No news items" />
+  return (
+    <div>
+      {items.map((item, i) => (
+        <div key={i} className="px-4 py-2.5 border-b border-white/5 last:border-0">
+          {item.url
+            ? <a href={item.url} target="_blank" rel="noopener noreferrer"
+                className="text-[12px] text-white/80 leading-snug line-clamp-2 hover:text-white transition-colors block">
+                {item.title}
+              </a>
+            : <p className="text-[12px] text-white/80 leading-snug line-clamp-2">{item.title}</p>
+          }
+          <p className="text-[10px] text-white/30 mt-0.5">{item.source} · {timeAgo(item.date)}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function TasksPanel({ tasks }) {
   if (!tasks.length) return <Empty label="No open tasks" />
   return (
@@ -203,7 +216,7 @@ function TasksPanel({ tasks }) {
         const s = sev(t.priority)
         return (
           <div key={t.id} className="px-4 py-2.5 border-b border-white/5 last:border-0 flex items-center gap-3">
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0`} style={{ background: s.dot }} />
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: s.dot }} />
             <div className="min-w-0 flex-1">
               <p className="text-[12px] text-white/80 truncate">{t.title}</p>
               <p className="text-[10px] text-white/30">{t.gsoc_projects?.name || 'General'} · {t.status}</p>
@@ -215,7 +228,6 @@ function TasksPanel({ tasks }) {
   )
 }
 
-// ── Assets Panel ─────────────────────────────────────────────────────────────
 function AssetsPanel({ locations }) {
   if (!locations.length) return <Empty label="No active location shares" />
   return (
@@ -230,71 +242,127 @@ function AssetsPanel({ locations }) {
             <p className="text-[12px] text-white/80 truncate">{l.profiles?.full_name || 'Unknown'}</p>
             <p className="text-[10px] text-white/30 truncate">{l.arrival_city || l.location_label || 'Location unknown'} · {timeAgo(l.recorded_at)}</p>
           </div>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Sharing" />
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
         </div>
       ))}
     </div>
   )
 }
 
-// ── Live Map ─────────────────────────────────────────────────────────────────
+// ── Live Map: risk heatmap + asset/SOS markers ────────────────────────────────
 function LiveMap({ locations, sosEvents }) {
   const mapRef  = useRef(null)
   const mapInst = useRef(null)
+  const markersRef = useRef([])
 
+  // Init map once
   useEffect(() => {
     if (!mapRef.current || mapInst.current) return
-    mapInst.current = new maplibregl.Map({
+
+    const map = new maplibregl.Map({
       container: mapRef.current,
       style:     DARK_MAP,
       center:    [20, 5],
       zoom:      2.5,
       attributionControl: false,
     })
-    mapInst.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+    mapInst.current = map
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+
+    map.on('load', () => {
+      // ── Risk heatmap circles (same style as CountryRiskReport) ──────────────
+      map.addSource('risk-countries', { type: 'geojson', data: buildRiskGeoJSON() })
+
+      map.addLayer({
+        id: 'risk-circles',
+        type: 'circle',
+        source: 'risk-countries',
+        paint: {
+          'circle-radius':        ['match', ['get', 'risk'], 'Critical', 18, 'High', 14, 'Medium', 11, 8],
+          'circle-color':         ['match', ['get', 'risk'], 'Critical', '#dc2626', 'High', '#ea580c', 'Medium', '#eab308', '#22c55e'],
+          'circle-opacity':       0.65,
+          'circle-stroke-width':  1.5,
+          'circle-stroke-color':  ['match', ['get', 'risk'], 'Critical', '#b91c1c', 'High', '#c2410c', 'Medium', '#ca8a04', '#16a34a'],
+          'circle-stroke-opacity': 0.9,
+        },
+      })
+
+      // Country popup on click
+      map.on('click', 'risk-circles', (e) => {
+        const { name, risk } = e.features[0].properties
+        const colors = { Critical: '#dc2626', High: '#ea580c', Medium: '#eab308', Low: '#22c55e' }
+        const color  = colors[risk] || '#6b7280'
+
+        const el = document.createElement('div')
+        el.style.cssText = 'font-family:sans-serif;padding:4px 0;min-width:150px'
+        el.innerHTML = `
+          <div style="font-weight:700;font-size:13px;color:#fff;margin-bottom:5px">${name}</div>
+          <div style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${color};color:${risk === 'Medium' ? '#1f2937' : '#fff'}">${risk} Risk</div>
+        `
+
+        new maplibregl.Popup({ closeButton: true, maxWidth: '200px',
+          className: 'gsoc-popup' })
+          .setLngLat(e.features[0].geometry.coordinates.slice())
+          .setDOMContent(el)
+          .addTo(map)
+      })
+
+      map.on('mouseenter', 'risk-circles', () => { map.getCanvas().style.cursor = 'pointer' })
+      map.on('mouseleave', 'risk-circles', () => { map.getCanvas().style.cursor = '' })
+    })
+
+    return () => { map.remove(); mapInst.current = null }
   }, [])
 
-  // Plot markers whenever data changes
+  // Update asset/SOS markers whenever data changes
   useEffect(() => {
     const map = mapInst.current
     if (!map) return
 
-    // Remove previous markers
-    document.querySelectorAll('.gsoc-marker').forEach(el => el.remove())
+    // Clear previous markers
+    markersRef.current.forEach(m => m.remove())
+    markersRef.current = []
 
     const addMarker = (lat, lng, color, title, pulse = false) => {
       if (!lat || !lng) return
       const el = document.createElement('div')
       el.className = 'gsoc-marker'
-      el.style.cssText = `width:12px;height:12px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.6);cursor:pointer;${pulse ? 'animation:gsoc-pulse 1.5s infinite;' : ''}`
-      new maplibregl.Marker({ element: el })
+      el.style.cssText = `width:12px;height:12px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.7);cursor:pointer;z-index:10;${pulse ? 'animation:gsoc-pulse 1.5s infinite;' : ''}`
+      const marker = new maplibregl.Marker({ element: el })
         .setLngLat([lng, lat])
         .setPopup(new maplibregl.Popup({ offset: 10, closeButton: false }).setHTML(
           `<div style="font-size:11px;color:#fff;background:#1f2937;padding:6px 10px;border-radius:6px">${title}</div>`
         ))
         .addTo(map)
+      markersRef.current.push(marker)
     }
 
     locations.forEach(l => {
-      if (l.latitude && l.longitude) {
+      if (l.latitude && l.longitude)
         addMarker(l.latitude, l.longitude, '#AACC00', l.profiles?.full_name || 'Asset')
-      }
     })
-
     sosEvents.forEach(e => {
-      if (e.latitude && e.longitude) {
+      if (e.latitude && e.longitude)
         addMarker(e.latitude, e.longitude, '#ef4444', `SOS: ${e.profiles?.full_name || 'Unknown'}`, true)
-      }
     })
   }, [locations, sosEvents])
 
   return (
     <div className="relative w-full h-full rounded-lg overflow-hidden">
       <div ref={mapRef} className="w-full h-full" />
-      <style>{`@keyframes gsoc-pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.7)}70%{box-shadow:0 0 0 8px rgba(239,68,68,0)}}`}</style>
-      <div className="absolute bottom-2 left-2 flex items-center gap-3 text-[10px] text-white/60 bg-black/60 px-2 py-1 rounded">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#AACC00] inline-block" />Asset</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" />SOS</span>
+      <style>{`
+        @keyframes gsoc-pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.7)}70%{box-shadow:0 0 0 8px rgba(239,68,68,0)}}
+        .gsoc-popup .maplibregl-popup-content{background:#111827!important;border:1px solid rgba(255,255,255,0.1);padding:8px 12px}
+        .gsoc-popup .maplibregl-popup-tip{border-top-color:#111827!important}
+      `}</style>
+      <div className="absolute bottom-2 left-2 flex items-center gap-3 text-[10px] text-white/60 bg-black/70 px-2.5 py-1.5 rounded-lg backdrop-blur-sm">
+        <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 rounded-full bg-red-600 border border-red-400 inline-block" />Critical</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-orange-500 border border-orange-400 inline-block" />High</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500 border border-yellow-400 inline-block" />Medium</span>
+        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />Low</span>
+        <span className="w-px h-3 bg-white/20" />
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#AACC00] inline-block" />Asset</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse inline-block" />SOS</span>
       </div>
     </div>
   )
@@ -307,89 +375,100 @@ export default function WatchBoard() {
   const [escalations,  setEscalations]  = useState([])
   const [tasks,        setTasks]        = useState([])
   const [locations,    setLocations]    = useState([])
-  const [threatFeed,   setThreatFeed]   = useState([])
   const [shiftLog,     setShiftLog]     = useState(null)
   const [lastRefresh,  setLastRefresh]  = useState(null)
   const [loading,      setLoading]      = useState(true)
 
-  const fetchAll = useCallback(async () => {
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    const locCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+  const [threatFeed,   setThreatFeed]   = useState([])
+  const [newsFeed,     setNewsFeed]     = useState([])
+  const [feedsLoading, setFeedsLoading] = useState(true)
 
-    const [
-      sosRes, incRes, escRes, taskRes, locRes, shiftRes,
-    ] = await Promise.allSettled([
+  const fetchAll = useCallback(async () => {
+    const cutoff    = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const locCutoff = new Date(Date.now() - 2  * 60 * 60 * 1000).toISOString()
+
+    const [sosRes, incRes, escRes, taskRes, locRes, shiftRes] = await Promise.allSettled([
       supabase.from('sos_events')
         .select('*, profiles(full_name, email)')
         .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(20),
+        .order('created_at', { ascending: false }).limit(20),
 
       supabase.from('incidents')
         .select('id,title,severity,status,country,location,created_at,incident_type')
         .in('status', ['Open', 'Under Review'])
         .gte('created_at', cutoff)
-        .order('created_at', { ascending: false })
-        .limit(20),
+        .order('created_at', { ascending: false }).limit(20),
 
       supabase.from('gsoc_escalations')
         .select('*')
         .in('status', ['open', 'acknowledged', 'in_progress'])
-        .order('created_at', { ascending: false })
-        .limit(20),
+        .order('created_at', { ascending: false }).limit(20),
 
       supabase.from('gsoc_tasks')
         .select('*, gsoc_projects(name)')
         .in('status', ['open', 'in_progress'])
-        .order('created_at', { ascending: false })
-        .limit(15),
+        .order('created_at', { ascending: false }).limit(15),
 
       supabase.from('staff_locations')
         .select('*, profiles(full_name)')
         .eq('is_sharing', true)
         .gte('recorded_at', locCutoff)
-        .order('recorded_at', { ascending: false })
-        .limit(50),
+        .order('recorded_at', { ascending: false }).limit(50),
 
       supabase.from('gsoc_shift_logs')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .limit(1).maybeSingle(),
     ])
 
-    if (sosRes.status  === 'fulfilled') setSosEvents(sosRes.value?.data   || [])
-    if (incRes.status  === 'fulfilled') setIncidents(incRes.value?.data   || [])
-    if (escRes.status  === 'fulfilled') setEscalations(escRes.value?.data || [])
-    if (taskRes.status === 'fulfilled') setTasks(taskRes.value?.data      || [])
-    if (locRes.status  === 'fulfilled') setLocations(locRes.value?.data   || [])
-    if (shiftRes.status=== 'fulfilled') setShiftLog(shiftRes.value?.data  || null)
-
+    if (sosRes.status   === 'fulfilled') setSosEvents(sosRes.value?.data   || [])
+    if (incRes.status   === 'fulfilled') setIncidents(incRes.value?.data   || [])
+    if (escRes.status   === 'fulfilled') setEscalations(escRes.value?.data || [])
+    if (taskRes.status  === 'fulfilled') setTasks(taskRes.value?.data      || [])
+    if (locRes.status   === 'fulfilled') setLocations(locRes.value?.data   || [])
+    if (shiftRes.status === 'fulfilled') setShiftLog(shiftRes.value?.data  || null)
     setLastRefresh(new Date())
     setLoading(false)
   }, [])
 
-  // Fetch threat feed from API
-  const fetchThreatFeed = useCallback(async () => {
+  const fetchFeeds = useCallback(async () => {
+    setFeedsLoading(true)
     try {
-      const res = await fetch('/api/rss-ingest?category=security&limit=12')
-      if (!res.ok) return
-      const data = await res.json()
-      const items = (data.articles || data.items || []).slice(0, 12).map(a => ({
-        title:   a.title,
-        source:  a.source || a.feed || '',
-        pubDate: a.pubDate || a.published || a.date,
-      }))
-      setThreatFeed(items)
+      const [secRes, newsRes] = await Promise.allSettled([
+        fetch('/api/rss-ingest?category=security&limit=12'),
+        fetch('/api/rss-ingest?category=conflict&limit=10'),
+      ])
+
+      if (secRes.status === 'fulfilled' && secRes.value.ok) {
+        const d = await secRes.value.json()
+        setThreatFeed((d.articles || []).map(a => ({
+          title:  a.title,
+          source: a.source || d.feed?.name || '',
+          date:   a.date,
+          url:    a.url,
+        })))
+      }
+
+      if (newsRes.status === 'fulfilled' && newsRes.value.ok) {
+        const d = await newsRes.value.json()
+        setNewsFeed((d.articles || []).map(a => ({
+          title:  a.title,
+          source: a.source || d.feed?.name || '',
+          date:   a.date,
+          url:    a.url,
+        })))
+      }
     } catch { /* feed unavailable */ }
+    setFeedsLoading(false)
   }, [])
 
   useEffect(() => {
     fetchAll()
-    fetchThreatFeed()
+    fetchFeeds()
     const interval = setInterval(fetchAll, REFRESH_MS)
-    return () => clearInterval(interval)
-  }, [fetchAll, fetchThreatFeed])
+    const feedInterval = setInterval(fetchFeeds, 5 * 60 * 1000)
+    return () => { clearInterval(interval); clearInterval(feedInterval) }
+  }, [fetchAll, fetchFeeds])
 
   const ackEscalation = async (id) => {
     await supabase.from('gsoc_escalations')
@@ -411,8 +490,7 @@ export default function WatchBoard() {
       <div className="flex items-center justify-between px-6 py-3 border-b border-white/8"
         style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)' }}>
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded flex items-center justify-center"
-            style={{ background: '#AACC00' }}>
+          <div className="w-7 h-7 rounded flex items-center justify-center" style={{ background: '#AACC00' }}>
             <Globe size={14} style={{ color: '#0118A1' }} />
           </div>
           <div>
@@ -422,15 +500,13 @@ export default function WatchBoard() {
         </div>
         <div className="flex items-center gap-4">
           <LiveClock />
-          <button onClick={fetchAll}
+          <button onClick={() => { fetchAll(); fetchFeeds() }}
             className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 transition-all"
             title="Refresh">
             <RefreshCw size={14} />
           </button>
           {lastRefresh && (
-            <span className="text-[10px] text-white/20 hidden sm:block">
-              Updated {timeAgo(lastRefresh)}
-            </span>
+            <span className="text-[10px] text-white/20 hidden sm:block">Updated {timeAgo(lastRefresh)}</span>
           )}
           <Link to="/gsoc/projects"
             className="text-[11px] px-3 py-1.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:border-white/30 transition-all">
@@ -445,19 +521,19 @@ export default function WatchBoard() {
 
       {/* ── KPI strip ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 px-6 py-4">
-        <KPI icon={AlertOctagon} label="Active SOS"       value={sosCount}   color="#ef4444" pulse={sosCount > 0} />
-        <KPI icon={Siren}        label="Open Incidents"   value={incCount}   color="#f97316" />
-        <KPI icon={TrendingUp}   label="Escalations"      value={escCount}   color="#f59e0b" pulse={escCount > 0} />
-        <KPI icon={Users}        label="Assets Online"    value={assetCount} color="#10b981" />
-        <KPI icon={CheckSquare}  label="Open Tasks"       value={taskCount}  color="#60a5fa" />
+        <KPI icon={AlertOctagon} label="Active SOS"     value={sosCount}   color="#ef4444" pulse={sosCount > 0} />
+        <KPI icon={Siren}        label="Open Incidents" value={incCount}   color="#f97316" />
+        <KPI icon={TrendingUp}   label="Escalations"    value={escCount}   color="#f59e0b" pulse={escCount > 0} />
+        <KPI icon={Users}        label="Assets Online"  value={assetCount} color="#10b981" />
+        <KPI icon={CheckSquare}  label="Open Tasks"     value={taskCount}  color="#60a5fa" />
       </div>
 
       {/* ── Main grid ── */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 px-6 pb-6 min-h-0">
 
-        {/* Left: Map (spans 2 cols on large) */}
+        {/* Left: Map (2 cols) + Incidents + Escalations */}
         <div className="lg:col-span-2 flex flex-col gap-4">
-          <Panel title="Live Operator Map" icon={MapPin} iconColor="#10b981"
+          <Panel title="Global Risk & Live Operations Map" icon={MapPin} iconColor="#10b981"
             className="flex-1 min-h-64"
             action={
               <span className="text-[10px] text-white/30 flex items-center gap-1">
@@ -465,12 +541,11 @@ export default function WatchBoard() {
                 {assetCount} assets online
               </span>
             }>
-            <div className="h-72 lg:h-full p-2">
+            <div className="h-80 lg:h-full p-2">
               <LiveMap locations={locations} sosEvents={sosEvents} />
             </div>
           </Panel>
 
-          {/* Bottom row: Incidents + Escalations */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Panel title="Active Incidents" icon={Siren} iconColor="#f97316"
               className="max-h-56"
@@ -485,17 +560,15 @@ export default function WatchBoard() {
             <Panel title="Escalation Queue" icon={TriangleAlert} iconColor="#f59e0b"
               className="max-h-56"
               action={
-                <button
-                  onClick={async () => {
-                    const title = prompt('Escalation title:')
-                    if (!title) return
-                    const sev = prompt('Severity (critical/high/medium/low):', 'high')
-                    await supabase.from('gsoc_escalations').insert({
-                      title, severity: sev || 'high', source_type: 'manual',
-                      status: 'open',
-                    })
-                    fetchAll()
-                  }}
+                <button onClick={async () => {
+                  const title = prompt('Escalation title:')
+                  if (!title) return
+                  const s = prompt('Severity (critical/high/medium/low):', 'high')
+                  await supabase.from('gsoc_escalations').insert({
+                    title, severity: s || 'high', source_type: 'manual', status: 'open',
+                  })
+                  fetchAll()
+                }}
                   className="text-[10px] text-white/30 hover:text-white/60 flex items-center gap-1 transition-colors">
                   <Plus size={10} /> New
                 </button>
@@ -508,23 +581,20 @@ export default function WatchBoard() {
         {/* Right column */}
         <div className="flex flex-col gap-4">
 
-          {/* SOS */}
           <Panel title="SOS Activations" icon={AlertOctagon} iconColor="#ef4444"
-            className="max-h-52"
+            className="max-h-48"
             action={sosCount > 0 ? (
               <span className="text-[10px] font-bold text-red-400 animate-pulse">{sosCount} ACTIVE</span>
             ) : null}>
             <SOSPanel events={sosEvents} />
           </Panel>
 
-          {/* Assets */}
-          <Panel title="Active Assets" icon={Users} iconColor="#10b981" className="max-h-48">
+          <Panel title="Active Assets" icon={Users} iconColor="#10b981" className="max-h-44">
             <AssetsPanel locations={locations} />
           </Panel>
 
-          {/* Open Tasks */}
           <Panel title="Open Tasks" icon={CheckSquare} iconColor="#60a5fa"
-            className="max-h-48"
+            className="max-h-44"
             action={
               <Link to="/gsoc/projects" className="text-[10px] text-white/30 hover:text-white/60 flex items-center gap-1">
                 Manage <ChevronRight size={10} />
@@ -533,12 +603,17 @@ export default function WatchBoard() {
             <TasksPanel tasks={tasks} />
           </Panel>
 
-          {/* Threat Feed */}
-          <Panel title="Threat Feed" icon={Radio} iconColor="#a78bfa" className="flex-1 min-h-40">
-            <ThreatFeedPanel items={threatFeed} />
+          {/* Threat Feed — security category */}
+          <Panel title="Threat Intelligence Feed" icon={Radio} iconColor="#a78bfa" className="max-h-52">
+            <ThreatFeedPanel items={threatFeed} loading={feedsLoading && !threatFeed.length} />
           </Panel>
 
-          {/* Shift log summary */}
+          {/* Live News — conflict category */}
+          <Panel title="Live News & Conflict" icon={Newspaper} iconColor="#38bdf8" className="flex-1 min-h-40">
+            <NewsFeedPanel items={newsFeed} loading={feedsLoading && !newsFeed.length} />
+          </Panel>
+
+          {/* Last shift summary */}
           {shiftLog && (
             <div className="rounded-xl border border-white/8 px-4 py-3"
               style={{ background: 'rgba(255,255,255,0.03)' }}>
@@ -546,9 +621,7 @@ export default function WatchBoard() {
                 <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest flex items-center gap-1.5">
                   <Clock size={10} /> Last Shift
                 </span>
-                <Link to="/gsoc/shift-log" className="text-[10px] text-white/30 hover:text-white/60">
-                  View all
-                </Link>
+                <Link to="/gsoc/shift-log" className="text-[10px] text-white/30 hover:text-white/60">View all</Link>
               </div>
               <p className="text-[11px] text-white/70 line-clamp-3">{shiftLog.summary}</p>
               {shiftLog.open_items && (
