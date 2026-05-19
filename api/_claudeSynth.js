@@ -18,7 +18,7 @@ const ALL_RISK_FEEDS = [
   { url: 'https://www.aljazeera.com/xml/rss/all.xml',                             name: 'Al Jazeera',           category: 'conflict'  },
   { url: 'https://news.un.org/feed/subscribe/en/news/region/africa/feed/rss.xml', name: 'UN News Africa',       category: 'conflict'  },
   { url: 'https://news.un.org/feed/subscribe/en/news/region/middle-east/feed/rss.xml', name: 'UN News ME',     category: 'conflict'  },
-  { url: 'https://acleddata.com/feed/',                                            name: 'ACLED Blog',           category: 'conflict'  },
+  { url: 'https://acleddata.com/category/analysis/feed/',                          name: 'ACLED Blog',           category: 'conflict'  },
   { url: 'https://thedefensepost.com/feed/',                                      name: 'The Defense Post',     category: 'conflict'  },
   // Security analysis
   { url: 'https://issafrica.org/rss/iss-today',                                   name: 'ISS Africa',           category: 'security'  },
@@ -27,6 +27,12 @@ const ALL_RISK_FEEDS = [
   { url: 'https://jamestown.org/feed/',                                           name: 'Jamestown Foundation', category: 'security'  },
   { url: 'https://feeds.bbci.co.uk/news/world/africa/rss.xml',                   name: 'BBC Africa',           category: 'security'  },
   { url: 'https://africanarguments.org/feed/',                                    name: 'African Arguments',    category: 'security'  },
+  { url: 'https://www.dowjones.com/djoxan/feed',                                  name: 'Oxford Analytica',     category: 'security'  },
+  { url: 'https://thesoufancenter.org/feed/',                                     name: 'Soufan Center',        category: 'security'  },
+  { url: 'https://foreignpolicy.com/feed/',                                       name: 'Foreign Policy',       category: 'security'  },
+  { url: 'https://www.theafricareport.com/feed/',                                 name: 'The Africa Report',    category: 'security'  },
+  { url: 'https://www.csis.org/rss.xml',                                          name: 'CSIS',                 category: 'security'  },
+  { url: 'https://warontherocks.com/feed/',                                       name: 'War on the Rocks',     category: 'security'  },
   // Health / disease outbreaks
   { url: 'https://www.who.int/rss-feeds/news-english.xml',                        name: 'WHO',                  category: 'health'    },
   { url: 'https://reliefweb.int/updates/rss.xml?source=WHO',                     name: 'ReliefWeb/WHO',        category: 'health'    },
