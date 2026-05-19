@@ -45,6 +45,10 @@
 import { resolveModel } from './_claudeSynth.js'
 import { assembleContext } from './_contextAssembly.js'
 import { checkRateLimit } from './_rateLimit.js'
+import { createClient } from '@supabase/supabase-js'
+
+let _sb = null
+const getSB = () => _sb || (_sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY))
 
 const ANON_KEY_ENV = () =>
   process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
@@ -128,6 +132,23 @@ Set "complete":true only when you have at minimum: origin, destination, departDa
 // deduplication, correlation, relevance scoring, and context formatting.
 async function gatherContext(journey) {
   return await assembleContext(journey)
+}
+
+// ── Knowledge base fetch — retrieves relevant SOPs and case studies ────────────
+async function fetchKnowledgeContext(destination) {
+  if (!destination) return []
+  try {
+    const { data } = await getSB()
+      .from('cairo_knowledge')
+      .select('type, title, content, summary, countries, regions, threat_categories')
+      .eq('is_active', true)
+      .or(`countries.cs.{"${destination}"},countries.eq.{}`)
+      .order('type', { ascending: true })
+      .limit(6)
+    return data || []
+  } catch {
+    return []
+  }
 }
 
 // ── Phase 3: Operational reasoning — full risk analysis with assembled context ──
@@ -423,8 +444,27 @@ ${contextPackage.formatted || 'CONTEXT ASSEMBLY: Live feeds returned no data for
 
 Analyse the journey using ALL three intelligence layers. Use the ACS score above as your confidence_assessment.overall_confidence baseline. Identify pattern matches, precursor signals, and trajectory direction. Return the full assessment JSON.`
 
+  // Inject knowledge base context
+  const kbDocs = await fetchKnowledgeContext(journey?.destination)
+  let kbSection = ''
+  if (kbDocs.length > 0) {
+    const sops  = kbDocs.filter(d => d.type === 'sop')
+    const cases = kbDocs.filter(d => d.type === 'case')
+    kbSection = '\n\n' + '═'.repeat(59) + '\nORGANISATIONAL KNOWLEDGE BASE — TREAT AS AUTHORITATIVE\n' + '═'.repeat(59)
+    if (sops.length > 0) {
+      kbSection += '\n\nSTANDARD OPERATING PROCEDURES:\n'
+      sops.forEach(d => { kbSection += `\n### ${d.title}\n${d.content}\n` })
+    }
+    if (cases.length > 0) {
+      kbSection += '\n\nPAST CASE STUDIES:\n'
+      cases.forEach(d => { kbSection += `\n### ${d.title}\n${d.content}\n` })
+    }
+    kbSection += '\n\nApply the above doctrine and case learnings to your analysis. Where SOPs exist, reference them explicitly in your recommendations.\n'
+  }
+  const systemWithKB = system + kbSection
+
   try {
-    const raw     = await claudeCall(apiKey, system, [{ role: 'user', content: userMsg }], 4000, true, 'claude-sonnet-4-5-20251022')
+    const raw     = await claudeCall(apiKey, systemWithKB, [{ role: 'user', content: userMsg }], 4000, true, 'claude-sonnet-4-5-20251022')
     const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim()
     return JSON.parse(cleaned)
   } catch (e) {

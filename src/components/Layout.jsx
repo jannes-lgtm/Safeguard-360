@@ -7,7 +7,7 @@ import {
   Building2, GraduationCap, BookOpen, Globe, Settings,
   BarChart2, Code2, Headphones, Menu, X, Megaphone, Activity,
   CreditCard, Compass, MonitorCheck, FolderOpen, Clock, Radar,
-  Layers, HardHat,
+  Layers, HardHat, Brain,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import usePassiveLocation from '../hooks/usePassiveLocation'
@@ -91,6 +91,7 @@ function DeveloperNav({ alertCount }) {
 
       <NavSection label="Intelligence" />
       <NavItem to="/journey-agent"  icon={Compass}      label="CAIRO" />
+      <NavItem to="/cairo/knowledge" icon={Brain}       label="Knowledge Base" />
       <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
       <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount} />
@@ -135,6 +136,7 @@ function CorporateAdminNav({ alertCount, pendingApprovals }) {
 
       <NavSection label="Intelligence" />
       <NavItem to="/journey-agent"  icon={Compass}      label="CAIRO" />
+      <NavItem to="/cairo/knowledge" icon={Brain}       label="Knowledge Base" />
       <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
       <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount} />
@@ -173,6 +175,7 @@ function OrgAdminNav({ alertCount, pendingApprovals }) {
 
       <NavSection label="Intelligence" />
       <NavItem to="/journey-agent"  icon={Compass}      label="CAIRO" />
+      <NavItem to="/cairo/knowledge" icon={Brain}       label="Knowledge Base" />
       <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
       <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount} />

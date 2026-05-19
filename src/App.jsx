@@ -45,6 +45,7 @@ import CrisisBroadcast from './pages/CrisisBroadcast'
 import HealthDeclaration from './pages/HealthDeclaration'
 import OperationalIntel from './pages/OperationalIntel'
 import JourneyAgent from './pages/JourneyAgent'
+import KnowledgeBase from './pages/cairo/KnowledgeBase'
 import WatchBoard from './pages/gsoc/WatchBoard'
 import Projects from './pages/gsoc/Projects'
 import ShiftLog from './pages/gsoc/ShiftLog'
@@ -124,6 +125,7 @@ export default function App() {
         <Route path="/journey-agent"   element={<ProtectedRoute><JourneyAgent /></ProtectedRoute>} />
         <Route path="/projects"        element={<ProtectedRoute projectsAllowed><ProjectsList /></ProtectedRoute>} />
         <Route path="/projects/:id"    element={<ProtectedRoute projectsAllowed><ProjectDetail /></ProtectedRoute>} />
+        <Route path="/cairo/knowledge" element={<ProtectedRoute orgAdminAllowed><KnowledgeBase /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )
