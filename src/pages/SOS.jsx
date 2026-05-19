@@ -130,9 +130,9 @@ export default function SOS() {
 
   const loadData = async () => {
     setLoading(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    const uid = session.user.id
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const uid = user.id
 
     const today = new Date().toISOString().split('T')[0]
     const [{ data: prof }, { data: trip }, { data: evts }, { data: contacts }] = await Promise.all([
@@ -146,9 +146,9 @@ export default function SOS() {
     ])
     setEmergencyContacts(contacts || [])
 
-    const role = prof?.role || session.user.app_metadata?.role || 'traveller'
+    const role = prof?.role || 'traveller'
     setIsAdmin(['admin', 'org_admin', 'developer'].includes(role))
-    setProfile({ ...prof, email: session.user.email })
+    setProfile({ ...prof, email: user.email })
     setActiveTrip(trip || null)
     setEvents(evts || [])
     setLoading(false)
@@ -229,10 +229,10 @@ export default function SOS() {
   }
 
   const resolveEvent = async (id, status) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
     await supabase.from('sos_events').update({
-      status, resolved_by: session.user.id, resolved_at: new Date().toISOString()
+      status, resolved_by: user.id, resolved_at: new Date().toISOString()
     }).eq('id', id)
     loadData()
   }

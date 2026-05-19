@@ -188,7 +188,7 @@ export default function LiveMap() {
         .order('recorded_at', { ascending: false }),
     ])
 
-    const role = prof?.role || user.app_metadata?.role || 'traveller'
+    const role = prof?.role || 'traveller'
     const isSoloRole = role === 'solo' || (!prof?.org_id && !['admin','developer','org_admin'].includes(role))
     setIsAdmin(role === 'admin' || role === 'developer')
     setIsSolo(isSoloRole)
@@ -636,20 +636,20 @@ export default function LiveMap() {
     if (now - lastWriteRef.current < LOCATION_WRITE_THROTTLE_MS) return
     lastWriteRef.current = now
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-    // Use auth session email as the most reliable fallback — profile state
+    // Use auth user email as the most reliable fallback — profile state
     // may still be null if sharing started before loadInitialData resolved.
     const displayName =
       profile?.full_name ||
       profile?.email     ||
-      session.user.email ||
-      session.user.user_metadata?.full_name ||
+      user.email ||
+      user.user_metadata?.full_name ||
       'Unknown'
 
     await supabase.from('staff_locations').insert({
-      user_id:      session.user.id,
+      user_id:      user.id,
       full_name:    displayName,
       latitude:     coords.latitude,
       longitude:    coords.longitude,

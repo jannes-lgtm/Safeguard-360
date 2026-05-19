@@ -137,8 +137,7 @@ function ReportModal({ profile, trips, onClose, onSaved }) {
     setSaving(true)
     setError(null)
 
-    const { data: { session } } = await supabase.auth.getSession()
-    const user = session?.user
+    const { data: { user } } = await supabase.auth.getUser()
     const { data: inserted, error: err } = await supabase.from('incidents').insert({
       user_id:       user.id,
       reported_by:   profile?.full_name || profile?.email || 'Unknown',

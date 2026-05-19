@@ -333,7 +333,7 @@ export async function resolveModel(apiKey) {
   } catch (e) {
     console.warn('[_claudeSynth] Model list failed:', e.message)
   }
-  return 'claude-3-haiku-20240307'
+  return 'claude-haiku-4-5-20251001'
 }
 
 // ── Health outbreak feeds ─────────────────────────────────────────────────────

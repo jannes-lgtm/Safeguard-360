@@ -297,10 +297,10 @@ export default function Training() {
   const [activeModal, setActiveModal]       = useState(null)
 
   const load = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-    const uid   = session.user.id
+    const uid   = user.id
     const today = new Date().toISOString().split('T')[0]
 
     const [

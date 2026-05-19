@@ -396,24 +396,22 @@ export default function Layout({ children, dark = false }) {
 
   useEffect(() => {
     const loadData = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
       const { data: prof } = await supabase
         .from('profiles')
         .select('*, organisations(name)')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single()
 
       const finalRole =
         prof?.role ||
-        session.user.app_metadata?.role ||
-        session.user.user_metadata?.role ||
         'traveller'
 
       setProfile({
-        id: session.user.id,
-        email: session.user.email,
+        id: user.id,
+        email: user.email,
         ...(prof || {}),
         role: finalRole,
         org_name: prof?.organisations?.name || null,
@@ -425,7 +423,7 @@ export default function Layout({ children, dark = false }) {
           .eq('status', 'Active'),
         supabase.from('trip_alerts')
           .select('*', { count: 'exact', head: true })
-          .eq('user_id', session.user.id)
+          .eq('user_id', user.id)
           .eq('is_read', false),
       ]
 

@@ -139,7 +139,6 @@ export default function Debrief() {
   const navigate              = useNavigate()
   const [loading, setLoading] = useState(true)
   const [trip, setTrip]       = useState(null)
-  const [session, setSession] = useState(null)
   const [alreadyDone, setAlreadyDone] = useState(false)
   const [form, setForm]       = useState(defaultForm)
   const [submitting, setSubmitting] = useState(false)
@@ -149,15 +148,14 @@ export default function Debrief() {
 
   useEffect(() => {
     async function init() {
-      const { data: { session: s } } = await supabase.auth.getSession()
-      if (!s) { navigate('/login', { replace: true }); return }
-      setSession(s)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
 
       const { data: tripData, error: tripErr } = await supabase
         .from('itineraries')
         .select('id, trip_name, arrival_city, departure_city, depart_date, return_date, risk_level, status')
         .eq('id', tripId)
-        .eq('user_id', s.user.id)
+        .eq('user_id', user.id)
         .single()
 
       if (tripErr || !tripData) {
@@ -193,11 +191,12 @@ export default function Debrief() {
     setSubmitting(true)
 
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/post-travel-debrief', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({ trip_id: tripId, ...form }),
       })

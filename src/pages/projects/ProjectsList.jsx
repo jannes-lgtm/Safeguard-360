@@ -78,9 +78,9 @@ export default function ProjectsList() {
   const [profile,    setProfile]    = useState(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return
-      const { data } = await supabase.from('profiles').select('id,role,full_name').eq('id', session.user.id).maybeSingle()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data } = await supabase.from('profiles').select('id,role,full_name').eq('id', user.id).maybeSingle()
       setProfile(data)
     })
   }, [])
@@ -117,22 +117,22 @@ export default function ProjectsList() {
   const submit = async () => {
     if (!form.name.trim()) return
     setSaving(true)
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { user } } = await supabase.auth.getUser()
     const { data, error } = await supabase.from('projects').insert({
       ...form,
       start_date:  form.start_date  || null,
       end_date:    form.end_date    || null,
-      created_by:  session?.user?.id,
-      manager_id:  session?.user?.id,
+      created_by:  user?.id,
+      manager_id:  user?.id,
     }).select().single()
 
     if (!error && data) {
       // Add creator as manager member
       await supabase.from('project_members').insert({
         project_id: data.id,
-        user_id:    session.user.id,
+        user_id:    user.id,
         member_role: 'manager',
-        added_by:   session.user.id,
+        added_by:   user.id,
       })
       setShowCreate(false)
       setForm(EMPTY_FORM)

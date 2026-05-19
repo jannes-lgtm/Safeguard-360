@@ -36,9 +36,9 @@ export default function Profile() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       if (data) {
         setProfile(data)
         setForm({
@@ -82,13 +82,13 @@ export default function Profile() {
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { user } } = await supabase.auth.getUser()
     const payload = {
       ...form,
       date_of_birth:   form.date_of_birth   || null,
       passport_expiry: form.passport_expiry  || null,
     }
-    const { error } = await supabase.from('profiles').update(payload).eq('id', session.user.id)
+    const { error } = await supabase.from('profiles').update(payload).eq('id', user.id)
     if (!error) {
       setToast('Profile saved.')
       setTimeout(() => setToast(''), 4000)

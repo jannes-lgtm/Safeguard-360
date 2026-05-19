@@ -152,10 +152,10 @@ export default function CheckIn() {
 
   const loadData = async () => {
     setLoading(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-    const uid = session.user.id
+    const uid = user.id
 
     const today = new Date().toISOString().split('T')[0]
     const [{ data: prof }, { data: trip }, { data: myCheckins }, { data: allCheckins }, { data: profiles }, { data: scheduled }] = await Promise.all([
@@ -174,9 +174,9 @@ export default function CheckIn() {
         .limit(10),
     ])
 
-    const role = prof?.role || session.user.app_metadata?.role || 'traveller'
+    const role = prof?.role || 'traveller'
     setIsAdmin(role === 'admin' || role === 'developer')
-    setProfile({ ...prof, id: uid, email: session.user.email })
+    setProfile({ ...prof, id: uid, email: user.email })
     setActiveTrip(trip || null)
     setCheckins(myCheckins || [])
     setScheduledCheckins(scheduled || [])
@@ -213,14 +213,14 @@ export default function CheckIn() {
     setError('')
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
         setChecking(false)
         setError('Session expired — please refresh the page and try again.')
         return
       }
 
-      const uid = session.user.id
+      const uid = user.id
       const nextDue = new Date(Date.now() + interval * 3600000).toISOString()
       const now = new Date().toISOString()
 

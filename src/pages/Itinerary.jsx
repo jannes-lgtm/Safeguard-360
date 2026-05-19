@@ -111,11 +111,13 @@ export default function Itinerary() {
     setLoadError(null)
     if (!silent) setLoading(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      setSession(session)
-      const uid = session.user.id
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const uid = user.id
       setUserId(uid)
+      // Fetch session for access_token — passed to ItineraryUpload for Bearer auth
+      const { data: { session: s } } = await supabase.auth.getSession()
+      setSession(s)
 
       const { data: trips, error: tripsError } = await supabase
         .from('itineraries').select('*').eq('user_id', uid).order('depart_date', { ascending: true })
@@ -190,8 +192,8 @@ export default function Itinerary() {
       insurance_emergency_number: form.insurance_emergency_number || null,
     }
 
-    const { data: { session } } = await supabase.auth.getSession()
-    const currentUserId = session?.user?.id
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    const currentUserId = currentUser?.id
     const isSolo        = profile?.role === 'solo'
     let savedTripId     = null
 

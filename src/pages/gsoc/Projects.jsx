@@ -84,9 +84,9 @@ export default function Projects() {
   const [saving,   setSaving]   = useState(false)
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return
-      const { data } = await supabase.from('profiles').select('id, full_name').eq('id', session.user.id).maybeSingle()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data } = await supabase.from('profiles').select('id, full_name').eq('id', user.id).maybeSingle()
       setProfile(data)
     })
   }, [])

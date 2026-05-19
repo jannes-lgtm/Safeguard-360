@@ -85,16 +85,16 @@ export default function HealthDeclaration() {
     const init = async () => {
       setLoading(true)
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session) { navigate('/login'); return }
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { navigate('/login'); return }
 
         const { data: tripData } = await supabase
-          .from('itineraries').select('*').eq('id', tripId).eq('user_id', session.user.id).single()
+          .from('itineraries').select('*').eq('id', tripId).eq('user_id', user.id).single()
         if (!tripData) { setLoadError('Trip not found.'); setLoading(false); return }
         setTrip(tripData)
 
         const { data: dec } = await supabase
-          .from('pre_travel_health').select('*').eq('trip_id', tripId).eq('user_id', session.user.id).single()
+          .from('pre_travel_health').select('*').eq('trip_id', tripId).eq('user_id', user.id).single()
         if (dec) {
           setExisting(dec)
           setFitToTravel(dec.fit_to_travel || false)
@@ -128,11 +128,11 @@ export default function HealthDeclaration() {
     if (!fitToTravel) { setError('Please confirm you are medically fit to travel.'); return }
     setSubmitting(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const { data: prof } = await supabase.from('profiles').select('org_id').eq('id', session.user.id).single()
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: prof } = await supabase.from('profiles').select('org_id').eq('id', user.id).single()
       const payload = {
         trip_id: tripId,
-        user_id: session.user.id,
+        user_id: user.id,
         org_id: prof?.org_id || null,
         fit_to_travel: fitToTravel,
         vaccinations: vaxStatuses,

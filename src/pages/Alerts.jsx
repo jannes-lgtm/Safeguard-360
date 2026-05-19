@@ -170,12 +170,12 @@ export default function Alerts() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
         const [{ data: prof }, { data: trips }] = await Promise.all([
-          supabase.from('profiles').select('role').eq('id', session.user.id).single(),
+          supabase.from('profiles').select('role').eq('id', user.id).single(),
           supabase.from('itineraries').select('arrival_city')
-            .eq('user_id', session.user.id)
+            .eq('user_id', user.id)
             .gte('return_date', new Date().toISOString().split('T')[0]),
         ])
         setRole(prof?.role || null)

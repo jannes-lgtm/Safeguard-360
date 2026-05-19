@@ -1489,22 +1489,22 @@ export default function Dashboard() {
     if (loadingRef.current) return
     loadingRef.current = true
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { loadingRef.current = false; return }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { loadingRef.current = false; return }
 
-    const uid   = session.user.id
+    const uid   = user.id
     const today = new Date().toISOString().split('T')[0]
 
     // Load profile + role first
     const { data: prof } = await supabase.from('profiles').select('*, organisations(name)').eq('id', uid).single()
-    const rawRole = prof?.role || session.user.app_metadata?.role || 'traveller'
+    const rawRole = prof?.role || 'traveller'
     // Treat unaffiliated travellers (no org) as solo — consistent with Onboarding.jsx logic
     const adminRoles = ['admin', 'org_admin', 'developer']
     const userRole = rawRole === 'traveller' && !prof?.org_id && !adminRoles.includes(rawRole)
       ? 'solo'
       : rawRole
     setRole(userRole)
-    setProfile({ ...prof, id: uid, email: session.user.email })
+    setProfile({ ...prof, id: uid, email: user.email })
 
     // Alerts are loaded per-role after trip destinations are known — see each branch below
 

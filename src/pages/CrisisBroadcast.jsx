@@ -34,9 +34,9 @@ export default function CrisisBroadcast() {
   useEffect(() => { init() }, [])
 
   const init = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    const { data: prof } = await supabase.from('profiles').select('*, organisations(name)').eq('id', session.user.id).single()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: prof } = await supabase.from('profiles').select('*, organisations(name)').eq('id', user.id).single()
     setProfile(prof)
     loadHistory(prof?.org_id)
   }

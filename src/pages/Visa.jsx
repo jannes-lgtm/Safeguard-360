@@ -580,14 +580,14 @@ export default function Visa() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
       const today = new Date().toISOString().split('T')[0]
 
       const [{ data: prof }, { data: itins }] = await Promise.all([
-        supabase.from('profiles').select('*, organisations(*)').eq('id', session.user.id).single(),
-        supabase.from('itineraries').select('*').eq('user_id', session.user.id)
+        supabase.from('profiles').select('*, organisations(*)').eq('id', user.id).single(),
+        supabase.from('itineraries').select('*').eq('user_id', user.id)
           .gte('return_date', today).order('depart_date'),
       ])
 

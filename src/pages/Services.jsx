@@ -1159,7 +1159,7 @@ export default function Services() {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       const { data: prof } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-      const role = prof?.role || user.app_metadata?.role || 'traveller'
+      const role = prof?.role || 'traveller'
       setIsAdmin(role === 'admin')
     }
     const { data } = await supabase

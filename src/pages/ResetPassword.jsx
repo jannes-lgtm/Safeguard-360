@@ -19,8 +19,8 @@ export default function ResetPassword() {
   useEffect(() => {
     // Supabase parses the token from the URL hash automatically
     // when the page loads — just check we have a session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setValidSession(true)
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setValidSession(true)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {

@@ -1051,12 +1051,12 @@ export default function JourneyAgent() {
 
   // Load profile + org name for CAIRO context
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) return
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
       const { data: prof } = await supabase
         .from('profiles')
         .select('full_name, role, org_id')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .maybeSingle()
       if (!prof) return
 
