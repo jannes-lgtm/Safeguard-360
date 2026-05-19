@@ -42,6 +42,9 @@ function _handler(req, res) {
     'nasa-firms':   has('NASA_FIRMS_API_KEY')     ? 'active' : 'pending_key',
     healthmap:      has('HEALTHMAP_API_KEY')       ? 'active' : 'pending_key',
 
+    // ── Subscription / signup required ───────────────────────────────────────
+    spglobal:       has('SPGLOBAL_API_KEY') ? 'active' : 'pending_key',
+
     // ── Partnership / enterprise — must be manually negotiated ───────────────
     // (not listed here so they fall back to 'partnership' status in the UI)
   })

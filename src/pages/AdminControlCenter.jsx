@@ -136,6 +136,7 @@ const BUILTIN_FEEDS = [
   { id: 'eonet',             name: 'NASA EONET',               category: 'weather',      status: 'active' },
   { id: 'open-meteo',        name: 'Open-Meteo',              category: 'weather',      status: 'active' },
   { id: 'osac',              name: 'OSAC',                     category: 'security',     status: 'pending' },
+  { id: 'spglobal',          name: 'S&P Global Intelligence',  category: 'security',     status: 'pending_key' },
   { id: 'control-risks',     name: 'Control Risks',            category: 'security',     status: 'partnership' },
   { id: 'crisis24',          name: 'Crisis24 (Garda World)',   category: 'security',     status: 'partnership' },
 ]
