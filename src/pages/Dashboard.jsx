@@ -19,6 +19,8 @@ import { cityToCountry, SEVERITY_STYLE, COUNTRY_META } from '../data/intelData'
 import { MAP_STYLES } from '../lib/mapConfig'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 import { timeAgo } from '../lib/dateUtils'
+import { getCountryRisk, getFeedById } from '../services/intelligenceService'
+import { sendAssistantMessage } from '../services/cairoService'
 
 const SEVERITY_ORDER = { Critical: 0, High: 1, Medium: 2, Low: 3, Info: 4 }
 const ALERT_TYPE_ICON = {
@@ -923,8 +925,7 @@ function LiveNewsFeed({ compact = false }) {
   useEffect(() => {
     setLoading(true)
     setArticles([])
-    fetch(`/api/rss-ingest?id=${activeFeed}&limit=6`)
-      .then(r => r.json())
+    getFeedById(activeFeed, 6)
       .then(d => { setArticles(d.articles || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [activeFeed])
@@ -1282,23 +1283,18 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/ai-assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token || ''}` },
-        body: JSON.stringify({
-          message: text,
-          history,
-          context: {
-            travelerName: profile?.full_name,
-            activeTrips:  tripSummary,
-            orgName,
-            country: trips[0] ? (cityToCountry(trips[0].arrival_city) || trips[0].arrival_city) : null,
-            tripName: trips[0]?.trip_name,
-            mode: 'dashboard',
-          },
-        }),
+      const token = session?.access_token || ''
+      const data = await sendAssistantMessage(text, token, {
+        history,
+        context: {
+          travelerName: profile?.full_name,
+          activeTrips:  tripSummary,
+          orgName,
+          country: trips[0] ? (cityToCountry(trips[0].arrival_city) || trips[0].arrival_city) : null,
+          tripName: trips[0]?.trip_name,
+          mode: 'dashboard',
+        },
       })
-      const data = await res.json()
       setMessages(prev => [...prev, { role: 'assistant', text: data.reply || data.error || 'No response received.' }])
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', text: 'Connection error. Please try again.' }])
@@ -1800,7 +1796,7 @@ export default function Dashboard() {
     if (countries.length > 0) {
       const [riskResults, alertResults] = await Promise.all([
         Promise.all(countries.map(c =>
-          fetch(`/api/country-risk?country=${encodeURIComponent(c)}`).then(r => r.json()).then(d => [c, d]).catch(() => [c, null])
+          getCountryRisk(c).then(d => [c, d]).catch(() => [c, null])
         )),
         Promise.all(countries.map(c =>
           supabase.from('alerts').select('*', { count: 'exact', head: true })

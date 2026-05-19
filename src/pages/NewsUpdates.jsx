@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { timeAgo } from '../lib/dateUtils'
+import { listFeeds, getFeedById } from '../services/intelligenceService'
 
 // ── Category definitions ──────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -152,8 +153,7 @@ export default function NewsUpdates() {
 
   // Fetch feed list
   useEffect(() => {
-    fetch('/api/rss-ingest')
-      .then(r => r.json())
+    listFeeds()
       .then(d => {
         const feeds = d.feeds || []
         setRssFeeds(feeds)
@@ -172,8 +172,7 @@ export default function NewsUpdates() {
     rssFeeds.forEach(feed => {
       // Fetch more articles from health feeds so outbreak events aren't cut off
       const limit = feed.category === 'health' ? 20 : 10
-      fetch(`/api/rss-ingest?id=${feed.id}&limit=${limit}`)
-        .then(r => r.json())
+      getFeedById(feed.id, limit)
         .then(d => {
           if (d.articles?.length) {
             const tagged = d.articles.map(a => ({

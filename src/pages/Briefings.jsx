@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { timeAgo } from '../lib/dateUtils'
+import { getCountryRisk, listFeeds, getFeedById } from '../services/intelligenceService'
 
 // ── Country metadata: capital city + coordinates ──────────────────────────────
 const COUNTRY_META = {
@@ -245,9 +246,7 @@ function CountryProfile({ country, meta, allArticles, feedsLoading }) {
     setWeather(null)
     setLoading(true)
 
-    const fetchRisk = fetch(`/api/country-risk?country=${encodeURIComponent(country)}`)
-      .then(r => r.json())
-      .catch(() => null)
+    const fetchRisk = getCountryRisk(country).catch(() => null)
 
     const fetchWeather = fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${meta.lat}&longitude=${meta.lon}` +
@@ -537,8 +536,7 @@ export default function Briefings() {
 
   // Step 1: fetch feed list
   useEffect(() => {
-    fetch('/api/rss-ingest')
-      .then(r => r.json())
+    listFeeds()
       .then(d => {
         const feeds = d.feeds || []
         setRssFeeds(feeds)
@@ -555,8 +553,7 @@ export default function Briefings() {
     setLoadedCount(0)
 
     rssFeeds.forEach(feed => {
-      fetch(`/api/rss-ingest?id=${feed.id}&limit=6`)
-        .then(r => r.json())
+      getFeedById(feed.id, 6)
         .then(d => {
           if (d.articles?.length) {
             const tagged = d.articles.map(a => ({

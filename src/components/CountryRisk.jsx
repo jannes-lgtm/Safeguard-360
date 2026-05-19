@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Shield, ExternalLink, RefreshCw, Globe, Bell, HeartPulse, ChevronRight } from 'lucide-react'
+import { getCountryRisk } from '../services/intelligenceService'
 
 const SEVERITY_CONFIG = {
   'Critical': { color: 'text-red-700 bg-red-100 border-red-200',       label: 'Do Not Travel'       },
@@ -49,9 +50,7 @@ export default function CountryRisk({ country, tripName, profile }) {
     try {
       // Use the server-side country-risk API — it includes health outbreaks,
       // GDACS disasters, USGS seismic, FCDO advisory and AI synthesis
-      const r = await fetch(`/api/country-risk?country=${encodeURIComponent(country)}`)
-      if (!r.ok) throw new Error(`Risk check failed (${r.status})`)
-      const result = await r.json()
+      const result = await getCountryRisk(country)
       setRisk(result)
       if (['Critical', 'High'].includes(result.severity)) {
         await sendNotification(result)

@@ -11,6 +11,8 @@ import { supabase } from '../lib/supabase'
 import { COUNTRY_META, SEVERITY_STYLE, INTEL_FEEDS, matchesCountry } from '../data/intelData'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 import { timeAgo } from '../lib/dateUtils'
+import { getCountryRisk, getDestinationFeed } from '../services/intelligenceService'
+import { sendAssistantMessage } from '../services/cairoService'
 
 // ── WMO weather codes ─────────────────────────────────────────────────────────
 const WMO = {
@@ -297,10 +299,7 @@ function LiveNewsSection({ country, city }) {
     if (!country) return
     setArticles([])
     setLoading(true)
-    const params = new URLSearchParams({ country })
-    if (city && city !== country) params.set('city', city)
-    fetch(`/api/destination-feed?${params}`)
-      .then(r => r.json())
+    getDestinationFeed({ country, city: city && city !== country ? city : undefined })
       .then(d => { setArticles(d.articles || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [country, city, retryTs])
@@ -490,21 +489,12 @@ function AiChatSection({ country, travelerName, tripName }) {
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/ai-assistant', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`,
-        },
-        body: JSON.stringify({
-          message: msg,
-          context: { country, travelerName, tripName, mode: 'country' },
-        }),
+      const data = await sendAssistantMessage(msg, session?.access_token || '', {
+        context: { country, travelerName, tripName, mode: 'country' },
       })
-      const data = await res.json()
       setMessages(prev => [...prev, {
         role: 'assistant',
-        text: data.reply || data.error || 'No response received.',
+        text: data.reply || 'No response received.',
       }])
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', text: 'Failed to reach AI. Please try again.' }])
@@ -622,8 +612,7 @@ export default function IntelBrief({ country, city, travelerName, returnDate, tr
     if (!country) return
     setRiskLoading(true)
     setRiskData(null)
-    fetch(`/api/country-risk?country=${encodeURIComponent(country)}`)
-      .then(r => r.json())
+    getCountryRisk(country)
       .then(d => { setRiskData(d); setRiskLoading(false) })
       .catch(() => setRiskLoading(false))
   }, [country, refreshTs])

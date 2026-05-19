@@ -13,6 +13,7 @@ import ItineraryUpload from '../components/ItineraryUpload'
 import { supabase } from '../lib/supabase'
 import { toIcao, isKnownIata } from '../lib/airlineCodes'
 import { resolveCountry } from '../lib/cityToCountry'
+import { sendAssistantMessage } from '../services/cairoService'
 
 const HIGH_RISK_CRITICAL = ['lagos', 'kinshasa', 'mogadishu', 'kabul', 'juba', 'khartoum', 'tripoli', 'baghdad']
 const HIGH_RISK_HIGH     = ['nairobi', 'kampala', 'harare', 'lusaka', 'moscow', 'kyiv', 'tehran', 'karachi']
@@ -334,16 +335,11 @@ export default function Itinerary() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch('/api/ai-assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({
-          message: text,
-          history,
-          context: { mode: 'trip', userId, name: profile?.full_name },
-        }),
+      const token = session?.access_token
+      const data = await sendAssistantMessage(text, token, {
+        history,
+        context: { mode: 'trip', userId, name: profile?.full_name },
       })
-      const data = await res.json()
       const rawText     = data.reply || ''
       const tripData    = parseTripData(rawText)
       const displayText = stripTripData(rawText)

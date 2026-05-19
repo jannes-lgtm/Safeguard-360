@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
+import { sendCairoMessage } from '../services/cairoService'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -1147,29 +1148,12 @@ export default function JourneyAgent() {
         addPhaseMsg('Retrieving live intelligence — feeds, incidents, correlations, operational memory…')
       }
 
-      const res = await fetch('/api/journey-agent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`,
-        },
-        body: JSON.stringify({
-          message: text,
-          action,
-          journey,
-          history: messages,
-          orgContext: profile?.orgName ? { orgName: profile.orgName } : null,
-        }),
+      const token = session?.access_token || ''
+      const data = await sendCairoMessage(text, token, {
+        history: messages,
+        journey,
+        orgContext: profile?.orgName ? { orgName: profile.orgName } : null,
       })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setMessages(prev => [...prev, { role: 'assistant', text: data.error || 'Error processing request.' }])
-        setSending(false)
-        setPhase('idle')
-        return
-      }
 
       // Update journey state
       if (data.journey?.destination) {

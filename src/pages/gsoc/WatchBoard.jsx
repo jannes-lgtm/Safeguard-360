@@ -13,6 +13,7 @@ import {
   TriangleAlert, TrendingUp, Plus, Newspaper,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { getFeedsByCategory } from '../../services/intelligenceService'
 import { RISK_MAP, buildRiskGeoJSON } from '../../lib/riskData'
 import { timeAgo } from '../../lib/dateUtils'
 import maplibregl from 'maplibre-gl'
@@ -427,12 +428,12 @@ export default function WatchBoard() {
     setFeedsLoading(true)
     try {
       const [secRes, newsRes] = await Promise.allSettled([
-        fetch('/api/rss-ingest?category=security&limit=12'),
-        fetch('/api/rss-ingest?category=conflict&limit=10'),
+        getFeedsByCategory('security', 12),
+        getFeedsByCategory('conflict', 10),
       ])
 
-      if (secRes.status === 'fulfilled' && secRes.value.ok) {
-        const d = await secRes.value.json()
+      if (secRes.status === 'fulfilled') {
+        const d = secRes.value
         setThreatFeed((d.articles || []).map(a => ({
           title:  a.title,
           source: a.source || d.feed?.name || '',
@@ -441,8 +442,8 @@ export default function WatchBoard() {
         })))
       }
 
-      if (newsRes.status === 'fulfilled' && newsRes.value.ok) {
-        const d = await newsRes.value.json()
+      if (newsRes.status === 'fulfilled') {
+        const d = newsRes.value
         setNewsFeed((d.articles || []).map(a => ({
           title:  a.title,
           source: a.source || d.feed?.name || '',

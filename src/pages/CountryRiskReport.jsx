@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { timeAgo } from '../lib/dateUtils'
+import { getCountryRisk, listFeeds, getFeedById } from '../services/intelligenceService'
 
 // ── Country metadata (for weather widget coordinates + capital) ───────────────
 const COUNTRY_META = {
@@ -300,7 +301,7 @@ function CountryReport({ country }) {
     setLoading(true); setAiLoading(true)
 
     Promise.all([
-      fetch(`/api/country-risk?country=${encodeURIComponent(country)}`).then(r => r.json()).catch(() => null),
+      getCountryRisk(country).catch(() => null),
       fetch(
         `https://api.open-meteo.com/v1/forecast?latitude=${meta.lat}&longitude=${meta.lon}` +
         `&current=temperature_2m,weathercode,wind_speed_10m,relative_humidity_2m` +
@@ -311,14 +312,12 @@ function CountryReport({ country }) {
       setLoading(false); setAiLoading(false)
     })
 
-    fetch('/api/rss-ingest')
-      .then(r => r.json())
+    listFeeds()
       .then(({ feeds = [] }) => {
         const terms = [country.toLowerCase()]
         if (meta.capital) terms.push(meta.capital.toLowerCase())
         const fetches = feeds.slice(0, 8).map(f =>
-          fetch(`/api/rss-ingest?id=${f.id}&limit=5`)
-            .then(r => r.json())
+          getFeedById(f.id, 5)
             .then(d => (d.articles || []).map(a => ({ ...a, feedName: f.name, feedCategory: f.category })))
             .catch(() => [])
         )

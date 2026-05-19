@@ -8,6 +8,7 @@ import MetricCard from '../components/MetricCard'
 import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
 import { cityToCountry, SEVERITY_STYLE } from '../data/intelData'
+import { getCountryRisk } from '../services/intelligenceService'
 import { MAP_STYLES } from '../lib/mapConfig'
 import { BRAND_BLUE } from '../lib/colors'
 
@@ -356,8 +357,7 @@ export default function Tracker() {
     if (countries.length > 0) {
       const results = await Promise.all(
         countries.map(c =>
-          fetch(`/api/country-risk?country=${encodeURIComponent(c)}`)
-            .then(r => r.json())
+          getCountryRisk(c)
             .then(d => [c, d])
             .catch(() => [c, null])
         )
