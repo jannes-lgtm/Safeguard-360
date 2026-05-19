@@ -6,9 +6,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import Layout from '../../components/Layout'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../../lib/colors'
 
 const STATUS_STYLE = {
   planning:  { label: 'Planning',  bg: 'bg-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500'   },

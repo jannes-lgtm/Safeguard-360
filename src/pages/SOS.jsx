@@ -29,9 +29,7 @@ import Layout from '../components/Layout'
 import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
 import { resolveCountry } from '../lib/cityToCountry'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 
 const fmtDate = d => d ? new Date(d).toLocaleString('en-GB', {
   day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'

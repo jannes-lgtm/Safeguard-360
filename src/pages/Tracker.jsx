@@ -9,8 +9,7 @@ import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
 import { cityToCountry, SEVERITY_STYLE } from '../data/intelData'
 import { MAP_STYLES } from '../lib/mapConfig'
-
-const BRAND_BLUE = '#0118A1'
+import { BRAND_BLUE } from '../lib/colors'
 
 function initials(name) {
   if (!name) return '?'

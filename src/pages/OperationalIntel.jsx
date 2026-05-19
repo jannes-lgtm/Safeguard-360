@@ -13,9 +13,7 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtPct(n)   { return n == null ? '—' : `${Math.round(n * 100)}%` }

@@ -1,5 +1,4 @@
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 
 export default function ProgressBar({ label, value, showLabel = true }) {
   // Colour based on completion

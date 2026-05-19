@@ -9,9 +9,8 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { COUNTRY_META, SEVERITY_STYLE, INTEL_FEEDS, matchesCountry } from '../data/intelData'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { timeAgo } from '../lib/dateUtils'
 
 // ── WMO weather codes ─────────────────────────────────────────────────────────
 const WMO = {
@@ -20,21 +19,6 @@ const WMO = {
   55: '🌧 Heavy drizzle', 61: '🌧 Light rain', 63: '🌧 Rain', 65: '🌧 Heavy rain',
   71: '🌨 Light snow', 73: '🌨 Snow', 75: '❄️ Heavy snow', 80: '🌦 Showers',
   81: '🌧 Heavy showers', 82: '⛈ Violent showers', 95: '⛈ Thunderstorm', 99: '⛈ Hail storm',
-}
-
-function timeAgo(dateStr) {
-  if (!dateStr) return null
-  const diff = Date.now() - new Date(dateStr).getTime()
-  if (isNaN(diff)) return null
-  const s = Math.floor(diff / 1000)
-  if (s < 60)  return `${s}s ago`
-  const m = Math.floor(s / 60)
-  if (m < 60)  return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24)  return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 7)   return `${d}d ago`
-  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
 function SectionHeader({ label, icon: Icon }) {

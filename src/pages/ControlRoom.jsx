@@ -13,9 +13,8 @@ import {
 import Layout from '../components/Layout'
 import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { timeAgo } from '../lib/dateUtils'
 
 const TYPE_LABELS = {
   medical:           { label: 'Medical',            icon: '🏥' },
@@ -40,17 +39,6 @@ const STATUS_STYLE = {
   in_progress: { label: 'In Progress', color: 'text-blue-600',   bg: 'bg-blue-50   border-blue-200' },
   resolved:    { label: 'Resolved',    color: 'text-green-600',  bg: 'bg-green-50  border-green-200' },
   cancelled:   { label: 'Cancelled',   color: 'text-gray-500',   bg: 'bg-gray-50   border-gray-200' },
-}
-
-function timeAgo(d) {
-  if (!d) return '—'
-  const diff = Date.now() - new Date(d).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
 }
 
 function fmtTime(d) {

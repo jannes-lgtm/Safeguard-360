@@ -13,20 +13,8 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
-
-function timeAgo(d) {
-  if (!d) return null
-  const diff = Date.now() - new Date(d).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1)  return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ${m % 60}m ago`
-  return `${Math.floor(h / 24)}d ago`
-}
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { timeAgo } from '../lib/dateUtils'
 
 function complianceColor(pct) {
   if (pct >= 80) return { text: 'text-green-600',  bg: 'bg-green-100',  bar: '#22c55e' }

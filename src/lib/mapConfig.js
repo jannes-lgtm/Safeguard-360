@@ -12,6 +12,8 @@
  * Get a key at: https://cloud.maptiler.com/account/keys
  */
 
+import { BRAND_BLUE } from './colors'
+
 const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY
 
 // ── Raster fallback styles (no API key required) ──────────────────────────────
@@ -75,7 +77,7 @@ const CARTO_BLUE_STYLE = {
   },
   layers: [
     // Brand blue background — shows through as the "ocean" colour
-    { id: 'background', type: 'background', paint: { 'background-color': '#0118A1' } },
+    { id: 'background', type: 'background', paint: { 'background-color': BRAND_BLUE } },
     // Dark land tiles at 75% opacity — land appears dark navy, ocean stays blue
     { id: 'carto-dark-tiles', type: 'raster', source: 'carto-dark', paint: { 'raster-opacity': 0.75 } },
   ],

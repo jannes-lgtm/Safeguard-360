@@ -28,9 +28,8 @@ import {
 import Layout from '../components/Layout'
 import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { timeAgo } from '../lib/dateUtils'
 
 const INTERVALS = [
   { hours: 4,  label: 'Every 4 hours'  },
@@ -44,17 +43,6 @@ function fmtDate(d) {
   return new Date(d).toLocaleString('en-GB', {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
   })
-}
-
-function timeAgo(d) {
-  if (!d) return null
-  const diff = Date.now() - new Date(d).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1)  return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
 }
 
 function overdueMins(due) {

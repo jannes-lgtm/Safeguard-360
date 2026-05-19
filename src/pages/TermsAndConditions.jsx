@@ -9,9 +9,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, ChevronDown, Shield, MapPin, Lock, FileText, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 const TERMS_VERSION = '1.0'
 
 export default function TermsAndConditions() {

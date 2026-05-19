@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE = '#0118A1'
+import { BRAND_BLUE } from '../lib/colors'
 const BRAND_LIME = '#AACC00'
 
 const RISK_BADGE = {

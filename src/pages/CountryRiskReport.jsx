@@ -11,6 +11,7 @@ import {
   Swords, CloudRain, Users, Lock, ArrowLeft
 } from 'lucide-react'
 import Layout from '../components/Layout'
+import { timeAgo } from '../lib/dateUtils'
 
 // ── Country metadata (for weather widget coordinates + capital) ───────────────
 const COUNTRY_META = {
@@ -122,15 +123,6 @@ const dayLabel = (i, times) => {
   if (i === 0) return 'Today'
   if (i === 1) return 'Tomorrow'
   return DOW[new Date(times[i]).getDay()]
-}
-
-function timeAgo(d) {
-  if (!d) return null
-  const s = Math.floor((Date.now() - new Date(d)) / 1000)
-  if (s < 60) return `${s}s ago`
-  const m = Math.floor(s/60); if (m < 60) return `${m}m ago`
-  const h = Math.floor(m/60); if (h < 24) return `${h}h ago`
-  const dy = Math.floor(h/24); return `${dy}d ago`
 }
 
 // ── Collapsible section ───────────────────────────────────────────────────────

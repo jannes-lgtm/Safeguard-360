@@ -6,9 +6,7 @@ import {
   Loader2, AlertTriangle, ChevronDown, Briefcase, Plus, Trash2,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 
 const inputClass = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
 const labelClass = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
@@ -599,8 +597,6 @@ export default function Onboarding() {
 
 // ── Shared signing step wrapper ───────────────────────────────────────────────
 function SigningStep({ scrollRef, scrolled, setScrolled, signedName, setSignedName, location, locating, locError, getLocation, title, subtitle, children }) {
-  const BRAND_BLUE  = '#0118A1'
-  const BRAND_GREEN = '#AACC00'
   const inputClass  = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
   const labelClass  = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
   return (

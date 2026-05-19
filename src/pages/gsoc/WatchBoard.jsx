@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { RISK_MAP, buildRiskGeoJSON } from '../../lib/riskData'
+import { timeAgo } from '../../lib/dateUtils'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -81,15 +82,6 @@ function Panel({ title, icon: Icon, iconColor = '#60a5fa', children, action, cla
 
 function Empty({ label }) {
   return <div className="flex items-center justify-center h-20 text-white/20 text-xs">{label}</div>
-}
-
-function timeAgo(ts) {
-  if (!ts) return ''
-  const s = Math.floor((Date.now() - new Date(ts)) / 1000)
-  if (s < 60)    return `${s}s ago`
-  if (s < 3600)  return `${Math.floor(s / 60)}m ago`
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
-  return `${Math.floor(s / 86400)}d ago`
 }
 
 // ── Panel sub-components ──────────────────────────────────────────────────────

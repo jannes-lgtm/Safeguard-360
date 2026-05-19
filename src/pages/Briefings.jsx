@@ -5,6 +5,7 @@ import {
   Wind, Thermometer, RefreshCw, ChevronRight, ChevronUp, ChevronDown, Clock
 } from 'lucide-react'
 import Layout from '../components/Layout'
+import { timeAgo } from '../lib/dateUtils'
 
 // ── Country metadata: capital city + coordinates ──────────────────────────────
 const COUNTRY_META = {
@@ -164,22 +165,6 @@ const CAT_COLORS = {
   weather:  'bg-teal-100 text-teal-700 border-teal-200',
 }
 const catColor = (c) => CAT_COLORS[c] || 'bg-gray-100 text-gray-600 border-gray-200'
-
-// ── Relative time ─────────────────────────────────────────────────────────────
-function timeAgo(dateStr) {
-  if (!dateStr) return null
-  const diff = Date.now() - new Date(dateStr).getTime()
-  if (isNaN(diff)) return null
-  const s = Math.floor(diff / 1000)
-  if (s < 60)  return `${s}s ago`
-  const m = Math.floor(s / 60)
-  if (m < 60)  return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24)  return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 7)   return `${d}d ago`
-  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-}
 
 // ── Article card ──────────────────────────────────────────────────────────────
 function ArticleCard({ article }) {

@@ -34,22 +34,10 @@ import {
   MAP_STYLES, MAP_DEFAULTS, RISK_STYLE,
   PROXIMITY_KM, WS_RECONNECT, LOCATION_WRITE_THROTTLE_MS, HAS_MAPTILER,
 } from '../lib/mapConfig'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { timeAgo } from '../lib/dateUtils'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function timeAgo(d) {
-  if (!d) return '—'
-  const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000)
-  if (s < 60)  return `${s}s ago`
-  const m = Math.floor(s / 60)
-  if (m < 60)  return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24)  return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
 
 function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371

@@ -17,9 +17,8 @@ import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
 import { cityToCountry, SEVERITY_STYLE, COUNTRY_META } from '../data/intelData'
 import { MAP_STYLES } from '../lib/mapConfig'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { timeAgo } from '../lib/dateUtils'
 
 const SEVERITY_ORDER = { Critical: 0, High: 1, Medium: 2, Low: 3, Info: 4 }
 const ALERT_TYPE_ICON = {
@@ -929,15 +928,6 @@ function LiveNewsFeed({ compact = false }) {
       .then(d => { setArticles(d.articles || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [activeFeed])
-
-  const timeAgo = (dateStr) => {
-    if (!dateStr) return ''
-    const diff = Date.now() - new Date(dateStr).getTime()
-    const h = Math.floor(diff / 3600000)
-    if (h < 1) return 'Just now'
-    if (h < 24) return `${h}h ago`
-    return `${Math.floor(h / 24)}d ago`
-  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

@@ -5,8 +5,7 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE = '#0118A1'
+import { BRAND_BLUE } from '../lib/colors'
 const BRAND_LIME = '#AACC00'
 
 const RISK_COLOR  = { Critical: '#DC2626', High: '#EA580C', Medium: '#D97706', Low: '#059669' }

@@ -10,9 +10,8 @@ import Layout from '../../components/Layout'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { buildRiskGeoJSON } from '../../lib/riskData'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../../lib/colors'
+import { timeAgo } from '../../lib/dateUtils'
 
 const STATUS_STYLE = {
   planning:  { label: 'Planning',  bg: 'bg-blue-100',  text: 'text-blue-700'  },
@@ -66,15 +65,6 @@ function Modal({ title, onClose, children, wide }) {
       </div>
     </div>
   )
-}
-
-function timeAgo(ts) {
-  if (!ts) return ''
-  const s = Math.floor((Date.now() - new Date(ts)) / 1000)
-  if (s < 60)    return `${s}s ago`
-  if (s < 3600)  return `${Math.floor(s / 60)}m ago`
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
-  return `${Math.floor(s / 86400)}d ago`
 }
 
 function KPI({ label, value, icon: Icon, color }) {
