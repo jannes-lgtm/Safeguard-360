@@ -11,7 +11,8 @@ import {
   Swords, HeartPulse, CloudRain, ChevronRight, ArrowUpRight,
   UserCheck, UserX, Plus, X, Loader2, Pencil, Trash2,
   Globe, BookOpen, Newspaper, Link2, Link2Off, Mail,
-  ClipboardList, ChevronDown, ChevronUp, Download,
+  ClipboardList, ChevronDown, ChevronUp, Download, Monitor,
+  Cpu, Rss, Database, BrainCircuit, Eye, LayoutDashboard,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -26,7 +27,77 @@ const TABS = [
   { id: 'policies',    label: 'Policies',        icon: FileText },
   { id: 'training',    label: 'Training',        icon: GraduationCap },
   { id: 'audit',       label: 'Audit Log',       icon: ClipboardList },
+  { id: 'platform',    label: 'Platform',        icon: LayoutDashboard },
+  { id: 'gsoc',        label: 'GSOC',            icon: Monitor },
 ]
+
+// ── All RSS feeds wired into CAIRO + Intel pipeline ───────────────────────────
+// Mirrors ALL_RISK_FEEDS in api/_claudeSynth.js — update both together.
+const CAIRO_RSS_FEEDS = [
+  // Conflict & wire services
+  { name: 'Reuters World',        category: 'conflict',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'AP World',             category: 'conflict',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'BBC World',            category: 'conflict',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'France 24',            category: 'conflict',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Al Jazeera',           category: 'conflict',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Middle East Eye',      category: 'conflict',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Iran International',   category: 'conflict',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Kyiv Independent',     category: 'conflict',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'UN News Africa',       category: 'conflict',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'UN News ME',           category: 'conflict',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'ACLED Blog',           category: 'conflict',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'The Defense Post',     category: 'conflict',      tier: 2, dest: ['cairo','intel'] },
+  // Security analysis
+  { name: 'ISS Africa',           category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Crisis Group Africa',  category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Crisis Group MENA',    category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Jamestown Foundation', category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'BBC Africa',           category: 'security',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'African Arguments',    category: 'security',      tier: 3, dest: ['cairo','intel'] },
+  { name: 'Oxford Analytica',     category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Soufan Center',        category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Foreign Policy',       category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'The Africa Report',    category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'CSIS',                 category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'War on the Rocks',     category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Janes Defence',        category: 'security',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'The Strategy Bridge',  category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'IISS',                 category: 'security',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'The Diplomat',         category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Euractiv',             category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  // Crime
+  { name: 'InSight Crime',        category: 'crime',         tier: 2, dest: ['cairo','intel'] },
+  // Economic & infrastructure
+  { name: 'Trading Economics',    category: 'economic',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Power Tech',           category: 'infrastructure',tier: 3, dest: ['cairo','intel'] },
+  // Aviation
+  { name: 'AviPages',             category: 'aviation',      tier: 2, dest: ['cairo','intel'] },
+  // Health
+  { name: 'WHO',                  category: 'health',        tier: 1, dest: ['cairo','intel'] },
+  { name: 'ReliefWeb/WHO',        category: 'health',        tier: 1, dest: ['cairo','intel'] },
+  { name: 'Outbreak News Today',  category: 'health',        tier: 2, dest: ['cairo','intel'] },
+  { name: 'CIDRAP',               category: 'health',        tier: 2, dest: ['cairo','intel'] },
+  { name: 'PAHO',                 category: 'health',        tier: 1, dest: ['cairo','intel'] },
+  { name: 'Africa CDC',           category: 'health',        tier: 2, dest: ['cairo','intel'] },
+  // Weather & disasters
+  { name: 'ReliefWeb Disasters',  category: 'weather',       tier: 1, dest: ['cairo','intel'] },
+]
+
+const TIER_LABEL = { 1: 'T1', 2: 'T2', 3: 'T3' }
+const TIER_COLOR = { 1: 'green', 2: 'blue', 3: 'gray' }
+
+const CAT_ICON = {
+  conflict:       Swords,
+  security:       Shield,
+  crime:          Eye,
+  economic:       Activity,
+  infrastructure: Cpu,
+  aviation:       Plane,
+  health:         HeartPulse,
+  weather:        CloudRain,
+}
+
+const RSS_CATEGORIES = ['all','conflict','security','crime','economic','infrastructure','aviation','health','weather']
 
 const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1]'
 const labelCls = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
@@ -1119,16 +1190,54 @@ export default function AdminControlCenter() {
       {/* ── FEEDS ────────────────────────────────────────────────────────────── */}
       {tab==='feeds' && (
         <div className="space-y-5">
+          {/* KPIs */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <KpiCard icon={Wifi}      label="Live"         value={BUILTIN_FEEDS.filter(f=>f.status==='active').length + customFeeds.filter(f=>f.status==='active').length} color="#22C55E"/>
+            <KpiCard icon={Rss}       label="RSS Feeds"     value={CAIRO_RSS_FEEDS.length}  color="#22C55E"/>
+            <KpiCard icon={Database}  label="Structured APIs" value={BUILTIN_FEEDS.filter(f=>f.status==='active').length} color={BRAND_BLUE}/>
             <KpiCard icon={Key}       label="Needs API Key" value={needsKey} color="#F59E0B" link="/intel-feeds"/>
-            <KpiCard icon={Handshake} label="Partnerships" value={BUILTIN_FEEDS.filter(f=>f.status==='partnership').length} color="#7C3AED"/>
-            <KpiCard icon={Globe}     label="Custom Feeds" value={customFeeds.length} color={BRAND_BLUE}/>
+            <KpiCard icon={BrainCircuit} label="Into CAIRO" value={CAIRO_RSS_FEEDS.filter(f=>f.dest.includes('cairo')).length} color="#7C3AED"/>
           </div>
 
-          {/* Category filter */}
+          {/* Pipeline diagram */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">Intelligence Pipeline</p>
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5">
+                <Rss size={14} className="text-green-600"/>
+                <span className="font-semibold text-green-800">{CAIRO_RSS_FEEDS.length} RSS Feeds</span>
+              </div>
+              <ChevronRight size={16} className="text-gray-300 shrink-0"/>
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
+                <Cpu size={14} className="text-blue-600"/>
+                <span className="font-semibold text-blue-800">Context Assembly Engine</span>
+              </div>
+              <ChevronRight size={16} className="text-gray-300 shrink-0"/>
+              <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-xl px-4 py-2.5">
+                <BrainCircuit size={14} className="text-purple-600"/>
+                <span className="font-semibold text-purple-800">CAIRO</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-sm mt-3">
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
+                <Database size={14} className="text-gray-500"/>
+                <span className="font-semibold text-gray-700">{BUILTIN_FEEDS.filter(f=>f.status==='active').length} Structured APIs</span>
+              </div>
+              <ChevronRight size={16} className="text-gray-300 shrink-0"/>
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
+                <Cpu size={14} className="text-blue-600"/>
+                <span className="font-semibold text-blue-800">Intel Cron (hourly)</span>
+              </div>
+              <ChevronRight size={16} className="text-gray-300 shrink-0"/>
+              <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-xl px-4 py-2.5">
+                <BrainCircuit size={14} className="text-purple-600"/>
+                <span className="font-semibold text-purple-800">CAIRO</span>
+              </div>
+            </div>
+          </div>
+
+          {/* RSS category filter */}
           <div className="flex flex-wrap gap-2">
-            {['all',...FEED_CATEGORIES].map(cat=>(
+            {RSS_CATEGORIES.map(cat=>(
               <button key={cat} onClick={()=>setFeedCatFilter(cat)}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
                   feedCatFilter===cat?'text-white border-transparent':'bg-white border-gray-200 text-gray-500 hover:border-gray-300'}`}
@@ -1138,10 +1247,79 @@ export default function AdminControlCenter() {
             ))}
           </div>
 
-          {/* Builtin feeds */}
+          {/* RSS feeds — CAIRO + Intel */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Rss size={14} className="text-green-600"/>
+                <h2 className="text-sm font-bold text-gray-900">RSS Intelligence Feeds</h2>
+                <span className="text-xs text-gray-400 ml-1">— feed into CAIRO context pipeline + hourly intel cron</span>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="text-left px-5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide">Source</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide">Category</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide">Trust Tier</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide">Destination</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {CAIRO_RSS_FEEDS.filter(f=>feedCatFilter==='all'||f.category===feedCatFilter).map(f=>{
+                    const CatIcon = CAT_ICON[f.category] || Globe
+                    return (
+                      <tr key={f.name} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <CatIcon size={13} className="text-gray-400 shrink-0"/>
+                            <span className="font-semibold text-gray-800">{f.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="text-xs text-gray-500 capitalize">{f.category}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <Pill label={`Tier ${f.tier}`} color={TIER_COLOR[f.tier]}/>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex gap-1 flex-wrap">
+                            {f.dest.includes('cairo') && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700 border border-purple-200">
+                                <BrainCircuit size={9}/> CAIRO
+                              </span>
+                            )}
+                            {f.dest.includes('intel') && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                                <Database size={9}/> Intel
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500"/>
+                            <span className="text-xs text-gray-500">Live</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Structured API connectors */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-sm font-bold text-gray-900">Built-in Feeds</h2>
+              <div className="flex items-center gap-2">
+                <Database size={14} className="text-blue-600"/>
+                <h2 className="text-sm font-bold text-gray-900">Structured Data Connectors</h2>
+                <span className="text-xs text-gray-400 ml-1">— API/structured feeds into intel cron</span>
+              </div>
               <Link to="/intel-feeds" className="flex items-center gap-1.5 text-xs text-[#0118A1] font-medium hover:underline">
                 Full manager <ExternalLink size={12}/>
               </Link>
@@ -1477,6 +1655,103 @@ export default function AdminControlCenter() {
           </div>
         )
       })()}
+
+      {/* ── PLATFORM ─────────────────────────────────────────────────────────── */}
+      {tab === 'platform' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">SafeGuard 360 — Travel Risk Platform</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Live production platform — risk360.co</p>
+            </div>
+            <a href="https://risk360.co" target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white shrink-0"
+              style={{ background: BRAND_BLUE }}>
+              <ExternalLink size={13}/> Open in new tab
+            </a>
+          </div>
+          <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm bg-gray-50"
+            style={{ height: 'calc(100vh - 260px)', minHeight: 600 }}>
+            <iframe
+              src="https://risk360.co"
+              title="SafeGuard 360 Platform"
+              className="w-full h-full border-0"
+              allow="fullscreen"
+            />
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            If the platform does not load here, open it directly at{' '}
+            <a href="https://risk360.co" target="_blank" rel="noopener noreferrer"
+              className="text-[#0118A1] hover:underline">risk360.co</a>
+            {' '}(some browsers block cross-origin iframes).
+          </p>
+        </div>
+      )}
+
+      {/* ── GSOC ─────────────────────────────────────────────────────────────── */}
+      {tab === 'gsoc' && (
+        <div className="space-y-5">
+          {/* Header */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: `${BRAND_BLUE}18` }}>
+                <Monitor size={22} color={BRAND_BLUE}/>
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Global Security Operations Centre</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Centralised watch function for live incident monitoring, traveller oversight,
+                  shift management, and escalation coordination.
+                </p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {['Watch Board','Shift Log','Active Incidents','Traveller Tracker','Escalations','Intel Feed Monitor'].map(f => (
+                    <span key={f} className="px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 border border-gray-200">
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Placeholder modules */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { icon: Eye,           label: 'Watch Board',          desc: 'Live overview of all active travellers, open incidents and escalations.',           path: '/gsoc/watch' },
+              { icon: ClipboardList, label: 'Shift Log',            desc: 'Structured handover notes, shift summaries and operator activity log.',              path: '/gsoc/shifts' },
+              { icon: AlertTriangle, label: 'Active Incidents',     desc: 'Open incident timeline, escalation chain and resolution tracking.',                  path: '/gsoc/incidents' },
+              { icon: Plane,         label: 'Traveller Tracker',    desc: 'Real-time position, check-in status and SOS monitoring for all active travellers.',   path: '/gsoc/tracker' },
+              { icon: Radio,         label: 'Intel Feed Monitor',   desc: 'Live feed health, ingest rate and signal volume across all connected sources.',       path: '/gsoc/feeds' },
+              { icon: Shield,        label: 'Escalation Queue',     desc: 'Pending escalations awaiting GSOC acknowledgement and response assignment.',          path: '/gsoc/escalations' },
+            ].map(m => {
+              const Icon = m.icon
+              return (
+                <div key={m.label}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 opacity-70">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: `${BRAND_BLUE}12` }}>
+                    <Icon size={18} color={BRAND_BLUE}/>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">{m.label}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{m.desc}</p>
+                  </div>
+                  <div className="mt-auto">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                      Coming Soon
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <p className="text-xs text-gray-400 text-center pt-2">
+            GSOC module is under development. Existing pages at <code className="bg-gray-100 px-1 rounded">/gsoc/watch</code>, <code className="bg-gray-100 px-1 rounded">/gsoc/shifts</code> available as scaffolds.
+          </p>
+        </div>
+      )}
     </Layout>
   )
 }
