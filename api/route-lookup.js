@@ -170,7 +170,10 @@ async function googleRoute(origin, dest, key) {
     }),
     signal: AbortSignal.timeout(10000),
   })
-  if (!res.ok) throw new Error(`Google Routes ${res.status}`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`Google Routes ${res.status}: ${body.slice(0, 300)}`)
+  }
   const data  = await res.json()
   const route = data?.routes?.[0]
   if (!route) throw new Error('No Google route')
@@ -215,7 +218,7 @@ async function _handler(req, res) {
     // Route both sources + find nearest corridor + fetch its patterns — all in parallel
     const nearest = Array.isArray(corridors) ? nearestCorridor(corridors, originGeo, destGeo) : null
 
-    const [hereResult, googleResult, patterns] = await Promise.all([
+    const [hereResult, googleResult, patterns] = await Promise.allSettled([
       hereRoute(originGeo, destGeo, HERE),
       GOOGLE ? googleRoute(originGeo, destGeo, GOOGLE) : Promise.resolve(null),
       nearest
@@ -223,7 +226,10 @@ async function _handler(req, res) {
         : Promise.resolve([]),
     ])
 
-    const here   = hereResult.status   === 'fulfilled' ? hereResult.value   : null
+    if (hereResult.status === 'rejected') throw new Error(`HERE routing failed: ${hereResult.reason?.message}`)
+    if (googleResult.status === 'rejected') console.warn('[route-lookup] Google Routes error:', googleResult.reason?.message)
+
+    const here   = hereResult.value
     const google = googleResult.status === 'fulfilled' ? googleResult.value : null
 
     // Consensus congestion level
