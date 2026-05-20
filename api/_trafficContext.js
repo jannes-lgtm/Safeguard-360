@@ -11,6 +11,8 @@
 const SUPABASE_URL = () => process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 const SERVICE_KEY  = () => process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
+const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+
 // ── Supabase REST helper ──────────────────────────────────────────────────────
 async function sbQuery(path) {
   if (!SUPABASE_URL() || !SERVICE_KEY()) return []
@@ -31,7 +33,6 @@ async function sbQuery(path) {
 }
 
 // ── Match corridors to journey locations ──────────────────────────────────────
-// Fuzzy-match corridor names/countries against the journey's geo contexts
 function matchesJourney(corridor, geoContexts) {
   const haystack = [
     corridor.country?.toLowerCase(),
@@ -43,7 +44,6 @@ function matchesJourney(corridor, geoContexts) {
 
   return geoContexts.some(loc => {
     const needle = loc.toLowerCase()
-    // Direct match or partial — e.g. "Lagos" matches "Nigeria" via country field
     return haystack.includes(needle) ||
       needle.includes(corridor.country?.toLowerCase() || '__') ||
       needle.includes(corridor.origin_name?.toLowerCase() || '__') ||
@@ -59,6 +59,13 @@ function formatMins(secs) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
 
+// ── Hour label ────────────────────────────────────────────────────────────────
+function hourLabel(h) {
+  const period = h < 12 ? 'AM' : 'PM'
+  const display = h === 0 ? 12 : h > 12 ? h - 12 : h
+  return `${display}:00 ${period}`
+}
+
 // ── vs-baseline comparison ────────────────────────────────────────────────────
 function vsBaseline(current, baseline) {
   if (!current || !baseline || baseline === 0) return null
@@ -69,13 +76,39 @@ function vsBaseline(current, baseline) {
     : `${Math.abs(Math.round(delta))}% below baseline`
 }
 
+// ── Summarise historical best/worst from full pattern set ─────────────────────
+function summarisePatterns(patterns) {
+  const valid = (patterns || []).filter(p => p.sample_count >= 2)
+  if (valid.length === 0) return null
+
+  const sorted = [...valid].sort((a, b) =>
+    a.avg_congestion - b.avg_congestion || a.avg_delay_secs - b.avg_delay_secs
+  )
+
+  const best  = sorted.slice(0, 3).map(p => ({
+    day:      DAYS[p.day_of_week],
+    hour:     hourLabel(p.hour_of_day),
+    travelMins: p.avg_travel_secs ? Math.round(p.avg_travel_secs / 60) : null,
+    delayMins:  p.avg_delay_secs  ? Math.round(p.avg_delay_secs / 60)  : 0,
+    samples:  p.sample_count,
+  }))
+
+  const worst = sorted.slice(-3).reverse().map(p => ({
+    day:      DAYS[p.day_of_week],
+    hour:     hourLabel(p.hour_of_day),
+    delayMins: p.avg_delay_secs ? Math.round(p.avg_delay_secs / 60) : 0,
+    samples:  p.sample_count,
+  }))
+
+  return { best, worst, totalSamples: valid.reduce((s, p) => s + p.sample_count, 0) }
+}
+
 // ── Main: assemble traffic context for a journey ──────────────────────────────
 export async function assembleTrafficContext(journey) {
   if (!SUPABASE_URL() || !SERVICE_KEY()) {
     return { formatted: null, corridors: [], hasData: false }
   }
 
-  // Build geo contexts from journey
   const geoContexts = [
     journey.destination,
     journey.origin,
@@ -85,7 +118,6 @@ export async function assembleTrafficContext(journey) {
   if (geoContexts.length === 0) return { formatted: null, corridors: [], hasData: false }
 
   try {
-    // Load all active corridors
     const allCorridors = await sbQuery(
       'traffic_corridors?is_active=eq.true&select=id,name,country,region,origin_name,dest_name,distance_km,route_type'
     )
@@ -93,31 +125,38 @@ export async function assembleTrafficContext(journey) {
       return { formatted: null, corridors: [], hasData: false }
     }
 
-    // Filter to corridors relevant to this journey
     const relevant = allCorridors.filter(c => matchesJourney(c, geoContexts))
     if (relevant.length === 0) return { formatted: null, corridors: [], hasData: false }
 
-    // For each relevant corridor: get latest snapshot + baseline pattern
-    const now = new Date()
-    const dow  = now.getUTCDay()
-    const hour = now.getUTCHours()
-    const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() // last 2h
+    const now    = new Date()
+    const dow    = now.getUTCDay()
+    const hour   = now.getUTCHours()
+    const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
 
     const corridorData = await Promise.allSettled(
       relevant.map(async (corridor) => {
-        const [snapshots, patterns] = await Promise.allSettled([
+        const [snapshots, currentPattern, allPatterns] = await Promise.allSettled([
           sbQuery(
-            `traffic_snapshots?corridor_id=eq.${corridor.id}&captured_at=gte.${cutoff}&tomtom_ok=eq.true&order=captured_at.desc&limit=1&select=congestion_level,congestion_ratio,travel_time_secs,free_flow_secs,delay_secs,incident_count,incidents,captured_at`
+            `traffic_snapshots?corridor_id=eq.${corridor.id}&captured_at=gte.${cutoff}&order=captured_at.desc&limit=1` +
+            `&select=congestion_level,congestion_ratio,travel_time_secs,free_flow_secs,delay_secs,` +
+            `incident_count,incidents,captured_at,here_ok,google_ok,google_travel_secs,google_free_flow_secs,google_congestion_level`
           ),
           sbQuery(
-            `traffic_patterns?corridor_id=eq.${corridor.id}&day_of_week=eq.${dow}&hour_of_day=eq.${hour}&select=avg_congestion,avg_delay_secs,avg_travel_secs,sample_count`
+            `traffic_patterns?corridor_id=eq.${corridor.id}&day_of_week=eq.${dow}&hour_of_day=eq.${hour}` +
+            `&select=avg_congestion,avg_delay_secs,avg_travel_secs,sample_count`
+          ),
+          sbQuery(
+            `traffic_patterns?corridor_id=eq.${corridor.id}&sample_count=gte.2` +
+            `&select=day_of_week,hour_of_day,avg_congestion,avg_delay_secs,avg_travel_secs,sample_count` +
+            `&order=avg_congestion.asc`
           ),
         ])
 
-        const snapshot = snapshots.status === 'fulfilled' ? snapshots.value?.[0] : null
-        const pattern  = patterns.status  === 'fulfilled' ? patterns.value?.[0]  : null
+        const snapshot       = snapshots.status      === 'fulfilled' ? snapshots.value?.[0]       : null
+        const pattern        = currentPattern.status === 'fulfilled' ? currentPattern.value?.[0]  : null
+        const patternHistory = allPatterns.status    === 'fulfilled' ? allPatterns.value           : []
 
-        return { corridor, snapshot, pattern }
+        return { corridor, snapshot, pattern, patternHistory }
       })
     )
 
@@ -127,7 +166,7 @@ export async function assembleTrafficContext(journey) {
 
     if (enriched.length === 0) return { formatted: null, corridors: [], hasData: false }
 
-    // ── Format context block for Claude ────────────────────────────────────
+    // ── Format context block for Claude ──────────────────────────────────────
     const lines = [
       '═══════════════════════════════════════════════════════════',
       'LIVE TRAFFIC INTELLIGENCE',
@@ -138,7 +177,7 @@ export async function assembleTrafficContext(journey) {
 
     const structured = []
 
-    for (const { corridor, snapshot, pattern } of enriched) {
+    for (const { corridor, snapshot, pattern, patternHistory } of enriched) {
       const level    = snapshot.congestion_level || 'unknown'
       const current  = formatMins(snapshot.travel_time_secs)
       const freeFlow = formatMins(snapshot.free_flow_secs)
@@ -161,30 +200,63 @@ export async function assembleTrafficContext(journey) {
       if (baseline && samples >= 5) line += ` — ${baseline}`
       lines.push(line)
 
+      // Google corroboration
+      if (snapshot.google_ok && snapshot.google_travel_secs) {
+        const gTravel = formatMins(snapshot.google_travel_secs)
+        const gLevel  = snapshot.google_congestion_level
+        const gDelay  = snapshot.google_free_flow_secs
+          ? Math.max(0, Math.round((snapshot.google_travel_secs - snapshot.google_free_flow_secs) / 60))
+          : null
+        let gLine = `  ↳ Google corroboration: ${gTravel}`
+        if (gLevel) gLine += ` [${gLevel.toUpperCase()}]`
+        if (gDelay && gDelay > 0) gLine += `, ${gDelay}m delay`
+        lines.push(gLine)
+      }
+
       // Incidents
       const incidents = Array.isArray(snapshot.incidents) ? snapshot.incidents : []
       for (const inc of incidents.slice(0, 3)) {
-        const d = inc.description || inc.type || 'Incident'
+        const d  = inc.description || inc.type || 'Incident'
         const dm = inc.delay_mins ? ` (+${inc.delay_mins}m)` : ''
         lines.push(`  ⚠ ${d}${dm}${inc.from ? ` — near ${inc.from}` : ''}`)
       }
 
+      // Historical best travel windows
+      const history = summarisePatterns(patternHistory)
+      if (history && history.totalSamples >= 4) {
+        lines.push(`  Historical best times (${history.totalSamples} observations):`)
+        for (const b of history.best) {
+          const tStr = b.travelMins ? ` — ~${b.travelMins}m travel` : ''
+          const dStr = b.delayMins > 0 ? `, +${b.delayMins}m delay` : ', no delay'
+          lines.push(`    ✓ ${b.day} ${b.hour}${tStr}${dStr}`)
+        }
+        if (history.worst.length > 0) {
+          lines.push(`  Times with heaviest congestion:`)
+          for (const w of history.worst) {
+            lines.push(`    ✗ ${w.day} ${w.hour} — +${w.delayMins}m delay`)
+          }
+        }
+      }
+
       structured.push({
-        name:             corridor.name,
-        country:          corridor.country,
-        congestion_level: level,
-        congestion_ratio: snapshot.congestion_ratio,
-        travel_time_mins: snapshot.travel_time_secs ? Math.round(snapshot.travel_time_secs / 60) : null,
-        delay_mins:       snapshot.delay_secs ? Math.round(snapshot.delay_secs / 60) : null,
-        vs_baseline:      baseline,
-        incident_count:   snapshot.incident_count || 0,
+        name:               corridor.name,
+        country:            corridor.country,
+        congestion_level:   level,
+        congestion_ratio:   snapshot.congestion_ratio,
+        travel_time_mins:   snapshot.travel_time_secs  ? Math.round(snapshot.travel_time_secs / 60)  : null,
+        delay_mins:         snapshot.delay_secs        ? Math.round(snapshot.delay_secs / 60)        : null,
+        google_travel_mins: snapshot.google_travel_secs ? Math.round(snapshot.google_travel_secs / 60) : null,
+        google_level:       snapshot.google_congestion_level || null,
+        vs_baseline:        baseline,
+        incident_count:     snapshot.incident_count || 0,
         incidents,
-        sample_count:     samples,
+        sample_count:       samples,
+        historical:         history,
       })
     }
 
-    // Summary stats for CAIRO
-    const heavyCount = structured.filter(c => ['heavy','standstill'].includes(c.congestion_level)).length
+    // Summary stats
+    const heavyCount    = structured.filter(c => ['heavy','standstill'].includes(c.congestion_level)).length
     const incidentTotal = structured.reduce((s, c) => s + c.incident_count, 0)
 
     if (heavyCount > 0) {
@@ -196,7 +268,26 @@ export async function assembleTrafficContext(journey) {
     }
 
     lines.push('')
-    lines.push('Traffic data sourced from TomTom. Corridor baselines built from historical observations.')
+    lines.push('Traffic data: HERE Routing v8 (primary) + Google Routes v2 (corroboration) + OSM Overpass (road events).')
+    lines.push('Historical baselines built from rolling ingest observations per corridor.')
+
+    // ── CAIRO event-awareness instruction ────────────────────────────────────
+    lines.push('')
+    lines.push('─────────────────────────────────────────────────────────────')
+    lines.push('TRAFFIC DISRUPTION AWARENESS — CAIRO INSTRUCTION')
+    lines.push('─────────────────────────────────────────────────────────────')
+    lines.push('Cross-reference live and historical traffic data above against')
+    lines.push('all available intel feeds. Flag any of the following if they')
+    lines.push('coincide with monitored corridors or the user\'s planned journey:')
+    lines.push('  • Public events: conferences, summits, sports fixtures, concerts,')
+    lines.push('    religious gatherings, national holidays, parades')
+    lines.push('  • Civil unrest: protests, demonstrations, strikes, roadblocks')
+    lines.push('  • Security events: VIP motorcades, convoy movements, checkpoints')
+    lines.push('  • Infrastructure: road works, bridge closures, diversions,')
+    lines.push('    flooding or weather-related route impacts')
+    lines.push('If any such event is detected that could affect travel time or')
+    lines.push('route safety, include a specific advisory in your response.')
+    lines.push('═══════════════════════════════════════════════════════════')
 
     return {
       formatted:    lines.join('\n'),
