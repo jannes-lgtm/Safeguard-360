@@ -3,7 +3,7 @@ import {
   Radio, RefreshCw, ExternalLink, Key, Handshake,
   Clock, Plus, X, Plane, Ship, Rss,
   Zap, Globe, Shield, MessageSquare, Crosshair, MapPin, CloudLightning,
-  Check, AlertCircle, Activity, ChevronDown, ChevronUp, Lightbulb, Star
+  Check, AlertCircle, Activity, ChevronDown, ChevronUp, Lightbulb, Star, Car
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -18,6 +18,7 @@ const CATEGORIES = [
   { id: 'security',       label: 'Security Intelligence', icon: Shield,         bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' },
   { id: 'crime',          label: 'Organised Crime',       icon: AlertCircle,    bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200' },
   { id: 'economic',       label: 'Economic Risk',         icon: Activity,       bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200' },
+  { id: 'traffic',        label: 'Live Traffic',          icon: Car,            bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200' },
   { id: 'infrastructure', label: 'Infrastructure',        icon: Zap,            bg: 'bg-slate-100',  text: 'text-slate-800',  border: 'border-slate-200' },
   { id: 'aviation',       label: 'Aviation Incidents',    icon: Plane,          bg: 'bg-blue-100',   text: 'text-blue-800',   border: 'border-blue-200' },
   { id: 'health',         label: 'Disease & Health',      icon: Activity,       bg: 'bg-rose-100',   text: 'text-rose-800',   border: 'border-rose-200' },
@@ -292,6 +293,20 @@ const BUILTIN_FEEDS = [
   { id: 'reliefweb-disasters', name: 'ReliefWeb Disasters', category: 'weather',       feedType: 'RSS Feed', scope: 'international', countries: [],
     description: 'UN ReliefWeb disaster alerts — floods, earthquakes, cyclones, drought and complex humanitarian emergencies.',
     geography: 'Global', updateFrequency: 'As issued', status: 'active', sourceUrl: 'https://reliefweb.int/disasters/rss.xml', builtin: true },
+
+  // ── Live Traffic ───────────────────────────────────────────────────────────
+  { id: 'here-traffic', name: 'HERE Traffic', category: 'traffic', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'HERE Routing v8 + Traffic v7 — live travel times, free-flow baselines, jam factor, speed, and real-time road incidents per monitored corridor. Primary traffic intelligence source for CAIRO.',
+    geography: 'Africa + Middle East (monitored corridors)', updateFrequency: 'Every 30 min (ingest cron)',
+    status: 'active', envVar: 'HERE_API_KEY', sourceUrl: 'https://developer.here.com/products/routing', builtin: true },
+  { id: 'google-routes', name: 'Google Routes', category: 'traffic', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'Google Routes API v2 — traffic-aware travel time corroboration alongside HERE. Used to cross-validate congestion levels and provide consensus assessments for Plan Route and CAIRO context.',
+    geography: 'Global (Plan Route + monitored corridors)', updateFrequency: 'Every 30 min (ingest cron) + on-demand (Plan Route)',
+    status: 'active', envVar: 'GOOGLE_MAPS_API_KEY', sourceUrl: 'https://developers.google.com/maps/documentation/routes', builtin: true },
+  { id: 'osm-overpass', name: 'OSM Overpass', category: 'traffic', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'OpenStreetMap Overpass API — free, no API key. Queries road closures and construction tags (highway=construction, access=no, barrier=*) within corridor bounding boxes.',
+    geography: 'Global (monitored corridors)', updateFrequency: 'Every 30 min (ingest cron)',
+    status: 'active', sourceUrl: 'https://overpass-api.de', builtin: true },
 
   // Local — South Africa
   { id: 'eskomsepush', name: 'EskomSePush', category: 'loadshedding', feedType: 'REST API', scope: 'local', countries: ['South Africa'],
