@@ -227,10 +227,11 @@ async function _handler(req, res) {
     ])
 
     if (hereResult.status === 'rejected') throw new Error(`HERE routing failed: ${hereResult.reason?.message}`)
-    if (googleResult.status === 'rejected') console.warn('[route-lookup] Google Routes error:', googleResult.reason?.message)
 
-    const here   = hereResult.value
-    const google = googleResult.status === 'fulfilled' ? googleResult.value : null
+    const here        = hereResult.value
+    const googleError = googleResult.status === 'rejected' ? googleResult.reason?.message : null
+    const google      = googleResult.status === 'fulfilled' ? googleResult.value : null
+    if (googleError) console.warn('[route-lookup] Google Routes error:', googleError)
 
     // Consensus congestion level
     let consensus = here?.level ?? google?.level ?? 'unknown'
@@ -249,6 +250,7 @@ async function _handler(req, res) {
       consensus,
       distKm:         google?.distKm ?? null,
       nearestCorridor: nearest ? { id: nearest.id, name: nearest.name, country: nearest.country, proximityKm: nearest.proximityKm } : null,
+      googleError,
       recommendations,
       generatedAt: new Date().toISOString(),
     })
