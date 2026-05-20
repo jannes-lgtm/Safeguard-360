@@ -166,7 +166,7 @@ async function googleRoute(origin, dest, key) {
       destination:        { location: { latLng: { latitude: dest.lat,   longitude: dest.lon   } } },
       travelMode:         'DRIVE',
       routingPreference:  'TRAFFIC_AWARE',
-      departureTime:      new Date().toISOString(),
+      departureTime:      new Date(Date.now() + 120000).toISOString(),
     }),
     signal: AbortSignal.timeout(10000),
   })
