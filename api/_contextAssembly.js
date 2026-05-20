@@ -40,6 +40,7 @@ import { buildMemoryContext, scoreDataQuality } from './_operationalMemory.js'
 import { normalizeArticles } from './_intelNormalizer.js'
 import { correlateEvents, deduplicateIntel, resolveConflicts, detectEscalation } from './_eventCorrelator.js'
 import { assembleTrafficContext } from './_trafficContext.js'
+import { emit } from './_telemetry.js'
 
 const SUPABASE_URL = () => process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 const SERVICE_KEY  = () => process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -77,14 +78,24 @@ async function fetchLiveFeedArticles(geoContexts) {
   let totalFetched = 0
 
   const jobs = geoContexts.map(async (loc) => {
+    const t0 = Date.now()
     try {
       const articles = await fetchArticlesForCountry(loc)
       const normalized = normalizeArticles(articles, loc)
       byLocation[loc] = normalized
       totalFetched += normalized.length
-    } catch {
+    } catch (err) {
       byLocation[loc] = []
       feedsFailed = true
+      emit({
+        type:      'feed_fetch_failure',
+        endpoint:  'context_assembly',
+        region:    loc,
+        durationMs: Date.now() - t0,
+        success:   false,
+        errorCode: err.name === 'TimeoutError' || err.name === 'AbortError' ? 'TIMEOUT' : 'FETCH_ERROR',
+        errorMsg:  err.message,
+      })
     }
   })
 
@@ -436,6 +447,14 @@ export async function assembleContext(journey) {
 
   // Total feed failure + no stored intel = degraded mode
   if (live.feedsFailed && live.totalFetched === 0 && storedIntel.length === 0) {
+    emit({
+      type:     'context_assembly_degraded',
+      endpoint: 'context_assembly',
+      region:   journey.destination,
+      success:  false,
+      errorCode: 'ALL_FEEDS_FAILED',
+      metadata: { geo_contexts: geoContexts.length, memory_available: memory.dataAvailable },
+    })
     const formatted = buildFallbackContext(geoContexts, memory)
     const acs = computeACS([], memory, [])
     return {
@@ -493,6 +512,22 @@ export async function assembleContext(journey) {
   }
 
   const totalArticles = live.totalFetched + storedIntel.length
+
+  emit({
+    type:     'context_assembly_complete',
+    endpoint: 'context_assembly',
+    region:   journey.destination,
+    success:  true,
+    metadata: {
+      live_signals:   prioritized.length,
+      clusters:       allCorrelations.length,
+      total_articles: totalArticles,
+      acs_score:      acs.score,
+      acs_band:       acs.band,
+      feeds_failed:   live.feedsFailed,
+      memory_available: memory.dataAvailable,
+    },
+  })
 
   return {
     formatted,

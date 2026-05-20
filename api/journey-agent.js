@@ -57,29 +57,72 @@ const SUPABASE_URL_ENV = () =>
 
 // ── Claude call helper ────────────────────────────────────────────────────────
 async function claudeCall(apiKey, system, messages, maxTokens = 1200, jsonMode = false, model = 'claude-haiku-4-5-20251001') {
-  const body = {
-    model,
-    max_tokens: maxTokens,
-    system,
-    messages,
+  const t0 = Date.now()
+
+  // Prompt size guard — warn when approaching token limits
+  const promptChars = (system?.length ?? 0) + messages.reduce((s, m) => s + (m.content?.length ?? 0), 0)
+  if (promptChars > 400_000) {
+    emit({ type: 'prompt_size_warning', endpoint: 'claude_call', metadata: { model, chars: promptChars } })
+    console.warn(`[cairo] large prompt: ~${Math.ceil(promptChars / 4)} tokens for model ${model}`)
   }
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(28000),
-  })
+  const body = { model, max_tokens: maxTokens, system, messages }
+
+  let res
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(28000),
+    })
+  } catch (fetchErr) {
+    const isTimeout = fetchErr.name === 'TimeoutError' || fetchErr.name === 'AbortError'
+    emit({
+      type:      isTimeout ? 'claude_timeout' : 'claude_fetch_error',
+      endpoint:  'claude_call',
+      durationMs: Date.now() - t0,
+      success:   false,
+      errorCode: isTimeout ? 'TIMEOUT_28S' : 'FETCH_ERROR',
+      errorMsg:  fetchErr.message,
+      metadata:  { model },
+    })
+    throw fetchErr
+  }
+
+  const durationMs = Date.now() - t0
 
   if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Claude API error ${res.status}: ${err}`)
+    const errText = await res.text()
+    emit({
+      type:      'claude_http_error',
+      endpoint:  'claude_call',
+      durationMs,
+      success:   false,
+      errorCode: `HTTP_${res.status}`,
+      errorMsg:  errText.slice(0, 300),
+      metadata:  { model },
+    })
+    throw new Error(`Claude API error ${res.status}: ${errText}`)
   }
+
   const data = await res.json()
+  emit({
+    type:      'claude_call',
+    endpoint:  'claude_call',
+    durationMs,
+    success:   true,
+    metadata:  {
+      model,
+      input_tokens:  data?.usage?.input_tokens  ?? null,
+      output_tokens: data?.usage?.output_tokens ?? null,
+    },
+  })
+
   return data?.content?.[0]?.text?.trim() || null
 }
 
@@ -118,10 +161,19 @@ Set "complete":true only when you have at minimum: origin, destination, departDa
 
   try {
     const raw = await claudeCall(apiKey, system, apiMessages, 400, true)
-    // Strip any accidental markdown fences
-    const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim()
-    return JSON.parse(cleaned)
-  } catch {
+    const cleaned = raw?.replace(/```json\n?|\n?```/g, '').trim()
+    if (!cleaned) {
+      emit({ type: 'extract_journey_failure', endpoint: 'journey-agent', success: false, errorCode: 'EMPTY_RESPONSE' })
+      return null
+    }
+    try {
+      return JSON.parse(cleaned)
+    } catch (parseErr) {
+      emit({ type: 'extract_journey_failure', endpoint: 'journey-agent', success: false, errorCode: 'JSON_PARSE', errorMsg: parseErr.message })
+      return null
+    }
+  } catch (apiErr) {
+    emit({ type: 'extract_journey_failure', endpoint: 'journey-agent', success: false, errorCode: 'API_ERROR', errorMsg: apiErr.message })
     return null
   }
 }
@@ -901,6 +953,21 @@ async function _handler(req, res) {
 
     console.log(`[cairo] ${action} completed in ${elapsed}ms — journey:`, !!journeyData?.destination, 'analysis:', !!analysis)
 
+    emit({
+      type:      'journey_agent_request',
+      endpoint:  'journey-agent',
+      region:    journeyData?.destination || null,
+      durationMs: elapsed,
+      success:   true,
+      metadata:  {
+        action,
+        has_journey:  !!journeyData?.destination,
+        has_analysis: !!analysis,
+        phase: shouldAnalyse ? 'analysis_complete' : (journeyData?.complete ? 'journey_ready' : 'gathering_info'),
+        feed_status: contextPackage?.feedsFailed ? 'degraded' : 'operational',
+      },
+    })
+
     return res.status(200).json({
       reply:    reply || 'Unable to generate response. Please try again.',
       journey:  journeyData,
@@ -923,6 +990,14 @@ async function _handler(req, res) {
     })
 
   } catch (err) {
+    emit({
+      type:      'journey_agent_request',
+      endpoint:  'journey-agent',
+      durationMs: Date.now() - startTs,
+      success:   false,
+      errorCode: 'UNHANDLED',
+      errorMsg:  err.message,
+    })
     console.error('[cairo] error:', err.message)
     return res.status(500).json({ error: 'Journey agent error. Please try again.' })
   }
