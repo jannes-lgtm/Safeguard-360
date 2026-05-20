@@ -12,7 +12,8 @@ import {
   UserCheck, UserX, Plus, X, Loader2, Pencil, Trash2,
   Globe, BookOpen, Newspaper, Link2, Link2Off, Mail,
   ClipboardList, ChevronDown, ChevronUp, Download, Monitor,
-  Cpu, Rss, Database, BrainCircuit, Eye, LayoutDashboard,
+  Cpu, Rss, Database, BrainCircuit, Eye, LayoutDashboard, Car,
+  TrendingUp, Navigation, Zap, MapPin, Clock,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -27,6 +28,7 @@ const TABS = [
   { id: 'policies',    label: 'Policies',        icon: FileText },
   { id: 'training',    label: 'Training',        icon: GraduationCap },
   { id: 'audit',       label: 'Audit Log',       icon: ClipboardList },
+  { id: 'traffic',     label: 'Live Traffic',    icon: Car },
   { id: 'platform',    label: 'Platform',        icon: LayoutDashboard },
   { id: 'gsoc',        label: 'GSOC',            icon: Monitor },
 ]
@@ -693,6 +695,274 @@ function TrainingModal({ module, orgs, onClose, onSaved }) {
         </div>
       </div>
     </Modal>
+  )
+}
+
+// ── Live Traffic Tab ──────────────────────────────────────────────────────────
+const CONGESTION_STYLE = {
+  free:       { label: 'Free',       dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',  bar: 'bg-emerald-400', pct: 5  },
+  low:        { label: 'Low',        dot: 'bg-yellow-400',  badge: 'bg-yellow-50 text-yellow-700 border-yellow-200',     bar: 'bg-yellow-400',  pct: 25 },
+  moderate:   { label: 'Moderate',   dot: 'bg-orange-400',  badge: 'bg-orange-50 text-orange-700 border-orange-200',     bar: 'bg-orange-400',  pct: 55 },
+  heavy:      { label: 'Heavy',      dot: 'bg-red-500',     badge: 'bg-red-50 text-red-700 border-red-200',              bar: 'bg-red-500',     pct: 80 },
+  standstill: { label: 'Standstill', dot: 'bg-red-900',     badge: 'bg-red-100 text-red-900 border-red-300',             bar: 'bg-red-900',     pct: 100},
+}
+
+function fmtMins(secs) {
+  if (!secs) return '—'
+  const h = Math.floor(secs / 3600), m = Math.round((secs % 3600) / 60)
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
+function LiveTrafficTab() {
+  const [corridors,  setCorridors]  = useState([])
+  const [snapshots,  setSnapshots]  = useState({})  // keyed by corridor_id
+  const [loading,    setLoading]    = useState(true)
+  const [ingesting,  setIngesting]  = useState(false)
+  const [lastRun,    setLastRun]    = useState(null)
+  const [sources,    setSources]    = useState(null)
+  const [filter,     setFilter]     = useState('All')
+
+  async function loadData() {
+    setLoading(true)
+    const { data: cors } = await supabase
+      .from('traffic_corridors')
+      .select('id,name,country,region,origin_name,dest_name,distance_km')
+      .eq('is_active', true)
+      .order('country')
+
+    const { data: snaps } = await supabase
+      .from('traffic_snapshots')
+      .select('*')
+      .in('corridor_id', (cors || []).map(c => c.id))
+      .order('captured_at', { ascending: false })
+
+    // Keep only the latest snapshot per corridor
+    const latest = {}
+    for (const s of (snaps || [])) {
+      if (!latest[s.corridor_id]) latest[s.corridor_id] = s
+    }
+
+    setCorridors(cors || [])
+    setSnapshots(latest)
+    if (Object.values(latest).length) {
+      const newest = Object.values(latest).sort((a,b) => new Date(b.captured_at) - new Date(a.captured_at))[0]
+      setLastRun(newest.captured_at)
+    }
+    setLoading(false)
+  }
+
+  async function triggerIngest() {
+    setIngesting(true)
+    try {
+      const res  = await fetch('/api/traffic-ingest', { method: 'POST' })
+      const data = await res.json()
+      setSources(data.sources || null)
+      await loadData()
+    } catch {
+      // silently ignore — data reload still attempted
+    }
+    setIngesting(false)
+  }
+
+  useEffect(() => { loadData() }, [])
+
+  const countries = ['All', ...new Set((corridors).map(c => c.country).filter(Boolean).sort())]
+  const visible   = filter === 'All' ? corridors : corridors.filter(c => c.country === filter)
+
+  const sourcePills = [
+    { label: 'HERE Routing',  key: 'here',   always: true  },
+    { label: 'HERE Traffic',  key: 'here',   always: true  },
+    { label: 'Google Routes', key: 'google', always: false },
+    { label: 'OSM Overpass',  key: 'osm',    always: true  },
+  ]
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: `${BRAND_BLUE}18` }}>
+              <Car size={20} color={BRAND_BLUE} />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">Live Traffic Intelligence</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Real-time corridor snapshots from HERE, Google Routes &amp; OSM · 30-min ingest cycle
+              </p>
+              {lastRun && (
+                <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
+                  <Clock size={10} /> Last ingest: {new Date(lastRun).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
+                </p>
+              )}
+            </div>
+          </div>
+          <button onClick={triggerIngest} disabled={ingesting}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-gray-200 text-xs font-medium text-gray-600 hover:border-[#0118A1] hover:text-[#0118A1] transition-colors disabled:opacity-50">
+            {ingesting ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+            {ingesting ? 'Running…' : 'Run Ingest Now'}
+          </button>
+        </div>
+
+        {/* Source status pills */}
+        <div className="flex flex-wrap gap-2 mt-4">
+          {sourcePills.map(s => (
+            <div key={s.label} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border
+              ${s.always || sources?.[s.key] ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${s.always || sources?.[s.key] ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+              {s.label}
+              {!s.always && !sources?.[s.key] && <span className="text-[10px] opacity-60 ml-0.5">· add key</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Country filter */}
+      <div className="flex gap-2 flex-wrap">
+        {countries.map(c => (
+          <button key={c} onClick={() => setFilter(c)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
+              ${filter === c ? 'bg-[#0118A1] text-white border-[#0118A1]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+            {c}
+          </button>
+        ))}
+      </div>
+
+      {/* Corridor cards */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 size={20} className="animate-spin text-[#0118A1]" />
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
+          <Car size={24} className="mx-auto text-gray-300 mb-2" />
+          <p className="text-sm text-gray-400">No active corridors found.</p>
+          <p className="text-xs text-gray-300 mt-1">Add corridors to the <code className="bg-gray-100 px-1 rounded">traffic_corridors</code> table to get started.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3">
+          {visible.map(corridor => {
+            const snap = snapshots[corridor.id]
+            const cs   = CONGESTION_STYLE[snap?.congestion_level] || CONGESTION_STYLE.free
+            const delay = snap?.delay_secs ? Math.round(snap.delay_secs / 60) : 0
+            const hereInc   = (snap?.incidents || []).filter(i => i.source === 'here')
+            const osmInc    = (snap?.incidents || []).filter(i => i.source === 'osm')
+            const googleLevel = snap?.google_congestion_level
+
+            return (
+              <div key={corridor.id} className="bg-white rounded-[10px] border border-gray-100 shadow-sm p-4">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-gray-900">{corridor.name}</span>
+                      <span className="text-[10px] text-gray-400">{corridor.country}</span>
+                      {corridor.distance_km && (
+                        <span className="text-[10px] text-gray-300">{corridor.distance_km} km</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                      <Navigation size={9} />
+                      {corridor.origin_name} → {corridor.dest_name}
+                    </p>
+                  </div>
+                  {snap ? (
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border shrink-0 ${cs.badge}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cs.dot}`} />
+                      {cs.label}
+                    </div>
+                  ) : (
+                    <span className="text-[11px] text-gray-300 border border-gray-100 px-2.5 py-1 rounded-full">No data</span>
+                  )}
+                </div>
+
+                {snap && (
+                  <>
+                    {/* Congestion bar */}
+                    <div className="h-1.5 bg-gray-100 rounded-full mb-3 overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${cs.bar}`} style={{ width: `${cs.pct}%` }} />
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                      <div className="bg-gray-50 rounded-[6px] px-2.5 py-1.5">
+                        <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Travel Time</div>
+                        <div className="text-xs font-bold text-gray-800">{fmtMins(snap.travel_time_secs)}</div>
+                      </div>
+                      <div className="bg-gray-50 rounded-[6px] px-2.5 py-1.5">
+                        <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Free Flow</div>
+                        <div className="text-xs font-bold text-gray-800">{fmtMins(snap.free_flow_secs)}</div>
+                      </div>
+                      <div className="bg-gray-50 rounded-[6px] px-2.5 py-1.5">
+                        <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Delay</div>
+                        <div className={`text-xs font-bold ${delay > 15 ? 'text-red-600' : delay > 5 ? 'text-orange-500' : 'text-gray-800'}`}>
+                          {delay > 0 ? `+${delay}m` : '—'}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 rounded-[6px] px-2.5 py-1.5">
+                        <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">HERE Jam</div>
+                        <div className="text-xs font-bold text-gray-800">
+                          {snap.here_jam_factor != null ? `${snap.here_jam_factor}/10` : '—'}
+                          {snap.here_speed_kmh  != null ? <span className="text-[10px] font-normal text-gray-400 ml-1">{snap.here_speed_kmh} km/h</span> : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Google corroboration */}
+                    {snap.google_travel_secs && (
+                      <div className="flex items-center gap-3 text-[11px] text-gray-500 bg-blue-50/50 border border-blue-100 rounded-[6px] px-2.5 py-1.5 mb-3">
+                        <Zap size={10} className="text-blue-400 shrink-0" />
+                        <span>Google: {fmtMins(snap.google_travel_secs)}</span>
+                        {snap.google_delay_secs > 0 && <span className="text-orange-500">+{Math.round(snap.google_delay_secs/60)}m delay</span>}
+                        {googleLevel && (
+                          <span className={`ml-auto capitalize ${CONGESTION_STYLE[googleLevel]?.badge.split(' ').slice(1).join(' ')}`}>
+                            {CONGESTION_STYLE[googleLevel]?.label}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Incidents */}
+                    {snap.incident_count > 0 && (
+                      <div className="space-y-1">
+                        {hereInc.slice(0,3).map((inc, i) => (
+                          <div key={i} className="flex items-start gap-2 text-[11px] text-gray-600 bg-red-50/50 border border-red-100 rounded-[6px] px-2.5 py-1.5">
+                            <AlertTriangle size={10} className="text-red-400 shrink-0 mt-0.5" />
+                            <span className="truncate">{inc.description || inc.type}</span>
+                            {inc.delay_mins && <span className="text-red-500 shrink-0">+{inc.delay_mins}m</span>}
+                            <span className="text-[9px] text-gray-300 shrink-0 uppercase">HERE</span>
+                          </div>
+                        ))}
+                        {osmInc.slice(0,2).map((inc, i) => (
+                          <div key={i} className="flex items-start gap-2 text-[11px] text-gray-600 bg-amber-50/50 border border-amber-100 rounded-[6px] px-2.5 py-1.5">
+                            <AlertTriangle size={10} className="text-amber-400 shrink-0 mt-0.5" />
+                            <span className="truncate">{inc.description}</span>
+                            <span className="text-[9px] text-gray-300 shrink-0 uppercase">OSM</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between mt-2.5">
+                      <div className="flex gap-1.5">
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border ${snap.tomtom_ok ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>HERE Route</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border ${snap.here_ok ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>HERE Flow</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border ${snap.google_ok ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>Google</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border ${snap.osm_ok ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>OSM</span>
+                      </div>
+                      <span className="text-[10px] text-gray-300">
+                        {snap.captured_at ? new Date(snap.captured_at).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) : ''}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -1687,6 +1957,9 @@ export default function AdminControlCenter() {
           </p>
         </div>
       )}
+
+      {/* ── Live Traffic ─────────────────────────────────────────────────────── */}
+      {tab === 'traffic' && <LiveTrafficTab />}
 
       {/* ── GSOC ─────────────────────────────────────────────────────────────── */}
       {tab === 'gsoc' && (

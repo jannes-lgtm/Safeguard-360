@@ -8,11 +8,30 @@ import {
   Shield, Search, RefreshCw, ExternalLink, Wind, Thermometer,
   ChevronRight, AlertTriangle, MapPin, Brain, Zap, Clock,
   ChevronDown, ChevronUp, FileText, Layers, HeartPulse,
-  Swords, CloudRain, Users, Lock, ArrowLeft
+  Swords, CloudRain, Users, Lock, ArrowLeft, Printer,
 } from 'lucide-react'
 import Layout from '../components/Layout'
+import { supabase } from '../lib/supabase'
 import { timeAgo } from '../lib/dateUtils'
 import { getCountryRisk, listFeeds, getFeedById } from '../services/intelligenceService'
+
+// ── Print stylesheet — injected/removed around window.print() ─────────────────
+const PRINT_CSS = `
+  @media print {
+    @page { margin: 14mm 14mm 16mm 14mm; size: A4 portrait; }
+    body * { visibility: hidden !important; }
+    #sg360-print-root, #sg360-print-root * { visibility: visible !important; }
+    #sg360-print-root {
+      position: fixed; inset: 0;
+      overflow: visible; background: #fff;
+      padding: 0; font-size: 10.5pt; color: #111;
+    }
+    .print-hide { display: none !important; }
+    .print-cover { display: block !important; }
+    a { text-decoration: none; color: inherit; }
+    .shadow-\\[0_1px_3px_rgba\\(0\\,0\\,0\\,0\\.06\\)\\] { box-shadow: none !important; }
+  }
+`
 
 // ── Country metadata (for weather widget coordinates + capital) ───────────────
 const COUNTRY_META = {
@@ -284,7 +303,7 @@ function AiBrief({ brief, loading }) {
 }
 
 // ── Full country report ───────────────────────────────────────────────────────
-function CountryReport({ country }) {
+function CountryReport({ country, isDeveloper = false }) {
   const meta = COUNTRY_META[country]
   const [risk, setRisk]       = useState(null)
   const [weather, setWeather] = useState(null)
@@ -294,6 +313,19 @@ function CountryReport({ country }) {
   const generated = new Date().toLocaleString('en-GB', {
     day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
   })
+
+  function handlePrint() {
+    const style = document.createElement('style')
+    style.id = 'sg360-print-style'
+    style.textContent = PRINT_CSS
+    document.head.appendChild(style)
+    const cleanup = () => {
+      document.getElementById('sg360-print-style')?.remove()
+      window.removeEventListener('afterprint', cleanup)
+    }
+    window.addEventListener('afterprint', cleanup)
+    window.print()
+  }
 
   useEffect(() => {
     if (!meta) return
@@ -344,7 +376,27 @@ function CountryReport({ country }) {
     : null
 
   return (
-    <div className="space-y-4">
+    <div id="sg360-print-root" className="space-y-4">
+
+      {/* Hidden print cover — only visible when printing */}
+      <div className="print-cover hidden">
+        <div style={{ borderBottom: '2px solid #0118A1', paddingBottom: '10px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div>
+              <div style={{ fontSize: '18pt', fontWeight: 800, color: '#0118A1', letterSpacing: '-0.5px' }}>SafeGuard 360</div>
+              <div style={{ fontSize: '9pt', color: '#555', marginTop: '2px' }}>Country Risk Intelligence Report</div>
+            </div>
+            <div style={{ textAlign: 'right', fontSize: '8.5pt', color: '#666' }}>
+              <div style={{ fontWeight: 600 }}>{country} — {meta.capital}</div>
+              <div>Generated: {generated}</div>
+              <div style={{ marginTop: '2px', color: '#c00', fontWeight: 700, fontSize: '7.5pt', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                CONFIDENTIAL — Developer Use Only
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Report header */}
       <div className="bg-white rounded-[10px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-5">
         <div className="flex items-start justify-between gap-4 mb-4">
@@ -356,13 +408,21 @@ function CountryReport({ country }) {
               <FileText size={11} /> Report generated {generated}
             </p>
           </div>
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-[8px] border shrink-0 ${sc.light} ${sc.border}`}>
+          <div className="flex items-center gap-2 shrink-0">
+            {isDeveloper && (
+              <button onClick={handlePrint} className="print-hide flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] border border-gray-200 text-xs text-gray-500 hover:border-[#0118A1] hover:text-[#0118A1] hover:bg-blue-50/40 transition-colors">
+                <Printer size={13} />
+                Export PDF
+              </button>
+            )}
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-[8px] border ${sc.light} ${sc.border}`}>
             <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${sc.dot}`} />
             <div className="text-right">
               <div className={`text-sm font-bold ${sc.text}`}>{severity} Risk</div>
               <div className={`text-[10px] ${sc.text} opacity-80`}>{sc.advice}</div>
             </div>
           </div>
+          </div>{/* end flex shrink-0 wrapper */}
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
           <div className={`h-full rounded-full transition-all duration-700 ${sc.bg}`} style={{ width: `${sc.bar}%` }} />
@@ -536,6 +596,15 @@ export default function CountryRiskReport() {
   const [search,        setSearch]      = useState('')
   const [regionFilter,  setRegionFilter] = useState('All')
   const [mobilePicker,  setMobilePicker] = useState(false)
+  const [userRole,      setUserRole]    = useState(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('profiles').select('role').eq('id', user.id).single()
+        .then(({ data }) => setUserRole(data?.role ?? null))
+    })
+  }, [])
 
   const containerRef     = useRef(null)
   const mapRef           = useRef(null)
@@ -834,7 +903,7 @@ export default function CountryRiskReport() {
           </div>
 
           {/* Report view */}
-          {selected && <CountryReport key={selected} country={selected} />}
+          {selected && <CountryReport key={selected} country={selected} isDeveloper={userRole === 'developer'} />}
 
         </div>
       </div>

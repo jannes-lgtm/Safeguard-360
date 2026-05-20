@@ -17,8 +17,10 @@
 import { adapt } from './_adapter.js'
 
 const HERE_KEY      = () => process.env.HERE_API_KEY    || ''
+const GOOGLE_KEY    = () => process.env.GOOGLE_MAPS_API_KEY || ''
 const SUPABASE_URL  = () => process.env.SUPABASE_URL    || process.env.VITE_SUPABASE_URL || ''
 const SERVICE_KEY   = () => process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+
 
 // Max bounding box size (degrees) for incident queries — avoids TomTom bbox limits
 const MAX_BBOX_DEG = 4.0
@@ -163,6 +165,45 @@ async function updatePattern(corridorId, snapshot) {
       returnJson: false,
     }).catch(() => {})
   }
+}
+
+// ── Google Routes API v2: traffic-aware travel time (corroboration) ──────────
+async function fetchGoogleTravelTime(corridor, key) {
+  const res = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+    method:  'POST',
+    headers: {
+      'Content-Type':      'application/json',
+      'X-Goog-Api-Key':    key,
+      'X-Goog-FieldMask':  'routes.duration,routes.staticDuration',
+    },
+    body: JSON.stringify({
+      origin:      { location: { latLng: { latitude: corridor.origin_lat, longitude: corridor.origin_lon } } },
+      destination: { location: { latLng: { latitude: corridor.dest_lat,   longitude: corridor.dest_lon   } } },
+      travelMode:         'DRIVE',
+      routingPreference:  'TRAFFIC_AWARE',
+      departureTime:      new Date().toISOString(),
+    }),
+    signal: AbortSignal.timeout(10000),
+  })
+  if (!res.ok) throw new Error(`Google Routes ${res.status}`)
+
+  const data  = await res.json()
+  const route = data?.routes?.[0]
+  if (!route) throw new Error('No Google route returned')
+
+  // duration / staticDuration come back as strings like "1234s"
+  const travel   = parseInt(route.duration,       10) || 0
+  const freeFlow = parseInt(route.staticDuration, 10) || travel
+  const delay    = Math.max(0, travel - freeFlow)
+  const ratio    = freeFlow > 0 ? +(delay / freeFlow).toFixed(2) : 0
+
+  let google_congestion_level = 'free'
+  if      (ratio >= 0.75) google_congestion_level = 'standstill'
+  else if (ratio >= 0.40) google_congestion_level = 'heavy'
+  else if (ratio >= 0.20) google_congestion_level = 'moderate'
+  else if (ratio >= 0.08) google_congestion_level = 'low'
+
+  return { google_travel_secs: travel, google_free_flow_secs: freeFlow, google_delay_secs: delay, google_congestion_level }
 }
 
 // ── HERE Traffic v7: flow data for corridor bounding box ─────────────────────
@@ -311,7 +352,8 @@ async function pruneOldSnapshots() {
 
 // ── Process all corridors ─────────────────────────────────────────────────────
 async function processCorridors(corridors, hereKey) {
-  const results = { success: 0, failed: 0, errors: [] }
+  const googleKey = GOOGLE_KEY()
+  const results   = { success: 0, failed: 0, errors: [] }
 
   const BATCH = 5
   for (let i = 0; i < corridors.length; i += BATCH) {
@@ -319,48 +361,55 @@ async function processCorridors(corridors, hereKey) {
     await Promise.allSettled(
       batch.map(async (corridor) => {
         try {
-          // All three sources in parallel — any can fail independently
-          const [timeData, incData, flowData, osmData] = await Promise.allSettled([
+          // All sources in parallel — any can fail independently
+          const [timeData, incData, flowData, osmData, googleData] = await Promise.allSettled([
             fetchCorridorTravelTime(corridor, hereKey),
             fetchCorridorIncidents(corridor, hereKey),
             fetchHereFlow(corridor, hereKey),
             fetchOsmRoadEvents(corridor),
+            googleKey ? fetchGoogleTravelTime(corridor, googleKey) : Promise.resolve(null),
           ])
 
-          const time    = timeData.status === 'fulfilled' ? timeData.value : null
-          const flow    = flowData.status === 'fulfilled' ? flowData.value : null
-          const routeOk = timeData.status === 'fulfilled'
-          const flowOk  = flowData.status === 'fulfilled' && flow !== null
-          const osmOk   = osmData.status  === 'fulfilled'
+          const time      = timeData.status  === 'fulfilled' ? timeData.value  : null
+          const flow      = flowData.status  === 'fulfilled' ? flowData.value  : null
+          const google    = googleData.status === 'fulfilled' ? googleData.value : null
+          const routeOk   = timeData.status  === 'fulfilled'
+          const flowOk    = flowData.status  === 'fulfilled' && flow !== null
+          const osmOk     = osmData.status   === 'fulfilled'
+          const googleOk  = googleData.status === 'fulfilled' && google !== null
 
-          const hereInc = (incData.status  === 'fulfilled' ? incData.value  : [])
-          const osmInc  = (osmData.status  === 'fulfilled' ? osmData.value  : [])
+          const hereInc = incData.status === 'fulfilled' ? incData.value : []
+          const osmInc  = osmData.status === 'fulfilled' ? osmData.value : []
           const allInc  = [...hereInc, ...osmInc]
 
-          // Fall back to HERE flow congestion level if routing call failed
-          const congestionLevel = time?.congestion_level ?? flow?.here_congestion_level ?? null
+          const congestionLevel = time?.congestion_level ?? flow?.here_congestion_level ?? google?.google_congestion_level ?? null
 
           const snapshot = {
-            corridor_id:           corridor.id,
-            captured_at:           new Date().toISOString(),
-            // HERE Routing v8 — primary travel time data
-            travel_time_secs:      time?.travel_time_secs  ?? null,
-            free_flow_secs:        time?.free_flow_secs    ?? null,
-            historic_secs:         time?.historic_secs     ?? null,
-            delay_secs:            time?.delay_secs        ?? null,
-            congestion_ratio:      time?.congestion_ratio  ?? null,
-            congestion_level:      congestionLevel,
-            tomtom_ok:             routeOk,   // field kept for schema compat; reflects HERE routing now
-            // HERE Traffic v7 flow
-            here_jam_factor:       flow?.jam_factor        ?? null,
-            here_speed_kmh:        flow?.speed_kmh         ?? null,
-            here_free_flow_kmh:    flow?.free_flow_kmh     ?? null,
-            here_ok:               flowOk,
+            corridor_id:              corridor.id,
+            captured_at:              new Date().toISOString(),
+            // HERE Routing — primary travel time
+            travel_time_secs:         time?.travel_time_secs  ?? null,
+            free_flow_secs:           time?.free_flow_secs    ?? null,
+            historic_secs:            time?.historic_secs     ?? null,
+            delay_secs:               time?.delay_secs        ?? null,
+            congestion_ratio:         time?.congestion_ratio  ?? null,
+            congestion_level:         congestionLevel,
+            tomtom_ok:                routeOk,
+            // HERE Traffic flow
+            here_jam_factor:          flow?.jam_factor        ?? null,
+            here_speed_kmh:           flow?.speed_kmh         ?? null,
+            here_free_flow_kmh:       flow?.free_flow_kmh     ?? null,
+            here_ok:                  flowOk,
+            // Google Routes — corroboration
+            google_travel_secs:       google?.google_travel_secs    ?? null,
+            google_free_flow_secs:    google?.google_free_flow_secs ?? null,
+            google_delay_secs:        google?.google_delay_secs     ?? null,
+            google_congestion_level:  google?.google_congestion_level ?? null,
+            google_ok:                googleOk,
             // OSM
-            osm_ok:                osmOk,
-            // All incidents merged
-            incident_count:        allInc.length,
-            incidents:             allInc,
+            osm_ok:                   osmOk,
+            incident_count:           allInc.length,
+            incidents:                allInc,
           }
 
           await sbFetch('traffic_snapshots', {
@@ -420,7 +469,7 @@ async function _handler(req, res) {
       success:     results.success,
       failed:      results.failed,
       errors:      results.errors,
-      sources:     { tomtom: true, here: !!HERE_KEY(), osm: true },
+      sources:     { here: true, osm: true, google: !!GOOGLE_KEY() },
       elapsed,
     })
 
