@@ -181,7 +181,7 @@ async function fetchGoogleTravelTime(corridor, key) {
       destination: { location: { latLng: { latitude: corridor.dest_lat,   longitude: corridor.dest_lon   } } },
       travelMode:         'DRIVE',
       routingPreference:  'TRAFFIC_AWARE',
-      departureTime:      new Date().toISOString(),
+      departureTime:      new Date(Date.now() + 120000).toISOString(),
     }),
     signal: AbortSignal.timeout(10000),
   })
