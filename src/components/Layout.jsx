@@ -7,7 +7,7 @@ import {
   Building2, GraduationCap, BookOpen, Globe, Settings,
   BarChart2, Code2, Headphones, Menu, X, Megaphone, Activity,
   CreditCard, Compass, MonitorCheck, FolderOpen, Clock, Radar,
-  Layers, HardHat, Brain,
+  Layers, HardHat, Brain, Car,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import usePassiveLocation from '../hooks/usePassiveLocation'
@@ -91,6 +91,7 @@ function DeveloperNav({ alertCount }) {
 
       <NavSection label="Intelligence" />
       <NavItem to="/journey-agent"  icon={Compass}      label="CAIRO" />
+
       <NavItem to="/cairo/knowledge" icon={Brain}       label="Knowledge Base" />
       <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
@@ -98,6 +99,7 @@ function DeveloperNav({ alertCount }) {
       <NavItem to="/intel-feeds"    icon={Radio}        label="Intel Feeds" />
 
       <NavSection label="Operations" />
+      <NavItem to="/live-traffic"   icon={Car}          label="Live Traffic" />
       <NavItem to="/projects"       icon={Layers}       label="Projects" />
       <NavItem to="/control-room"   icon={Headphones}   label="Live Control Room" />
       <NavItem to="/approvals"      icon={ClipboardList} label="Travel Approvals" />
@@ -147,6 +149,7 @@ function CorporateAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
       <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
       <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
+      <NavItem to="/live-traffic"   icon={Car}          label="Live Traffic" />
 
       <NavSection label="24/7 Support" />
       <NavItem to="/crisis-broadcast" icon={Megaphone}   label="Crisis Broadcast" />
@@ -187,6 +190,7 @@ function OrgAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
       <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
 
+      <NavItem to="/live-traffic"   icon={Car}          label="Live Traffic" />
       <NavSection label="24/7 Support" />
       <NavItem to="/crisis-broadcast" icon={Megaphone}   label="Crisis Broadcast" />
       <NavItem to="/control-room"   icon={Headphones}   label="Assistance Requests" />
