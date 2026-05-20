@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   Car, Navigation, ArrowRight, ArrowLeftRight, Search,
   RefreshCw, AlertTriangle, Clock, Zap, MapPin, Loader2,
-  TrendingUp, CheckCircle2,
+  TrendingUp, CheckCircle2, Star, ThumbsDown, BarChart2,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -371,6 +371,93 @@ function PlanRouteTab() {
               )}
             </div>
           </div>
+
+          {/* Travel recommendations from historical patterns */}
+          {result.recommendations && (
+            <div className="bg-white rounded-[10px] border border-gray-200 shadow-sm p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BarChart2 size={14} className="text-[#0118A1]" />
+                  <span className="text-sm font-semibold text-gray-800">Historical Travel Recommendations</span>
+                </div>
+                {result.nearestCorridor && (
+                  <span className="text-[10px] text-gray-400 bg-gray-50 border border-gray-100 px-2 py-1 rounded-full">
+                    Based on {result.nearestCorridor.name} · {result.nearestCorridor.proximityKm} km away
+                  </span>
+                )}
+              </div>
+
+              <p className="text-[11px] text-gray-400">
+                From {result.recommendations.totalSamples} historical snapshots on the nearest monitored corridor.
+                Times shown in UTC — adjust for your local timezone.
+              </p>
+
+              {/* Best times */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Star size={12} className="text-emerald-500" />
+                  <span className="text-xs font-semibold text-emerald-700">Best Times to Travel</span>
+                </div>
+                <div className="space-y-1.5">
+                  {result.recommendations.best.map((slot, i) => {
+                    const cs = CONGESTION_STYLE[slot.level] || CONGESTION_STYLE.free
+                    const delayMins = slot.avgDelaySecs ? Math.round(slot.avgDelaySecs / 60) : 0
+                    const travelMins = slot.avgTravelSecs ? Math.round(slot.avgTravelSecs / 60) : null
+                    return (
+                      <div key={i} className="flex items-center justify-between gap-3 px-3 py-2 rounded-[7px] bg-emerald-50/50 border border-emerald-100">
+                        <div className="flex items-center gap-2.5">
+                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${cs.badge} border`}>{cs.label}</span>
+                          <span className="text-xs font-semibold text-gray-800">{slot.day}</span>
+                          <span className="text-xs text-gray-500">{slot.hourLabel}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px] text-gray-500 shrink-0">
+                          {travelMins && <span className="flex items-center gap-1"><Clock size={10} />{travelMins}m</span>}
+                          <span className={delayMins > 0 ? 'text-orange-500' : 'text-emerald-600'}>
+                            {delayMins > 0 ? `+${delayMins}m delay` : 'No delay'}
+                          </span>
+                          <span className="text-gray-300 text-[9px]">{slot.samples} samples</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Times to avoid */}
+              {result.recommendations.worst?.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <ThumbsDown size={12} className="text-red-400" />
+                    <span className="text-xs font-semibold text-red-600">Times to Avoid</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {result.recommendations.worst.map((slot, i) => {
+                      const cs = CONGESTION_STYLE[slot.level] || CONGESTION_STYLE.standstill
+                      const delayMins = slot.avgDelaySecs ? Math.round(slot.avgDelaySecs / 60) : 0
+                      return (
+                        <div key={i} className="flex items-center justify-between gap-3 px-3 py-2 rounded-[7px] bg-red-50/50 border border-red-100">
+                          <div className="flex items-center gap-2.5">
+                            <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${cs.badge} border`}>{cs.label}</span>
+                            <span className="text-xs font-semibold text-gray-800">{slot.day}</span>
+                            <span className="text-xs text-gray-500">{slot.hourLabel}</span>
+                          </div>
+                          <span className="text-[11px] text-red-500 shrink-0">
+                            {delayMins > 0 ? `+${delayMins}m delay` : 'High congestion'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {result.recommendations === null && result.nearestCorridor && (
+            <div className="bg-gray-50 border border-gray-200 rounded-[10px] p-4 text-xs text-gray-400 text-center">
+              Not enough historical data yet for {result.nearestCorridor.name}. Recommendations will appear after a few ingest cycles.
+            </div>
+          )}
 
           <p className="text-[10px] text-gray-400 text-right">
             Generated {new Date(result.generatedAt).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })}
