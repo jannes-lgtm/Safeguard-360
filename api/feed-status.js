@@ -37,6 +37,46 @@ function _handler(req, res) {
     // Conflict — public API/RSS, always active
     gdelt:               'active',
 
+    // ── CAIRO RSS Context Pipeline — all public, no keys required ────────────
+    // Wire services
+    'reuters-world':     'active',
+    'ap-world':          'active',
+    'bbc-world':         'active',
+    'france24':          'active',
+    'aljazeera':         'active',
+    'middle-east-eye':   'active',
+    'iran-intl':         'active',
+    'kyiv-independent':  'active',
+    'un-news-africa':    'active',
+    'un-news-me':        'active',
+    'acled-blog':        'active',
+    'defense-post':      'active',
+    // Security analysis RSS
+    'bbc-africa':        'active',
+    'iss-africa':        'active',
+    'crisis-group-africa': 'active',
+    'crisis-group-mena': 'active',
+    'jamestown':         'active',
+    'war-on-rocks':      'active',
+    'janes-defence':     'active',
+    'strategy-bridge':   'active',
+    'iiss':              'active',
+    'the-diplomat':      'active',
+    'euractiv':          'active',
+    // Crime / economic / infrastructure / aviation
+    'insight-crime':     'active',
+    'trading-economics': 'active',
+    'power-tech':        'active',
+    'aviapages':         'active',
+    // Health RSS (alongside structured health connectors)
+    'who-rss':           'active',
+    'reliefweb-who':     'active',
+    'outbreak-news':     'active',
+    'cidrap':            'active',
+    'paho':              'active',
+    'africa-cdc':        'active',
+    'reliefweb-disasters': 'active',
+
     // ── Require API keys ─────────────────────────────────────────────────────
     whatsapp:       has('TWILIO_ACCOUNT_SID')     ? 'active' : 'pending_key',
     eskomsepush:    has('ESKOMSEPUSH_API_KEY')    ? 'active' : 'pending_key',
