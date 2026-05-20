@@ -135,20 +135,135 @@ async function gatherContext(journey) {
 }
 
 // ── Knowledge base fetch — retrieves relevant SOPs and case studies ────────────
-async function fetchKnowledgeContext(destination) {
-  if (!destination) return []
+// ── RAG Pipeline ──────────────────────────────────────────────────────────────
+// Tier priority: 1=country-specific  2=regional  3=global  4=general doctrine
+// Scoring: tier weight + keyword match against tags/threat_categories
+// Compression: full content for tiers 1-2; summary for tiers 3-4 unless keyword hit
+
+const DESTINATION_REGION_MAP = {
+  // Africa
+  'South Africa': 'Southern Africa', 'Namibia': 'Southern Africa', 'Botswana': 'Southern Africa',
+  'Zambia': 'Southern Africa', 'Zimbabwe': 'Southern Africa', 'Mozambique': 'Southern Africa',
+  'Angola': 'Southern Africa', 'Malawi': 'Southern Africa', 'Tanzania': 'East Africa',
+  'Kenya': 'East Africa', 'Uganda': 'East Africa', 'Ethiopia': 'East Africa',
+  'Rwanda': 'East Africa', 'Burundi': 'East Africa', 'Somalia': 'Horn of Africa',
+  'Eritrea': 'Horn of Africa', 'Djibouti': 'Horn of Africa',
+  'Democratic Republic of Congo': 'Central Africa', 'Cameroon': 'Central Africa',
+  'Gabon': 'Central Africa', 'Chad': 'Central Africa',
+  'Nigeria': 'West Africa', 'Ghana': 'West Africa', 'Senegal': 'West Africa',
+  'Mali': 'Sahel', 'Niger': 'Sahel', 'Burkina Faso': 'Sahel',
+  'Egypt': 'North Africa', 'Libya': 'North Africa', 'Tunisia': 'North Africa',
+  'Algeria': 'North Africa', 'Morocco': 'North Africa',
+  'Madagascar': 'East Africa',
+  // Middle East
+  'Iraq': 'Middle East', 'Iran': 'Middle East', 'Syria': 'Middle East',
+  'Lebanon': 'Middle East', 'Yemen': 'Middle East', 'UAE': 'Middle East',
+  'Saudi Arabia': 'Middle East', 'Jordan': 'Middle East', 'Israel': 'Middle East',
+  // Americas
+  'Haiti': 'Caribbean', 'Mexico': 'Latin America', 'Colombia': 'Latin America',
+  'Venezuela': 'Latin America', 'Brazil': 'Latin America', 'Guyana': 'Latin America',
+  // Asia
+  'Taiwan': 'East Asia', 'Russia': 'Europe',
+}
+
+function scoreDoc(doc, destination, region, queryTokens) {
+  // Tier from doc_tier field: country=1, regional=2, global=3, doctrine=4
+  const tierMap = { country: 1, regional: 2, global: 3, doctrine: 4 }
+  let tier = tierMap[doc.doc_tier] ?? 3
+
+  // Without a destination, country and regional docs are irrelevant — demote to global
+  if (!destination) {
+    if (tier === 1) tier = 3
+    if (tier === 2) tier = 3
+  } else {
+    // Demote country docs that don't match current destination
+    if (tier === 1 && !doc.countries?.includes(destination)) tier = 2
+    // Demote regional docs that don't match current region
+    if (tier === 2 && region && !doc.regions?.includes(region) && !doc.countries?.some(c => DESTINATION_REGION_MAP[c] === region)) tier = 3
+  }
+
+  const tierWeight = { 1: 40, 2: 30, 3: 20, 4: 10 }[tier]
+
+  // Keyword match against tags and threat_categories
+  const docTokens = [
+    ...(doc.tags || []),
+    ...(doc.threat_categories || []),
+    ...(doc.countries || []),
+    ...(doc.regions || []),
+    doc.title || '',
+  ].join(' ').toLowerCase()
+
+  const keywordScore = queryTokens.reduce((acc, t) => acc + (docTokens.includes(t) ? 5 : 0), 0)
+
+  return { doc, tier, score: tierWeight + Math.min(keywordScore, 20) }
+}
+
+function compressDoc(scored) {
+  const { doc, tier, score } = scored
+  const highKeywordHit = score - [0, 40, 30, 20, 10][tier] >= 10
+  // Use full content for tier 1-2, or if strong keyword match
+  const body = (tier <= 2 || highKeywordHit) ? doc.content : doc.summary
+  return `### ${doc.title}\n${body}`
+}
+
+async function buildKnowledgeContext(destination, message = '') {
   try {
-    const { data } = await getSB()
+    const { data: allDocs } = await getSB()
       .from('cairo_knowledge')
-      .select('type, title, content, summary, countries, regions, threat_categories')
+      .select('type, title, content, summary, countries, regions, threat_categories, tags, doc_tier')
       .eq('is_active', true)
-      .or(`countries.cs.{"${destination}"},countries.eq.{}`)
-      .order('type', { ascending: true })
-      .limit(6)
-    return data || []
+      .order('doc_tier', { ascending: true })
+      .limit(60)
+
+    if (!allDocs?.length) return []
+
+    const region      = destination ? DESTINATION_REGION_MAP[destination] : null
+    const queryTokens = message.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).filter(t => t.length > 3)
+
+    const scored = allDocs
+      .map(doc => scoreDoc(doc, destination, region, queryTokens))
+      .sort((a, b) => b.score - a.score)
+
+    // Tier limits: country=5 (highest), regional=3, global=3, doctrine=2 (fallback)
+    const selected    = []
+    const tierCounts  = { 1: 0, 2: 0, 3: 0, 4: 0 }
+    const tierLimits  = { 1: 5, 2: 3, 3: 3, 4: 2 }
+    for (const s of scored) {
+      if (selected.length >= 13) break
+      if (tierCounts[s.tier] < tierLimits[s.tier]) {
+        selected.push(s)
+        tierCounts[s.tier]++
+      }
+    }
+
+    return selected
   } catch {
     return []
   }
+}
+
+function formatKBSection(scored) {
+  if (!scored.length) return ''
+  const byTier = {
+    1: scored.filter(s => s.tier === 1),
+    2: scored.filter(s => s.tier === 2),
+    3: scored.filter(s => s.tier === 3),
+    4: scored.filter(s => s.tier === 4),
+  }
+  const tierLabels = {
+    1: 'COUNTRY-SPECIFIC INTELLIGENCE',
+    2: 'REGIONAL INTELLIGENCE',
+    3: 'GLOBAL STANDARD OPERATING PROCEDURES',
+    4: 'GENERAL DOCTRINE (REFERENCE)',
+  }
+  let out = '\n\n' + '═'.repeat(59) + '\nORGANISATIONAL KNOWLEDGE BASE — TREAT AS AUTHORITATIVE\n' + '═'.repeat(59)
+  for (const tier of [1, 2, 3, 4]) {
+    if (!byTier[tier].length) continue
+    out += `\n\n${tierLabels[tier]}:\n`
+    byTier[tier].forEach(s => { out += '\n' + compressDoc(s) + '\n' })
+  }
+  out += '\n\nApply the above in priority order. Country-specific intelligence takes precedence over regional, which takes precedence over global SOPs, which take precedence over general doctrine. Where SOPs exist for a situation being discussed, reference them explicitly.\n'
+  return out
 }
 
 // ── Phase 3: Operational reasoning — full risk analysis with assembled context ──
@@ -444,23 +559,9 @@ ${contextPackage.formatted || 'CONTEXT ASSEMBLY: Live feeds returned no data for
 
 Analyse the journey using ALL three intelligence layers. Use the ACS score above as your confidence_assessment.overall_confidence baseline. Identify pattern matches, precursor signals, and trajectory direction. Return the full assessment JSON.`
 
-  // Inject knowledge base context
-  const kbDocs = await fetchKnowledgeContext(journey?.destination)
-  let kbSection = ''
-  if (kbDocs.length > 0) {
-    const sops  = kbDocs.filter(d => d.type === 'sop')
-    const cases = kbDocs.filter(d => d.type === 'case')
-    kbSection = '\n\n' + '═'.repeat(59) + '\nORGANISATIONAL KNOWLEDGE BASE — TREAT AS AUTHORITATIVE\n' + '═'.repeat(59)
-    if (sops.length > 0) {
-      kbSection += '\n\nSTANDARD OPERATING PROCEDURES:\n'
-      sops.forEach(d => { kbSection += `\n### ${d.title}\n${d.content}\n` })
-    }
-    if (cases.length > 0) {
-      kbSection += '\n\nPAST CASE STUDIES:\n'
-      cases.forEach(d => { kbSection += `\n### ${d.title}\n${d.content}\n` })
-    }
-    kbSection += '\n\nApply the above doctrine and case learnings to your analysis. Where SOPs exist, reference them explicitly in your recommendations.\n'
-  }
+  // Inject knowledge base context via RAG pipeline
+  const kbScored    = await buildKnowledgeContext(journey?.destination, contextPackage.formatted || '')
+  const kbSection   = formatKBSection(kbScored)
   const systemWithKB = system + kbSection
 
   try {
@@ -568,6 +669,18 @@ SafeGuard360 operates:
 You reason across this assembled intelligence. You are not operating from training data alone.
 
 ════════════════════════════════════════════════════════
+CAIRO'S KNOWLEDGE BASE
+════════════════════════════════════════════════════════
+
+CAIRO has access to an organisational knowledge base containing:
+- Country-specific intelligence reports (current threat environment, incidents, patterns)
+- Regional intelligence summaries (multi-country threat analysis)
+- Operational SOPs: K&R/abduction response, maritime security (RUF), convoy/IED force protection, access control, KRE technology threats
+- Field medical doctrine: first aid protocols, CASEVAC/rescue procedures, tactical medic responsibilities, snakebite/sting treatment, medical threat assessment frameworks
+
+When asked about these topics, draw on the knowledge base content injected into this prompt. Do not deny access to this material. Frame medical and tactical doctrine as operational field references — not clinical advice — and reference the specific SOP or document when you do.
+
+════════════════════════════════════════════════════════
 ABSOLUTE PROHIBITIONS — NEVER SAY THESE
 ════════════════════════════════════════════════════════
 
@@ -660,6 +773,10 @@ WHEN ANALYSIS IS COMPLETE:
 Today: ${today}
 ${contextBlock}${analysisBlock}`
 
+  // Inject KB via RAG pipeline — scored and tiered by geographic specificity
+  const kbScored  = await buildKnowledgeContext(journey?.destination, message)
+  const kbSection = formatKBSection(kbScored)
+
   const apiMessages = [
     ...history.slice(1).map(m => ({
       role: m.role === 'user' ? 'user' : 'assistant',
@@ -668,7 +785,7 @@ ${contextBlock}${analysisBlock}`
     { role: 'user', content: message },
   ]
 
-  return await claudeCall(apiKey, system, apiMessages, 2000)
+  return await claudeCall(apiKey, system + kbSection, apiMessages, 2000)
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -811,6 +928,7 @@ async function _handler(req, res) {
   }
 }
 
+import { emit } from './_telemetry.js'
 import { adapt } from './_adapter.js'
 export const handler = adapt(_handler)
 export default _handler
