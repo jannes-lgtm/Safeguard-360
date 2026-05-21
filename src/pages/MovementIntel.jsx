@@ -32,7 +32,7 @@ const CONG_COLOR = {
   moderate:   '#f97316',
   heavy:      '#ef4444',
   standstill: '#991b1b',
-  unknown:    '#6b7280',
+  unknown:    '#AACC00',
 }
 
 const CONG_LABEL = {
@@ -41,7 +41,7 @@ const CONG_LABEL = {
   moderate:   'MODERATE',
   heavy:      'HEAVY',
   standstill: 'STANDSTILL',
-  unknown:    'NO DATA',
+  unknown:    'MONITORING',
 }
 
 const CONG_ORDER = { standstill: 0, heavy: 1, moderate: 2, low: 3, free: 4, unknown: 5 }
@@ -461,14 +461,14 @@ export default function MovementIntel() {
 
   return (
     <Layout>
-      <div className="flex flex-col" style={{ height: 'calc(100vh - 64px)', margin: '-1rem', overflow: 'hidden' }}>
+      <div className="relative -mx-4 lg:-mx-7" style={{ height: 'calc(100vh - 56px)' }}>
 
         {/* ── Floating top bar ─────────────────────────────────────────────── */}
         <div
           className="absolute z-20 flex items-center gap-2 px-3 py-2 rounded-[10px] shadow-xl"
           style={{
-            top: 76,
-            left: panelOpen ? 'calc(320px + 24px)' : 24,
+            top: 12,
+            left: panelOpen ? 'calc(320px + 12px)' : 12,
             background: 'rgba(15,23,42,0.92)',
             border: '1px solid rgba(255,255,255,0.1)',
             backdropFilter: 'blur(8px)',
@@ -543,7 +543,7 @@ export default function MovementIntel() {
         <div
           className="absolute z-10 flex flex-col"
           style={{
-            top: 64,
+            top: 0,
             left: 0,
             bottom: 0,
             width: 320,
