@@ -1,9 +1,10 @@
 /**
  * GET /api/route-lookup?origin=Nairobi&destination=Mombasa
+ * GET /api/route-lookup?originLat=...&originLon=...&destLat=...&destLon=...
  *
  * Geocodes origin + destination via HERE Geocoding, then fetches
  * traffic-aware travel times from HERE Routing v8 and Google Routes v2
- * in parallel. Returns combined result for the Plan Route UI.
+ * in parallel. Returns combined result including route geometry (GeoJSON).
  */
 
 import { adapt } from './_adapter.js'
@@ -26,6 +27,64 @@ async function sbGet(path) {
   return res.json()
 }
 
+// ── HERE Flexible Polyline decoder ────────────────────────────────────────────
+// Decodes HERE's compact polyline encoding into GeoJSON [lon, lat] coordinate pairs.
+const FP_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+const FP_DECODE   = Object.fromEntries([...FP_ALPHABET].map((c, i) => [c, i]))
+
+function fpUvarint(enc, idx) {
+  let result = 0, shift = 0, i = idx
+  while (i < enc.length) {
+    const val = FP_DECODE[enc[i++]]
+    result |= (val & 0x1f) << shift
+    if (!(val & 0x20)) break
+    shift += 5
+  }
+  return { value: result, next: i }
+}
+
+function fpSigned(raw) {
+  return (raw & 1) ? ~(raw >> 1) : (raw >> 1)
+}
+
+function decodeFlexPolyline(encoded) {
+  if (!encoded) return null
+  try {
+    let idx = 0
+
+    const ver = fpUvarint(encoded, idx)
+    idx = ver.next
+    if (ver.value !== 1) return null
+
+    const hdr = fpUvarint(encoded, idx)
+    idx = hdr.next
+    const precision = hdr.value & 0x0f
+    const thirdDim  = (hdr.value >> 4) & 0x07
+    const factor    = Math.pow(10, precision)
+
+    const coords = []
+    let lat = 0, lon = 0
+
+    while (idx < encoded.length) {
+      const dLat = fpUvarint(encoded, idx); idx = dLat.next
+      lat += fpSigned(dLat.value)
+
+      const dLon = fpUvarint(encoded, idx); idx = dLon.next
+      lon += fpSigned(dLon.value)
+
+      if (thirdDim) {
+        const dZ = fpUvarint(encoded, idx); idx = dZ.next
+      }
+
+      coords.push([lon / factor, lat / factor])
+    }
+
+    return coords.length ? { type: 'LineString', coordinates: coords } : null
+  } catch {
+    return null
+  }
+}
+
 // ── Haversine distance (km) ───────────────────────────────────────────────────
 function haversine(lat1, lon1, lat2, lon2) {
   const R = 6371
@@ -39,7 +98,6 @@ function haversine(lat1, lon1, lat2, lon2) {
 function nearestCorridor(corridors, origin, dest) {
   let best = null, bestScore = Infinity
   for (const c of corridors) {
-    // Score = min distance from our origin to corridor endpoints + same for dest
     const d1 = Math.min(
       haversine(origin.lat, origin.lon, c.origin_lat, c.origin_lon),
       haversine(origin.lat, origin.lon, c.dest_lat,   c.dest_lon)
@@ -56,23 +114,19 @@ function nearestCorridor(corridors, origin, dest) {
 
 // ── Build recommendations from pattern rows ───────────────────────────────────
 function buildRecommendations(patterns) {
-  // Only use slots with at least 2 samples
   const valid = patterns.filter(p => p.sample_count >= 2)
   if (!valid.length) return null
 
-  // Sort by avg_congestion ASC then avg_delay_secs ASC
   const sorted = [...valid].sort((a,b) =>
     a.avg_congestion - b.avg_congestion || a.avg_delay_secs - b.avg_delay_secs
   )
 
-  // Build hour label
   const hourLabel = h => {
     const period = h < 12 ? 'AM' : 'PM'
     const display = h === 0 ? 12 : h > 12 ? h - 12 : h
     return `${display}:00 ${period}`
   }
 
-  // Congestion level label
   const levelLabel = r => {
     if (r >= 0.75) return 'standstill'
     if (r >= 0.40) return 'heavy'
@@ -82,28 +136,30 @@ function buildRecommendations(patterns) {
   }
 
   const best  = sorted.slice(0, 5).map(p => ({
-    day:       DAYS[p.day_of_week],
-    hour:      p.hour_of_day,
-    hourLabel: hourLabel(p.hour_of_day),
+    day:          DAYS[p.day_of_week],
+    hour:         p.hour_of_day,
+    hourLabel:    hourLabel(p.hour_of_day),
     avgDelaySecs: p.avg_delay_secs,
     avgTravelSecs:p.avg_travel_secs,
-    level:     levelLabel(p.avg_congestion),
-    samples:   p.sample_count,
+    level:        levelLabel(p.avg_congestion),
+    samples:      p.sample_count,
   }))
 
   const worst = sorted.slice(-3).reverse().map(p => ({
-    day:       DAYS[p.day_of_week],
-    hour:      p.hour_of_day,
-    hourLabel: hourLabel(p.hour_of_day),
+    day:          DAYS[p.day_of_week],
+    hour:         p.hour_of_day,
+    hourLabel:    hourLabel(p.hour_of_day),
     avgDelaySecs: p.avg_delay_secs,
-    level:     levelLabel(p.avg_congestion),
+    level:        levelLabel(p.avg_congestion),
   }))
 
-  // Build a 7×24 grid for the heatmap (only populated hours)
   const grid = {}
   for (const p of valid) {
-    const key = `${p.day_of_week}_${p.hour_of_day}`
-    grid[key] = { congestion: p.avg_congestion, delay: p.avg_delay_secs, samples: p.sample_count }
+    grid[`${p.day_of_week}_${p.hour_of_day}`] = {
+      congestion: p.avg_congestion,
+      delay:      p.avg_delay_secs,
+      samples:    p.sample_count,
+    }
   }
 
   return { best, worst, grid, totalSamples: valid.reduce((s,p) => s + p.sample_count, 0) }
@@ -127,29 +183,76 @@ async function geocode(query, key) {
   }
 }
 
+// ── HERE Reverse Geocoding ────────────────────────────────────────────────────
+async function reverseGeocode(lat, lon, key) {
+  const url = `https://revgeocode.search.hereapi.com/v1/revgeocode?` +
+    new URLSearchParams({ at: `${lat},${lon}`, limit: 1, apiKey: key })
+  try {
+    const res  = await fetch(url, { signal: AbortSignal.timeout(6000) })
+    if (!res.ok) return { lat, lon, label: `${lat.toFixed(4)}, ${lon.toFixed(4)}`, city: '', country: '' }
+    const data = await res.json()
+    const item = data?.items?.[0]
+    if (!item) return { lat, lon, label: `${lat.toFixed(4)}, ${lon.toFixed(4)}`, city: '', country: '' }
+    return {
+      lat,
+      lon,
+      label:   item.address?.label || `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+      city:    item.address?.city  || item.address?.county || '',
+      country: item.address?.countryName || '',
+    }
+  } catch {
+    return { lat, lon, label: `${lat.toFixed(4)}, ${lon.toFixed(4)}`, city: '', country: '' }
+  }
+}
+
 // ── HERE Routing v8 ───────────────────────────────────────────────────────────
 async function hereRoute(origin, dest, key) {
   const url = `https://router.hereapi.com/v8/routes?` +
     new URLSearchParams({
-      transportMode: 'car',
-      origin:        `${origin.lat},${origin.lon}`,
-      destination:   `${dest.lat},${dest.lon}`,
-      return:        'summary,typicalDuration',
-      apiKey:        key,
+      transportMode:  'car',
+      origin:         `${origin.lat},${origin.lon}`,
+      destination:    `${dest.lat},${dest.lon}`,
+      return:         'summary,typicalDuration,polyline',
+      alternatives:   '2',
+      apiKey:         key,
     })
-  const res     = await fetch(url, { signal: AbortSignal.timeout(10000) })
+  const res  = await fetch(url, { signal: AbortSignal.timeout(12000) })
   if (!res.ok) throw new Error(`HERE routing ${res.status}`)
-  const data    = await res.json()
-  const section = data?.routes?.[0]?.sections?.[0]?.summary
-  if (!section) throw new Error('No HERE route')
+  const data = await res.json()
+  if (!data?.routes?.length) throw new Error('No HERE route')
 
-  const travel   = section.duration     || 0
-  const freeFlow = section.baseDuration || travel
-  const historic = section.typicalDuration || freeFlow
-  const delay    = Math.max(0, travel - freeFlow)
-  const ratio    = freeFlow > 0 ? +(delay / freeFlow).toFixed(2) : 0
+  const routes = data.routes.map((r, idx) => {
+    const section  = r.sections?.[0]
+    const summary  = section?.summary
+    if (!summary) return null
 
-  return { travel, freeFlow, historic, delay, ratio, level: congestionLevel(ratio) }
+    const travel   = summary.duration     || 0
+    const freeFlow = summary.baseDuration || travel
+    const historic = summary.typicalDuration || freeFlow
+    const delay    = Math.max(0, travel - freeFlow)
+    const ratio    = freeFlow > 0 ? +(delay / freeFlow).toFixed(2) : 0
+    const geometry = decodeFlexPolyline(section?.polyline)
+
+    return {
+      index:    idx,
+      travel,
+      freeFlow,
+      historic,
+      delay,
+      ratio,
+      level:    congestionLevel(ratio),
+      geometry,
+      ok:       true,
+    }
+  }).filter(Boolean)
+
+  if (!routes.length) throw new Error('No HERE route data')
+
+  const primary = routes[0]
+  return {
+    ...primary,
+    alternatives: routes.slice(1),
+  }
 }
 
 // ── Google Routes v2 ──────────────────────────────────────────────────────────
@@ -200,22 +303,42 @@ function congestionLevel(ratio) {
 async function _handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { origin: originQ, destination: destQ } = req.query || {}
-  if (!originQ || !destQ) return res.status(400).json({ error: 'origin and destination required' })
+  const {
+    origin: originQ,
+    destination: destQ,
+    originLat, originLon,
+    destLat, destLon,
+  } = req.query || {}
+
+  const hasCoords = originLat && originLon && destLat && destLon
+  const hasText   = originQ && destQ
+  if (!hasCoords && !hasText) {
+    return res.status(400).json({ error: 'Provide (origin + destination) or (originLat + originLon + destLat + destLon)' })
+  }
 
   const HERE   = HERE_KEY()
   const GOOGLE = GOOGLE_KEY()
   if (!HERE) return res.status(503).json({ error: 'HERE_API_KEY not configured' })
 
   try {
-    // Geocode both + load corridors in parallel
-    const [originGeo, destGeo, corridors] = await Promise.all([
-      geocode(originQ, HERE),
-      geocode(destQ,   HERE),
-      sbGet('traffic_corridors?is_active=eq.true&select=id,name,country,origin_lat,origin_lon,dest_lat,dest_lon'),
-    ])
+    let originGeo, destGeo, corridors
 
-    // Route both sources + find nearest corridor + fetch its patterns — all in parallel
+    if (hasCoords) {
+      const oLat = parseFloat(originLat), oLon = parseFloat(originLon)
+      const dLat = parseFloat(destLat),   dLon = parseFloat(destLon)
+      ;[originGeo, destGeo, corridors] = await Promise.all([
+        reverseGeocode(oLat, oLon, HERE),
+        reverseGeocode(dLat, dLon, HERE),
+        sbGet('traffic_corridors?is_active=eq.true&select=id,name,country,origin_lat,origin_lon,dest_lat,dest_lon'),
+      ])
+    } else {
+      ;[originGeo, destGeo, corridors] = await Promise.all([
+        geocode(originQ, HERE),
+        geocode(destQ,   HERE),
+        sbGet('traffic_corridors?is_active=eq.true&select=id,name,country,origin_lat,origin_lon,dest_lat,dest_lon'),
+      ])
+    }
+
     const nearest = Array.isArray(corridors) ? nearestCorridor(corridors, originGeo, destGeo) : null
 
     const [hereResult, googleResult, patterns] = await Promise.allSettled([
@@ -233,14 +356,13 @@ async function _handler(req, res) {
     const google      = googleResult.status === 'fulfilled' ? googleResult.value : null
     if (googleError) console.warn('[route-lookup] Google Routes error:', googleError)
 
-    // Consensus congestion level
     let consensus = here?.level ?? google?.level ?? 'unknown'
     if (here && google && here.level !== google.level) {
       const order = ['free','low','moderate','heavy','standstill']
       consensus = order[Math.max(order.indexOf(here.level), order.indexOf(google.level))]
     }
 
-    const recommendations = Array.isArray(patterns) ? buildRecommendations(patterns) : null
+    const recommendations = Array.isArray(patterns.value) ? buildRecommendations(patterns.value) : null
 
     return res.status(200).json({
       origin:      originGeo,
@@ -248,8 +370,13 @@ async function _handler(req, res) {
       here:        here   ? { ...here,   ok: true } : { ok: false },
       google:      google ? { ...google, ok: true } : { ok: false },
       consensus,
-      distKm:         google?.distKm ?? null,
-      nearestCorridor: nearest ? { id: nearest.id, name: nearest.name, country: nearest.country, proximityKm: nearest.proximityKm } : null,
+      distKm:          google?.distKm ?? null,
+      nearestCorridor: nearest ? {
+        id:          nearest.id,
+        name:        nearest.name,
+        country:     nearest.country,
+        proximityKm: nearest.proximityKm,
+      } : null,
       googleError,
       recommendations,
       generatedAt: new Date().toISOString(),

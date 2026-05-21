@@ -341,9 +341,9 @@ out body;`
   }
 }
 
-// ── Prune snapshots older than 30 days ────────────────────────────────────────
+// ── Prune snapshots older than 90 days ────────────────────────────────────────
 async function pruneOldSnapshots() {
-  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
   await sbFetch(`traffic_snapshots?captured_at=lt.${cutoff}`, {
     method:     'DELETE',
     returnJson: false,

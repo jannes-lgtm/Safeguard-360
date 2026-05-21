@@ -47,6 +47,7 @@ import HealthDeclaration from './pages/HealthDeclaration'
 import OperationalIntel from './pages/OperationalIntel'
 import JourneyAgent from './pages/JourneyAgent'
 import KnowledgeBase from './pages/cairo/KnowledgeBase'
+import MovementIntel from './pages/MovementIntel'
 import WatchBoard from './pages/gsoc/WatchBoard'
 import Projects from './pages/gsoc/Projects'
 import ShiftLog from './pages/gsoc/ShiftLog'
@@ -128,6 +129,7 @@ export default function App() {
         <Route path="/projects"        element={<ProtectedRoute projectsAllowed><ProjectsList /></ProtectedRoute>} />
         <Route path="/projects/:id"    element={<ProtectedRoute projectsAllowed><ProjectDetail /></ProtectedRoute>} />
         <Route path="/cairo/knowledge" element={<ProtectedRoute orgAdminAllowed><KnowledgeBase /></ProtectedRoute>} />
+        <Route path="/movement"        element={<ProtectedRoute><MovementIntel /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

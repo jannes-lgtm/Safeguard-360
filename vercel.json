@@ -48,7 +48,8 @@
     "api/journey-agent.js":         { "maxDuration": 60 },
     "api/ingest-feeds.js":          { "maxDuration": 120 },
     "api/country-risk-warmup.js":  { "maxDuration": 300 },
-    "api/cairo-upload.js":         { "maxDuration": 120 }
+    "api/cairo-upload.js":         { "maxDuration": 120 },
+    "api/traffic-ingest.js":       { "maxDuration": 60 }
   },
   "crons": [
     {
@@ -78,6 +79,10 @@
     {
       "path": "/api/country-risk-warmup",
       "schedule": "5 * * * *"
+    },
+    {
+      "path": "/api/traffic-ingest",
+      "schedule": "*/30 * * * *"
     }
   ],
   "headers": [

@@ -7,6 +7,44 @@
  */
 
 import { parseRssXml } from './_rssParser.js'
+import { createClient } from '@supabase/supabase-js'
+
+// Lazy Supabase client — only created when a knowledge lookup is needed
+let _sb = null
+function getSupabase() {
+  if (_sb) return _sb
+  const url = process.env.SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  _sb = createClient(url, key)
+  return _sb
+}
+
+/**
+ * Pull the most-recent proprietary intelligence reports for a country
+ * from the cairo_knowledge table (type = 'report').
+ * Returns title + summary + first 2000 chars of content for prompt injection.
+ */
+async function fetchKnowledgeReports(country) {
+  try {
+    const sb = getSupabase()
+    if (!sb) return []
+    const { data } = await sb
+      .from('cairo_knowledge')
+      .select('title, summary, content, created_at')
+      .eq('type', 'report')
+      .contains('countries', [country])
+      .order('created_at', { ascending: false })
+      .limit(2)
+    return (data || []).map(r => ({
+      title:   r.title,
+      summary: r.summary || '',
+      excerpt: (r.content || '').slice(0, 2000),
+    }))
+  } catch {
+    return []
+  }
+}
 
 // ── All-source risk feeds (conflict / security / weather + health) ────────────
 // Used by fetchArticlesForCountry() to build a comprehensive intelligence picture.
@@ -201,8 +239,11 @@ export async function comprehensiveRiskScan(country, city, liveData = {}, apiKey
   const { fcdo, gdacs = [], usgs = [], iss, health } = liveData
   const location = city ? `${city}, ${country}` : country
 
-  // Fetch all RSS articles mentioning this country in parallel with the rest
-  const articles = await fetchArticlesForCountry(country, city)
+  // Fetch all RSS articles + proprietary knowledge reports in parallel
+  const [articles, knowledgeReports] = await Promise.all([
+    fetchArticlesForCountry(country, city),
+    fetchKnowledgeReports(country),
+  ])
 
   // Group articles by feed category (max 8 per category for prompt efficiency)
   const byCategory = {}
@@ -241,6 +282,15 @@ export async function comprehensiveRiskScan(country, city, liveData = {}, apiKey
     ? `No country-specific alerts. Global: ${healthRecent.slice(0, 3).map(a => a.title).join('; ')}`
     : 'No recent outbreak data'
 
+  const knowledgeSection = knowledgeReports.length
+    ? `== PROPRIETARY INTELLIGENCE REPORTS (Presight 360 / Alliance International) ==
+${knowledgeReports.map(r =>
+  `[${r.title}]\nSummary: ${r.summary}\n${r.excerpt}`
+).join('\n\n---\n\n')}
+
+`
+    : ''
+
   const prompt = `You are a senior corporate travel security analyst. Analyse ALL available intelligence for ${location} and produce a structured risk assessment for a client travelling to this destination.
 
 == OFFICIAL ADVISORIES ==
@@ -248,7 +298,7 @@ ${fcdoLine}
 Active disasters (GDACS): ${gdacsText}
 Earthquakes M5+ / 7d (USGS): ${usgsText}
 
-== LIVE INTELLIGENCE FEEDS ==
+${knowledgeSection}== LIVE INTELLIGENCE FEEDS ==
 ${catText('conflict', 'Conflict & War news')}
 
 ${catText('security', 'Security analysis')}
@@ -534,6 +584,12 @@ export async function synthesiseBrief(country, city, sources, apiKey) {
     ? `No country-specific alerts. Recent global: ${healthRecent.slice(0, 3).map(a => a.title).join('; ')}`
     : 'No recent outbreak data available'
 
+  // Proprietary knowledge reports
+  const briefReports = await fetchKnowledgeReports(country)
+  const briefKnowledgeSection = briefReports.length
+    ? `\nProprietary reports (Presight 360): ${briefReports.map(r => `[${r.title}] ${r.summary}`).join(' | ')}\n`
+    : ''
+
   const prompt = `You are a corporate travel security analyst briefing a risk manager.
 Analyse live intelligence for ${location} and give a concise assessment.
 
@@ -541,7 +597,7 @@ Advisory: ${fcdoLine}
 Active disasters (GDACS): ${gdacsText}
 Earthquakes M5+ / 7d (USGS): ${usgsText}
 Security news (ISS Africa): ${issText}
-Disease & health outbreaks (WHO/ProMED/PAHO/CIDRAP): ${healthText}
+Disease & health outbreaks (WHO/ProMED/PAHO/CIDRAP): ${healthText}${briefKnowledgeSection}
 
 Respond ONLY with valid JSON, no markdown:
 {"summary":"2-3 sentence executive situation summary including any active health risks","threat_level":"Low|Medium|High|Critical","key_risks":["specific risk 1","specific risk 2","specific risk 3","health/disease risk if relevant"],"recommendations":["actionable rec 1","actionable rec 2","health precaution if relevant"]}`

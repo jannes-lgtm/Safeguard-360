@@ -133,9 +133,14 @@ export async function assembleTrafficContext(journey) {
     const hour   = now.getUTCHours()
     const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
 
+    // "Same time last week" window: ±45 min around exactly 7 days ago
+    const sevenDaysAgo     = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const lastWeekFrom     = new Date(sevenDaysAgo.getTime() - 45 * 60 * 1000).toISOString()
+    const lastWeekTo       = new Date(sevenDaysAgo.getTime() + 45 * 60 * 1000).toISOString()
+
     const corridorData = await Promise.allSettled(
       relevant.map(async (corridor) => {
-        const [snapshots, currentPattern, allPatterns] = await Promise.allSettled([
+        const [snapshots, currentPattern, allPatterns, lastWeekSnaps] = await Promise.allSettled([
           sbQuery(
             `traffic_snapshots?corridor_id=eq.${corridor.id}&captured_at=gte.${cutoff}&order=captured_at.desc&limit=1` +
             `&select=congestion_level,congestion_ratio,travel_time_secs,free_flow_secs,delay_secs,` +
@@ -150,19 +155,27 @@ export async function assembleTrafficContext(journey) {
             `&select=day_of_week,hour_of_day,avg_congestion,avg_delay_secs,avg_travel_secs,sample_count` +
             `&order=avg_congestion.asc`
           ),
+          sbQuery(
+            `traffic_snapshots?corridor_id=eq.${corridor.id}` +
+            `&captured_at=gte.${lastWeekFrom}&captured_at=lte.${lastWeekTo}` +
+            `&order=captured_at.desc&limit=1` +
+            `&select=travel_time_secs,congestion_level,delay_secs,captured_at`
+          ),
         ])
 
-        const snapshot       = snapshots.status      === 'fulfilled' ? snapshots.value?.[0]       : null
-        const pattern        = currentPattern.status === 'fulfilled' ? currentPattern.value?.[0]  : null
-        const patternHistory = allPatterns.status    === 'fulfilled' ? allPatterns.value           : []
+        const snapshot       = snapshots.status       === 'fulfilled' ? snapshots.value?.[0]       : null
+        const pattern        = currentPattern.status  === 'fulfilled' ? currentPattern.value?.[0]  : null
+        const patternHistory = allPatterns.status     === 'fulfilled' ? allPatterns.value           : []
+        const lastWeek       = lastWeekSnaps.status   === 'fulfilled' ? lastWeekSnaps.value?.[0]   : null
 
-        return { corridor, snapshot, pattern, patternHistory }
+        return { corridor, snapshot, pattern, patternHistory, lastWeek }
       })
     )
 
     const enriched = corridorData
       .filter(r => r.status === 'fulfilled' && r.value.snapshot)
       .map(r => r.value)
+
 
     if (enriched.length === 0) return { formatted: null, corridors: [], hasData: false }
 
@@ -177,7 +190,7 @@ export async function assembleTrafficContext(journey) {
 
     const structured = []
 
-    for (const { corridor, snapshot, pattern, patternHistory } of enriched) {
+    for (const { corridor, snapshot, pattern, patternHistory, lastWeek } of enriched) {
       const level    = snapshot.congestion_level || 'unknown'
       const current  = formatMins(snapshot.travel_time_secs)
       const freeFlow = formatMins(snapshot.free_flow_secs)
@@ -211,6 +224,16 @@ export async function assembleTrafficContext(journey) {
         if (gLevel) gLine += ` [${gLevel.toUpperCase()}]`
         if (gDelay && gDelay > 0) gLine += `, ${gDelay}m delay`
         lines.push(gLine)
+      }
+
+      // Same time last week
+      if (lastWeek?.travel_time_secs) {
+        const lwTravel = formatMins(lastWeek.travel_time_secs)
+        const lwDelay  = lastWeek.delay_secs ? `+${Math.round(lastWeek.delay_secs / 60)}m delay` : 'no delay'
+        const lwLevel  = lastWeek.congestion_level ? ` [${lastWeek.congestion_level.toUpperCase()}]` : ''
+        const lwDate   = new Date(lastWeek.captured_at)
+        const lwLabel  = `${DAYS[lwDate.getUTCDay()]} ${hourLabel(lwDate.getUTCHours())}`
+        lines.push(`  ↳ Same time last week (${lwLabel}): ${lwTravel}${lwLevel}, ${lwDelay}`)
       }
 
       // Incidents
@@ -252,6 +275,11 @@ export async function assembleTrafficContext(journey) {
         incidents,
         sample_count:       samples,
         historical:         history,
+        last_week:          lastWeek ? {
+          travel_mins:      Math.round(lastWeek.travel_time_secs / 60),
+          congestion_level: lastWeek.congestion_level,
+          delay_mins:       lastWeek.delay_secs ? Math.round(lastWeek.delay_secs / 60) : 0,
+        } : null,
       })
     }
 

@@ -182,9 +182,16 @@ export default function NewsUpdates() {
               feedCategory:  feed.category,
               feedGeography: feed.geography,
             }))
-            setArticles(prev =>
-              [...prev, ...tagged].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-            )
+            setArticles(prev => {
+              const seen = new Set(prev.map(a => (a.title || '').slice(0, 80).toLowerCase()))
+              const fresh = tagged.filter(a => {
+                const key = (a.title || '').slice(0, 80).toLowerCase()
+                if (seen.has(key)) return false
+                seen.add(key)
+                return true
+              })
+              return [...prev, ...fresh].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+            })
           }
           loadedRef.current.add(feed.id)
           setLoadedCount(loadedRef.current.size)

@@ -99,6 +99,7 @@ function DeveloperNav({ alertCount }) {
       <NavItem to="/intel-feeds"    icon={Radio}        label="Intel Feeds" />
 
       <NavSection label="Operations" />
+      <NavItem to="/movement"       icon={Radar}        label="Movement Intel" />
       <NavItem to="/live-traffic"   icon={Car}          label="Live Traffic" />
       <NavItem to="/projects"       icon={Layers}       label="Projects" />
       <NavItem to="/control-room"   icon={Headphones}   label="Live Control Room" />
@@ -149,6 +150,7 @@ function CorporateAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
       <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
       <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
+      <NavItem to="/movement"       icon={Radar}        label="Movement Intel" />
       <NavItem to="/live-traffic"   icon={Car}          label="Live Traffic" />
 
       <NavSection label="24/7 Support" />
@@ -189,8 +191,9 @@ function OrgAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
       <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
       <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
-
+      <NavItem to="/movement"       icon={Radar}        label="Movement Intel" />
       <NavItem to="/live-traffic"   icon={Car}          label="Live Traffic" />
+
       <NavSection label="24/7 Support" />
       <NavItem to="/crisis-broadcast" icon={Megaphone}   label="Crisis Broadcast" />
       <NavItem to="/control-room"   icon={Headphones}   label="Assistance Requests" />
@@ -219,6 +222,7 @@ function TravellerNav({ alertCount, tripAlertCount }) {
       <NavItem to="/sos"            icon={AlertOctagon} label="SOS Emergency" red />
 
       <NavSection label="Intelligence" />
+      <NavItem to="/movement"       icon={Radar}        label="Movement Intel" />
       <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
 
@@ -316,6 +320,7 @@ function SoloTravellerNav({ alertCount, tripAlertCount }) {
       <NavItem to="/sos"            icon={AlertOctagon} label="SOS Emergency" red />
 
       <NavSection label="Intelligence" />
+      <NavItem to="/movement"       icon={Radar}        label="Movement Intel" />
       <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
 
