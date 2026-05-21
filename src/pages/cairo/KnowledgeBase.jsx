@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import {
   Brain, Plus, Trash2, ToggleLeft, ToggleRight,
   Search, FileText, BookOpen, X, AlertCircle, Loader2,
+  Globe, Upload, File,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../../lib/colors'
@@ -15,18 +16,19 @@ function parseCSV(str) {
 }
 
 function TypeBadge({ type }) {
-  if (type === 'sop') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700">
-        <FileText size={10} />
-        SOP
-      </span>
-    )
-  }
+  if (type === 'sop') return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700">
+      <FileText size={10} />SOP
+    </span>
+  )
+  if (type === 'report') return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-700">
+      <Globe size={10} />REPORT
+    </span>
+  )
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700">
-      <BookOpen size={10} />
-      CASE
+      <BookOpen size={10} />CASE
     </span>
   )
 }
@@ -64,7 +66,7 @@ function Toast({ message, onClose }) {
 // ── Add New Item Modal ────────────────────────────────────────────────────────
 
 const EMPTY_FORM = {
-  type: 'sop',
+  type: 'report',
   title: '',
   content: '',
   countries: '',
@@ -72,47 +74,112 @@ const EMPTY_FORM = {
   threat_categories: '',
   tags: '',
   outcome: '',
-  source_file: '',
+  publisher: '',
+  report_date: '',
 }
 
 function AddModal({ onClose, onSuccess }) {
-  const [form, setForm] = useState(EMPTY_FORM)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [form, setForm]         = useState(EMPTY_FORM)
+  const [pdfFile, setPdfFile]   = useState(null)
+  const [saving, setSaving]     = useState(false)
+  const [uploadStep, setUploadStep] = useState('')
+  const [error, setError]       = useState('')
+  const fileRef                 = useRef()
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleFile = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.type !== 'application/pdf') { setError('Only PDF files are supported.'); return }
+    if (file.size > 20 * 1024 * 1024) { setError('PDF must be under 20 MB.'); return }
+    setPdfFile(file)
     setError('')
+    if (!form.title) set('title', file.name.replace(/\.pdf$/i, '').replace(/[_-]/g, ' '))
+  }
 
+  const toBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result.split(',')[1])
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault()
+    setError('')
     if (!form.title.trim()) { setError('Title is required.'); return }
-    if (!form.content.trim()) { setError('Content is required.'); return }
+    if (!pdfFile && !form.content.trim()) { setError('Upload a PDF or paste content.'); return }
 
     setSaving(true)
-    const payload = {
-      type: form.type,
-      title: form.title.trim(),
-      content: form.content.trim(),
-      countries: parseCSV(form.countries),
-      regions: parseCSV(form.regions),
-      threat_categories: parseCSV(form.threat_categories),
-      tags: parseCSV(form.tags),
-      source_file: form.source_file.trim() || null,
-      is_active: true,
-    }
-    if (form.type === 'case' && form.outcome) {
-      payload.outcome = form.outcome
-    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
 
-    const { error: dbErr } = await supabase.from('cairo_knowledge').insert(payload)
-    setSaving(false)
-    if (dbErr) { setError(dbErr.message); return }
-    onSuccess()
+      if (pdfFile) {
+        // Route through cairo-upload API for PDF extraction
+        setUploadStep('Reading PDF…')
+        const pdf_base64 = await toBase64(pdfFile)
+
+        setUploadStep('Extracting text with AI…')
+        const tagsArr = parseCSV(form.tags)
+        if (form.report_date) tagsArr.push(form.report_date)
+
+        const res = await fetch('/api/cairo-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            type:              form.type,
+            title:             form.title.trim(),
+            pdf_base64,
+            source_file:       form.publisher.trim() || pdfFile.name,
+            countries:         parseCSV(form.countries),
+            regions:           parseCSV(form.regions),
+            threat_categories: parseCSV(form.threat_categories),
+            tags:              tagsArr,
+            outcome:           form.type === 'case' ? form.outcome || null : null,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Upload failed')
+      } else {
+        // Direct Supabase insert for text content
+        setUploadStep('Saving…')
+        const tagsArr = parseCSV(form.tags)
+        if (form.report_date) tagsArr.push(form.report_date)
+
+        const { error: dbErr } = await supabase.from('cairo_knowledge').insert({
+          type:              form.type,
+          title:             form.title.trim(),
+          content:           form.content.trim(),
+          source_file:       form.publisher.trim() || null,
+          countries:         parseCSV(form.countries),
+          regions:           parseCSV(form.regions),
+          threat_categories: parseCSV(form.threat_categories),
+          tags:              tagsArr,
+          outcome:           form.type === 'case' ? form.outcome || null : null,
+          is_active:         true,
+        })
+        if (dbErr) throw new Error(dbErr.message)
+      }
+
+      onSuccess()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+      setUploadStep('')
+    }
   }
 
   const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent'
-  const focusStyle = { '--tw-ring-color': BRAND_BLUE }
+  const labelCls = 'block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide'
+
+  const TYPE_OPTIONS = [
+    { value: 'report', label: 'Country Risk Report', icon: Globe },
+    { value: 'sop',    label: 'SOP',                 icon: FileText },
+    { value: 'case',   label: 'Case Study',           icon: BookOpen },
+  ]
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -121,128 +188,126 @@ function AddModal({ onClose, onSuccess }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Brain size={18} style={{ color: BRAND_BLUE }} />
-            <h2 className="text-base font-bold text-gray-900">Add Knowledge Item</h2>
+            <h2 className="text-base font-bold text-gray-900">Add to Knowledge Base</h2>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
             <X size={18} />
           </button>
         </div>
 
-        {/* Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
 
-          {/* Type */}
+          {/* Type selector */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Type</label>
-            <div className="flex gap-4">
-              {[{ value: 'sop', label: 'SOP' }, { value: 'case', label: 'Case Study' }].map(opt => (
-                <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="type"
-                    value={opt.value}
-                    checked={form.type === opt.value}
-                    onChange={() => set('type', opt.value)}
-                    className="accent-[#0118A1]"
-                  />
-                  <span className="text-sm font-medium text-gray-700">{opt.label}</span>
-                </label>
-              ))}
+            <label className={labelCls}>Type</label>
+            <div className="grid grid-cols-3 gap-2">
+              {TYPE_OPTIONS.map(opt => {
+                const Icon = opt.icon
+                return (
+                  <button key={opt.value} type="button"
+                    onClick={() => set('type', opt.value)}
+                    className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border text-xs font-semibold transition-all
+                      ${form.type === opt.value
+                        ? 'border-[#0118A1] bg-[#0118A1]/5 text-[#0118A1]'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                    <Icon size={16} />
+                    {opt.label}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
-          {/* Title */}
+          {/* PDF upload — shown for all types */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
-              Title <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={e => set('title', e.target.value)}
-              className={inputCls}
-              style={focusStyle}
-              placeholder="e.g. SOP for Medical Evacuation"
-            />
+            <label className={labelCls}>Upload PDF {form.type === 'report' ? '' : '(optional)'}</label>
+            <div
+              onClick={() => fileRef.current?.click()}
+              className={`flex items-center gap-3 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors
+                ${pdfFile ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-gray-300 bg-gray-50'}`}>
+              {pdfFile
+                ? <><File size={16} className="text-green-600 shrink-0" /><span className="text-sm font-medium text-green-700 truncate">{pdfFile.name}</span></>
+                : <><Upload size={16} className="text-gray-400 shrink-0" /><span className="text-sm text-gray-400">Click to upload PDF (max 20 MB)</span></>
+              }
+            </div>
+            <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={handleFile} />
+            {pdfFile && (
+              <button type="button" onClick={() => { setPdfFile(null); if (fileRef.current) fileRef.current.value = '' }}
+                className="text-xs text-red-500 hover:underline mt-1">Remove file</button>
+            )}
           </div>
 
-          {/* Content */}
+          {/* Text content fallback */}
+          {!pdfFile && (
+            <div>
+              <label className={labelCls}>Or paste content {form.type !== 'report' ? <span className="text-red-400">*</span> : ''}</label>
+              <textarea
+                value={form.content}
+                onChange={e => set('content', e.target.value)}
+                className={`${inputCls} resize-y`}
+                rows={5}
+                placeholder="Paste report or document text here…"
+              />
+            </div>
+          )}
+
+          {/* Title */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
-              Content <span className="text-red-400">*</span>
-            </label>
-            <textarea
-              value={form.content}
-              onChange={e => set('content', e.target.value)}
-              className={`${inputCls} resize-y`}
-              rows={6}
-              style={focusStyle}
-              placeholder="Paste document text here..."
-            />
+            <label className={labelCls}>Title <span className="text-red-400">*</span></label>
+            <input type="text" value={form.title} onChange={e => set('title', e.target.value)}
+              className={inputCls} placeholder={form.type === 'report' ? 'e.g. Kenya Country Risk Report Q2 2025' : 'e.g. SOP for Medical Evacuation'} />
           </div>
+
+          {/* Publisher / Source — prominent for reports */}
+          <div>
+            <label className={labelCls}>{form.type === 'report' ? 'Publisher / Source' : 'Source File Name (optional)'}</label>
+            <input type="text" value={form.publisher} onChange={e => set('publisher', e.target.value)}
+              className={inputCls}
+              placeholder={form.type === 'report' ? 'e.g. Control Risks, Stratfor, SafeGuard 360' : 'e.g. medevac_sop_v3.pdf'} />
+          </div>
+
+          {/* Report date — reports only */}
+          {form.type === 'report' && (
+            <div>
+              <label className={labelCls}>Report Date</label>
+              <input type="month" value={form.report_date} onChange={e => set('report_date', e.target.value)}
+                className={inputCls} />
+            </div>
+          )}
 
           {/* Countries */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Countries</label>
-            <input
-              type="text"
-              value={form.countries}
-              onChange={e => set('countries', e.target.value)}
-              className={inputCls}
-              style={focusStyle}
-              placeholder="e.g. Kenya, Somalia"
-            />
+            <label className={labelCls}>Countries</label>
+            <input type="text" value={form.countries} onChange={e => set('countries', e.target.value)}
+              className={inputCls} placeholder="e.g. Kenya, Somalia" />
           </div>
 
           {/* Regions */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Regions</label>
-            <input
-              type="text"
-              value={form.regions}
-              onChange={e => set('regions', e.target.value)}
-              className={inputCls}
-              style={focusStyle}
-              placeholder="e.g. East Africa, Sahel"
-            />
+            <label className={labelCls}>Regions</label>
+            <input type="text" value={form.regions} onChange={e => set('regions', e.target.value)}
+              className={inputCls} placeholder="e.g. East Africa, Sahel" />
           </div>
 
           {/* Threat Categories */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Threat Categories</label>
-            <input
-              type="text"
-              value={form.threat_categories}
-              onChange={e => set('threat_categories', e.target.value)}
-              className={inputCls}
-              style={focusStyle}
-              placeholder="e.g. close protection, kidnap"
-            />
+            <label className={labelCls}>Threat Categories</label>
+            <input type="text" value={form.threat_categories} onChange={e => set('threat_categories', e.target.value)}
+              className={inputCls} placeholder="e.g. kidnap, civil unrest, terrorism" />
           </div>
 
           {/* Tags */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Tags</label>
-            <input
-              type="text"
-              value={form.tags}
-              onChange={e => set('tags', e.target.value)}
-              className={inputCls}
-              style={focusStyle}
-              placeholder="e.g. high-risk, evacuation"
-            />
+            <label className={labelCls}>Tags</label>
+            <input type="text" value={form.tags} onChange={e => set('tags', e.target.value)}
+              className={inputCls} placeholder="e.g. high-risk, Q2-2025" />
           </div>
 
           {/* Outcome — case studies only */}
           {form.type === 'case' && (
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Outcome</label>
-              <select
-                value={form.outcome}
-                onChange={e => set('outcome', e.target.value)}
-                className={inputCls}
-                style={focusStyle}
-              >
+              <label className={labelCls}>Outcome</label>
+              <select value={form.outcome} onChange={e => set('outcome', e.target.value)} className={inputCls}>
                 <option value="">— Select outcome —</option>
                 {['resolved', 'ongoing', 'escalated', 'evacuated', 'other'].map(o => (
                   <option key={o} value={o}>{o.charAt(0).toUpperCase() + o.slice(1)}</option>
@@ -251,45 +316,28 @@ function AddModal({ onClose, onSuccess }) {
             </div>
           )}
 
-          {/* Source file */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Source File Name (optional)</label>
-            <input
-              type="text"
-              value={form.source_file}
-              onChange={e => set('source_file', e.target.value)}
-              className={inputCls}
-              style={focusStyle}
-              placeholder="e.g. medevac_sop_v3.pdf"
-            />
-          </div>
-
           {error && (
             <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              <AlertCircle size={14} />
-              {error}
+              <AlertCircle size={14} />{error}
             </div>
           )}
-        </form>
+        </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-2 transition-opacity disabled:opacity-60"
-            style={{ background: BRAND_BLUE }}
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-            {saving ? 'Saving…' : 'Add Item'}
-          </button>
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-3">
+          {saving && uploadStep && <span className="text-xs text-gray-400 italic">{uploadStep}</span>}
+          <div className="flex gap-3 ml-auto">
+            <button type="button" onClick={onClose}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+              Cancel
+            </button>
+            <button onClick={handleSubmit} disabled={saving}
+              className="px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-2 transition-opacity disabled:opacity-60"
+              style={{ background: BRAND_BLUE }}>
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              {saving ? 'Processing…' : 'Add to CAIRO'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -387,7 +435,7 @@ export default function KnowledgeBase() {
   const [loading, setLoading]     = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [toast, setToast]         = useState('')
-  const [filter, setFilter]       = useState('all')  // all | sop | case
+  const [filter, setFilter]       = useState('all')  // all | report | sop | case
   const [search, setSearch]       = useState('')
 
   // Auth check
@@ -523,9 +571,10 @@ export default function KnowledgeBase() {
         {/* Tabs */}
         <div className="flex gap-1 p-1 bg-gray-100 rounded-lg">
           {[
-            { key: 'all', label: 'All' },
-            { key: 'sop', label: 'SOPs' },
-            { key: 'case', label: 'Cases' },
+            { key: 'all',    label: 'All' },
+            { key: 'report', label: 'Reports' },
+            { key: 'sop',    label: 'SOPs' },
+            { key: 'case',   label: 'Cases' },
           ].map(tab => (
             <button
               key={tab.key}

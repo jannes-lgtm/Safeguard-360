@@ -60,7 +60,7 @@ export default async function handler(req, res) {
   let { content } = req.body
 
   if (!title || !type) return res.status(400).json({ error: 'title and type are required' })
-  if (!['sop', 'case'].includes(type)) return res.status(400).json({ error: 'type must be sop or case' })
+  if (!['sop', 'case', 'report'].includes(type)) return res.status(400).json({ error: 'type must be sop, case or report' })
 
   // ── PDF extraction via Claude ─────────────────────────────────────────────
   if (pdf_base64) {
