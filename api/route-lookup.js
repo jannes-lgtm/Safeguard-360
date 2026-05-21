@@ -310,10 +310,10 @@ async function _handler(req, res) {
     destLat, destLon,
   } = req.query || {}
 
-  const hasCoords = originLat && originLon && destLat && destLon
-  const hasText   = originQ && destQ
-  if (!hasCoords && !hasText) {
-    return res.status(400).json({ error: 'Provide (origin + destination) or (originLat + originLon + destLat + destLon)' })
+  const hasOrigin = originQ || (originLat && originLon)
+  const hasDest   = destQ   || (destLat   && destLon)
+  if (!hasOrigin || !hasDest) {
+    return res.status(400).json({ error: 'origin and destination required' })
   }
 
   const HERE   = HERE_KEY()
@@ -321,23 +321,21 @@ async function _handler(req, res) {
   if (!HERE) return res.status(503).json({ error: 'HERE_API_KEY not configured' })
 
   try {
-    let originGeo, destGeo, corridors
+    // Resolve each endpoint independently — supports mixed text + coordinate inputs
+    const resolveOrigin = (originLat && originLon)
+      ? reverseGeocode(parseFloat(originLat), parseFloat(originLon), HERE)
+      : geocode(originQ, HERE)
 
-    if (hasCoords) {
-      const oLat = parseFloat(originLat), oLon = parseFloat(originLon)
-      const dLat = parseFloat(destLat),   dLon = parseFloat(destLon)
-      ;[originGeo, destGeo, corridors] = await Promise.all([
-        reverseGeocode(oLat, oLon, HERE),
-        reverseGeocode(dLat, dLon, HERE),
-        sbGet('traffic_corridors?is_active=eq.true&select=id,name,country,origin_lat,origin_lon,dest_lat,dest_lon'),
-      ])
-    } else {
-      ;[originGeo, destGeo, corridors] = await Promise.all([
-        geocode(originQ, HERE),
-        geocode(destQ,   HERE),
-        sbGet('traffic_corridors?is_active=eq.true&select=id,name,country,origin_lat,origin_lon,dest_lat,dest_lon'),
-      ])
-    }
+    const resolveDest = (destLat && destLon)
+      ? reverseGeocode(parseFloat(destLat), parseFloat(destLon), HERE)
+      : geocode(destQ, HERE)
+
+    let originGeo, destGeo, corridors
+    ;[originGeo, destGeo, corridors] = await Promise.all([
+      resolveOrigin,
+      resolveDest,
+      sbGet('traffic_corridors?is_active=eq.true&select=id,name,country,origin_lat,origin_lon,dest_lat,dest_lon'),
+    ])
 
     const nearest = Array.isArray(corridors) ? nearestCorridor(corridors, originGeo, destGeo) : null
 
