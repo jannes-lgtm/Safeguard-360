@@ -47,7 +47,8 @@
     "api/chaos-test.js":            { "maxDuration": 90 },
     "api/journey-agent.js":         { "maxDuration": 60 },
     "api/ingest-feeds.js":          { "maxDuration": 120 },
-    "api/country-risk-warmup.js":  { "maxDuration": 300 }
+    "api/country-risk-warmup.js":  { "maxDuration": 300 },
+    "api/cairo-upload.js":         { "maxDuration": 120 }
   },
   "crons": [
     {
