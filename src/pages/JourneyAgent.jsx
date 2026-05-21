@@ -1314,6 +1314,34 @@ export default function JourneyAgent() {
               </div>
             )}
 
+            {/* Suggestion chips — shown when input is empty */}
+            {!input.trim() && messages.length <= 1 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {[
+                  'What are the current security risks in…',
+                  'Plan a safe route from…',
+                  'Health and entry requirements for…',
+                  'Emergency contacts and evacuation options in…',
+                  'Threat level and recent incidents in…',
+                  'What should I know before travelling to…',
+                ].map(chip => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => setInput(chip)}
+                    className="text-[11px] px-3 py-1.5 rounded-full border transition-all hover:opacity-90 active:scale-95 text-left"
+                    style={{
+                      background: 'rgba(170,204,0,0.08)',
+                      border: '1px solid rgba(170,204,0,0.25)',
+                      color: C.textDim,
+                    }}
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Input */}
             <div className="rounded-2xl overflow-hidden"
               style={{ background: C.elevated, border: `1px solid ${C.border}`, boxShadow: '0 0 0 1px rgba(170,204,0,0.06)' }}>

@@ -49,7 +49,8 @@
     "api/ingest-feeds.js":          { "maxDuration": 120 },
     "api/country-risk-warmup.js":  { "maxDuration": 300 },
     "api/cairo-upload.js":         { "maxDuration": 120 },
-    "api/traffic-ingest.js":       { "maxDuration": 60 }
+    "api/traffic-ingest.js":       { "maxDuration": 60 },
+    "api/geocode-suggest.js":      { "maxDuration": 10 }
   },
   "crons": [
     {

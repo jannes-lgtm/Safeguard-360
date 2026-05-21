@@ -6,6 +6,7 @@ import {
   Sparkles, Send, Upload, Plus, X, Edit3, Shield, Compass, Zap,
 } from 'lucide-react'
 import Layout from '../components/Layout'
+import LocationAutocomplete from '../components/LocationAutocomplete'
 import SeverityBadge from '../components/SeverityBadge'
 import FlightStatus from '../components/FlightStatus'
 import CountryRisk from '../components/CountryRisk'
@@ -656,11 +657,11 @@ export default function Itinerary() {
                     </div>
                     <div>
                       <label className={labelCls}>Departure city *</label>
-                      <input className={inputCls} placeholder="e.g. Johannesburg" {...f('departure_city')} required />
+                      <LocationAutocomplete className={inputCls} placeholder="e.g. Johannesburg" {...f('departure_city')} required />
                     </div>
                     <div>
                       <label className={labelCls}>Arrival city *</label>
-                      <input className={inputCls} placeholder="e.g. Lagos" {...f('arrival_city')} required />
+                      <LocationAutocomplete className={inputCls} placeholder="e.g. Lagos" {...f('arrival_city')} required />
                     </div>
                     <div>
                       <label className={labelCls}>Departure date *</label>
@@ -730,7 +731,7 @@ export default function Itinerary() {
                     </div>
                     <div>
                       <label className={labelCls}>City *</label>
-                      <input className={inputCls} placeholder="e.g. Nairobi" {...f('arrival_city')} required />
+                      <LocationAutocomplete className={inputCls} placeholder="e.g. Nairobi" {...f('arrival_city')} required />
                     </div>
                     <div>
                       <label className={labelCls}>Check-in date *</label>
@@ -751,11 +752,11 @@ export default function Itinerary() {
                     </div>
                     <div>
                       <label className={labelCls}>Meeting city *</label>
-                      <input className={inputCls} placeholder="e.g. Accra" {...f('arrival_city')} required />
+                      <LocationAutocomplete className={inputCls} placeholder="e.g. Accra" {...f('arrival_city')} required />
                     </div>
                     <div>
                       <label className={labelCls}>Departure city *</label>
-                      <input className={inputCls} placeholder="e.g. Cape Town" {...f('departure_city')} required />
+                      <LocationAutocomplete className={inputCls} placeholder="e.g. Cape Town" {...f('departure_city')} required />
                     </div>
                     <div>
                       <label className={labelCls}>Meeting date *</label>
@@ -780,11 +781,11 @@ export default function Itinerary() {
                     </div>
                     <div>
                       <label className={labelCls}>Departure city *</label>
-                      <input className={inputCls} placeholder="e.g. Durban" {...f('departure_city')} required />
+                      <LocationAutocomplete className={inputCls} placeholder="e.g. Durban" {...f('departure_city')} required />
                     </div>
                     <div>
                       <label className={labelCls}>Destination city *</label>
-                      <input className={inputCls} placeholder="e.g. Pietermaritzburg" {...f('arrival_city')} required />
+                      <LocationAutocomplete className={inputCls} placeholder="e.g. Pietermaritzburg" {...f('arrival_city')} required />
                     </div>
                     <div>
                       <label className={labelCls}>Departure date *</label>

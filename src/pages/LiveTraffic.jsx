@@ -5,6 +5,7 @@ import {
   TrendingUp, CheckCircle2, Star, ThumbsDown, BarChart2,
 } from 'lucide-react'
 import Layout from '../components/Layout'
+import LocationAutocomplete from '../components/LocationAutocomplete'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE } from '../lib/colors'
 
@@ -261,18 +262,20 @@ function PlanRouteTab() {
         <form onSubmit={lookup} className="space-y-3">
           <div className="flex gap-2 items-center">
             <div className="flex-1 space-y-2">
-              <div className="relative">
-                <MapPin size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0118A1]" />
-                <input value={origin} onChange={e => setOrigin(e.target.value)}
-                  placeholder="Origin — city or address"
-                  className="w-full pl-8 pr-3 py-2.5 text-sm border border-gray-200 rounded-[8px] focus:outline-none focus:border-[#0118A1] placeholder:text-gray-300" />
-              </div>
-              <div className="relative">
-                <Navigation size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input value={dest} onChange={e => setDest(e.target.value)}
-                  placeholder="Destination — city or address"
-                  className="w-full pl-8 pr-3 py-2.5 text-sm border border-gray-200 rounded-[8px] focus:outline-none focus:border-[#0118A1] placeholder:text-gray-300" />
-              </div>
+              <LocationAutocomplete
+                value={origin}
+                onChange={e => setOrigin(e.target.value)}
+                onSelect={item => setOrigin(item.display || item.label)}
+                placeholder="Origin — city or address"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-[8px] focus:outline-none focus:border-[#0118A1] placeholder:text-gray-300"
+              />
+              <LocationAutocomplete
+                value={dest}
+                onChange={e => setDest(e.target.value)}
+                onSelect={item => setDest(item.display || item.label)}
+                placeholder="Destination — city or address"
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-[8px] focus:outline-none focus:border-[#0118A1] placeholder:text-gray-300"
+              />
             </div>
             <button type="button" onClick={swap}
               className="p-2 rounded-[8px] border border-gray-200 text-gray-400 hover:text-[#0118A1] hover:border-[#0118A1] transition-colors shrink-0">

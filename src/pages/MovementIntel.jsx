@@ -22,6 +22,7 @@ import {
   ArrowRight, TrendingUp, Info,
 } from 'lucide-react'
 import Layout from '../components/Layout'
+import LocationAutocomplete from '../components/LocationAutocomplete'
 import { MAP_STYLES, MAP_DEFAULTS } from '../lib/mapConfig'
 import { supabase } from '../lib/supabase'
 
@@ -650,24 +651,19 @@ export default function MovementIntel() {
                 <div>
                   <label className="block text-[10px] font-bold text-white/50 uppercase tracking-wider mb-1.5">
                     Origin
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-green-400 border border-green-300" />
-                    <input
-                      value={routeOrigin}
-                      onChange={e => setRouteOrigin(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && planRoute()}
-                      placeholder="City, address or lat,lon"
-                      className="w-full pl-7 pr-3 py-2.5 rounded-[8px] text-xs text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#AACC00]/50"
-                      style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
-                    />
-                    {geoStatus === 'detecting' && (
-                      <RefreshCw size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 animate-spin" />
-                    )}
                     {geoStatus === 'detected' && (
-                      <LocateFixed size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-400" />
+                      <LocateFixed size={9} className="inline ml-1.5 text-green-400" />
                     )}
-                  </div>
+                  </label>
+                  <LocationAutocomplete
+                    value={routeOrigin}
+                    onChange={e => setRouteOrigin(e.target.value)}
+                    onSelect={item => setRouteOrigin(item.display || item.label)}
+                    placeholder="City, address or lat,lon"
+                    dark
+                    className="w-full px-3 py-2.5 rounded-[8px] text-xs text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#AACC00]/50"
+                    inputStyle={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
+                  />
                 </div>
 
                 {/* Destination field */}
@@ -675,17 +671,15 @@ export default function MovementIntel() {
                   <label className="block text-[10px] font-bold text-white/50 uppercase tracking-wider mb-1.5">
                     Destination
                   </label>
-                  <div className="relative">
-                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-red-400 border border-red-300" />
-                    <input
-                      value={routeDest}
-                      onChange={e => setRouteDest(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && planRoute()}
-                      placeholder="City, address or lat,lon"
-                      className="w-full pl-7 pr-3 py-2.5 rounded-[8px] text-xs text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#AACC00]/50"
-                      style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
-                    />
-                  </div>
+                  <LocationAutocomplete
+                    value={routeDest}
+                    onChange={e => setRouteDest(e.target.value)}
+                    onSelect={item => setRouteDest(item.display || item.label)}
+                    placeholder="City, address or lat,lon"
+                    dark
+                    className="w-full px-3 py-2.5 rounded-[8px] text-xs text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-[#AACC00]/50"
+                    inputStyle={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
+                  />
                 </div>
 
                 {/* Plan button */}
