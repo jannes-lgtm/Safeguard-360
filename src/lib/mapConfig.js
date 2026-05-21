@@ -34,7 +34,7 @@ const CARTO_DARK_STYLE = {
       maxzoom: 19,
     },
   },
-  layers: [{ id: 'carto-dark-tiles', type: 'raster', source: 'carto-dark', paint: { 'raster-opacity': 1 } }],
+  layers: [{ id: 'carto-dark-tiles', type: 'raster', source: 'carto-dark', paint: { 'raster-opacity': 0.78 } }],
 }
 
 const CARTO_LIGHT_STYLE = {

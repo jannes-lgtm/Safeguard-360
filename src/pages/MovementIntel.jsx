@@ -223,7 +223,7 @@ export default function MovementIntel() {
       try {
         const { data: cors } = await supabase
           .from('traffic_corridors')
-          .select('id,name,country,region,origin_name,dest_name,origin_lat,origin_lon,dest_lat,dest_lon,route_type')
+          .select('id,name,country,region,origin_name,dest_name,origin_lat,origin_lon,dest_lat,dest_lon,route_type,route_geometry')
           .eq('is_active', true)
 
         const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
@@ -283,7 +283,7 @@ export default function MovementIntel() {
         const delayMins  = snap?.delay_secs       ? Math.round(snap.delay_secs  / 60)      : 0
         return {
           type: 'Feature',
-          geometry: {
+          geometry: c.route_geometry || {
             type: 'LineString',
             coordinates: [
               [c.origin_lon, c.origin_lat],
