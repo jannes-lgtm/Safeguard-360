@@ -16,19 +16,19 @@ import {
 
 /* ─── Design tokens ────────────────────────────────────────────────── */
 const C = {
-  bg:         '#080C14',
-  surface:    '#0D1220',
-  surfaceHi:  '#111827',
-  border:     'rgba(255,255,255,0.07)',
-  borderHi:   'rgba(255,255,255,0.14)',
-  accent:     '#AACC00',     // brand lime — used sparingly
-  accentDim:  'rgba(170,204,0,0.12)',
-  navy:       '#1E2461',
-  navyMid:    '#253080',
-  textPrimary:'#EEF2FF',
-  textSecond: '#8B9CC8',
-  textMuted:  '#4B5A78',
-  danger:     '#EF4444',
+  bg:         '#090A0C',
+  bgAlt:      '#0C0E12',
+  surface:    '#11131A',
+  surfaceHi:  '#161820',
+  surface2:   '#1C1E28',
+  border:     'rgba(255,255,255,0.06)',
+  borderHi:   'rgba(255,255,255,0.11)',
+  accent:     '#AACC00',
+  accentDim:  'rgba(170,204,0,0.10)',
+  textPrimary:'#EAEEF5',
+  textSecond: '#6E7480',
+  textMuted:  '#3C4050',
+  danger:     '#A83535',
 }
 
 /* ─── Plan data ─────────────────────────────────────────────────────── */
@@ -189,7 +189,7 @@ function EnterpriseModal({ onClose }) {
             </p>
             <button onClick={onClose}
               className="px-5 py-2.5 rounded-[6px] text-sm font-semibold transition-opacity hover:opacity-80"
-              style={{ background: C.navy, color: C.textPrimary }}>
+              style={{ background: C.surface2, color: C.textPrimary }}>
               Close
             </button>
           </div>
@@ -264,7 +264,7 @@ function EnterpriseModal({ onClose }) {
               </button>
               <button type="submit" disabled={loading}
                 className="flex-1 py-2.5 rounded-[6px] text-sm font-bold transition-opacity hover:opacity-90 disabled:opacity-40 flex items-center justify-center gap-2"
-                style={{ background: C.navy, color: C.textPrimary }}>
+                style={{ background: C.surface2, color: C.textPrimary }}>
                 {loading ? 'Sending…' : (<>Submit enquiry <ArrowUpRight size={13}/></>)}
               </button>
             </div>
@@ -287,11 +287,11 @@ function PlanCard({ plan, onEnterprise, onSelect }) {
 
   return (
     <div
-      className="relative flex flex-col rounded-[10px] transition-all duration-200"
+      className="relative flex flex-col transition-all duration-200"
       style={{
-        background:  isAccent ? C.surfaceHi : C.surface,
-        border:      `1px solid ${isAccent ? C.borderHi : C.border}`,
-        boxShadow:   isAccent ? '0 0 0 1px rgba(170,204,0,0.08), 0 8px 32px rgba(0,0,0,0.4)' : '0 2px 12px rgba(0,0,0,0.25)',
+        background: isAccent ? C.surfaceHi : C.surface,
+        border:     `1px solid ${isAccent ? 'rgba(170,204,0,0.2)' : C.border}`,
+        borderTop:  isAccent ? `2px solid ${C.accent}` : `1px solid ${C.border}`,
       }}
     >
       {/* Popular badge */}
@@ -345,10 +345,10 @@ function PlanCard({ plan, onEnterprise, onSelect }) {
         {/* CTA button */}
         <button
           onClick={handleCta}
-          className="w-full py-2.5 rounded-[7px] text-sm font-bold transition-all flex items-center justify-center gap-1.5"
+          className="w-full py-2.5 text-sm font-bold transition-all flex items-center justify-center gap-1.5"
           style={
             isAccent
-              ? { background: C.accent, color: '#080C14' }
+              ? { background: C.accent, color: C.bg, border: 'none' }
               : plan.style === 'dark'
               ? { background: 'rgba(255,255,255,0.06)', color: C.textPrimary, border: `1px solid ${C.borderHi}` }
               : { background: 'transparent', color: C.textPrimary, border: `1px solid ${C.borderHi}` }
@@ -412,36 +412,42 @@ export default function Pricing() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: C.bg, color: C.textPrimary, fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: C.bg, color: C.textPrimary, fontFamily: 'Inter, sans-serif' }}>
 
       {/* ── Navigation ──────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-40"
-        style={{ background: 'rgba(8,12,20,0.92)', backdropFilter: 'blur(12px)', borderBottom: `1px solid ${C.border}` }}>
-        <div className="max-w-6xl mx-auto px-5 sm:px-8 h-14 flex items-center justify-between">
-          {/* Logo */}
-          <button onClick={() => navigate('/login')} className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-[5px] flex items-center justify-center flex-shrink-0"
-              style={{ background: C.navy }}>
-              <Shield size={13} style={{ color: C.accent }} />
-            </div>
-            <span className="font-bold text-sm tracking-tight" style={{ color: C.textPrimary }}>
-              SafeGuard<span style={{ color: C.accent }}>360</span>
-            </span>
+      <nav style={{
+        position: 'sticky', top: 0, zIndex: 40,
+        height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 48px',
+        background: 'rgba(9,10,12,0.95)',
+        backdropFilter: 'blur(16px)',
+        borderBottom: `1px solid ${C.border}`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+          <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            <img src="/logo-white.png" alt="Safeguard" style={{ height: 38, width: 'auto' }} />
           </button>
-
-          {/* Nav links */}
-          <div className="flex items-center gap-1">
-            <button onClick={() => navigate('/login')}
-              className="hidden sm:block text-xs font-medium px-3 py-2 rounded-[5px] transition-opacity hover:opacity-70"
-              style={{ color: C.textSecond }}>
-              Sign in
-            </button>
-            <button onClick={() => navigate('/signup')}
-              className="text-xs font-bold px-4 py-2 rounded-[5px] transition-opacity hover:opacity-85"
-              style={{ background: C.navy, color: C.textPrimary }}>
-              Get started
-            </button>
+          <div style={{ display: 'flex', gap: 28 }}>
+            {['Platform', 'Solutions', 'Intelligence'].map(item => (
+              <button key={item} onClick={() => navigate('/')}
+                style={{ background: 'none', border: 'none', color: C.textSecond, cursor: 'pointer', fontSize: 13, padding: 0 }}
+                onMouseEnter={e => e.currentTarget.style.color = C.textPrimary}
+                onMouseLeave={e => e.currentTarget.style.color = C.textSecond}
+              >{item}</button>
+            ))}
           </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <button onClick={() => navigate('/login')}
+            style={{ background: 'none', border: 'none', color: C.textSecond, cursor: 'pointer', fontSize: 13 }}
+            onMouseEnter={e => e.currentTarget.style.color = C.textPrimary}
+            onMouseLeave={e => e.currentTarget.style.color = C.textSecond}
+          >Log in</button>
+          <button onClick={() => navigate('/signup')} style={{
+            background: C.accent, border: 'none', color: '#090A0C',
+            padding: '8px 20px', fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase',
+          }}>Request Access</button>
         </div>
       </nav>
 
@@ -727,7 +733,7 @@ export default function Pricing() {
             <div className="flex flex-wrap gap-3">
               <button onClick={() => setShowModal(true)}
                 className="flex items-center gap-2 px-5 py-3 rounded-[7px] text-sm font-bold transition-opacity hover:opacity-85"
-                style={{ background: C.navy, color: C.textPrimary }}>
+                style={{ background: C.surface2, color: C.textPrimary }}>
                 Discuss enterprise deployment <ArrowUpRight size={14} />
               </button>
               <a href="mailto:sales@risk360.co"
@@ -784,36 +790,24 @@ export default function Pricing() {
       </section>
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
-      <footer style={{ borderTop: `1px solid ${C.border}`, background: C.surface }}>
-        <div className="max-w-6xl mx-auto px-5 sm:px-8 py-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
-            {/* Logo */}
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-[5px] flex items-center justify-center flex-shrink-0"
-                style={{ background: C.navy }}>
-                <Shield size={13} style={{ color: C.accent }} />
-              </div>
-              <div>
-                <span className="font-bold text-sm" style={{ color: C.textPrimary }}>
-                  SafeGuard<span style={{ color: C.accent }}>360</span>
-                </span>
-                <p className="text-[9px] leading-none mt-0.5" style={{ color: C.textMuted }}>
-                  Operational Travel Risk Management
-                </p>
-              </div>
-            </div>
-
-            {/* Links */}
-            <div className="flex flex-wrap items-center gap-4 text-xs" style={{ color: C.textMuted }}>
-              <button onClick={() => navigate('/terms')}
-                className="hover:opacity-70 transition-opacity">Terms</button>
-              <a href="mailto:sales@risk360.co" className="hover:opacity-70 transition-opacity">Contact</a>
-              <button onClick={() => navigate('/login')}
-                className="hover:opacity-70 transition-opacity">Sign in</button>
-              <span>© {new Date().getFullYear()} SafeGuard360</span>
-            </div>
-          </div>
+      <footer style={{ borderTop: `1px solid ${C.border}`, padding: '32px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <img src="/logo-white.png" alt="Safeguard" style={{ height: 28, width: 'auto', opacity: 0.45 }} />
+        <div style={{ display: 'flex', gap: 28 }}>
+          {[['Terms', '/terms'], ['Contact', null], ['Sign in', '/login']].map(([label, path]) => (
+            path
+              ? <button key={label} onClick={() => navigate(path)}
+                  style={{ background: 'none', border: 'none', fontSize: 11, color: C.textMuted, cursor: 'pointer' }}
+                  onMouseEnter={e => e.currentTarget.style.color = C.textSecond}
+                  onMouseLeave={e => e.currentTarget.style.color = C.textMuted}
+                >{label}</button>
+              : <a key={label} href="mailto:sales@risk360.co"
+                  style={{ fontSize: 11, color: C.textMuted, textDecoration: 'none' }}
+                  onMouseEnter={e => e.currentTarget.style.color = C.textSecond}
+                  onMouseLeave={e => e.currentTarget.style.color = C.textMuted}
+                >{label}</a>
+          ))}
         </div>
+        <span style={{ fontSize: 11, color: C.textMuted }}>© {new Date().getFullYear()} SafeGuard360</span>
       </footer>
 
       {/* Enterprise modal */}

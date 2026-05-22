@@ -8,8 +8,8 @@ export default function MetricCard({ label, value, valueColor = 'text-gray-900',
     <div
       className={`relative rounded-2xl p-5 flex flex-col gap-3 transition-all duration-200 overflow-hidden ${interactive ? 'hover:-translate-y-0.5 hover:shadow-lg cursor-pointer' : ''}`}
       style={{
-        background: dark ? '#111827' : '#FFFFFF',
-        boxShadow: dark ? '0 2px 16px rgba(0,0,0,0.4)' : '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
+        background: dark ? '#11131A' : '#FFFFFF',
+        boxShadow: dark ? '0 1px 3px rgba(0,0,0,0.4)' : '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
         border: dark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.06)',
       }}
     >

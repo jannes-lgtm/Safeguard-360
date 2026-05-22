@@ -30,14 +30,14 @@ function NavItem({ to, icon: Icon, label, badge, red }) {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `relative flex items-center gap-3 px-4 py-2.5 mx-2 rounded-xl text-sm font-medium transition-all duration-150
+        `relative flex items-center gap-3 px-4 py-2.5 mx-2 text-sm font-medium transition-all duration-150
         ${red
           ? isActive
-            ? 'bg-red-500/20 text-red-300'
-            : 'text-red-400/80 hover:bg-red-500/10 hover:text-red-300'
+            ? 'bg-red-500/15 text-red-400'
+            : 'text-red-400/70 hover:bg-red-500/10 hover:text-red-400'
           : isActive
           ? 'text-white'
-          : 'text-white/50 hover:bg-white/6 hover:text-white/80'
+          : 'text-white/40 hover:bg-white/5 hover:text-white/70'
         }`
       }
     >
@@ -350,14 +350,14 @@ function MobileBottomNav({ role, alertCount }) {
     const active = isActive(to)
     return (
       <NavLink to={to} className="flex flex-col items-center justify-center gap-0.5 flex-1 min-w-0 py-2 relative">
-        <span className={`transition-all ${active ? (red ? 'text-red-500' : 'text-[#0118A1]') : 'text-gray-400'}`}>
+        <span style={{ color: active ? (red ? '#ef4444' : BRAND_GREEN) : 'rgba(255,255,255,0.35)', transition: 'color 0.15s' }}>
           <Icon size={22} strokeWidth={active ? 2.5 : 1.8} />
         </span>
-        <span className={`text-[9px] font-semibold tracking-wide leading-none ${active ? (red ? 'text-red-500' : 'text-[#0118A1]') : 'text-gray-400'}`}>
+        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.05em', color: active ? (red ? '#ef4444' : BRAND_GREEN) : 'rgba(255,255,255,0.35)' }}>
           {label}
         </span>
         {active && !red && (
-          <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-[2px] rounded-full" style={{ background: BRAND_BLUE }} />
+          <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-[2px]" style={{ background: BRAND_GREEN }} />
         )}
       </NavLink>
     )
@@ -378,7 +378,7 @@ function MobileBottomNav({ role, alertCount }) {
 
   return (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex items-stretch"
-      style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)', borderTop: '1px solid rgba(0,0,0,0.08)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      style={{ background: 'rgba(12,14,18,0.97)', backdropFilter: 'blur(16px)', borderTop: '1px solid rgba(255,255,255,0.07)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <Item to="/dashboard" icon={LayoutGrid} label="Home" />
       <Item to="/checkin"   icon={CheckCircle} label="Check-in" />
       <SOSButton />
@@ -470,8 +470,8 @@ export default function Layout({ children, dark = false }) {
   const sidebarContent = (
     <>
       {/* Logo */}
-      <div className="px-2 pt-1 pb-0">
-        <img src="/logo-transparent.png" alt="SafeGuard360" className="w-full object-contain" />
+      <div className="px-5 pt-5 pb-3">
+        <img src="/logo-white.png" alt="SafeGuard360" style={{ height: 38, width: 'auto' }} />
       </div>
 
       {/* Divider */}
@@ -479,8 +479,8 @@ export default function Layout({ children, dark = false }) {
 
       {/* Role indicator strip */}
       {profile && (
-        <div className="mx-3 mb-2 px-3 py-1.5 rounded-lg flex items-center gap-2"
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="mx-3 mb-2 px-3 py-1.5 flex items-center gap-2"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
           {role === 'developer'     && <Code2 size={11} style={{ color: roleInfo.color }} />}
           {role === 'admin'         && <Building2 size={11} style={{ color: roleInfo.color }} />}
           {role === 'org_admin'     && <Building2 size={11} style={{ color: roleInfo.color }} />}
@@ -513,11 +513,11 @@ export default function Layout({ children, dark = false }) {
       </nav>
 
       {/* User footer */}
-      <div className="mx-3 mb-3 rounded-xl p-3"
-        style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.09)' }}>
+      <div className="mx-3 mb-3 p-3"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+          <div className="w-8 h-8 flex items-center justify-center text-xs font-bold shrink-0"
+            style={{ background: BRAND_GREEN, color: '#090A0C' }}>
             {initials}
           </div>
           <div className="flex-1 min-w-0">
@@ -537,13 +537,12 @@ export default function Layout({ children, dark = false }) {
   )
 
   const sidebarStyle = {
-    background: 'linear-gradient(180deg, #010e7a 0%, #0118A1 40%, #0118A1 100%)',
+    background: '#0C0E12',
     borderRight: '1px solid rgba(255,255,255,0.06)',
-    boxShadow: '4px 0 24px rgba(1,24,161,0.35)',
   }
 
   return (
-    <div className="flex min-h-screen" style={{ background: dark ? '#090D1A' : '#F0F2F8' }}>
+    <div className="flex min-h-screen" style={{ background: dark ? '#090A0C' : '#0F1117' }}>
 
       {/* ── Desktop sidebar (hidden on mobile) ── */}
       <aside className="hidden lg:flex w-[230px] shrink-0 flex-col fixed top-0 left-0 h-full z-30" style={sidebarStyle}>
@@ -578,13 +577,13 @@ export default function Layout({ children, dark = false }) {
 
       {/* ── Mobile top bar ── */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 h-14"
-        style={{ background: '#0118A1', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-white/10" style={{ color: 'white' }}>
+        style={{ background: '#0C0E12', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-white/10" style={{ color: 'rgba(255,255,255,0.6)' }}>
           <Menu size={22} />
         </button>
-        <img src="/logo-transparent.png" alt="SafeGuard360" className="h-8 object-contain" />
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
-          style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+        <img src="/logo-white.png" alt="SafeGuard360" className="h-9 object-contain" />
+        <div className="w-8 h-8 flex items-center justify-center text-xs font-bold"
+          style={{ background: BRAND_GREEN, color: '#090A0C' }}>
           {initials}
         </div>
       </div>

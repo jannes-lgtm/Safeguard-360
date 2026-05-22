@@ -6,3 +6,4 @@ dist/
 *.env.txt
 flightaware.env.txt
 .vercel
+.env*

@@ -54,6 +54,7 @@ import ShiftLog from './pages/gsoc/ShiftLog'
 import ProjectsList from './pages/projects/ProjectsList'
 import ProjectDetail from './pages/projects/ProjectDetail'
 import ProtectedRoute from './components/ProtectedRoute'
+import Landing from './pages/Landing'
 
 // Listens for auth state changes inside the router context so it can navigate
 function AuthStateWatcher() {
@@ -78,7 +79,7 @@ export default function App() {
     <BrowserRouter>
       <AuthStateWatcher />
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Landing />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />

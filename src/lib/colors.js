@@ -1,5 +1,5 @@
-export const BRAND_BLUE  = '#0118A1'
-export const BRAND_GREEN = '#AACC00'
+export const BRAND_BLUE  = '#090A0C'   // charcoal — replaces old navy blue
+export const BRAND_GREEN = '#AACC00'   // safeguard lime — primary accent
 
 export const RISK_COLORS = {
   Critical: '#ef4444',
