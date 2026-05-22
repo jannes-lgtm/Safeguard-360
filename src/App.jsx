@@ -47,7 +47,7 @@ import OperationalIntel from './pages/OperationalIntel'
 import JourneyAgent from './pages/JourneyAgent'
 import KnowledgeBase from './pages/cairo/KnowledgeBase'
 import MovementIntel from './pages/MovementIntel'
-import LiveIntelFeed from './pages/LiveIntelFeed'
+import LiveRiskFeed from './pages/LiveRiskFeed'
 import WatchBoard from './pages/gsoc/WatchBoard'
 import Projects from './pages/gsoc/Projects'
 import ShiftLog from './pages/gsoc/ShiftLog'
@@ -131,7 +131,9 @@ export default function App() {
         <Route path="/projects/:id"    element={<ProtectedRoute projectsAllowed><ProjectDetail /></ProtectedRoute>} />
         <Route path="/cairo/knowledge" element={<ProtectedRoute orgAdminAllowed><KnowledgeBase /></ProtectedRoute>} />
         <Route path="/movement"        element={<ProtectedRoute><MovementIntel /></ProtectedRoute>} />
-        <Route path="/intel-feed"      element={<ProtectedRoute><LiveIntelFeed /></ProtectedRoute>} />
+        <Route path="/live-risk-feed"   element={<ProtectedRoute><LiveRiskFeed /></ProtectedRoute>} />
+        <Route path="/intel-feed"       element={<Navigate to="/live-risk-feed" replace />} />
+        <Route path="/alerts"           element={<Navigate to="/live-risk-feed" replace />} />
       </Routes>
     </BrowserRouter>
   )
