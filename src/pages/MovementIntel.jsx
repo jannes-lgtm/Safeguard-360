@@ -87,7 +87,8 @@ export default function MovementIntel() {
   const [aoOpen,     setAoOpen]     = useState(false)
 
   const [panelTab,   setPanelTab]   = useState('corridors')
-  const [panelOpen,  setPanelOpen]  = useState(true)
+  const [isMobile,   setIsMobile]   = useState(() => window.innerWidth < 768)
+  const [panelOpen,  setPanelOpen]  = useState(() => window.innerWidth >= 768)
 
   const [showCorridors, setShowCorridors] = useState(true)
   const [showRoute,     setShowRoute]     = useState(true)
@@ -100,6 +101,17 @@ export default function MovementIntel() {
   const [routeResult,  setRouteResult]  = useState(null)
   const [routeLoading, setRouteLoading] = useState(false)
   const [routeError,   setRouteError]   = useState(null)
+
+  // ── Track mobile breakpoint ─────────────────────────────────────────────────
+  useEffect(() => {
+    const fn = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      if (!mobile) setPanelOpen(true)
+    }
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
 
   // ── Init map ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -469,7 +481,7 @@ export default function MovementIntel() {
           className="absolute z-20 flex items-center gap-2 px-3 py-2 rounded-[10px] shadow-xl"
           style={{
             top: 12,
-            left: panelOpen ? 'calc(320px + 12px)' : 12,
+            left: panelOpen && !isMobile ? 'calc(320px + 12px)' : 12,
             background: 'rgba(15,23,42,0.92)',
             border: '1px solid rgba(255,255,255,0.1)',
             backdropFilter: 'blur(8px)',
@@ -547,11 +559,11 @@ export default function MovementIntel() {
             top: 0,
             left: 0,
             bottom: 0,
-            width: 320,
+            width: isMobile ? '100%' : 320,
             background: 'rgba(15,23,42,0.95)',
             borderRight: '1px solid rgba(255,255,255,0.09)',
             backdropFilter: 'blur(12px)',
-            transform: panelOpen ? 'translateX(0)' : 'translateX(-320px)',
+            transform: panelOpen ? 'translateX(0)' : isMobile ? 'translateX(-100%)' : 'translateX(-320px)',
             transition: 'transform 0.22s ease',
           }}
         >
@@ -831,10 +843,11 @@ export default function MovementIntel() {
           style={{
             top: '50%',
             transform: 'translateY(-50%)',
-            left: panelOpen ? 320 : 0,
+            left: panelOpen && !isMobile ? 320 : 0,
             background: 'rgba(15,23,42,0.9)',
             border: '1px solid rgba(255,255,255,0.1)',
-            borderLeft: 'none',
+            borderLeft: panelOpen && isMobile ? '1px solid rgba(255,255,255,0.1)' : 'none',
+            display: panelOpen && isMobile ? 'none' : 'flex',
             transition: 'left 0.22s ease',
           }}
         >
