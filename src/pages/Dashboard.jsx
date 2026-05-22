@@ -904,6 +904,191 @@ function SoloWorldMap({ trips, onCountryClick, T = {} }) {
 }
 
 // ── Live News Feed Widget ──────────────────────────────────────────────────────
+// ── Live Intelligence Widget ───────────────────────────────────────────────────
+const INTEL_REGION = {
+  Nigeria: 'WEST AFRICA', Ghana: 'WEST AFRICA', Senegal: 'WEST AFRICA', Mali: 'WEST AFRICA',
+  'Burkina Faso': 'WEST AFRICA', Niger: 'WEST AFRICA', Cameroon: 'WEST AFRICA',
+  Kenya: 'EAST AFRICA', Ethiopia: 'EAST AFRICA', Somalia: 'EAST AFRICA',
+  Tanzania: 'EAST AFRICA', Uganda: 'EAST AFRICA', Rwanda: 'EAST AFRICA',
+  Sudan: 'EAST AFRICA', Chad: 'EAST AFRICA',
+  'South Africa': 'SOUTHERN AFRICA', Zimbabwe: 'SOUTHERN AFRICA', Mozambique: 'SOUTHERN AFRICA',
+  Libya: 'NORTH AFRICA', Egypt: 'NORTH AFRICA', Tunisia: 'NORTH AFRICA', Algeria: 'NORTH AFRICA',
+  UAE: 'GULF', 'Saudi Arabia': 'GULF', Kuwait: 'GULF', Iraq: 'GULF',
+  Lebanon: 'LEVANT', Yemen: 'LEVANT', Syria: 'LEVANT',
+  Afghanistan: 'CENTRAL ASIA', Pakistan: 'CENTRAL ASIA', Myanmar: 'SOUTHEAST ASIA',
+  'Democratic Republic of Congo': 'CENTRAL AFRICA', Iran: 'MIDDLE EAST',
+}
+
+const INTEL_SEV_STYLE = {
+  5: { bg: 'rgba(168,53,53,0.15)',   color: '#FCA5A5', border: 'rgba(168,53,53,0.30)',   bar: '#EF4444', label: 'CRITICAL' },
+  4: { bg: 'rgba(249,115,22,0.12)',  color: '#FDBA74', border: 'rgba(249,115,22,0.25)',  bar: '#F97316', label: 'HIGH' },
+  3: { bg: 'rgba(234,179,8,0.12)',   color: '#FDE68A', border: 'rgba(234,179,8,0.25)',   bar: '#EAB308', label: 'MEDIUM' },
+  2: { bg: 'rgba(170,204,0,0.08)',   color: '#AACC00', border: 'rgba(170,204,0,0.18)',   bar: '#AACC00', label: 'LOW' },
+  1: { bg: 'rgba(148,163,184,0.08)', color: '#94A3B8', border: 'rgba(148,163,184,0.18)', bar: '#94A3B8', label: 'INFO' },
+}
+
+async function reverseGeocode(lat, lon) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, {
+      headers: { 'Accept-Language': 'en' }, signal: AbortSignal.timeout(4000),
+    })
+    const data = await res.json()
+    return data?.address?.country || null
+  } catch { return null }
+}
+
+function LiveIntelWidget({ trips = [], compact = false }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [locationCountry, setLocationCountry] = useState(null)
+  const [locationAsked, setLocationAsked] = useState(false)
+  const LIMIT = compact ? 4 : 7
+
+  // Derive unique destination countries from booked trips
+  const tripCountries = [...new Set(
+    (trips || []).map(t => cityToCountry(t.arrival_city) || t.arrival_city).filter(Boolean)
+  )]
+
+  // Ask for location once
+  useEffect(() => {
+    if (locationAsked) return
+    setLocationAsked(true)
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        const country = await reverseGeocode(pos.coords.latitude, pos.coords.longitude)
+        if (country) setLocationCountry(country)
+      },
+      () => {}
+    )
+  }, [locationAsked])
+
+  useEffect(() => {
+    const priorityCountries = [...new Set([...tripCountries, locationCountry].filter(Boolean))]
+    const FIELDS = 'id, country, city, severity, movement_impact, raw_title, raw_summary, ingested_at, event_type'
+
+    async function load() {
+      setLoading(true)
+      let priority = [], general = []
+
+      if (priorityCountries.length > 0) {
+        const { data } = await supabase
+          .from('live_intelligence')
+          .select(FIELDS)
+          .eq('is_active', true)
+          .in('country', priorityCountries)
+          .order('severity', { ascending: false })
+          .order('ingested_at', { ascending: false })
+          .limit(Math.ceil(LIMIT * 0.6))
+        priority = data || []
+      }
+
+      const seenCountries = priority.map(r => r.country)
+      const remaining = LIMIT - priority.length
+
+      if (remaining > 0) {
+        let q = supabase
+          .from('live_intelligence')
+          .select(FIELDS)
+          .eq('is_active', true)
+          .order('severity', { ascending: false })
+          .order('ingested_at', { ascending: false })
+          .limit(remaining + seenCountries.length)
+        const { data } = await q
+        general = (data || []).filter(r => !seenCountries.includes(r.country)).slice(0, remaining)
+      }
+
+      setItems([...priority, ...general])
+      setLoading(false)
+    }
+
+    load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationCountry, trips?.length, compact])
+
+  const utc = new Date().toUTCString().slice(17, 25)
+  const contextLabel = tripCountries.length > 0
+    ? `Prioritising: ${tripCountries.slice(0, 2).join(', ')}${tripCountries.length > 2 ? ` +${tripCountries.length - 2}` : ''}`
+    : locationCountry
+      ? `Localised to: ${locationCountry}`
+      : 'Global operational feed'
+
+  return (
+    <div style={{ background: '#11131A', border: '1px solid rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(170,204,0,0.10)' }}>
+            <Radio size={14} style={{ color: BRAND_GREEN }} />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h2 style={{ fontSize: 13, fontWeight: 700, color: '#EAEEF5' }}>Live Intelligence Feed</h2>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, fontWeight: 700, color: BRAND_GREEN, letterSpacing: '0.1em' }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: BRAND_GREEN, display: 'inline-block', animation: 'pulse 2s infinite' }} />
+                LIVE
+              </span>
+            </div>
+            <p style={{ fontSize: 11, color: '#6E7480' }}>{utc} UTC · {contextLabel}</p>
+          </div>
+        </div>
+        <Link to="/alerts" style={{ fontSize: 11, fontWeight: 600, color: BRAND_GREEN, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+          All alerts <ChevronRight size={12} />
+        </Link>
+      </div>
+
+      {/* Items */}
+      {loading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 16 }}>
+          {[1,2,3].map(i => <div key={i} style={{ height: 72, background: 'rgba(255,255,255,0.03)' }} className="animate-pulse" />)}
+        </div>
+      ) : items.length === 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 0', gap: 8 }}>
+          <Radio size={24} style={{ color: '#3C4050' }} />
+          <p style={{ fontSize: 13, color: '#6E7480' }}>Feed updating — check back shortly</p>
+        </div>
+      ) : (
+        <div>
+          {items.map((item, i) => {
+            const sev = INTEL_SEV_STYLE[item.severity] || INTEL_SEV_STYLE[2]
+            const isPriority = tripCountries.includes(item.country) || item.country === locationCountry
+            const region = INTEL_REGION[item.country] || (item.country?.toUpperCase() ?? 'GLOBAL')
+            const location = item.city ? `${item.city}, ${item.country}` : item.country
+            const mins = Math.floor((Date.now() - new Date(item.ingested_at).getTime()) / 60000)
+            const timeStr = mins < 60 ? `${mins}m ago` : `${Math.floor(mins/60)}h ${mins%60}m ago`
+            return (
+              <div key={item.id} style={{
+                padding: '12px 20px',
+                borderBottom: '1px solid rgba(255,255,255,0.04)',
+                background: isPriority ? sev.bg : 'transparent',
+                display: 'flex', gap: 12, alignItems: 'flex-start',
+              }}>
+                <div style={{ width: 3, alignSelf: 'stretch', borderRadius: 2, flexShrink: 0, background: sev.bar }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3, gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: sev.color, textTransform: 'uppercase' }}>{region}</span>
+                      <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.2)' }}>·</span>
+                      <span style={{ fontSize: 9, fontWeight: 600, color: sev.color, textTransform: 'uppercase', padding: '1px 5px', background: sev.bg, border: `1px solid ${sev.border}` }}>{sev.label}</span>
+                      {isPriority && <span style={{ fontSize: 9, fontWeight: 700, color: BRAND_GREEN, padding: '1px 5px', background: 'rgba(170,204,0,0.10)', border: '1px solid rgba(170,204,0,0.20)' }}>YOUR ROUTE</span>}
+                    </div>
+                    <span style={{ fontSize: 9, color: '#3C4050', fontFamily: 'monospace', flexShrink: 0 }}>{timeStr}</span>
+                  </div>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: '#EAEEF5', lineHeight: 1.4, marginBottom: 3 }}>{(item.raw_title || '').slice(0, 80)}</p>
+                  {!compact && item.raw_summary && (
+                    <p style={{ fontSize: 11, color: '#6E7480', lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.raw_summary.slice(0, 160)}</p>
+                  )}
+                  {location && <p style={{ fontSize: 10, color: '#3C4050', marginTop: 3 }}>{location}</p>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const NEWS_FEEDS = ['osac', 'bbc-africa', 'african-arguments', 'iss-africa', 'crisis-group-africa']
 const FEED_LABELS = { osac: 'OSAC', 'bbc-africa': 'BBC Africa', 'african-arguments': 'African Arguments', 'iss-africa': 'ISS Africa', 'crisis-group-africa': 'Crisis Group' }
 
@@ -2178,8 +2363,8 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Latest News Feed */}
-            <LiveNewsFeed />
+            {/* Live Intelligence Feed */}
+            <LiveIntelWidget trips={myTrips} />
           </div>
 
           {/* Latest Check-in Locations */}
@@ -2303,7 +2488,7 @@ export default function Dashboard() {
                 T={T}
               />
               <SoloWorldMap trips={myTrips} onCountryClick={setSelectedCountry} T={T} />
-              <SoloNewsWidget alerts={recentAlerts} hasTrips={myTrips.length > 0} loading={loading} onCountryClick={setSelectedCountry} T={T} />
+              <LiveIntelWidget trips={myTrips} />
             </>
           )}
 
@@ -2411,9 +2596,9 @@ export default function Dashboard() {
       {/* ── BOTTOM PANELS ── */}
       <div className="flex flex-col lg:flex-row gap-5">
 
-        {/* Latest News Feed — shown for travellers */}
+        {/* Live Intelligence Feed — shown for travellers */}
         <div className={`${role === 'traveller' ? 'lg:w-3/5' : 'lg:w-full'} ${(role === 'admin' || role === 'org_admin' || role === 'solo') ? 'hidden' : ''}`}>
-          <LiveNewsFeed compact />
+          <LiveIntelWidget trips={myTrips} compact />
         </div>
 
         {/* Right column — compliance for org travellers */}
