@@ -369,7 +369,7 @@ function QuickActions({ role, hasActiveTrip, dark = false }) {
               to={action.to}
               className="rounded-2xl p-4 flex flex-col gap-3 transition-all duration-200 hover:-translate-y-0.5 group"
               style={{
-                background: dark ? '#111827' : '#FFFFFF',
+                background: dark ? '#11131A' : '#FFFFFF',
                 boxShadow: dark ? '0 2px 16px rgba(0,0,0,0.4)' : '0 1px 3px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.03)',
                 border: dark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.06)',
               }}
@@ -1956,7 +1956,7 @@ export default function Dashboard() {
       {/* ── SOLO: AI assistant at top ── */}
       {role === 'solo' && (
         <div className="mb-7">
-          <DashboardAiChat profile={profile} trips={myTrips} orgName={null} role={role} />
+          <DashboardAiChat profile={profile} trips={myTrips} orgName={null} role={role} dark={dark} />
         </div>
       )}
 
@@ -2273,7 +2273,7 @@ export default function Dashboard() {
           </div>
 
           {/* Quick action shortcuts */}
-          <QuickActions role={role} hasActiveTrip={myTrips.some(t => t.status === 'Active')} />
+          <QuickActions role={role} hasActiveTrip={myTrips.some(t => t.status === 'Active')} dark={dark} />
 
           {/* Training nudge — org travellers only */}
           {role !== 'solo' && !loading && (
