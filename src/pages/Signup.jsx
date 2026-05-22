@@ -185,7 +185,7 @@ export default function Signup() {
       {/* Left column */}
       <div className="hidden md:flex w-1/2 flex-col justify-center px-12 py-16" style={{ background: BRAND_BLUE }}>
         <div className="mb-10">
-          <img src="/logo-transparent.png" alt="SafeGuard360" className="h-14 w-auto" />
+          <img src="/logo-transparent.png" alt="SafeGuard360" className="h-20 w-auto" />
         </div>
         <h1 className="text-white text-4xl font-bold leading-tight mb-4">
           Protecting your people,<br />wherever they are.
@@ -215,7 +215,7 @@ export default function Signup() {
 
           {/* Mobile logo */}
           <div className="flex md:hidden mb-8">
-            <img src="/logo-transparent.png" alt="SafeGuard360" className="h-11 w-auto" />
+            <img src="/logo-transparent.png" alt="SafeGuard360" className="h-14 w-auto" />
           </div>
 
           {/* Tab switcher — only show if no invite token */}
