@@ -149,9 +149,10 @@ export default function MovementIntel() {
     map.on('load', () => {
       // ── Sources ──────────────────────────────────────────────────────────────
       const empty = { type: 'FeatureCollection', features: [] }
-      map.addSource('corridors',      { type: 'geojson', data: empty })
-      map.addSource('route-alt',      { type: 'geojson', data: empty })
-      map.addSource('route-primary',  { type: 'geojson', data: empty })
+      map.addSource('corridors',       { type: 'geojson', data: empty })
+      map.addSource('route-alt',       { type: 'geojson', data: empty })
+      map.addSource('route-primary',   { type: 'geojson', data: empty })
+      map.addSource('route-segments',  { type: 'geojson', data: empty })
 
       // ── Corridor glow (behind main line) ──────────────────────────────────
       map.addLayer({
@@ -186,13 +187,23 @@ export default function MovementIntel() {
         paint: { 'line-color': '#3b82f6', 'line-width': 14, 'line-opacity': 0.18, 'line-blur': 8 },
       })
 
-      // ── Primary route ─────────────────────────────────────────────────────
+      // ── Primary route (fallback blue line) ───────────────────────────────
       map.addLayer({
         id: 'route-primary-line', type: 'line', source: 'route-primary',
         paint: {
           'line-color': '#3b82f6',
           'line-width': ['interpolate', ['linear'], ['zoom'], 3, 3, 8, 5, 12, 7],
           'line-opacity': 0.95,
+        },
+      })
+
+      // ── Risk-coloured route segments (overrides primary when present) ─────
+      map.addLayer({
+        id: 'route-segments-line', type: 'line', source: 'route-segments',
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 3, 3, 8, 5, 12, 7],
+          'line-opacity': 0.97,
         },
       })
 
@@ -358,9 +369,15 @@ export default function MovementIntel() {
     setRouteError(null)
     setRouteResult(null)
 
-    // Remove previous markers
+    // Remove previous markers and clear route layers
     markersRef.current.origin?.remove()
     markersRef.current.dest?.remove()
+    if (mapRef.current?.getSource('route-primary')) {
+      const emptyFC = { type: 'FeatureCollection', features: [] }
+      mapRef.current.getSource('route-primary').setData(emptyFC)
+      mapRef.current.getSource('route-segments').setData(emptyFC)
+      mapRef.current.getSource('route-alt').setData(emptyFC)
+    }
 
     try {
       // Detect if origin looks like coordinates
@@ -391,8 +408,19 @@ export default function MovementIntel() {
 
       const map = mapRef.current
       if (map) {
-        // Primary route geometry
+        // Route geometry — use coloured segments when available, blue fallback otherwise
         if (data.here?.geometry) {
+          if (data.routeSegments) {
+            map.getSource('route-segments').setData(data.routeSegments)
+            map.setPaintProperty('route-primary-line', 'line-opacity', 0.15) // dim fallback; keep glow
+          } else {
+            map.getSource('route-primary').setData({
+              type: 'FeatureCollection',
+              features: [{ type: 'Feature', geometry: data.here.geometry, properties: {} }],
+            })
+            map.setPaintProperty('route-primary-line', 'line-opacity', 0.95)
+          }
+          // Always set primary for glow layer
           map.getSource('route-primary').setData({
             type: 'FeatureCollection',
             features: [{ type: 'Feature', geometry: data.here.geometry, properties: {} }],
@@ -716,149 +744,160 @@ export default function MovementIntel() {
                   </div>
                 )}
 
-                {/* Route result */}
+                {/* ── Operational route result ──────────────────────────── */}
                 {routeResult && !routeError && (
                   <div className="space-y-3">
 
-                    {/* Route header */}
-                    <div className="flex items-center gap-2 text-[10px] text-white/40">
-                      <span className="text-white/70 font-medium truncate">{routeResult.origin?.city || routeResult.origin?.label}</span>
-                      <ArrowRight size={10} className="shrink-0" />
-                      <span className="text-white/70 font-medium truncate">{routeResult.destination?.city || routeResult.destination?.label}</span>
-                    </div>
-
-                    {/* Primary metrics */}
-                    <div
-                      className="rounded-[10px] p-3 space-y-2"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-white/50 font-semibold uppercase tracking-wider">Live conditions</span>
-                        <LevelBadge level={routeResult.consensus} small />
+                    {/* Header: route + exposure status badge */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        <span className="text-[10px] text-white/65 font-medium truncate">
+                          {routeResult.origin?.city || routeResult.origin?.label}
+                        </span>
+                        <ArrowRight size={9} className="shrink-0 text-white/30" />
+                        <span className="text-[10px] text-white/65 font-medium truncate">
+                          {routeResult.destination?.city || routeResult.destination?.label}
+                        </span>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        {routeResult.here?.ok && (
-                          <div>
-                            <div className="text-[9px] text-white/35 uppercase tracking-wide mb-0.5">Travel time</div>
-                            <div className="text-base font-bold text-white">
-                              {fmtMins(routeResult.here.travel) || '—'}
-                            </div>
-                            <div className="text-[9px] text-white/40">
-                              Free-flow: {fmtMins(routeResult.here.freeFlow) || '—'}
-                            </div>
-                          </div>
-                        )}
-                        <div>
-                          <div className="text-[9px] text-white/35 uppercase tracking-wide mb-0.5">Delay</div>
-                          <div className={`text-base font-bold ${routeResult.here?.delay > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                            {routeResult.here?.delay > 0
-                              ? `+${Math.round(routeResult.here.delay / 60)}m`
-                              : 'None'}
-                          </div>
-                          {routeResult.distKm && (
-                            <div className="text-[9px] text-white/40">{routeResult.distKm} km</div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Google corroboration */}
-                      {routeResult.google?.ok && (
-                        <div className="pt-2 border-t border-white/[0.08]">
-                          <div className="text-[9px] text-white/35 mb-1">Google corroboration</div>
-                          <div className="flex items-center gap-3 text-[10px] text-white/60">
-                            <span>{fmtMins(routeResult.google.travel)}</span>
-                            <span className="text-white/30">·</span>
-                            <LevelBadge level={routeResult.google.level} small />
-                          </div>
-                        </div>
+                      {routeResult.exposure && (
+                        <span
+                          className="text-[8px] font-bold px-2 py-0.5 rounded shrink-0 uppercase tracking-wide"
+                          style={{
+                            background: `${routeResult.exposure.color}18`,
+                            color: routeResult.exposure.color,
+                            border: `1px solid ${routeResult.exposure.color}44`,
+                          }}
+                        >
+                          {routeResult.exposure.status}
+                        </span>
                       )}
                     </div>
 
-                    {/* ── Time estimates ────────────────────────────────── */}
-                    {routeResult.timeEstimates && (
-                      <div>
-                        <div className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2">
-                          ETA Estimates
+                    {/* Transit times: Current / Yesterday / No Traffic */}
+                    <div
+                      className="rounded-[10px] p-3"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                    >
+                      <div className="text-[8px] font-bold text-white/30 uppercase tracking-wider mb-2.5">Transit Time</div>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div>
+                          <div className="text-[8px] text-white/35 mb-1">Current</div>
+                          <div className="text-[15px] font-bold text-white leading-none">
+                            {fmtMins(routeResult.here?.travel) || '—'}
+                          </div>
+                          <div className="text-[8px] text-white/25 mt-1">live traffic</div>
                         </div>
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {/* Yesterday same time */}
-                          <div
-                            className="rounded-[8px] p-2 text-center"
-                            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}
-                          >
-                            <div className="text-[8px] text-white/40 mb-1 uppercase tracking-wide">Yesterday</div>
-                            <div className="text-sm font-bold text-white leading-none">
-                              {fmtMins(routeResult.timeEstimates.yesterday) || '—'}
-                            </div>
-                            <div className="text-[8px] text-white/30 mt-1">same time</div>
+                        <div>
+                          <div className="text-[8px] text-white/35 mb-1">Yesterday</div>
+                          <div className="text-[15px] font-bold text-white/60 leading-none">
+                            {fmtMins(routeResult.timeEstimates?.yesterday) || '—'}
                           </div>
-                          {/* Peak traffic */}
-                          <div
-                            className="rounded-[8px] p-2 text-center"
-                            style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)' }}
-                          >
-                            <div className="text-[8px] text-red-400/80 mb-1 uppercase tracking-wide">Peak</div>
-                            <div className="text-sm font-bold text-red-400 leading-none">
-                              {fmtMins(routeResult.timeEstimates.peak) || '—'}
-                            </div>
-                            <div className="text-[8px] text-white/30 mt-1">rush hour</div>
-                          </div>
-                          {/* Free-flow */}
-                          <div
-                            className="rounded-[8px] p-2 text-center"
-                            style={{ background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.18)' }}
-                          >
-                            <div className="text-[8px] text-green-400/80 mb-1 uppercase tracking-wide">No Traffic</div>
-                            <div className="text-sm font-bold text-green-400 leading-none">
-                              {fmtMins(routeResult.timeEstimates.freeFlow) || '—'}
-                            </div>
-                            <div className="text-[8px] text-white/30 mt-1">free-flow</div>
-                          </div>
+                          <div className="text-[8px] text-white/25 mt-1">same time</div>
                         </div>
+                        <div>
+                          <div className="text-[8px] text-white/35 mb-1">No Traffic</div>
+                          <div className="text-[15px] font-bold text-green-400 leading-none">
+                            {fmtMins(routeResult.timeEstimates?.freeFlow ?? routeResult.here?.freeFlow) || '—'}
+                          </div>
+                          <div className="text-[8px] text-white/25 mt-1">free-flow</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-white/[0.06]">
+                        <div className="flex items-center gap-1.5 text-[9px]">
+                          <TrendingUp size={9} className={routeResult.here?.delay > 0 ? 'text-red-400' : 'text-green-400'} />
+                          <span className={routeResult.here?.delay > 0 ? 'text-red-400' : 'text-green-400'}>
+                            {routeResult.here?.delay > 0
+                              ? `+${Math.round(routeResult.here.delay / 60)}m delay`
+                              : 'No delay'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {routeResult.distKm && (
+                            <span className="text-[9px] text-white/30">{routeResult.distKm} km</span>
+                          )}
+                          <LevelBadge level={routeResult.consensus} small />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Exposure level + Safe Corridor + Peak Window */}
+                    {(routeResult.exposure || routeResult.safeCorridor || routeResult.peakWindow) && (
+                      <div
+                        className="rounded-[10px] p-3 space-y-2"
+                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                      >
+                        {routeResult.exposure && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] text-white/35 uppercase tracking-wider font-semibold">Exposure Level</span>
+                            <span className="text-[10px] font-bold" style={{ color: routeResult.exposure.color }}>
+                              {routeResult.exposure.status}
+                            </span>
+                          </div>
+                        )}
+                        {routeResult.safeCorridor && (
+                          <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
+                            <span className="text-[9px] text-white/35 uppercase tracking-wider font-semibold">Corridor Status</span>
+                            <span className="text-[10px] font-bold" style={{ color: routeResult.safeCorridor.color }}>
+                              {routeResult.safeCorridor.label}
+                            </span>
+                          </div>
+                        )}
+                        {routeResult.peakWindow && (
+                          <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
+                            <span className="text-[9px] text-white/35 uppercase tracking-wider font-semibold">Peak Window</span>
+                            <span className="text-[9px] text-white/55">{routeResult.peakWindow}</span>
+                          </div>
+                        )}
+                        {/* Peak rush-hour ETA if available */}
+                        {routeResult.timeEstimates?.peak && (
+                          <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
+                            <span className="text-[9px] text-white/35 uppercase tracking-wider font-semibold">Rush Hour ETA</span>
+                            <span className="text-[10px] font-bold text-red-400">
+                              {fmtMins(routeResult.timeEstimates.peak)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    {/* ── Risks in area ──────────────────────────────────── */}
-                    {((routeResult.routeRisks?.intelligence?.length ?? 0) +
-                      (routeResult.routeRisks?.routeAlerts?.length ?? 0)) > 0 && (
+                    {/* Operational Alerts (proximity-scored, movement-relevant) */}
+                    {routeResult.operationalAlerts?.length > 0 && (
                       <div>
                         <div className="flex items-center gap-1.5 mb-2">
                           <AlertTriangle size={10} className="text-orange-400 shrink-0" />
                           <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
-                            Risks in area
+                            Operational Alerts
+                          </span>
+                          <span
+                            className="ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded-full"
+                            style={{ background: 'rgba(249,115,22,0.15)', color: '#fb923c' }}
+                          >
+                            {routeResult.operationalAlerts.length}
                           </span>
                         </div>
                         <div className="space-y-1.5">
-                          {(routeResult.routeRisks.routeAlerts || []).map((a, i) => (
-                            <div
-                              key={`a${i}`}
-                              className="rounded-[7px] px-2.5 py-2"
-                              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)' }}
-                            >
-                              <div className="text-[10px] font-semibold text-red-300 leading-snug">{a.title}</div>
-                              {a.city && (
-                                <div className="text-[9px] text-white/35 mt-0.5">{a.city}, {a.country}</div>
-                              )}
-                            </div>
-                          ))}
-                          {(routeResult.routeRisks.intelligence || []).slice(0, 4).map((e, i) => {
-                            const sev = e.severity >= 4 ? 'rgba(239,68,68,0.08)' : 'rgba(249,115,22,0.08)'
-                            const sevBorder = e.severity >= 4 ? 'rgba(239,68,68,0.18)' : 'rgba(249,115,22,0.18)'
-                            const sevText = e.severity >= 4 ? '#f87171' : '#fb923c'
+                          {routeResult.operationalAlerts.map((a, i) => {
+                            const sig = a.operationalClass === 'Operationally Significant'
+                            const bg  = sig ? 'rgba(239,68,68,0.08)'  : 'rgba(249,115,22,0.07)'
+                            const bd  = sig ? 'rgba(239,68,68,0.20)'  : 'rgba(249,115,22,0.15)'
+                            const tx  = sig ? '#f87171'               : '#fb923c'
                             return (
-                              <div
-                                key={`i${i}`}
-                                className="rounded-[7px] px-2.5 py-2"
-                                style={{ background: sev, border: `1px solid ${sevBorder}` }}
-                              >
-                                <div className="text-[10px] font-medium leading-snug" style={{ color: sevText }}>
-                                  {e.raw_title}
+                              <div key={i} className="rounded-[7px] px-2.5 py-2"
+                                style={{ background: bg, border: `1px solid ${bd}` }}>
+                                <div className="text-[10px] font-medium leading-snug" style={{ color: tx }}>
+                                  {a.raw_title || a.title}
                                 </div>
-                                <div className="text-[9px] text-white/35 mt-0.5">
-                                  {e.city ? `${e.city}, ` : ''}{e.country}
-                                  {e.movement_impact && e.movement_impact !== 'none' && (
-                                    <span className="ml-1.5 capitalize">{e.movement_impact} impact</span>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  {a.proximityLabel && a.proximityLabel !== 'In Country' && (
+                                    <span className="text-[8px] text-white/40 font-semibold uppercase tracking-wide">
+                                      {a.proximityLabel}
+                                    </span>
+                                  )}
+                                  {a.distKm != null && (
+                                    <span className="text-[8px] text-white/30">{a.distKm} km</span>
+                                  )}
+                                  {a.movement_impact && a.movement_impact !== 'none' && (
+                                    <span className="text-[8px] text-white/35 capitalize">{a.movement_impact} impact</span>
                                   )}
                                 </div>
                               </div>
@@ -868,37 +907,27 @@ export default function MovementIntel() {
                       </div>
                     )}
 
-                    {/* ── Emergency services ─────────────────────────────── */}
+                    {/* Emergency Support */}
                     {routeResult.emergencyServices?.length > 0 && (
                       <div>
                         <div className="flex items-center gap-1.5 mb-2">
                           <Heart size={10} className="text-red-400 shrink-0" />
                           <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
-                            Emergency Services
+                            Emergency Support
                           </span>
                         </div>
-                        <div className="space-y-1">
-                          {routeResult.emergencyServices.map((s, i) => {
+                        <div className="space-y-0.5">
+                          {routeResult.emergencyServices.slice(0, 5).map((s, i) => {
                             const Icon  = s.type === 'hospital' ? Heart : s.type === 'police' ? Shield : Flame
                             const color = s.type === 'hospital' ? '#f87171' : s.type === 'police' ? '#60a5fa' : '#fb923c'
-                            const label = s.type === 'hospital' ? 'Hospital' : s.type === 'police' ? 'Police' : 'Fire Station'
+                            const label = s.type === 'hospital' ? 'Hospital' : s.type === 'police' ? 'Police' : 'Fire'
                             return (
-                              <div key={i} className="flex items-center gap-2 py-1.5 border-b border-white/[0.06] last:border-0">
-                                <Icon size={10} style={{ color }} className="shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="text-[10px] text-white/70 truncate">
-                                    {s.name || label}
-                                  </div>
-                                  {!s.name && (
-                                    <div className="text-[9px] text-white/30">{label}</div>
-                                  )}
-                                </div>
-                                <span
-                                  className="text-[8px] px-1.5 py-0.5 rounded-full shrink-0"
-                                  style={{ background: `${color}18`, color, border: `1px solid ${color}33` }}
-                                >
-                                  {label}
+                              <div key={i} className="flex items-center gap-2 py-1 border-b border-white/[0.05] last:border-0">
+                                <Icon size={9} style={{ color }} className="shrink-0" />
+                                <span className="text-[10px] text-white/60 truncate flex-1">
+                                  {s.name || label}
                                 </span>
+                                <span className="text-[8px] shrink-0" style={{ color: `${color}99` }}>{label}</span>
                               </div>
                             )
                           })}
@@ -906,32 +935,28 @@ export default function MovementIntel() {
                       </div>
                     )}
 
-                    {/* Nearest corridor */}
+                    {/* Secondary: nearest corridor */}
                     {routeResult.nearestCorridor && (
-                      <div
-                        className="rounded-[8px] p-2.5 flex items-start gap-2"
-                        style={{ background: 'rgba(170,204,0,0.07)', border: '1px solid rgba(170,204,0,0.2)' }}
-                      >
-                        <Info size={11} className="text-[#AACC00] shrink-0 mt-0.5" />
-                        <div className="text-[10px] text-white/60 leading-relaxed">
-                          Nearest monitored corridor: <span className="text-white/80 font-medium">{routeResult.nearestCorridor.name}</span>
-                          {' '}({routeResult.nearestCorridor.proximityKm} km proximity)
+                      <div className="rounded-[7px] p-2.5 flex items-start gap-2"
+                        style={{ background: 'rgba(170,204,0,0.06)', border: '1px solid rgba(170,204,0,0.15)' }}>
+                        <Info size={10} className="text-[#AACC00] shrink-0 mt-0.5" />
+                        <div className="text-[9px] text-white/45 leading-relaxed">
+                          Nearest corridor: <span className="text-white/65">{routeResult.nearestCorridor.name}</span>
+                          {' '}({routeResult.nearestCorridor.proximityKm} km)
                         </div>
                       </div>
                     )}
 
-                    {/* Best travel windows */}
+                    {/* Secondary: historical best windows */}
                     {routeResult.recommendations?.best?.length > 0 && (
                       <div>
-                        <div className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5">
-                          Historical best times
-                        </div>
+                        <div className="text-[9px] font-bold text-white/25 uppercase tracking-wider mb-1.5">Best Travel Windows</div>
                         {routeResult.recommendations.best.slice(0, 3).map((b, i) => (
-                          <div key={i} className="flex items-center justify-between py-1.5 border-b border-white/[0.06] last:border-0">
-                            <span className="text-[10px] text-white/60">{b.day} {b.hourLabel}</span>
+                          <div key={i} className="flex items-center justify-between py-1 border-b border-white/[0.05] last:border-0">
+                            <span className="text-[9px] text-white/45">{b.day} {b.hourLabel}</span>
                             <div className="flex items-center gap-2">
                               {b.avgTravelSecs && (
-                                <span className="text-[10px] text-white/50">{Math.round(b.avgTravelSecs/60)}m</span>
+                                <span className="text-[9px] text-white/35">{Math.round(b.avgTravelSecs / 60)}m</span>
                               )}
                               <LevelBadge level={b.level} small />
                             </div>
@@ -940,13 +965,22 @@ export default function MovementIntel() {
                       </div>
                     )}
 
-                    {/* Alternates notice */}
-                    {routeResult.here?.alternatives?.length > 0 && (
-                      <div className="text-[10px] text-white/35 flex items-center gap-1.5">
-                        <Route size={9} />
-                        {routeResult.here.alternatives.length} alternate route{routeResult.here.alternatives.length > 1 ? 's' : ''} shown on map (dashed)
-                      </div>
-                    )}
+                    {/* Secondary: alternates + Google corroboration */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {routeResult.here?.alternatives?.length > 0 && (
+                        <span className="text-[9px] text-white/25 flex items-center gap-1">
+                          <Route size={9} />
+                          {routeResult.here.alternatives.length} alternate{routeResult.here.alternatives.length > 1 ? 's' : ''} (dashed)
+                        </span>
+                      )}
+                      {routeResult.google?.ok && (
+                        <span className="text-[9px] text-white/25 flex items-center gap-1.5">
+                          Google: {fmtMins(routeResult.google.travel)}
+                          <LevelBadge level={routeResult.google.level} small />
+                        </span>
+                      )}
+                    </div>
+
                   </div>
                 )}
               </div>
