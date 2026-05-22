@@ -126,10 +126,36 @@ function scoreEventProximity(event, routeCoords) {
   return { ...event, distKm: dist, _lat: cLat, _lon: cLon, proximityScore: score, proximityLabel: label }
 }
 
+// Event types that can directly affect movement operations
+const OP_TYPES = new Set([
+  'terrorism', 'kidnap_ransom', 'armed_conflict', 'civil_unrest',
+  'aviation_disruption', 'border_closure', 'infrastructure',
+  'weather_disaster', 'major_event', 'health_emergency',
+])
+
 function classifyOperationalImpact(event) {
   const mi = event.movement_impact
-  if (mi === 'severe' || mi === 'significant' || event.severity >= 4) return 'Operationally Significant'
-  if (mi === 'moderate' || event.severity === 3)                       return 'Monitoring'
+
+  // Platform alerts (alerts table — no event_type, text severity field)
+  if (!event.event_type) {
+    const sev = String(event.severity || '').toLowerCase()
+    if (sev === 'critical' || sev === 'high') return 'Operationally Significant'
+    if (sev === 'medium')                      return 'Monitoring'
+    return 'Informational'
+  }
+
+  // Live intelligence — movement impact is the primary signal
+  if (mi === 'severe' || mi === 'significant') return 'Operationally Significant'
+  if (mi === 'moderate')                        return 'Monitoring'
+
+  // High severity only actionable when the event TYPE is movement-relevant.
+  // Prevents words like "critical"/"killed" in unrelated headlines (defense,
+  // geopolitics) from escalating non-operational articles.
+  if (OP_TYPES.has(event.event_type)) {
+    if (event.severity >= 4) return 'Operationally Significant'
+    if (event.severity >= 3) return 'Monitoring'
+  }
+
   return 'Informational'
 }
 
@@ -647,9 +673,18 @@ async function _handler(req, res) {
     const routeSegments = computeRouteSegments(routeCoords, scoredIntel)
     const peakWindow  = computePeakWindow(recommendations)
 
-    // Operational alerts: proximity-relevant, movement-affecting — max 5
+    // Operational alerts: proximity-filtered, movement-relevant only
+    // Monitoring-class events require Corridor proximity (≤25km) to avoid country-level noise.
+    // Operationally Significant events require at least Area proximity (≤50km).
     const operationalAlerts = allEvents
-      .filter(e => (e.proximityScore ?? 0) >= 1 && classifyOperationalImpact(e) !== 'Informational')
+      .filter(e => {
+        const oc   = classifyOperationalImpact(e)
+        const prox = e.proximityScore ?? 0
+        if (oc === 'Informational')              return false
+        if (oc === 'Monitoring'                && prox < 2) return false  // must be ≤25km
+        if (oc === 'Operationally Significant' && prox < 1) return false  // must be at least Area
+        return true
+      })
       .slice(0, 5)
       .map(({ _lat, _lon, ...e }) => ({ ...e, operationalClass: classifyOperationalImpact(e) }))
 
