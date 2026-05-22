@@ -471,7 +471,7 @@ export default function Layout({ children, dark = false }) {
     <>
       {/* Logo */}
       <div className="px-5 pt-5 pb-3">
-        <img src="/logo-white.png" alt="SafeGuard360" style={{ height: 38, width: 'auto' }} />
+        <img src="/logo-white.png" alt="SafeGuard360" style={{ height: 46, width: 'auto' }} />
       </div>
 
       {/* Divider */}
@@ -581,7 +581,7 @@ export default function Layout({ children, dark = false }) {
         <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-white/10" style={{ color: 'rgba(255,255,255,0.6)' }}>
           <Menu size={22} />
         </button>
-        <img src="/logo-white.png" alt="SafeGuard360" className="h-9 object-contain" />
+        <img src="/logo-white.png" alt="SafeGuard360" className="h-11 object-contain" />
         <div className="w-8 h-8 flex items-center justify-center text-xs font-bold"
           style={{ background: BRAND_GREEN, color: '#090A0C' }}>
           {initials}

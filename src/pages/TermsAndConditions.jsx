@@ -110,7 +110,7 @@ export default function TermsAndConditions() {
         <div className="rounded-2xl text-white p-6 mb-4"
           style={{ background: `linear-gradient(135deg, ${BRAND_BLUE} 0%, #0a24cc 100%)` }}>
           <div className="flex items-center gap-3 mb-2">
-            <img src="/logo-transparent.png" alt="SafeGuard360" className="h-10 object-contain" />
+            <img src="/logo-white.png" alt="SafeGuard360" className="h-12 object-contain" />
           </div>
           <h1 className="text-xl font-bold mb-1">Terms of Service & Privacy Policy</h1>
           <p className="text-sm text-white/70">

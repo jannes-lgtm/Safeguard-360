@@ -67,7 +67,7 @@ export default function Login() {
         <style>{`.md-left-panel { display: none } @media (min-width: 768px) { .md-left-panel { display: flex !important } }`}</style>
 
         <Link to="/" style={{ display: 'inline-block', marginBottom: 48 }}>
-          <img src="/logo-white.png" alt="SafeGuard360" style={{ height: 44, width: 'auto' }} />
+          <img src="/logo-white.png" alt="SafeGuard360" style={{ height: 52, width: 'auto' }} />
         </Link>
 
         <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: C.textMuted, textTransform: 'uppercase', marginBottom: 20 }}>
@@ -111,7 +111,7 @@ export default function Login() {
           {/* Mobile logo */}
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 36 }} className="mobile-logo">
             <style>{`.mobile-logo { display: flex } @media (min-width: 768px) { .mobile-logo { display: none } }`}</style>
-            <img src="/logo-white.png" alt="SafeGuard360" style={{ height: 38, width: 'auto' }} />
+            <img src="/logo-white.png" alt="SafeGuard360" style={{ height: 44, width: 'auto' }} />
           </div>
 
           <div style={{ marginBottom: 32 }}>

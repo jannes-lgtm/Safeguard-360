@@ -49,11 +49,11 @@ export default function PendingApproval() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#F0F2F8' }}>
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#090A0C' }}>
       <div className="w-full max-w-md">
 
         <div className="flex justify-center mb-8">
-          <img src="/logo-colour.png" alt="SafeGuard360" className="h-10 w-auto" />
+          <img src="/logo-white.png" alt="SafeGuard360" className="h-12 w-auto" />
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

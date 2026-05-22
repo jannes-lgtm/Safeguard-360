@@ -247,7 +247,7 @@ export default function OrgOnboarding() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center gap-3">
-        <img src="/logo-colour.png" alt="SafeGuard360" className="h-8 w-auto" />
+        <img src="/logo-white.png" alt="SafeGuard360" className="h-11 w-auto" />
         <span className="text-sm text-gray-400 font-medium">Organisation Setup</span>
       </div>
 

@@ -341,13 +341,13 @@ export default function Onboarding() {
   const pct = Math.round((step / totalSteps) * 100)
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#F0F2F8' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: '#090A0C' }}>
 
       {/* Top bar */}
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-100 px-4 py-3">
+      <div className="sticky top-0 z-20 px-4 py-3" style={{ background: '#0C0E12', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-3">
-            <img src="/logo-colour.png" alt="SafeGuard360" className="h-7 w-auto" />
+            <img src="/logo-white.png" alt="SafeGuard360" className="h-10 w-auto" />
             <div className="text-right">
               <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: BRAND_BLUE }}>
                 {stepLabel(currentStepId)}
