@@ -404,12 +404,12 @@ async function hereRouteSummary(origin, dest, key, departureTime) {
 
 // ── Emergency services via Overpass API ───────────────────────────────────────
 async function queryEmergencyServices(minLat, maxLat, minLon, maxLon) {
-  const q = `[out:json][timeout:7];(node["amenity"~"^(hospital|police|fire_station)$"](${minLat},${minLon},${maxLat},${maxLon});way["amenity"~"^(hospital|police|fire_station)$"](${minLat},${minLon},${maxLat},${maxLon}););out center 20;`
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
+  const q = `[out:json][timeout:10];(node["amenity"~"^(hospital|police|fire_station)$"](${minLat},${minLon},${maxLat},${maxLon});way["amenity"~"^(hospital|police|fire_station)$"](${minLat},${minLon},${maxLat},${maxLon}););out center 20;`
+  const res = await fetch('https://overpass.kumi.systems/api/interpreter', {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body:    `data=${encodeURIComponent(q)}`,
-    signal:  AbortSignal.timeout(9000),
+    signal:  AbortSignal.timeout(12000),
   })
   if (!res.ok) throw new Error(`Overpass ${res.status}`)
   const data = await res.json()
