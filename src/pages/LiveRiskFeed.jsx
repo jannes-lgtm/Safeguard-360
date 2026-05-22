@@ -63,6 +63,15 @@ async function reverseGeocode(lat, lon) {
   } catch { return null }
 }
 
+function stripHtml(str) {
+  if (!str) return ''
+  return str
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/\s{2,}/g, ' ').trim()
+}
+
 function timeAgo(iso) {
   if (!iso) return ''
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
@@ -321,10 +330,10 @@ export default function LiveRiskFeed() {
                       <span style={{ fontSize: 10, color: '#3C4050', fontFamily: 'monospace', flexShrink: 0 }}>{timeAgo(item._ts)}</span>
                     </div>
                     {/* Title */}
-                    <p style={{ fontSize: 13, fontWeight: 700, color: '#EAEEF5', lineHeight: 1.4, marginBottom: 5 }}>{item.raw_title}</p>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: '#EAEEF5', lineHeight: 1.4, marginBottom: 5 }}>{stripHtml(item.raw_title)}</p>
                     {/* Body */}
                     {item.raw_summary && (
-                      <p style={{ fontSize: 12, color: '#6E7480', lineHeight: 1.6, marginBottom: 6 }}>{item.raw_summary.slice(0, 220)}</p>
+                      <p style={{ fontSize: 12, color: '#6E7480', lineHeight: 1.6, marginBottom: 6 }}>{stripHtml(item.raw_summary).slice(0, 220)}</p>
                     )}
                     {/* Footer */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

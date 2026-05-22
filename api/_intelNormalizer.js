@@ -31,6 +31,15 @@ import { getSourceTier, computeSourceReliability } from './_sourceWeights.js'
 
 // ── Event type classifiers ─────────────────────────────────────────────────────
 // Ordered: more specific types first
+function stripHtml(str) {
+  if (!str) return ''
+  return str
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/\s{2,}/g, ' ').trim()
+}
+
 const EVENT_CLASSIFIERS = [
   {
     // Major events: operationally significant even when non-threatening.
@@ -253,8 +262,8 @@ export function normalizeArticle(article, country, ageHours = 0) {
     source_tier:         sourceTier,
     movement_impact:     movementImpact,
     affected_routes:     [],
-    raw_title:           (article.title || '').slice(0, 250),
-    raw_summary:         text.slice(0, 500),
+    raw_title:           stripHtml(article.title || '').slice(0, 250),
+    raw_summary:         stripHtml(text).slice(0, 500),
     source_name:         article.feedName || article.source || 'Unknown',
     source_url:          article.url || article.link || null,
     event_timestamp:     article.pubDate
