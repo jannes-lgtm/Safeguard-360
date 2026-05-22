@@ -101,7 +101,10 @@ const EVENT_CLASSIFIERS = [
     keywords: ['power outage', 'blackout', 'loadshedding', 'load shedding',
       'fuel shortage', 'fuel crisis', 'road closed', 'bridge collapse',
       'flooding road', 'infrastructure failure', 'power grid',
-      'water shortage', 'telecoms outage', 'internet shutdown', 'network down'],
+      'water shortage', 'telecoms outage', 'internet shutdown', 'network down',
+      'internet disruption', 'internet cut', 'internet blocked', 'network disruption',
+      'social media blocked', 'platforms blocked', 'connectivity disruption',
+      'netblocks', 'network data confirm'],
   },
   {
     type: 'economic',

@@ -85,6 +85,7 @@ const ALL_RISK_FEEDS = [
   // Economic & infrastructure
   { url: 'https://tradingeconomics.com/feed.xml',                                 name: 'Trading Economics',    category: 'economic'      },
   { url: 'https://www.power-technology.com/feed/',                                name: 'Power Tech',           category: 'infrastructure'},
+  { url: 'https://netblocks.org/feed',                                            name: 'NetBlocks',            category: 'infrastructure'},
   // Aviation
   { url: 'https://aviapages.com/feed/incidents',                                  name: 'AviPages',             category: 'aviation'      },
   // Health / disease outbreaks
