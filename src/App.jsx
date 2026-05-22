@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import { useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import { log } from './lib/logger'
-import Pricing from './pages/Pricing'
 import Billing from './pages/Billing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -80,7 +79,7 @@ export default function App() {
       <AuthStateWatcher />
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/pricing" element={<Navigate to="/" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/pending-approval" element={<PendingApproval />} />

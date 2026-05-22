@@ -126,9 +126,8 @@ function Nav({ scrolled }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
         <img src="/logo-white.png" alt="Safeguard" style={{ height: 38, width: 'auto' }} />
         <div style={{ display: 'flex', gap: 28 }}>
-          {['Platform', 'Solutions', 'Intelligence', 'Pricing'].map(item => (
+          {['Platform', 'Solutions', 'Intelligence'].map(item => (
             <button key={item}
-              onClick={() => item === 'Pricing' && navigate('/pricing')}
               style={{ background: 'none', border: 'none', color: C.textSub, cursor: 'pointer', fontSize: 13, padding: 0, letterSpacing: '0.01em' }}
               onMouseEnter={e => e.currentTarget.style.color = C.text}
               onMouseLeave={e => e.currentTarget.style.color = C.textSub}
@@ -520,12 +519,6 @@ export default function Landing() {
             }}>
               Request Access <ArrowRight size={13} />
             </button>
-            <Link to="/pricing" style={{
-              background: 'transparent', border: `1px solid ${C.border}`,
-              color: C.textSub, padding: '14px 32px', fontSize: 12,
-              fontWeight: 500, letterSpacing: '0.04em', textDecoration: 'none',
-              display: 'inline-flex', alignItems: 'center',
-            }}>View Plans</Link>
           </div>
         </div>
       </section>
