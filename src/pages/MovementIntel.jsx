@@ -19,7 +19,7 @@ import {
   Navigation, MapPin, Route, ChevronDown,
   Layers, RefreshCw, X, ChevronLeft, ChevronRight,
   AlertTriangle, Clock, Search, LocateFixed,
-  ArrowRight, TrendingUp, Info,
+  ArrowRight, TrendingUp, Info, Heart, Shield, Flame,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import LocationAutocomplete from '../components/LocationAutocomplete'
@@ -774,6 +774,137 @@ export default function MovementIntel() {
                         </div>
                       )}
                     </div>
+
+                    {/* ── Time estimates ────────────────────────────────── */}
+                    {routeResult.timeEstimates && (
+                      <div>
+                        <div className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2">
+                          ETA Estimates
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {/* Yesterday same time */}
+                          <div
+                            className="rounded-[8px] p-2 text-center"
+                            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)' }}
+                          >
+                            <div className="text-[8px] text-white/40 mb-1 uppercase tracking-wide">Yesterday</div>
+                            <div className="text-sm font-bold text-white leading-none">
+                              {fmtMins(routeResult.timeEstimates.yesterday) || '—'}
+                            </div>
+                            <div className="text-[8px] text-white/30 mt-1">same time</div>
+                          </div>
+                          {/* Peak traffic */}
+                          <div
+                            className="rounded-[8px] p-2 text-center"
+                            style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)' }}
+                          >
+                            <div className="text-[8px] text-red-400/80 mb-1 uppercase tracking-wide">Peak</div>
+                            <div className="text-sm font-bold text-red-400 leading-none">
+                              {fmtMins(routeResult.timeEstimates.peak) || '—'}
+                            </div>
+                            <div className="text-[8px] text-white/30 mt-1">rush hour</div>
+                          </div>
+                          {/* Free-flow */}
+                          <div
+                            className="rounded-[8px] p-2 text-center"
+                            style={{ background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.18)' }}
+                          >
+                            <div className="text-[8px] text-green-400/80 mb-1 uppercase tracking-wide">No Traffic</div>
+                            <div className="text-sm font-bold text-green-400 leading-none">
+                              {fmtMins(routeResult.timeEstimates.freeFlow) || '—'}
+                            </div>
+                            <div className="text-[8px] text-white/30 mt-1">free-flow</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Risks in area ──────────────────────────────────── */}
+                    {((routeResult.routeRisks?.intelligence?.length ?? 0) +
+                      (routeResult.routeRisks?.routeAlerts?.length ?? 0)) > 0 && (
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <AlertTriangle size={10} className="text-orange-400 shrink-0" />
+                          <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
+                            Risks in area
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {(routeResult.routeRisks.routeAlerts || []).map((a, i) => (
+                            <div
+                              key={`a${i}`}
+                              className="rounded-[7px] px-2.5 py-2"
+                              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)' }}
+                            >
+                              <div className="text-[10px] font-semibold text-red-300 leading-snug">{a.title}</div>
+                              {a.city && (
+                                <div className="text-[9px] text-white/35 mt-0.5">{a.city}, {a.country}</div>
+                              )}
+                            </div>
+                          ))}
+                          {(routeResult.routeRisks.intelligence || []).slice(0, 4).map((e, i) => {
+                            const sev = e.severity >= 4 ? 'rgba(239,68,68,0.08)' : 'rgba(249,115,22,0.08)'
+                            const sevBorder = e.severity >= 4 ? 'rgba(239,68,68,0.18)' : 'rgba(249,115,22,0.18)'
+                            const sevText = e.severity >= 4 ? '#f87171' : '#fb923c'
+                            return (
+                              <div
+                                key={`i${i}`}
+                                className="rounded-[7px] px-2.5 py-2"
+                                style={{ background: sev, border: `1px solid ${sevBorder}` }}
+                              >
+                                <div className="text-[10px] font-medium leading-snug" style={{ color: sevText }}>
+                                  {e.raw_title}
+                                </div>
+                                <div className="text-[9px] text-white/35 mt-0.5">
+                                  {e.city ? `${e.city}, ` : ''}{e.country}
+                                  {e.movement_impact && e.movement_impact !== 'none' && (
+                                    <span className="ml-1.5 capitalize">{e.movement_impact} impact</span>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Emergency services ─────────────────────────────── */}
+                    {routeResult.emergencyServices?.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Heart size={10} className="text-red-400 shrink-0" />
+                          <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
+                            Emergency Services
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          {routeResult.emergencyServices.map((s, i) => {
+                            const Icon  = s.type === 'hospital' ? Heart : s.type === 'police' ? Shield : Flame
+                            const color = s.type === 'hospital' ? '#f87171' : s.type === 'police' ? '#60a5fa' : '#fb923c'
+                            const label = s.type === 'hospital' ? 'Hospital' : s.type === 'police' ? 'Police' : 'Fire Station'
+                            return (
+                              <div key={i} className="flex items-center gap-2 py-1.5 border-b border-white/[0.06] last:border-0">
+                                <Icon size={10} style={{ color }} className="shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-[10px] text-white/70 truncate">
+                                    {s.name || label}
+                                  </div>
+                                  {!s.name && (
+                                    <div className="text-[9px] text-white/30">{label}</div>
+                                  )}
+                                </div>
+                                <span
+                                  className="text-[8px] px-1.5 py-0.5 rounded-full shrink-0"
+                                  style={{ background: `${color}18`, color, border: `1px solid ${color}33` }}
+                                >
+                                  {label}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Nearest corridor */}
                     {routeResult.nearestCorridor && (

@@ -16,6 +16,35 @@ const SB_KEY      = () => process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 
+// ── Next weekday 8am departure time (for peak estimate) ───────────────────────
+function nextWeekdayPeak() {
+  const now = new Date()
+  const day = now.getDay()
+  const daysAhead = (day === 0) ? 1 : (day === 6) ? 2 : 1
+  const peak = new Date(now)
+  peak.setDate(now.getDate() + daysAhead)
+  peak.setHours(8, 0, 0, 0)
+  return peak.toISOString()
+}
+
+// ── Route bounding box (capped to avoid Overpass timeouts) ───────────────────
+function routeBbox(o, d) {
+  const BUFFER = 0.15
+  const rawMinLat = Math.min(o.lat, d.lat) - BUFFER
+  const rawMaxLat = Math.max(o.lat, d.lat) + BUFFER
+  const rawMinLon = Math.min(o.lon, d.lon) - BUFFER
+  const rawMaxLon = Math.max(o.lon, d.lon) + BUFFER
+  const midLat = (rawMinLat + rawMaxLat) / 2
+  const midLon = (rawMinLon + rawMaxLon) / 2
+  const MAX = 2.0
+  return {
+    minLat: Math.max(rawMinLat, midLat - MAX / 2),
+    maxLat: Math.min(rawMaxLat, midLat + MAX / 2),
+    minLon: Math.max(rawMinLon, midLon - MAX / 2),
+    maxLon: Math.min(rawMaxLon, midLon + MAX / 2),
+  }
+}
+
 // ── Supabase read helper ──────────────────────────────────────────────────────
 async function sbGet(path) {
   if (!SB_URL() || !SB_KEY()) return []
@@ -163,6 +192,63 @@ function buildRecommendations(patterns) {
   }
 
   return { best, worst, grid, totalSamples: valid.reduce((s,p) => s + p.sample_count, 0) }
+}
+
+// ── HERE Routing: summary only with departure time ───────────────────────────
+async function hereRouteSummary(origin, dest, key, departureTime) {
+  const params = new URLSearchParams({
+    transportMode: 'car',
+    origin:        `${origin.lat},${origin.lon}`,
+    destination:   `${dest.lat},${dest.lon}`,
+    return:        'summary',
+    apiKey:        key,
+  })
+  if (departureTime) params.set('departureTime', departureTime)
+  const res = await fetch(`https://router.hereapi.com/v8/routes?${params}`, {
+    signal: AbortSignal.timeout(10000),
+  })
+  if (!res.ok) throw new Error(`HERE ${res.status}`)
+  const data = await res.json()
+  const summary = data?.routes?.[0]?.sections?.[0]?.summary
+  if (!summary) throw new Error('No summary')
+  return { duration: summary.duration || 0 }
+}
+
+// ── Emergency services via Overpass API ───────────────────────────────────────
+async function queryEmergencyServices(minLat, maxLat, minLon, maxLon) {
+  const q = `[out:json][timeout:7];(node["amenity"~"^(hospital|police|fire_station)$"](${minLat},${minLon},${maxLat},${maxLon});way["amenity"~"^(hospital|police|fire_station)$"](${minLat},${minLon},${maxLat},${maxLon}););out center 20;`
+  const res = await fetch('https://overpass-api.de/api/interpreter', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    `data=${encodeURIComponent(q)}`,
+    signal:  AbortSignal.timeout(9000),
+  })
+  if (!res.ok) throw new Error(`Overpass ${res.status}`)
+  const data = await res.json()
+  return (data.elements || [])
+    .map(el => ({
+      type: el.tags?.amenity || 'unknown',
+      name: el.tags?.name || null,
+      lat:  el.lat  ?? el.center?.lat ?? null,
+      lon:  el.lon  ?? el.center?.lon ?? null,
+    }))
+    .filter(e => e.lat && e.lon)
+    .slice(0, 20)
+}
+
+// ── Route risks from Supabase ─────────────────────────────────────────────────
+async function queryRouteRisks(countries) {
+  if (!countries.length || !SB_URL() || !SB_KEY()) return { intelligence: [], routeAlerts: [] }
+  const list   = countries.map(c => `"${c}"`).join(',')
+  const cutoff = new Date(Date.now() - 48 * 3600 * 1000).toISOString()
+  const [intel, alertsRes] = await Promise.allSettled([
+    sbGet(`live_intelligence?country=in.(${list})&severity=gte.2&is_active=eq.true&ingested_at=gte.${cutoff}&select=event_type,country,city,severity,movement_impact,raw_title,ingested_at&order=severity.desc&limit=8`),
+    sbGet(`alerts?country=in.(${list})&status=eq.active&select=title,description,severity,country,city,date_issued&order=date_issued.desc&limit=5`),
+  ])
+  return {
+    intelligence: intel.status === 'fulfilled'     && Array.isArray(intel.value)     ? intel.value     : [],
+    routeAlerts:  alertsRes.status === 'fulfilled' && Array.isArray(alertsRes.value) ? alertsRes.value : [],
+  }
 }
 
 // ── HERE Geocoding v1 ─────────────────────────────────────────────────────────
@@ -337,15 +423,24 @@ async function _handler(req, res) {
       sbGet('traffic_corridors?is_active=eq.true&select=id,name,country,origin_lat,origin_lon,dest_lat,dest_lon'),
     ])
 
-    const nearest = Array.isArray(corridors) ? nearestCorridor(corridors, originGeo, destGeo) : null
+    const nearest   = Array.isArray(corridors) ? nearestCorridor(corridors, originGeo, destGeo) : null
+    const countries = [...new Set([originGeo.country, destGeo.country].filter(Boolean))]
+    const bbox      = routeBbox(originGeo, destGeo)
+    const yesterdayISO = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
+    const peakISO      = nextWeekdayPeak()
 
-    const [hereResult, googleResult, patterns] = await Promise.allSettled([
-      hereRoute(originGeo, destGeo, HERE),
-      GOOGLE ? googleRoute(originGeo, destGeo, GOOGLE) : Promise.resolve(null),
-      nearest
-        ? sbGet(`traffic_patterns?corridor_id=eq.${nearest.id}&select=day_of_week,hour_of_day,avg_congestion,avg_delay_secs,avg_travel_secs,sample_count&order=avg_congestion.asc`)
-        : Promise.resolve([]),
-    ])
+    const [hereResult, googleResult, patterns, yesterdayRes, peakRes, routeRisksRes, emergencyRes] =
+      await Promise.allSettled([
+        hereRoute(originGeo, destGeo, HERE),
+        GOOGLE ? googleRoute(originGeo, destGeo, GOOGLE) : Promise.resolve(null),
+        nearest
+          ? sbGet(`traffic_patterns?corridor_id=eq.${nearest.id}&select=day_of_week,hour_of_day,avg_congestion,avg_delay_secs,avg_travel_secs,sample_count&order=avg_congestion.asc`)
+          : Promise.resolve([]),
+        hereRouteSummary(originGeo, destGeo, HERE, yesterdayISO),
+        hereRouteSummary(originGeo, destGeo, HERE, peakISO),
+        queryRouteRisks(countries),
+        queryEmergencyServices(bbox.minLat, bbox.maxLat, bbox.minLon, bbox.maxLon),
+      ])
 
     if (hereResult.status === 'rejected') throw new Error(`HERE routing failed: ${hereResult.reason?.message}`)
 
@@ -353,6 +448,9 @@ async function _handler(req, res) {
     const googleError = googleResult.status === 'rejected' ? googleResult.reason?.message : null
     const google      = googleResult.status === 'fulfilled' ? googleResult.value : null
     if (googleError) console.warn('[route-lookup] Google Routes error:', googleError)
+    if (yesterdayRes.status === 'rejected') console.warn('[route-lookup] Yesterday ETA:', yesterdayRes.reason?.message)
+    if (peakRes.status      === 'rejected') console.warn('[route-lookup] Peak ETA:',      peakRes.reason?.message)
+    if (emergencyRes.status === 'rejected') console.warn('[route-lookup] Overpass:',       emergencyRes.reason?.message)
 
     let consensus = here?.level ?? google?.level ?? 'unknown'
     if (here && google && here.level !== google.level) {
@@ -360,7 +458,17 @@ async function _handler(req, res) {
       consensus = order[Math.max(order.indexOf(here.level), order.indexOf(google.level))]
     }
 
-    const recommendations = Array.isArray(patterns.value) ? buildRecommendations(patterns.value) : null
+    const recommendations    = Array.isArray(patterns.value) ? buildRecommendations(patterns.value) : null
+    const timeEstimates      = {
+      yesterday: yesterdayRes.status === 'fulfilled' ? yesterdayRes.value.duration : null,
+      peak:      peakRes.status      === 'fulfilled' ? peakRes.value.duration      : null,
+      freeFlow:  here?.freeFlow ?? null,
+      peakLabel: `${DAYS[new Date(peakISO).getDay()]} 8am`,
+    }
+    const routeRisks         = routeRisksRes.status === 'fulfilled'
+      ? routeRisksRes.value
+      : { intelligence: [], routeAlerts: [] }
+    const emergencyServices  = emergencyRes.status === 'fulfilled' ? emergencyRes.value : []
 
     return res.status(200).json({
       origin:      originGeo,
@@ -377,6 +485,9 @@ async function _handler(req, res) {
       } : null,
       googleError,
       recommendations,
+      timeEstimates,
+      routeRisks,
+      emergencyServices,
       generatedAt: new Date().toISOString(),
     })
   } catch (err) {
