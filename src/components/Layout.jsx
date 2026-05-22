@@ -96,6 +96,7 @@ function DeveloperNav({ alertCount }) {
       <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
       <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount} />
+      <NavItem to="/intel-feed"     icon={Radio}        label="Live Intel Feed" />
       <NavItem to="/intel-feeds"    icon={Radio}        label="Intel Feeds" />
 
       <NavSection label="Operations" />
@@ -143,6 +144,7 @@ function CorporateAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
       <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount} />
+      <NavItem to="/intel-feed"     icon={Radio}        label="Live Intel Feed" />
 
       <NavSection label="Compliance" />
       <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
@@ -184,6 +186,7 @@ function OrgAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
       <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
       <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount} />
+      <NavItem to="/intel-feed"     icon={Radio}        label="Live Intel Feed" />
 
       <NavSection label="Compliance" />
       <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
@@ -217,6 +220,7 @@ function TravellerNav({ alertCount, tripAlertCount }) {
       <NavItem to="/journey-agent"  icon={Compass}      label="CAIRO" />
       <NavItem to="/itinerary"      icon={MapPin}       label="My Itinerary" />
       <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount + tripAlertCount} />
+      <NavItem to="/intel-feed"     icon={Radio}        label="Live Intel Feed" />
       <NavItem to="/checkin"        icon={CheckCircle}  label="Check In" />
       <NavItem to="/live-map"       icon={Navigation}   label="Live Location" />
       <NavItem to="/sos"            icon={AlertOctagon} label="SOS Emergency" red />
@@ -256,6 +260,7 @@ function GSOCNav({ alertCount, isAdmin }) {
       <NavItem to="/country-risk"      icon={Shield}       label="Country Risk" />
       <NavItem to="/news"              icon={Newspaper}    label="Threat News" />
       <NavItem to="/alerts"            icon={Bell}         label="Risk Alerts" badge={alertCount} />
+      <NavItem to="/intel-feed"        icon={Radio}        label="Live Intel Feed" />
 
       <NavSection label="Operations" />
       <NavItem to="/projects"          icon={Layers}       label="Projects" />
@@ -287,6 +292,7 @@ function ProjectNav({ alertCount, isManager }) {
       <NavItem to="/country-risk"   icon={Shield}        label="Country Risk" />
       <NavItem to="/news"           icon={Newspaper}     label="News Updates" />
       <NavItem to="/alerts"         icon={Bell}          label="Risk Alerts" badge={alertCount} />
+      <NavItem to="/intel-feed"     icon={Radio}         label="Live Intel Feed" />
 
       <NavSection label="Operations" />
       <NavItem to="/incidents"      icon={Siren}         label="Incident Reports" />
@@ -315,6 +321,7 @@ function SoloTravellerNav({ alertCount, tripAlertCount }) {
       <NavItem to="/journey-agent"  icon={Compass}      label="CAIRO" />
       <NavItem to="/itinerary"      icon={MapPin}       label="My Trips" />
       <NavItem to="/alerts"         icon={Bell}         label="Risk Alerts" badge={alertCount + tripAlertCount} />
+      <NavItem to="/intel-feed"     icon={Radio}        label="Live Intel Feed" />
       <NavItem to="/checkin"        icon={CheckCircle}  label="Check In" />
       <NavItem to="/live-map"       icon={Navigation}   label="Live Location" />
       <NavItem to="/sos"            icon={AlertOctagon} label="SOS Emergency" red />
