@@ -5,7 +5,41 @@
 @layer base {
   body {
     font-family: 'Inter', sans-serif;
-    background-color: #F9FAFB;
-    color: #111827;
+    background-color: #090A0C;
+    color: #EAEEF5;
   }
+
+  /* Dark-theme overrides for Tailwind utility classes used across all pages */
+  .bg-white       { background-color: #11131A !important; }
+  .bg-gray-50     { background-color: #0C0E12 !important; }
+  .bg-gray-100    { background-color: #161820 !important; }
+  .bg-gray-200    { background-color: #1E2028 !important; }
+
+  .text-gray-900  { color: #EAEEF5 !important; }
+  .text-gray-800  { color: #EAEEF5 !important; }
+  .text-gray-700  { color: #D0D4DC !important; }
+  .text-gray-600  { color: #6E7480 !important; }
+  .text-gray-500  { color: #6E7480 !important; }
+  .text-gray-400  { color: #3C4050 !important; }
+
+  .border-gray-200 { border-color: rgba(255,255,255,0.07) !important; }
+  .border-gray-100 { border-color: rgba(255,255,255,0.05) !important; }
+  .border-gray-300 { border-color: rgba(255,255,255,0.10) !important; }
+
+  /* Input fields */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    background-color: #0C0E12 !important;
+    color: #EAEEF5 !important;
+    border-color: rgba(255,255,255,0.10) !important;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: #3C4050 !important;
+  }
+
+  /* Dividers */
+  .divide-gray-200 > * + * { border-color: rgba(255,255,255,0.07) !important; }
+  .divide-gray-100 > * + * { border-color: rgba(255,255,255,0.05) !important; }
 }
