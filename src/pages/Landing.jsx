@@ -124,7 +124,7 @@ function Nav({ scrolled }) {
       transition: 'all 0.25s ease',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
-        <img src="/logo-white.png" alt="Safeguard" style={{ height: 46, width: 'auto' }} />
+        <img src="/logo-transparent.png" alt="Safeguard" style={{ height: 46, width: 'auto' }} />
         <div style={{ display: 'flex', gap: 28 }}>
           {['Platform', 'Solutions', 'Intelligence'].map(item => (
             <button key={item}
@@ -525,7 +525,7 @@ export default function Landing() {
 
       {/* ── FOOTER ────────────────────────────────────────────────────────── */}
       <footer style={{ borderTop: `1px solid ${C.border}`, padding: '32px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <img src="/logo-white.png" alt="Safeguard" style={{ height: 34, width: 'auto', opacity: 0.45 }} />
+        <img src="/logo-transparent.png" alt="Safeguard" style={{ height: 34, width: 'auto', opacity: 0.45 }} />
         <div style={{ display: 'flex', gap: 28 }}>
           {['Privacy Policy', 'Terms of Service', 'Contact'].map(item => (
             <span key={item} style={{ fontSize: 11, color: C.textMuted, cursor: 'pointer' }}

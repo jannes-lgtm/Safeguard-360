@@ -425,7 +425,7 @@ export default function Pricing() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
           <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-            <img src="/logo-white.png" alt="Safeguard" style={{ height: 38, width: 'auto' }} />
+            <img src="/logo-transparent.png" alt="Safeguard" style={{ height: 38, width: 'auto' }} />
           </button>
           <div style={{ display: 'flex', gap: 28 }}>
             {['Platform', 'Solutions', 'Intelligence'].map(item => (
@@ -791,7 +791,7 @@ export default function Pricing() {
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
       <footer style={{ borderTop: `1px solid ${C.border}`, padding: '32px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <img src="/logo-white.png" alt="Safeguard" style={{ height: 28, width: 'auto', opacity: 0.45 }} />
+        <img src="/logo-transparent.png" alt="Safeguard" style={{ height: 28, width: 'auto', opacity: 0.45 }} />
         <div style={{ display: 'flex', gap: 28 }}>
           {[['Terms', '/terms'], ['Contact', null], ['Sign in', '/login']].map(([label, path]) => (
             path

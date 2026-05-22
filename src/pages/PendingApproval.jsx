@@ -53,7 +53,7 @@ export default function PendingApproval() {
       <div className="w-full max-w-md">
 
         <div className="flex justify-center mb-8">
-          <img src="/logo-white.png" alt="SafeGuard360" className="h-12 w-auto" />
+          <img src="/logo-transparent.png" alt="SafeGuard360" className="h-12 w-auto" />
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
