@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 import {
   MapPin, Shield, ArrowRight, Globe,
   Navigation, AlertTriangle, Activity,
@@ -61,6 +62,33 @@ const FEED = [
   { sev: 'green', region: 'SOUTHERN AFRICA', time: '1h 12m', title: 'Corridor Status — JNB',  body: 'N1 and N3 arterials operating nominally. No degradation reported. Personnel movement viable.' },
   { sev: 'steel', region: 'NORTH AFRICA',    time: '2h 08m', title: 'Weather Impact — CAI',   body: 'Dust event reducing visibility across western approach routes. Monitor for developing conditions after 1500 local.' },
 ]
+
+const COUNTRY_REGION = {
+  Nigeria: 'WEST AFRICA', Ghana: 'WEST AFRICA', Senegal: 'WEST AFRICA', Mali: 'WEST AFRICA',
+  'Burkina Faso': 'WEST AFRICA', Niger: 'WEST AFRICA', "Côte d'Ivoire": 'WEST AFRICA', Cameroon: 'WEST AFRICA',
+  Kenya: 'EAST AFRICA', Ethiopia: 'EAST AFRICA', Somalia: 'EAST AFRICA', Tanzania: 'EAST AFRICA',
+  Uganda: 'EAST AFRICA', Rwanda: 'EAST AFRICA', Sudan: 'EAST AFRICA', Chad: 'EAST AFRICA',
+  'South Africa': 'SOUTHERN AFRICA', Zimbabwe: 'SOUTHERN AFRICA', Mozambique: 'SOUTHERN AFRICA',
+  Libya: 'NORTH AFRICA', Egypt: 'NORTH AFRICA', Tunisia: 'NORTH AFRICA', Algeria: 'NORTH AFRICA',
+  UAE: 'GULF', 'Saudi Arabia': 'GULF', Kuwait: 'GULF', Iraq: 'GULF',
+  Lebanon: 'LEVANT', Yemen: 'LEVANT', Syria: 'LEVANT', Palestine: 'LEVANT',
+  Afghanistan: 'CENTRAL ASIA', Pakistan: 'CENTRAL ASIA', Myanmar: 'SOUTHEAST ASIA',
+  'Democratic Republic of Congo': 'CENTRAL AFRICA', Iran: 'MIDDLE EAST',
+}
+
+function sevFromInt(n) {
+  if (n >= 4) return 'red'
+  if (n === 3) return 'amber'
+  if (n === 2) return 'green'
+  return 'steel'
+}
+
+function timeAgoShort(iso) {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (mins < 60) return `${mins} min`
+  const h = Math.floor(mins / 60), m = mins % 60
+  return m > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${h}h`
+}
 
 const CAPABILITIES = [
   {
@@ -229,8 +257,19 @@ function HeroBackground() {
   )
 }
 
-function FeedPanel() {
+function FeedPanel({ liveItems = [] }) {
   const utc = new Date().toUTCString().slice(17, 25)
+
+  const displayItems = liveItems.length > 0
+    ? liveItems.map(r => ({
+        sev:    sevFromInt(r.severity),
+        region: COUNTRY_REGION[r.country] || r.country?.toUpperCase() || 'GLOBAL',
+        time:   timeAgoShort(r.ingested_at),
+        title:  (r.raw_title || '').slice(0, 60),
+        body:   (r.raw_summary || '').slice(0, 160),
+      }))
+    : FEED
+
   return (
     <div style={{
       width: 360, flexShrink: 0,
@@ -252,7 +291,7 @@ function FeedPanel() {
         <span style={{ fontSize: 9, color: C.textMuted, fontFamily: 'monospace' }}>{utc} UTC</span>
       </div>
 
-      {FEED.map((item, i) => {
+      {displayItems.map((item, i) => {
         const a = accent(item.sev)
         return (
           <div key={i} style={{
@@ -310,12 +349,23 @@ function Ticker() {
 // ── Page ───────────────────────────────────────────────────────────────────────
 export default function Landing() {
   const [scrolled, setScrolled] = useState(false)
+  const [liveIntel, setLiveIntel] = useState([])
   const navigate = useNavigate()
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 24)
     window.addEventListener('scroll', fn, { passive: true })
     return () => window.removeEventListener('scroll', fn)
+  }, [])
+
+  useEffect(() => {
+    supabase
+      .from('live_intelligence')
+      .select('id, country, severity, raw_title, raw_summary, ingested_at')
+      .eq('is_active', true)
+      .order('ingested_at', { ascending: false })
+      .limit(6)
+      .then(({ data }) => { if (data?.length) setLiveIntel(data) })
   }, [])
 
   return (
@@ -378,7 +428,7 @@ export default function Landing() {
           </div>
 
           {/* Live feed */}
-          <FeedPanel />
+          <FeedPanel liveItems={liveIntel} />
         </div>
       </section>
 
