@@ -5,7 +5,7 @@ import {
   MapPin, Shield, ArrowRight, Globe,
   Navigation, AlertTriangle, Activity,
   Users, Layers, Clock, Compass, TrendingUp, Radio,
-  Crosshair, BarChart2,
+  Crosshair, BarChart2, Menu, X,
 } from 'lucide-react'
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -17,22 +17,18 @@ const C = {
   border:     'rgba(255,255,255,0.06)',
   borderHi:   'rgba(255,255,255,0.11)',
 
-  // Safeguard brand lime — used as primary accent
   green:      '#AACC00',
   greenAlt:   '#AACC00',
   greenDim:   'rgba(170,204,0,0.10)',
 
-  // Restrained amber
   amber:      '#906A25',
   amberAlt:   '#B08535',
   amberDim:   'rgba(144,106,37,0.14)',
 
-  // Controlled red
   red:        '#8A2E2E',
   redAlt:     '#A83535',
   redDim:     'rgba(138,46,46,0.13)',
 
-  // Limited steel blue — informational only
   steel:      '#3A5870',
   steelAlt:   '#4A6E8A',
   steelDim:   'rgba(58,88,112,0.12)',
@@ -140,42 +136,81 @@ function accent(key) {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 function Nav({ scrolled }) {
   const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
+
   return (
-    <nav style={{
-      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-      height: 60,
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 48px',
-      background: scrolled ? 'rgba(9,10,12,0.95)' : 'transparent',
-      borderBottom: scrolled ? `1px solid ${C.border}` : '1px solid transparent',
-      backdropFilter: scrolled ? 'blur(16px)' : 'none',
-      transition: 'all 0.25s ease',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
-        <img src="/logo-transparent.png" alt="Safeguard" style={{ height: 60, width: 'auto' }} />
-        <div style={{ display: 'flex', gap: 28 }}>
-          {['Platform', 'Solutions', 'Intelligence'].map(item => (
-            <button key={item}
-              style={{ background: 'none', border: 'none', color: C.textSub, cursor: 'pointer', fontSize: 13, padding: 0, letterSpacing: '0.01em' }}
-              onMouseEnter={e => e.currentTarget.style.color = C.text}
-              onMouseLeave={e => e.currentTarget.style.color = C.textSub}
-            >{item}</button>
-          ))}
+    <>
+      <nav className="landing-nav" style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
+        height: 60,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 48px',
+        background: scrolled ? 'rgba(9,10,12,0.95)' : 'transparent',
+        borderBottom: scrolled ? `1px solid ${C.border}` : '1px solid transparent',
+        backdropFilter: scrolled ? 'blur(16px)' : 'none',
+        transition: 'all 0.25s ease',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+          <img src="/logo-transparent.png" alt="Safeguard" style={{ height: 60, width: 'auto' }} />
+          <div className="landing-nav-links" style={{ display: 'flex', gap: 28 }}>
+            {['Platform', 'Solutions', 'Intelligence'].map(item => (
+              <button key={item}
+                style={{ background: 'none', border: 'none', color: C.textSub, cursor: 'pointer', fontSize: 13, padding: 0, letterSpacing: '0.01em' }}
+                onMouseEnter={e => e.currentTarget.style.color = C.text}
+                onMouseLeave={e => e.currentTarget.style.color = C.textSub}
+              >{item}</button>
+            ))}
+          </div>
         </div>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-        <button onClick={() => navigate('/login')}
-          style={{ background: 'none', border: 'none', color: C.textSub, cursor: 'pointer', fontSize: 13 }}
-          onMouseEnter={e => e.currentTarget.style.color = C.text}
-          onMouseLeave={e => e.currentTarget.style.color = C.textSub}
-        >Log in</button>
-        <button onClick={() => navigate('/signup')} style={{
-          background: C.green, border: 'none', color: '#fff',
-          padding: '8px 20px', fontSize: 11, fontWeight: 700,
-          letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase',
-        }}>Request Access</button>
-      </div>
-    </nav>
+        <div className="landing-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <button onClick={() => navigate('/login')}
+            style={{ background: 'none', border: 'none', color: C.textSub, cursor: 'pointer', fontSize: 13 }}
+            onMouseEnter={e => e.currentTarget.style.color = C.text}
+            onMouseLeave={e => e.currentTarget.style.color = C.textSub}
+          >Log in</button>
+          <button onClick={() => navigate('/signup')} style={{
+            background: C.green, border: 'none', color: '#fff',
+            padding: '8px 20px', fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase',
+          }}>Request Access</button>
+        </div>
+        {/* Mobile hamburger */}
+        <button className="landing-hamburger" onClick={() => setMenuOpen(o => !o)}
+          style={{ display: 'none', background: 'none', border: 'none', color: C.text, cursor: 'pointer', padding: 4 }}>
+          {menuOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </nav>
+
+      {/* Mobile menu overlay */}
+      {menuOpen && (
+        <div className="landing-mobile-menu" style={{
+          position: 'fixed', top: 60, left: 0, right: 0, zIndex: 99,
+          background: 'rgba(9,10,12,0.98)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: `1px solid ${C.border}`,
+          padding: '20px 24px 28px',
+          display: 'flex', flexDirection: 'column', gap: 16,
+        }}>
+          {['Platform', 'Solutions', 'Intelligence'].map(item => (
+            <button key={item} onClick={() => setMenuOpen(false)}
+              style={{ background: 'none', border: 'none', color: C.text, cursor: 'pointer', fontSize: 15, textAlign: 'left', padding: '4px 0' }}>
+              {item}
+            </button>
+          ))}
+          <div style={{ height: 1, background: C.border, margin: '4px 0' }} />
+          <button onClick={() => { setMenuOpen(false); navigate('/login') }}
+            style={{ background: 'none', border: 'none', color: C.textSub, cursor: 'pointer', fontSize: 14, textAlign: 'left', padding: '4px 0' }}>
+            Log in
+          </button>
+          <button onClick={() => { setMenuOpen(false); navigate('/signup') }} style={{
+            background: C.green, border: 'none', color: '#fff',
+            padding: '12px 20px', fontSize: 12, fontWeight: 700,
+            letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase',
+            textAlign: 'center',
+          }}>Request Access</button>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -271,7 +306,7 @@ function FeedPanel({ liveItems = [] }) {
     : FEED
 
   return (
-    <div style={{
+    <div className="landing-feed-panel" style={{
       width: 360, flexShrink: 0,
       background: 'rgba(17,19,26,0.82)',
       backdropFilter: 'blur(20px)',
@@ -346,6 +381,7 @@ function Ticker() {
   )
 }
 
+
 // ── Page ───────────────────────────────────────────────────────────────────────
 export default function Landing() {
   const [scrolled, setScrolled] = useState(false)
@@ -375,7 +411,7 @@ export default function Landing() {
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <section style={{ position: 'relative', height: '100vh', minHeight: 680, overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
         <HeroBackground />
-        <div style={{
+        <div className="landing-hero-inner" style={{
           position: 'relative', zIndex: 10,
           width: '100%', maxWidth: 1400, margin: '0 auto',
           padding: '0 48px',
@@ -407,7 +443,7 @@ export default function Landing() {
               ))}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div className="landing-hero-btns" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <button onClick={() => navigate('/signup')} style={{
                 background: C.green, border: 'none', color: '#fff',
                 padding: '13px 28px', fontSize: 12, fontWeight: 700,
@@ -436,7 +472,7 @@ export default function Landing() {
       <Ticker />
 
       {/* ── CAPABILITIES ──────────────────────────────────────────────────── */}
-      <section style={{ padding: '96px 48px', maxWidth: 1400, margin: '0 auto' }}>
+      <section className="landing-section-pad" style={{ padding: '96px 48px', maxWidth: 1400, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 60 }}>
           <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: C.textMuted, textTransform: 'uppercase', marginBottom: 14 }}>Platform Capabilities</div>
           <h2 style={{ fontSize: 34, fontWeight: 700, color: C.white, letterSpacing: '-0.02em', marginBottom: 14 }}>
@@ -447,7 +483,7 @@ export default function Landing() {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1, background: C.border }}>
+        <div className="landing-caps-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1, background: C.border }}>
           {CAPABILITIES.map((cap, i) => {
             const Icon = cap.icon
             const a = accent(cap.accentKey)
@@ -480,41 +516,43 @@ export default function Landing() {
       </section>
 
       {/* ── INTELLIGENCE LANGUAGE ─────────────────────────────────────────── */}
-      <section style={{ background: C.surface, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '80px 48px' }}>
-        <div style={{ maxWidth: 1400, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: C.textMuted, textTransform: 'uppercase', marginBottom: 14 }}>Intelligence Language</div>
-            <h2 style={{ fontSize: 30, fontWeight: 700, color: C.white, lineHeight: 1.25, marginBottom: 18, letterSpacing: '-0.02em' }}>
-              Not what happened.<br />What it means for movement.
-            </h2>
-            <p style={{ fontSize: 13, color: C.textSub, lineHeight: 1.8 }}>
-              Safeguard intelligence is written for operational decisions — not headlines. Every advisory is framed around movement impact, time sensitivity, and recommended action. Language that works for both C-suite oversight and field teams.
-            </p>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ background: 'rgba(138,46,46,0.07)', border: `1px solid ${C.redDim}`, padding: '20px 24px' }}>
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: C.redAlt, textTransform: 'uppercase', marginBottom: 10 }}>Generic reporting</div>
-              <p style={{ fontSize: 13, color: 'rgba(208,212,220,0.45)', lineHeight: 1.6, fontStyle: 'italic' }}>
-                "Protests reported in the city centre."
+      <section className="landing-section-wide" style={{ background: C.surface, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '80px 48px' }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+          <div className="landing-intel-lang-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: C.textMuted, textTransform: 'uppercase', marginBottom: 14 }}>Intelligence Language</div>
+              <h2 style={{ fontSize: 30, fontWeight: 700, color: C.white, lineHeight: 1.25, marginBottom: 18, letterSpacing: '-0.02em' }}>
+                Not what happened.<br />What it means for movement.
+              </h2>
+              <p style={{ fontSize: 13, color: C.textSub, lineHeight: 1.8 }}>
+                Safeguard intelligence is written for operational decisions — not headlines. Every advisory is framed around movement impact, time sensitivity, and recommended action. Language that works for both C-suite oversight and field teams.
               </p>
             </div>
-            <div style={{ background: C.greenDim, border: `1px solid rgba(74,112,85,0.22)`, padding: '20px 24px' }}>
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: C.greenAlt, textTransform: 'uppercase', marginBottom: 10 }}>Safeguard intelligence</div>
-              <p style={{ fontSize: 13, color: C.text, lineHeight: 1.65 }}>
-                "Crowd density increasing near CBD perimeter. Expect intermittent road closures after 1700 local. Route Delta remains viable via northern bypass. Review movement plan by 1600."
-              </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ background: 'rgba(138,46,46,0.07)', border: `1px solid ${C.redDim}`, padding: '20px 24px' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: C.redAlt, textTransform: 'uppercase', marginBottom: 10 }}>Generic reporting</div>
+                <p style={{ fontSize: 13, color: 'rgba(208,212,220,0.45)', lineHeight: 1.6, fontStyle: 'italic' }}>
+                  "Protests reported in the city centre."
+                </p>
+              </div>
+              <div style={{ background: C.greenDim, border: `1px solid rgba(74,112,85,0.22)`, padding: '20px 24px' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', color: C.greenAlt, textTransform: 'uppercase', marginBottom: 10 }}>Safeguard intelligence</div>
+                <p style={{ fontSize: 13, color: C.text, lineHeight: 1.65 }}>
+                  "Crowd density increasing near CBD perimeter. Expect intermittent road closures after 1700 local. Route Delta remains viable via northern bypass. Review movement plan by 1600."
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* ── USE CASES ─────────────────────────────────────────────────────── */}
-      <section style={{ padding: '96px 48px', maxWidth: 1400, margin: '0 auto' }}>
+      <section className="landing-section-pad" style={{ padding: '96px 48px', maxWidth: 1400, margin: '0 auto' }}>
         <div style={{ marginBottom: 52 }}>
           <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: C.textMuted, textTransform: 'uppercase', marginBottom: 14 }}>Built For</div>
           <h2 style={{ fontSize: 30, fontWeight: 700, color: C.white, letterSpacing: '-0.02em' }}>Every operational environment.</h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1, background: C.border }}>
+        <div className="landing-use-cases-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1, background: C.border }}>
           {USE_CASES.map((uc, i) => {
             const Icon = uc.icon
             return (
@@ -533,25 +571,27 @@ export default function Landing() {
       </section>
 
       {/* ── METRICS ───────────────────────────────────────────────────────── */}
-      <section style={{ background: C.surface, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '64px 48px' }}>
-        <div style={{ maxWidth: 1400, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: C.border }}>
-          {[
-            { val: '195',   unit: 'countries',        label: 'Global coverage' },
-            { val: '24/7',  unit: 'monitoring',        label: 'Continuous intelligence' },
-            { val: '< 90s', unit: 'alert delivery',    label: 'From event to advisory' },
-            { val: '847',   unit: 'active corridors',  label: 'Monitored in real time' },
-          ].map((m, i) => (
-            <div key={i} style={{ background: C.bgAlt, padding: '36px 32px', textAlign: 'center' }}>
-              <div style={{ fontSize: 36, fontWeight: 700, color: C.white, letterSpacing: '-0.03em', lineHeight: 1 }}>{m.val}</div>
-              <div style={{ fontSize: 11, color: C.greenAlt, fontWeight: 600, letterSpacing: '0.06em', margin: '6px 0 8px', textTransform: 'uppercase' }}>{m.unit}</div>
-              <div style={{ fontSize: 12, color: C.textMuted }}>{m.label}</div>
-            </div>
-          ))}
+      <section className="landing-section-wide" style={{ background: C.surface, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '64px 48px' }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+          <div className="landing-metrics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: C.border }}>
+            {[
+              { val: '195',   unit: 'countries',        label: 'Global coverage' },
+              { val: '24/7',  unit: 'monitoring',        label: 'Continuous intelligence' },
+              { val: '< 90s', unit: 'alert delivery',    label: 'From event to advisory' },
+              { val: '847',   unit: 'active corridors',  label: 'Monitored in real time' },
+            ].map((m, i) => (
+              <div key={i} style={{ background: C.bgAlt, padding: '36px 32px', textAlign: 'center' }}>
+                <div style={{ fontSize: 36, fontWeight: 700, color: C.white, letterSpacing: '-0.03em', lineHeight: 1 }}>{m.val}</div>
+                <div style={{ fontSize: 11, color: C.greenAlt, fontWeight: 600, letterSpacing: '0.06em', margin: '6px 0 8px', textTransform: 'uppercase' }}>{m.unit}</div>
+                <div style={{ fontSize: 12, color: C.textMuted }}>{m.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* ── CTA ───────────────────────────────────────────────────────────── */}
-      <section style={{ padding: '100px 48px' }}>
+      <section className="landing-cta-section" style={{ padding: '100px 48px' }}>
         <div style={{ maxWidth: 580, margin: '0 auto', textAlign: 'center' }}>
           <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: C.textMuted, textTransform: 'uppercase', marginBottom: 18 }}>Operational Readiness</div>
           <h2 style={{ fontSize: 38, fontWeight: 700, color: C.white, lineHeight: 1.15, marginBottom: 18, letterSpacing: '-0.025em' }}>
@@ -560,7 +600,7 @@ export default function Landing() {
           <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.75, marginBottom: 40 }}>
             Purpose-built for organizations where traveler safety is an operational priority — not an afterthought.
           </p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 14 }}>
+          <div className="landing-cta-btns" style={{ display: 'flex', justifyContent: 'center', gap: 14 }}>
             <button onClick={() => navigate('/signup')} style={{
               background: C.green, border: 'none', color: '#fff',
               padding: '14px 32px', fontSize: 12, fontWeight: 700,
@@ -574,9 +614,9 @@ export default function Landing() {
       </section>
 
       {/* ── FOOTER ────────────────────────────────────────────────────────── */}
-      <footer style={{ borderTop: `1px solid ${C.border}`, padding: '32px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <footer className="landing-footer" style={{ borderTop: `1px solid ${C.border}`, padding: '32px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <img src="/logo-transparent.png" alt="Safeguard" style={{ height: 44, width: 'auto', opacity: 0.45 }} />
-        <div style={{ display: 'flex', gap: 28 }}>
+        <div className="landing-footer-links" style={{ display: 'flex', gap: 28 }}>
           {['Privacy Policy', 'Terms of Service', 'Contact'].map(item => (
             <span key={item} style={{ fontSize: 11, color: C.textMuted, cursor: 'pointer' }}
               onMouseEnter={e => e.currentTarget.style.color = C.textSub}

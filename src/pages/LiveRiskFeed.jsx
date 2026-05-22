@@ -214,22 +214,22 @@ export default function LiveRiskFeed() {
 
   return (
     <Layout>
-      <div style={{ background: '#090A0C', minHeight: '100vh', padding: '32px 32px 48px' }}>
+      <div style={{ background: '#090A0C', minHeight: '100vh', padding: '24px 16px 48px' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div className="lrf-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <div style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(170,204,0,0.10)', border: '1px solid rgba(170,204,0,0.20)' }}>
+              <div style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(170,204,0,0.10)', border: '1px solid rgba(170,204,0,0.20)', flexShrink: 0 }}>
                 <Radio size={15} style={{ color: '#AACC00' }} />
               </div>
               <h1 style={{ fontSize: 20, fontWeight: 700, color: '#EAEEF5', letterSpacing: '-0.02em' }}>Live Risk Feed</h1>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9, fontWeight: 700, color: '#AACC00', letterSpacing: '0.12em', padding: '3px 8px', background: 'rgba(170,204,0,0.08)', border: '1px solid rgba(170,204,0,0.20)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 9, fontWeight: 700, color: '#AACC00', letterSpacing: '0.12em', padding: '3px 8px', background: 'rgba(170,204,0,0.08)', border: '1px solid rgba(170,204,0,0.20)', flexShrink: 0 }}>
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#AACC00', display: 'inline-block', animation: 'pulse 2s infinite' }} />
                 LIVE
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="lrf-meta" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12, color: '#6E7480' }}>{utc} UTC</span>
               <span style={{ fontSize: 9, color: '#3C4050' }}>·</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6E7480' }}>
@@ -246,7 +246,7 @@ export default function LiveRiskFeed() {
           <button
             onClick={() => fetchAll(true)}
             disabled={refreshing}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.07)', background: '#11131A', color: refreshing ? '#3C4050' : '#EAEEF5', transition: 'all 0.15s' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.07)', background: '#11131A', color: refreshing ? '#3C4050' : '#EAEEF5', transition: 'all 0.15s', flexShrink: 0 }}
           >
             <RefreshCw size={12} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
             {refreshing ? 'Refreshing…' : 'Refresh'}
@@ -310,9 +310,9 @@ export default function LiveRiskFeed() {
                   border: `1px solid ${isPriority ? sev.border : 'rgba(255,255,255,0.07)'}`,
                 }}>
                   <div style={{ width: 3, flexShrink: 0, background: sev.bar }} />
-                  <div style={{ flex: 1, padding: '14px 18px' }}>
+                  <div className="lrf-item-body" style={{ flex: 1, padding: '14px 18px' }}>
                     {/* Tags row */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
+                    <div className="lrf-tags" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: sev.color, textTransform: 'uppercase' }}>{region}</span>
                         <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.15)' }}>·</span>

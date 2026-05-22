@@ -43,3 +43,51 @@
   .divide-gray-200 > * + * { border-color: rgba(255,255,255,0.07) !important; }
   .divide-gray-100 > * + * { border-color: rgba(255,255,255,0.05) !important; }
 }
+
+/* ── Landing page responsive ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .landing-nav { padding: 0 20px !important; }
+  .landing-nav-links { display: none !important; }
+  .landing-nav-actions { display: none !important; }
+  .landing-hamburger { display: block !important; }
+
+  .landing-hero-inner {
+    flex-direction: column !important;
+    padding: 80px 20px 0 !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    gap: 32px !important;
+  }
+  .landing-hero-inner h1 { font-size: 30px !important; }
+  .landing-feed-panel   { display: none !important; }
+  .landing-hero-btns    { flex-direction: column !important; width: 100% !important; }
+  .landing-hero-btns button { width: 100% !important; justify-content: center !important; }
+
+  .landing-section-pad  { padding: 52px 20px !important; }
+  .landing-section-wide { padding-left: 20px !important; padding-right: 20px !important; }
+
+  .landing-caps-grid         { grid-template-columns: 1fr !important; gap: 0 !important; }
+  .landing-caps-grid > div   { padding: 28px 22px !important; }
+  .landing-intel-lang-grid   { grid-template-columns: 1fr !important; gap: 32px !important; }
+  .landing-use-cases-grid    { grid-template-columns: repeat(2,1fr) !important; gap: 0 !important; }
+  .landing-use-cases-grid > div { padding: 22px 18px !important; }
+  .landing-metrics-grid      { grid-template-columns: repeat(2,1fr) !important; gap: 0 !important; }
+  .landing-metrics-grid > div { padding: 28px 20px !important; }
+
+  .landing-footer       { flex-direction: column !important; align-items: center !important; gap: 20px !important; padding: 28px 20px !important; text-align: center !important; }
+  .landing-footer-links { flex-wrap: wrap !important; justify-content: center !important; gap: 16px !important; }
+  .landing-cta-section  { padding: 64px 20px !important; }
+  .landing-cta-btns     { flex-direction: column !important; align-items: center !important; }
+  .landing-cta-btns button { width: 100% !important; max-width: 320px !important; justify-content: center !important; }
+
+  /* LiveRiskFeed */
+  .lrf-header { flex-direction: column !important; gap: 12px !important; align-items: flex-start !important; }
+  .lrf-meta   { flex-wrap: wrap !important; gap: 6px !important; }
+  .lrf-item-body { padding: 10px 14px !important; }
+  .lrf-tags   { flex-wrap: wrap !important; }
+}
+
+@media (max-width: 480px) {
+  .landing-hero-inner h1    { font-size: 26px !important; }
+  .landing-use-cases-grid   { grid-template-columns: 1fr !important; }
+}
