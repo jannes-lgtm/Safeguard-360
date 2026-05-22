@@ -558,16 +558,18 @@ async function hereRouteSummary(origin, dest, key, departureTime) {
 }
 
 // ── Emergency services via Overpass API ───────────────────────────────────────
-async function queryEmergencyServices(minLat, maxLat, minLon, maxLon) {
-  const q = `[out:json][timeout:10];(node["amenity"~"^(hospital|police|fire_station)$"](${minLat},${minLon},${maxLat},${maxLon});way["amenity"~"^(hospital|police|fire_station)$"](${minLat},${minLon},${maxLat},${maxLon}););out center 20;`
+// Queries around origin AND destination cities (major cities have good OSM coverage)
+// rather than the route midpoint bbox which may cross sparse rural areas.
+async function queryEmergencyServicesBox(minLat, maxLat, minLon, maxLon) {
+  const q = `[out:json][timeout:8];(node["amenity"~"^(hospital|police|fire_station)$"](${minLat},${minLon},${maxLat},${maxLon});way["amenity"~"^(hospital|police|fire_station)$"](${minLat},${minLon},${maxLat},${maxLon}););out center 12;`
   const res = await fetch('https://overpass.kumi.systems/api/interpreter', {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body:    `data=${encodeURIComponent(q)}`,
-    signal:  AbortSignal.timeout(12000),
+    signal:  AbortSignal.timeout(10000),
   })
-  if (!res.ok) throw new Error(`Overpass ${res.status}`)
-  const data = await res.json()
+  if (!res.ok) return []
+  const data = await res.json().catch(() => ({ elements: [] }))
   return (data.elements || [])
     .map(el => ({
       type: el.tags?.amenity || 'unknown',
@@ -576,7 +578,25 @@ async function queryEmergencyServices(minLat, maxLat, minLon, maxLon) {
       lon:  el.lon  ?? el.center?.lon ?? null,
     }))
     .filter(e => e.lat && e.lon)
-    .slice(0, 20)
+}
+
+async function queryEmergencyServices(originGeo, destGeo) {
+  const R = 0.35  // ~38km radius around each city center
+  const boxes = [
+    [originGeo.lat - R, originGeo.lat + R, originGeo.lon - R, originGeo.lon + R],
+    [destGeo.lat   - R, destGeo.lat   + R, destGeo.lon   - R, destGeo.lon   + R],
+  ]
+  const results = await Promise.allSettled(boxes.map(([a, b, c, d]) => queryEmergencyServicesBox(a, b, c, d)))
+  const seen = new Set()
+  return results
+    .flatMap(r => r.status === 'fulfilled' ? r.value : [])
+    .filter(s => {
+      const key = `${s.type}:${s.name || s.lat}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .slice(0, 12)
 }
 
 // ── Route risks from Supabase ─────────────────────────────────────────────────
@@ -782,7 +802,7 @@ async function _handler(req, res) {
         hereRouteSummary(originGeo, destGeo, HERE, yesterdayISO),
         hereRouteSummary(originGeo, destGeo, HERE, peakISO),
         queryRouteRisks(countries),
-        queryEmergencyServices(bbox.minLat, bbox.maxLat, bbox.minLon, bbox.maxLon),
+        queryEmergencyServices(originGeo, destGeo),
       ])
 
     if (hereResult.status === 'rejected') throw new Error(`HERE routing failed: ${hereResult.reason?.message}`)
@@ -828,17 +848,18 @@ async function _handler(req, res) {
     const routeSegments = computeRouteSegments(routeCoords, scoredIntel)
     const peakWindow  = computePeakWindow(recommendations)
 
-    // Operational alerts: proximity-filtered, movement-relevant only
-    // Monitoring-class events require Corridor proximity (≤25km) to avoid country-level noise.
-    // Operationally Significant events require at least Area proximity (≤50km).
+    // Operational alerts: proximity-filtered, movement-relevant only.
+    // Platform alerts (no event_type, from alerts table) are country-scoped — keep if non-informational.
+    // Live intelligence must have a known city within 25km of the route (prox >= 2).
+    // This eliminates country-tagged but geographically irrelevant headlines (e.g. a SA news
+    // source reporting on Palestine/Hormuz that gets stored with country='South Africa').
     const operationalAlerts = allEvents
       .filter(e => {
         const oc   = classifyOperationalImpact(e)
         const prox = e.proximityScore ?? 0
-        if (oc === 'Informational')              return false
-        if (oc === 'Monitoring'                && prox < 2) return false  // must be ≤25km
-        if (oc === 'Operationally Significant' && prox < 1) return false  // must be at least Area
-        return true
+        if (oc === 'Informational') return false
+        if (!e.event_type) return prox >= 1   // platform alert — country scope is sufficient
+        return prox >= 2                       // live intel — must be ≤25km (Corridor or closer)
       })
       .slice(0, 5)
       .map(({ _lat, _lon, ...e }) => ({ ...e, operationalClass: classifyOperationalImpact(e) }))

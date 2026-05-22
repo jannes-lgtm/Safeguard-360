@@ -689,9 +689,8 @@ export default function MovementIntel() {
             className="absolute z-20"
             style={{
               top: 72,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: 'min(540px, calc(100vw - 28px))',
+              left: 14,
+              width: 'min(480px, calc(100vw - 28px))',
             }}
           >
             <div
