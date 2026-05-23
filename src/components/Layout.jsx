@@ -7,7 +7,7 @@ import {
   Building2, GraduationCap, BookOpen, Globe, Settings,
   BarChart2, Code2, Headphones, Menu, X, Megaphone, Activity,
   CreditCard, Compass, MonitorCheck, FolderOpen, Clock, Radar,
-  Layers, HardHat, Brain, Car,
+  Layers, HardHat, Brain, Car, Flame,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import usePassiveLocation from '../hooks/usePassiveLocation'
@@ -101,6 +101,7 @@ function DeveloperNav({ alertCount }) {
 
       <NavSection label="Operations" />
       <NavItem to="/movement"       icon={Radar}        label="Movement Intel" />
+      <NavItem to="/heat-map"       icon={Flame}        label="Risk Heat Map" />
       <NavItem to="/live-traffic"   icon={Car}          label="Live Traffic" />
       <NavItem to="/projects"       icon={Layers}       label="Projects" />
       <NavItem to="/control-room"   icon={Headphones}   label="Live Control Room" />
@@ -153,6 +154,7 @@ function CorporateAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
       <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
       <NavItem to="/movement"       icon={Radar}        label="Movement Intel" />
+      <NavItem to="/heat-map"       icon={Flame}        label="Risk Heat Map" />
       <NavItem to="/live-traffic"   icon={Car}          label="Live Traffic" />
 
       <NavSection label="24/7 Support" />
@@ -195,6 +197,7 @@ function OrgAdminNav({ alertCount, pendingApprovals }) {
       <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
       <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
       <NavItem to="/movement"       icon={Radar}        label="Movement Intel" />
+      <NavItem to="/heat-map"       icon={Flame}        label="Risk Heat Map" />
       <NavItem to="/live-traffic"   icon={Car}          label="Live Traffic" />
 
       <NavSection label="24/7 Support" />

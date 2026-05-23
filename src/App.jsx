@@ -54,6 +54,7 @@ import ShiftLog from './pages/gsoc/ShiftLog'
 import ProjectsList from './pages/projects/ProjectsList'
 import ProjectDetail from './pages/projects/ProjectDetail'
 import ProtectedRoute from './components/ProtectedRoute'
+import HeatMap from './pages/HeatMap'
 import Landing from './pages/Landing'
 
 // Listens for auth state changes inside the router context so it can navigate
@@ -107,14 +108,14 @@ export default function App() {
         <Route path="/briefings" element={<ProtectedRoute><Briefings /></ProtectedRoute>} />
         <Route path="/news" element={<ProtectedRoute><NewsUpdates /></ProtectedRoute>} />
         <Route path="/country-risk" element={<ProtectedRoute><CountryRiskReport /></ProtectedRoute>} />
-        <Route path="/heat-map" element={<Navigate to="/country-risk" replace />} />
+        <Route path="/heat-map" element={<ProtectedRoute><HeatMap /></ProtectedRoute>} />
         <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
         <Route path="/sos" element={<ProtectedRoute><SOS /></ProtectedRoute>} />
         <Route path="/checkin" element={<ProtectedRoute><CheckIn /></ProtectedRoute>} />
         <Route path="/live-map" element={<ProtectedRoute><LiveMap /></ProtectedRoute>} />
         <Route path="/approvals"      element={<ProtectedRoute orgAdminAllowed><TravelApprovals /></ProtectedRoute>} />
         <Route path="/admin"           element={<ProtectedRoute adminOnly><AdminControlCenter /></ProtectedRoute>} />
-        <Route path="/live-traffic"    element={<ProtectedRoute adminOnly><LiveTraffic /></ProtectedRoute>} />
+        <Route path="/live-traffic"    element={<ProtectedRoute><LiveTraffic /></ProtectedRoute>} />
         <Route path="/organisations"   element={<ProtectedRoute adminOnly><Organisations /></ProtectedRoute>} />
         <Route path="/org/users"       element={<ProtectedRoute orgAdminAllowed><OrgUsers /></ProtectedRoute>} />
         <Route path="/org/training"    element={<ProtectedRoute orgAdminAllowed><OrgTraining /></ProtectedRoute>} />
