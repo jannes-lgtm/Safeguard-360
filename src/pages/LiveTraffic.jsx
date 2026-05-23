@@ -1,21 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import {
   Car, Navigation, ArrowRight, ArrowLeftRight, Search,
-  RefreshCw, AlertTriangle, Clock, Zap, MapPin, Loader2,
+  RefreshCw, AlertTriangle, Clock, Zap, Loader2,
   TrendingUp, CheckCircle2, Star, ThumbsDown, BarChart2,
+  ChevronRight, X,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import LocationAutocomplete from '../components/LocationAutocomplete'
 import { supabase } from '../lib/supabase'
+import { MAP_STYLES } from '../lib/mapConfig'
 import { BRAND_BLUE } from '../lib/colors'
 
-// ── Shared helpers ────────────────────────────────────────────────────────────
-const CONGESTION_STYLE = {
-  free:       { label: 'Free Flow',  dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-400', pct: 5   },
-  low:        { label: 'Low',        dot: 'bg-yellow-400',  badge: 'bg-yellow-50 text-yellow-700 border-yellow-200',    bar: 'bg-yellow-400',  pct: 25  },
-  moderate:   { label: 'Moderate',   dot: 'bg-orange-400',  badge: 'bg-orange-50 text-orange-700 border-orange-200',    bar: 'bg-orange-400',  pct: 55  },
-  heavy:      { label: 'Heavy',      dot: 'bg-red-500',     badge: 'bg-red-50 text-red-700 border-red-200',             bar: 'bg-red-500',     pct: 80  },
-  standstill: { label: 'Standstill', dot: 'bg-red-900',     badge: 'bg-red-100 text-red-900 border-red-300',            bar: 'bg-red-900',     pct: 100 },
+// ── Congestion colours ────────────────────────────────────────────────────────
+const CONGESTION = {
+  free:       { label: 'Free Flow',  color: '#22c55e', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: 'bg-emerald-400', pct: 5   },
+  low:        { label: 'Low',        color: '#eab308', badge: 'bg-yellow-50 text-yellow-700 border-yellow-200',    bar: 'bg-yellow-400',  pct: 25  },
+  moderate:   { label: 'Moderate',   color: '#f97316', badge: 'bg-orange-50 text-orange-700 border-orange-200',    bar: 'bg-orange-400',  pct: 55  },
+  heavy:      { label: 'Heavy',      color: '#dc2626', badge: 'bg-red-50 text-red-700 border-red-200',             bar: 'bg-red-500',     pct: 80  },
+  standstill: { label: 'Standstill', color: '#7f1d1d', badge: 'bg-red-100 text-red-900 border-red-300',            bar: 'bg-red-900',     pct: 100 },
+  unknown:    { label: 'No Data',    color: '#3f3f46', badge: 'bg-gray-100 text-gray-500 border-gray-200',         bar: 'bg-gray-400',    pct: 0   },
 }
 
 function fmtMins(secs) {
@@ -25,29 +30,194 @@ function fmtMins(secs) {
 }
 
 function CongestionBadge({ level }) {
-  const cs = CONGESTION_STYLE[level] || CONGESTION_STYLE.free
+  const cs = CONGESTION[level] || CONGESTION.unknown
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${cs.badge}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cs.dot}`} />
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: cs.color }} />
       {cs.label}
     </span>
   )
 }
 
-// ── Tab 1: Live Corridors ─────────────────────────────────────────────────────
-function LiveCorridorsTab() {
-  const [corridors,  setCorridors]  = useState([])
-  const [snapshots,  setSnapshots]  = useState({})
-  const [loading,    setLoading]    = useState(true)
-  const [ingesting,  setIngesting]  = useState(false)
-  const [lastRun,    setLastRun]    = useState(null)
-  const [filter,     setFilter]     = useState('All')
+// ── Build GeoJSON from corridors + snapshots ──────────────────────────────────
+function buildCorridorGeoJSON(corridors, snapshots) {
+  const features = corridors
+    .filter(c => c.origin_lat && c.origin_lon && c.dest_lat && c.dest_lon)
+    .map(c => {
+      const snap  = snapshots[c.id]
+      const level = snap?.congestion_level || 'unknown'
+      const cs    = CONGESTION[level] || CONGESTION.unknown
+      return {
+        type: 'Feature',
+        properties: {
+          id:           c.id,
+          name:         c.name,
+          country:      c.country,
+          distance_km:  c.distance_km,
+          origin_name:  c.origin_name,
+          dest_name:    c.dest_name,
+          level,
+          color:        cs.color,
+          label:        cs.label,
+          travel_time:  fmtMins(snap?.travel_time_secs),
+          free_flow:    fmtMins(snap?.free_flow_secs),
+          delay_mins:   snap?.delay_secs ? Math.round(snap.delay_secs / 60) : 0,
+          jam_factor:   snap?.here_jam_factor ?? null,
+          captured_at:  snap?.captured_at ?? null,
+        },
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [c.origin_lon, c.origin_lat],
+            [c.dest_lon,   c.dest_lat],
+          ],
+        },
+      }
+    })
+  return { type: 'FeatureCollection', features }
+}
 
-  async function loadData() {
+// ── Corridor detail panel ─────────────────────────────────────────────────────
+function CorridorPanel({ corridor, onClose }) {
+  if (!corridor) return null
+  const cs = CONGESTION[corridor.level] || CONGESTION.unknown
+  return (
+    <div className="absolute top-[72px] right-4 w-[320px] z-20 rounded-xl overflow-hidden shadow-2xl"
+      style={{ background: 'rgba(9,10,12,0.95)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
+        <span className="text-white font-semibold text-sm">{corridor.name}</span>
+        <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
+          <X size={14} />
+        </button>
+      </div>
+      <div className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-zinc-400 text-xs flex items-center gap-1">
+            <Navigation size={10} />{corridor.origin_name} → {corridor.dest_name}
+          </span>
+          <CongestionBadge level={corridor.level} />
+        </div>
+        {corridor.distance_km && (
+          <p className="text-zinc-500 text-[11px]">{corridor.distance_km} km · {corridor.country}</p>
+        )}
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+          <div className="h-full rounded-full transition-all" style={{ width: `${cs.pct}%`, background: cs.color }} />
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: 'Travel',    value: corridor.travel_time },
+            { label: 'Free Flow', value: corridor.free_flow },
+            { label: 'Delay',     value: corridor.delay_mins > 0 ? `+${corridor.delay_mins}m` : '—' },
+          ].map(s => (
+            <div key={s.label} className="rounded-lg p-2 text-center" style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <div className="text-[9px] text-zinc-500 uppercase tracking-wide mb-0.5">{s.label}</div>
+              <div className="text-xs font-bold text-white">{s.value}</div>
+            </div>
+          ))}
+        </div>
+        {corridor.captured_at && (
+          <p className="text-[10px] text-zinc-600 text-right">
+            Updated {new Date(corridor.captured_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Corridor list panel ───────────────────────────────────────────────────────
+function CorridorListPanel({ corridors, snapshots, onSelect, lastRun, ingesting, onIngest }) {
+  const [filter, setFilter] = useState('All')
+  const countries = ['All', ...new Set(corridors.map(c => c.country).filter(Boolean).sort())]
+  const visible   = filter === 'All' ? corridors : corridors.filter(c => c.country === filter)
+
+  return (
+    <div className="absolute top-[72px] left-4 w-[300px] z-20 rounded-xl overflow-hidden shadow-2xl flex flex-col"
+      style={{ background: 'rgba(9,10,12,0.95)', border: '1px solid rgba(255,255,255,0.08)', maxHeight: 'calc(100vh - 110px)' }}>
+
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-white/8 flex items-center justify-between shrink-0">
+        <div>
+          <span className="text-white font-semibold text-sm">Live Corridors</span>
+          {lastRun && (
+            <p className="text-zinc-500 text-[10px] mt-0.5">
+              Updated {new Date(lastRun).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+        </div>
+        <button onClick={onIngest} disabled={ingesting}
+          className="p-1.5 rounded-lg transition-colors disabled:opacity-50"
+          style={{ background: 'rgba(255,255,255,0.06)', color: ingesting ? '#52525B' : '#AACC00' }}
+          title="Refresh">
+          <RefreshCw size={12} className={ingesting ? 'animate-spin' : ''} />
+        </button>
+      </div>
+
+      {/* Country filter */}
+      <div className="px-3 py-2 flex gap-1.5 flex-wrap shrink-0 border-b border-white/5">
+        {countries.slice(0, 8).map(c => (
+          <button key={c} onClick={() => setFilter(c)}
+            className="px-2.5 py-1 rounded-full text-[10px] font-medium transition-colors"
+            style={{
+              background: filter === c ? '#AACC00' : 'rgba(255,255,255,0.06)',
+              color:      filter === c ? '#09090B' : '#A1A1AA',
+            }}>
+            {c}
+          </button>
+        ))}
+      </div>
+
+      {/* Corridor rows */}
+      <div className="overflow-y-auto flex-1">
+        {visible.map(corridor => {
+          const snap  = snapshots[corridor.id]
+          const level = snap?.congestion_level || 'unknown'
+          const cs    = CONGESTION[level] || CONGESTION.unknown
+          const delay = snap?.delay_secs ? Math.round(snap.delay_secs / 60) : 0
+          return (
+            <button key={corridor.id} onClick={() => onSelect(corridor)}
+              className="w-full text-left px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-white text-xs font-semibold truncate pr-2">{corridor.name}</span>
+                <span className="text-[10px] font-bold shrink-0" style={{ color: cs.color }}>{cs.label}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-500 text-[10px]">{corridor.origin_name} → {corridor.dest_name}</span>
+                {delay > 0 && <span className="text-orange-400 text-[10px]">+{delay}m</span>}
+              </div>
+              <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <div className="h-full rounded-full" style={{ width: `${cs.pct}%`, background: cs.color }} />
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+export default function LiveTraffic() {
+  const mapRef       = useRef(null)
+  const mapInstance  = useRef(null)
+  const popupRef     = useRef(null)
+
+  const [corridors,   setCorridors]   = useState([])
+  const [snapshots,   setSnapshots]   = useState({})
+  const [loading,     setLoading]     = useState(true)
+  const [ingesting,   setIngesting]   = useState(false)
+  const [lastRun,     setLastRun]     = useState(null)
+  const [selected,    setSelected]    = useState(null)
+  const [showList,    setShowList]    = useState(true)
+  const [mapReady,    setMapReady]    = useState(false)
+  const [counts,      setCounts]      = useState({ free: 0, degraded: 0, heavy: 0 })
+
+  // ── Load data ────────────────────────────────────────────────────────────────
+  const loadData = useCallback(async () => {
     setLoading(true)
     const { data: cors } = await supabase
       .from('traffic_corridors')
-      .select('id,name,country,region,origin_name,dest_name,distance_km')
+      .select('id,name,country,region,origin_name,dest_name,distance_km,origin_lat,origin_lon,dest_lat,dest_lon')
       .eq('is_active', true)
       .order('country')
 
@@ -64,451 +234,265 @@ function LiveCorridorsTab() {
 
     setCorridors(cors || [])
     setSnapshots(latest)
-    const newest = Object.values(latest).sort((a,b) => new Date(b.captured_at) - new Date(a.captured_at))[0]
+
+    const newest = Object.values(latest).sort((a, b) => new Date(b.captured_at) - new Date(a.captured_at))[0]
     if (newest) setLastRun(newest.captured_at)
+
+    // Count by congestion band
+    const vals = Object.values(latest)
+    setCounts({
+      free:     vals.filter(s => s.congestion_level === 'free' || s.congestion_level === 'low').length,
+      degraded: vals.filter(s => s.congestion_level === 'moderate').length,
+      heavy:    vals.filter(s => s.congestion_level === 'heavy' || s.congestion_level === 'standstill').length,
+    })
+
     setLoading(false)
-  }
+  }, [])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  // ── Init map ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapRef.current || mapInstance.current) return
+    const map = new maplibregl.Map({
+      container: mapRef.current,
+      style:     MAP_STYLES.operational,
+      center:    [20, 2],
+      zoom:      3.5,
+      minZoom:   2,
+      maxZoom:   16,
+    })
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right')
+    map.on('load', () => { mapInstance.current = map; setMapReady(true) })
+    return () => { map.remove(); mapInstance.current = null }
+  }, [])
+
+  // ── Update corridor layers when data or map is ready ─────────────────────────
+  useEffect(() => {
+    const map = mapInstance.current
+    if (!map || !mapReady || corridors.length === 0) return
+
+    const geojson = buildCorridorGeoJSON(corridors, snapshots)
+
+    if (map.getSource('corridors')) {
+      map.getSource('corridors').setData(geojson)
+    } else {
+      map.addSource('corridors', { type: 'geojson', data: geojson })
+
+      // Glow layer
+      map.addLayer({
+        id:     'corridors-glow',
+        type:   'line',
+        source: 'corridors',
+        paint: {
+          'line-color':   ['get', 'color'],
+          'line-width':   8,
+          'line-opacity': 0.18,
+          'line-blur':    4,
+        },
+      })
+
+      // Main line
+      map.addLayer({
+        id:     'corridors-line',
+        type:   'line',
+        source: 'corridors',
+        paint: {
+          'line-color':   ['get', 'color'],
+          'line-width':   3,
+          'line-opacity': 0.9,
+        },
+      })
+
+      // Origin dots
+      map.addSource('corridor-dots', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: corridors
+            .filter(c => c.origin_lat && c.origin_lon)
+            .map(c => {
+              const snap  = snapshots[c.id]
+              const level = snap?.congestion_level || 'unknown'
+              return {
+                type: 'Feature',
+                properties: { color: (CONGESTION[level] || CONGESTION.unknown).color, id: c.id },
+                geometry: { type: 'Point', coordinates: [c.origin_lon, c.origin_lat] },
+              }
+            }),
+        },
+      })
+
+      map.addLayer({
+        id:     'corridor-dots',
+        type:   'circle',
+        source: 'corridor-dots',
+        paint: {
+          'circle-radius':       5,
+          'circle-color':        ['get', 'color'],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#09090B',
+          'circle-opacity':      0.9,
+        },
+      })
+
+      // Click handler
+      map.on('click', 'corridors-line', (e) => {
+        const props = e.features?.[0]?.properties
+        if (!props) return
+        setSelected(props)
+        setShowList(false)
+      })
+
+      map.on('mouseenter', 'corridors-line', () => { map.getCanvas().style.cursor = 'pointer' })
+      map.on('mouseleave', 'corridors-line', () => { map.getCanvas().style.cursor = '' })
+    }
+  }, [corridors, snapshots, mapReady])
 
   async function triggerIngest() {
     setIngesting(true)
-    try {
-      await fetch('/api/traffic-ingest', { method: 'POST' })
-      await loadData()
-    } catch { /* ignore */ }
+    try { await fetch('/api/traffic-ingest', { method: 'POST' }) } catch { /* ignore */ }
+    await loadData()
     setIngesting(false)
   }
 
-  useEffect(() => { loadData() }, [])
+  function handleSelectCorridor(corridor) {
+    const snap  = snapshots[corridor.id]
+    const level = snap?.congestion_level || 'unknown'
+    const cs    = CONGESTION[level] || CONGESTION.unknown
+    setSelected({
+      ...corridor,
+      level,
+      color:       cs.color,
+      label:       cs.label,
+      travel_time: fmtMins(snap?.travel_time_secs),
+      free_flow:   fmtMins(snap?.free_flow_secs),
+      delay_mins:  snap?.delay_secs ? Math.round(snap.delay_secs / 60) : 0,
+      captured_at: snap?.captured_at ?? null,
+    })
+    setShowList(false)
 
-  const countries = ['All', ...new Set(corridors.map(c => c.country).filter(Boolean).sort())]
-  const visible   = filter === 'All' ? corridors : corridors.filter(c => c.country === filter)
-
-  if (loading) return (
-    <div className="flex items-center justify-center py-20">
-      <Loader2 size={20} className="animate-spin text-[#0118A1]" />
-    </div>
-  )
-
-  return (
-    <div className="space-y-4">
-      {/* Status bar */}
-      <div className="bg-white rounded-[10px] border border-gray-200 shadow-sm p-4 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap text-xs text-gray-500">
-          {lastRun && (
-            <span className="flex items-center gap-1.5">
-              <Clock size={11} /> Last ingest: {new Date(lastRun).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
-            </span>
-          )}
-          <span className="text-gray-300">·</span>
-          <span>{corridors.length} active corridors</span>
-        </div>
-        <button onClick={triggerIngest} disabled={ingesting}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] border border-gray-200 text-xs font-medium text-gray-600 hover:border-[#0118A1] hover:text-[#0118A1] transition-colors disabled:opacity-50">
-          {ingesting ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-          {ingesting ? 'Running…' : 'Run Ingest Now'}
-        </button>
-      </div>
-
-      {/* Country filter */}
-      <div className="flex gap-2 flex-wrap">
-        {countries.map(c => (
-          <button key={c} onClick={() => setFilter(c)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
-              ${filter === c ? 'bg-[#0118A1] text-white border-[#0118A1]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
-            {c}
-          </button>
-        ))}
-      </div>
-
-      {/* Corridor cards */}
-      {visible.length === 0 ? (
-        <div className="bg-white rounded-[10px] border border-gray-200 p-10 text-center">
-          <Car size={24} className="mx-auto text-gray-300 mb-2" />
-          <p className="text-sm text-gray-400">No active corridors.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3">
-          {visible.map(corridor => {
-            const snap  = snapshots[corridor.id]
-            const cs    = CONGESTION_STYLE[snap?.congestion_level] || CONGESTION_STYLE.free
-            const delay = snap?.delay_secs ? Math.round(snap.delay_secs / 60) : 0
-            const hereInc = (snap?.incidents || []).filter(i => i.source === 'here')
-            const osmInc  = (snap?.incidents || []).filter(i => i.source === 'osm')
-
-            return (
-              <div key={corridor.id} className="bg-white rounded-[10px] border border-gray-100 shadow-sm p-4">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-gray-900">{corridor.name}</span>
-                      <span className="text-[10px] text-gray-400">{corridor.country}</span>
-                      {corridor.distance_km && <span className="text-[10px] text-gray-300">{corridor.distance_km} km</span>}
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                      <Navigation size={9} />{corridor.origin_name} → {corridor.dest_name}
-                    </p>
-                  </div>
-                  {snap
-                    ? <CongestionBadge level={snap.congestion_level} />
-                    : <span className="text-[11px] text-gray-300 border border-gray-100 px-2.5 py-1 rounded-full">No data</span>}
-                </div>
-
-                {snap && (
-                  <>
-                    <div className="h-1.5 bg-gray-100 rounded-full mb-3 overflow-hidden">
-                      <div className={`h-full rounded-full ${cs.bar}`} style={{ width: `${cs.pct}%` }} />
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                      {[
-                        { label: 'Travel Time', value: fmtMins(snap.travel_time_secs) },
-                        { label: 'Free Flow',   value: fmtMins(snap.free_flow_secs) },
-                        { label: 'Delay',       value: delay > 0 ? `+${delay}m` : '—', highlight: delay > 15 ? 'text-red-600' : delay > 5 ? 'text-orange-500' : '' },
-                        { label: 'HERE Jam',    value: snap.here_jam_factor != null ? `${snap.here_jam_factor}/10` : '—' },
-                      ].map(s => (
-                        <div key={s.label} className="bg-gray-50 rounded-[6px] px-2.5 py-1.5">
-                          <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">{s.label}</div>
-                          <div className={`text-xs font-bold text-gray-800 ${s.highlight || ''}`}>{s.value}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {snap.google_travel_secs && (
-                      <div className="flex items-center gap-2 text-[11px] text-gray-500 bg-blue-50/50 border border-blue-100 rounded-[6px] px-2.5 py-1.5 mb-3">
-                        <Zap size={10} className="text-blue-400 shrink-0" />
-                        <span>Google: {fmtMins(snap.google_travel_secs)}</span>
-                        {snap.google_delay_secs > 0 && <span className="text-orange-500">+{Math.round(snap.google_delay_secs/60)}m</span>}
-                        {snap.google_congestion_level && <CongestionBadge level={snap.google_congestion_level} />}
-                      </div>
-                    )}
-
-                    {snap.incident_count > 0 && (
-                      <div className="space-y-1">
-                        {[...hereInc.slice(0,2), ...osmInc.slice(0,1)].map((inc, i) => (
-                          <div key={i} className="flex items-start gap-2 text-[11px] text-gray-600 bg-red-50/40 border border-red-100 rounded-[6px] px-2.5 py-1.5">
-                            <AlertTriangle size={10} className="text-red-400 shrink-0 mt-0.5" />
-                            <span className="truncate">{inc.description || inc.type}</span>
-                            {inc.delay_mins && <span className="text-red-500 shrink-0">+{inc.delay_mins}m</span>}
-                            <span className="text-[9px] text-gray-300 shrink-0 uppercase">{inc.source}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between mt-2.5">
-                      <div className="flex gap-1">
-                        {[
-                          { label: 'HERE', ok: snap.tomtom_ok },
-                          { label: 'Flow', ok: snap.here_ok },
-                          { label: 'Google', ok: snap.google_ok },
-                          { label: 'OSM', ok: snap.osm_ok },
-                        ].map(s => (
-                          <span key={s.label} className={`text-[9px] px-1.5 py-0.5 rounded border
-                            ${s.ok ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
-                            {s.label}
-                          </span>
-                        ))}
-                      </div>
-                      <span className="text-[10px] text-gray-300">
-                        {snap.captured_at ? new Date(snap.captured_at).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) : ''}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Tab 2: Plan Route ─────────────────────────────────────────────────────────
-function PlanRouteTab() {
-  const [origin,  setOrigin]  = useState('')
-  const [dest,    setDest]    = useState('')
-  const [loading, setLoading] = useState(false)
-  const [result,  setResult]  = useState(null)
-  const [error,   setError]   = useState(null)
-
-  function swap() {
-    setOrigin(dest)
-    setDest(origin)
-    setResult(null)
-  }
-
-  async function lookup(e) {
-    e.preventDefault()
-    if (!origin.trim() || !dest.trim()) return
-    setLoading(true); setResult(null); setError(null)
-    try {
-      const res  = await fetch(`/api/route-lookup?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Lookup failed')
-      setResult(data)
-    } catch (err) {
-      setError(err.message)
+    // Fly to corridor
+    const map = mapInstance.current
+    if (map && corridor.origin_lat && corridor.dest_lat) {
+      map.flyTo({
+        center: [
+          (corridor.origin_lon + corridor.dest_lon) / 2,
+          (corridor.origin_lat + corridor.dest_lat) / 2,
+        ],
+        zoom: 6,
+        duration: 1000,
+      })
     }
-    setLoading(false)
   }
 
-  const cs = result ? (CONGESTION_STYLE[result.consensus] || CONGESTION_STYLE.free) : null
-
   return (
-    <div className="space-y-4 max-w-2xl">
-      {/* Input form */}
-      <div className="bg-white rounded-[10px] border border-gray-200 shadow-sm p-5">
-        <h3 className="text-sm font-semibold text-gray-800 mb-4">Enter departure and destination</h3>
-        <form onSubmit={lookup} className="space-y-3">
-          <div className="flex gap-2 items-center">
-            <div className="flex-1 space-y-2">
-              <LocationAutocomplete
-                value={origin}
-                onChange={e => setOrigin(e.target.value)}
-                onSelect={item => setOrigin(item.display || item.label)}
-                placeholder="Origin — city or address"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-[8px] focus:outline-none focus:border-[#0118A1] placeholder:text-gray-300"
-              />
-              <LocationAutocomplete
-                value={dest}
-                onChange={e => setDest(e.target.value)}
-                onSelect={item => setDest(item.display || item.label)}
-                placeholder="Destination — city or address"
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-[8px] focus:outline-none focus:border-[#0118A1] placeholder:text-gray-300"
-              />
+    <Layout fullWidth noPadding>
+      <div className="relative w-full h-[calc(100vh-0px)] overflow-hidden" style={{ background: '#09090B' }}>
+
+        {/* Map */}
+        <div ref={mapRef} className="absolute inset-0" />
+
+        {/* Top bar */}
+        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between gap-3 px-4 py-3"
+          style={{ background: 'rgba(9,10,12,0.90)', borderBottom: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(12px)' }}>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Car size={16} color="#AACC00" />
+              <span className="text-white font-bold text-sm tracking-tight">Live Traffic Intelligence</span>
             </div>
-            <button type="button" onClick={swap}
-              className="p-2 rounded-[8px] border border-gray-200 text-gray-400 hover:text-[#0118A1] hover:border-[#0118A1] transition-colors shrink-0">
-              <ArrowLeftRight size={14} />
+            <span className="text-zinc-600 text-xs hidden sm:block">HERE · Google · OSM · 30-min cycle</span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Congestion counts */}
+            {!loading && (
+              <div className="hidden sm:flex items-center gap-3 text-[11px]">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-zinc-400">{counts.free} free</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-orange-400" /><span className="text-zinc-400">{counts.degraded} moderate</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-red-500" /><span className="text-zinc-400">{counts.heavy} heavy</span>
+                </span>
+              </div>
+            )}
+
+            {lastRun && (
+              <span className="text-zinc-500 text-[10px] hidden md:block">
+                Updated {new Date(lastRun).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+
+            <button onClick={() => { setShowList(v => !v); setSelected(null) }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+              style={{ background: showList ? '#AACC00' : 'rgba(255,255,255,0.08)', color: showList ? '#09090B' : '#A1A1AA' }}>
+              <TrendingUp size={12} />
+              Corridors
+            </button>
+
+            <button onClick={triggerIngest} disabled={ingesting}
+              className="p-1.5 rounded-lg transition-colors disabled:opacity-50"
+              style={{ background: 'rgba(255,255,255,0.06)', color: '#A1A1AA' }}>
+              <RefreshCw size={13} className={ingesting ? 'animate-spin' : ''} />
             </button>
           </div>
-          <button type="submit" disabled={loading || !origin.trim() || !dest.trim()}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[8px] text-sm font-semibold text-white transition-opacity disabled:opacity-50"
-            style={{ background: BRAND_BLUE }}>
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-            {loading ? 'Looking up traffic…' : 'Check Traffic'}
-          </button>
-        </form>
-      </div>
-
-      {/* Error */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-[10px] p-4 text-sm text-red-700 flex items-start gap-2">
-          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-          {error}
-        </div>
-      )}
-
-      {/* Results */}
-      {result && cs && (
-        <div className="space-y-3">
-          {/* Route header */}
-          <div className="bg-white rounded-[10px] border border-gray-200 shadow-sm p-5">
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div>
-                <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 flex-wrap">
-                  <span>{result.origin.city}</span>
-                  <ArrowRight size={13} className="text-gray-400 shrink-0" />
-                  <span>{result.destination.city}</span>
-                </div>
-                <p className="text-[11px] text-gray-400 mt-0.5 truncate max-w-sm">{result.origin.label}</p>
-                {result.distKm && <p className="text-[11px] text-gray-400">{result.distKm} km</p>}
-              </div>
-              <CongestionBadge level={result.consensus} />
-            </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-1">
-              <div className={`h-full rounded-full ${cs.bar}`} style={{ width: `${cs.pct}%` }} />
-            </div>
-            <p className="text-[10px] text-gray-400">Consensus from HERE + Google</p>
-          </div>
-
-          {/* Source comparison */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* HERE */}
-            <div className={`bg-white rounded-[10px] border shadow-sm p-4 ${result.here.ok ? 'border-gray-200' : 'border-gray-100 opacity-60'}`}>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-gray-700">HERE Routing</span>
-                {result.here.ok
-                  ? <CheckCircle2 size={13} className="text-emerald-500" />
-                  : <span className="text-[10px] text-gray-400">Unavailable</span>}
-              </div>
-              {result.here.ok && (
-                <div className="space-y-2">
-                  {[
-                    { label: 'Travel Time', value: fmtMins(result.here.travel) },
-                    { label: 'Free Flow',   value: fmtMins(result.here.freeFlow) },
-                    { label: 'Delay',       value: result.here.delay > 0 ? `+${Math.round(result.here.delay/60)}m` : 'None' },
-                    { label: 'Congestion',  value: <CongestionBadge level={result.here.level} /> },
-                  ].map(row => (
-                    <div key={row.label} className="flex justify-between items-center">
-                      <span className="text-[11px] text-gray-400">{row.label}</span>
-                      <span className="text-xs font-semibold text-gray-800">{row.value}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Google */}
-            <div className={`bg-white rounded-[10px] border shadow-sm p-4 ${result.google.ok ? 'border-gray-200' : 'border-gray-100 opacity-60'}`}>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-gray-700">Google Routes</span>
-                {result.google.ok
-                  ? <CheckCircle2 size={13} className="text-blue-500" />
-                  : <span className="text-[10px] text-gray-400">Add GOOGLE_MAPS_API_KEY</span>}
-              </div>
-              {result.google.ok && (
-                <div className="space-y-2">
-                  {[
-                    { label: 'Travel Time', value: fmtMins(result.google.travel) },
-                    { label: 'Free Flow',   value: fmtMins(result.google.freeFlow) },
-                    { label: 'Delay',       value: result.google.delay > 0 ? `+${Math.round(result.google.delay/60)}m` : 'None' },
-                    { label: 'Congestion',  value: <CongestionBadge level={result.google.level} /> },
-                  ].map(row => (
-                    <div key={row.label} className="flex justify-between items-center">
-                      <span className="text-[11px] text-gray-400">{row.label}</span>
-                      <span className="text-xs font-semibold text-gray-800">{row.value}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Travel recommendations from historical patterns */}
-          {result.recommendations && (
-            <div className="bg-white rounded-[10px] border border-gray-200 shadow-sm p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <BarChart2 size={14} className="text-[#0118A1]" />
-                  <span className="text-sm font-semibold text-gray-800">Historical Travel Recommendations</span>
-                </div>
-                {result.nearestCorridor && (
-                  <span className="text-[10px] text-gray-400 bg-gray-50 border border-gray-100 px-2 py-1 rounded-full">
-                    Based on {result.nearestCorridor.name} · {result.nearestCorridor.proximityKm} km away
-                  </span>
-                )}
-              </div>
-
-              <p className="text-[11px] text-gray-400">
-                From {result.recommendations.totalSamples} historical snapshots on the nearest monitored corridor.
-                Times shown in UTC — adjust for your local timezone.
-              </p>
-
-              {/* Best times */}
-              <div>
-                <div className="flex items-center gap-1.5 mb-2">
-                  <Star size={12} className="text-emerald-500" />
-                  <span className="text-xs font-semibold text-emerald-700">Best Times to Travel</span>
-                </div>
-                <div className="space-y-1.5">
-                  {result.recommendations.best.map((slot, i) => {
-                    const cs = CONGESTION_STYLE[slot.level] || CONGESTION_STYLE.free
-                    const delayMins = slot.avgDelaySecs ? Math.round(slot.avgDelaySecs / 60) : 0
-                    const travelMins = slot.avgTravelSecs ? Math.round(slot.avgTravelSecs / 60) : null
-                    return (
-                      <div key={i} className="flex items-center justify-between gap-3 px-3 py-2 rounded-[7px] bg-emerald-50/50 border border-emerald-100">
-                        <div className="flex items-center gap-2.5">
-                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${cs.badge} border`}>{cs.label}</span>
-                          <span className="text-xs font-semibold text-gray-800">{slot.day}</span>
-                          <span className="text-xs text-gray-500">{slot.hourLabel}</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-[11px] text-gray-500 shrink-0">
-                          {travelMins && <span className="flex items-center gap-1"><Clock size={10} />{travelMins}m</span>}
-                          <span className={delayMins > 0 ? 'text-orange-500' : 'text-emerald-600'}>
-                            {delayMins > 0 ? `+${delayMins}m delay` : 'No delay'}
-                          </span>
-                          <span className="text-gray-300 text-[9px]">{slot.samples} samples</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Times to avoid */}
-              {result.recommendations.worst?.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <ThumbsDown size={12} className="text-red-400" />
-                    <span className="text-xs font-semibold text-red-600">Times to Avoid</span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {result.recommendations.worst.map((slot, i) => {
-                      const cs = CONGESTION_STYLE[slot.level] || CONGESTION_STYLE.standstill
-                      const delayMins = slot.avgDelaySecs ? Math.round(slot.avgDelaySecs / 60) : 0
-                      return (
-                        <div key={i} className="flex items-center justify-between gap-3 px-3 py-2 rounded-[7px] bg-red-50/50 border border-red-100">
-                          <div className="flex items-center gap-2.5">
-                            <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${cs.badge} border`}>{cs.label}</span>
-                            <span className="text-xs font-semibold text-gray-800">{slot.day}</span>
-                            <span className="text-xs text-gray-500">{slot.hourLabel}</span>
-                          </div>
-                          <span className="text-[11px] text-red-500 shrink-0">
-                            {delayMins > 0 ? `+${delayMins}m delay` : 'High congestion'}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {result.recommendations === null && result.nearestCorridor && (
-            <div className="bg-gray-50 border border-gray-200 rounded-[10px] p-4 text-xs text-gray-400 text-center">
-              Not enough historical data yet for {result.nearestCorridor.name}. Recommendations will appear after a few ingest cycles.
-            </div>
-          )}
-
-          <p className="text-[10px] text-gray-400 text-right">
-            Generated {new Date(result.generatedAt).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })}
-          </p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────────
-const TABS = [
-  { id: 'corridors', label: 'Live Corridors', icon: TrendingUp },
-  { id: 'route',     label: 'Plan Route',     icon: Navigation },
-]
-
-export default function LiveTraffic() {
-  const [tab, setTab] = useState('corridors')
-
-  return (
-    <Layout>
-      <div className="p-6 max-w-5xl mx-auto space-y-5">
-        {/* Header */}
-        <div className="flex items-start gap-4">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: `${BRAND_BLUE}18` }}>
-            <Car size={20} color={BRAND_BLUE} />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Live Traffic Intelligence</h1>
-            <p className="text-xs text-gray-400 mt-0.5">HERE Routing · Google Routes · OSM Overpass · 30-min ingest cycle</p>
-          </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 rounded-[10px] p-1 w-fit">
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-[8px] text-xs font-semibold transition-all
-                ${tab === t.id ? 'bg-white text-[#0118A1] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              <t.icon size={13} />
-              {t.label}
-            </button>
+        {/* Loading overlay */}
+        {loading && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center" style={{ background: 'rgba(9,10,12,0.7)' }}>
+            <div className="flex items-center gap-3 text-white">
+              <Loader2 size={18} className="animate-spin text-[#AACC00]" />
+              <span className="text-sm">Loading corridor data…</span>
+            </div>
+          </div>
+        )}
+
+        {/* Corridor list panel */}
+        {showList && !loading && (
+          <CorridorListPanel
+            corridors={corridors}
+            snapshots={snapshots}
+            onSelect={handleSelectCorridor}
+            lastRun={lastRun}
+            ingesting={ingesting}
+            onIngest={triggerIngest}
+          />
+        )}
+
+        {/* Selected corridor detail */}
+        {selected && (
+          <CorridorPanel corridor={selected} onClose={() => { setSelected(null); setShowList(true) }} />
+        )}
+
+        {/* Legend */}
+        <div className="absolute bottom-8 left-4 z-10 flex flex-col gap-1.5 px-3 py-2.5 rounded-xl"
+          style={{ background: 'rgba(9,10,12,0.85)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          <span className="text-zinc-500 text-[9px] uppercase tracking-widest mb-0.5">Congestion</span>
+          {[
+            { label: 'Free Flow',  color: '#22c55e' },
+            { label: 'Low',        color: '#eab308' },
+            { label: 'Moderate',   color: '#f97316' },
+            { label: 'Heavy',      color: '#dc2626' },
+            { label: 'Standstill', color: '#7f1d1d' },
+          ].map(({ label, color }) => (
+            <div key={label} className="flex items-center gap-2">
+              <span className="w-4 h-0.5 rounded-full" style={{ background: color }} />
+              <span className="text-zinc-400 text-[10px]">{label}</span>
+            </div>
           ))}
         </div>
 
-        {tab === 'corridors' && <LiveCorridorsTab />}
-        {tab === 'route'     && <PlanRouteTab />}
+        {/* Corridor count */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 rounded-full text-[10px] text-zinc-500"
+          style={{ background: 'rgba(9,10,12,0.85)', border: '1px solid rgba(255,255,255,0.07)' }}>
+          {corridors.length} monitored corridors · 30-min refresh
+        </div>
+
       </div>
     </Layout>
   )
