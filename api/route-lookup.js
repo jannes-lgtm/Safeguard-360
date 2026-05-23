@@ -270,11 +270,21 @@ function getProximityBand(distKm) {
 }
 
 function scoreEventProximity(event, routeCoords) {
-  const coords = CITY_COORDS[event.city]
-  if (!coords || !routeCoords.length) {
+  // Prefer geocoded coordinates stored at ingest time (city_lat / city_lon).
+  // Fall back to the static CITY_COORDS index for events ingested before the
+  // geocoding upgrade, so existing DB rows continue to score correctly.
+  let cLat, cLon
+  if (event.city_lat != null && event.city_lon != null) {
+    cLat = event.city_lat
+    cLon = event.city_lon
+  } else {
+    const coords = CITY_COORDS[event.city]
+    if (coords) { [cLat, cLon] = coords }
+  }
+
+  if (cLat == null || !routeCoords.length) {
     return { ...event, distKm: null, _lat: null, _lon: null, proximityScore: 1, proximityLabel: 'In Country' }
   }
-  const [cLat, cLon] = coords
   const raw  = distanceToRoute(cLat, cLon, routeCoords)
   const dist = raw !== null ? Math.round(raw) : null
   const { score, label } = getProximityBand(dist)

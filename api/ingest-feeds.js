@@ -20,6 +20,7 @@ import { fetchArticlesForCountry } from './_claudeSynth.js'
 import { normalizeArticles }       from './_intelNormalizer.js'
 import { correlateEvents }         from './_eventCorrelator.js'
 import { adapt }                   from './_adapter.js'
+import { enrichWithCoordinates }   from './_geocoder.js'
 
 const SUPABASE_URL = () => process.env.SUPABASE_URL || ''
 const SERVICE_KEY  = () => process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -130,11 +131,14 @@ async function ingestLocation(location) {
     )
     if (!significant.length) return result
 
+    // 4a. Geocode city names → attach city_lat / city_lon before DB insert
+    const geocoded = await enrichWithCoordinates(significant)
+
     // 4. Store in live_intelligence (ignore duplicates on raw_title + country)
     const expiresAt = new Date(now + INTEL_TTL_HOURS * 60 * 60 * 1000).toISOString()
     const ingestedAt = new Date(now).toISOString()
 
-    for (const obj of significant) {
+    for (const obj of geocoded) {
       // Strip runtime-only fields before inserting
       const { _raw_text, relevance_score, ...clean } = obj
       const ok = await sbPost('live_intelligence', {
