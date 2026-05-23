@@ -648,11 +648,25 @@ export default function CountryRiskReport() {
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: MAP_STYLES.standard,
+      style: MAP_STYLES.operational,
       center: [20, 5],
       zoom: 2.5,
     })
     mapRef.current = map
+
+    const popupStyle = document.createElement('style')
+    popupStyle.textContent = `
+      .maplibregl-popup-content {
+        background: #11131A; color: #EAEEF5;
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 10px; padding: 12px 14px;
+        font-family: system-ui, sans-serif;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      }
+      .maplibregl-popup-close-button { color: #6E7480; font-size: 16px; }
+      .maplibregl-popup-tip { display: none !important; }
+    `
+    document.head.appendChild(popupStyle)
 
     map.on('load', () => {
       map.addSource('risk-countries', { type: 'geojson', data: buildRiskGeoJSON(regionFilter) })
@@ -677,29 +691,31 @@ export default function CountryRiskReport() {
         const textColor = props.risk === 'Medium' ? '#1f2937' : '#fff'
 
         const wrap = document.createElement('div')
-        wrap.style.cssText = 'font-family:sans-serif;padding:4px 0;min-width:170px'
+        wrap.style.cssText = 'font-family:system-ui,-apple-system,sans-serif;min-width:190px'
 
         const nameEl = document.createElement('div')
-        nameEl.style.cssText = 'font-weight:700;font-size:14px;margin-bottom:6px'
+        nameEl.style.cssText = 'font-weight:700;font-size:13px;color:#EAEEF5;margin-bottom:5px'
         nameEl.textContent = props.name
 
         const badge = document.createElement('div')
-        badge.style.cssText = `display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${rStyle.fillColor};color:${textColor};margin-bottom:8px`
-        badge.textContent = `${props.risk} Risk`
+        badge.style.cssText = `display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;background:${rStyle.fillColor}22;color:${rStyle.fillColor};border:1px solid ${rStyle.fillColor}44;margin-bottom:5px`
+        badge.textContent = `${props.risk?.toUpperCase()} RISK`
 
         const regionEl = document.createElement('div')
-        regionEl.style.cssText = 'font-size:11px;color:#6b7280;margin-bottom:10px'
+        regionEl.style.cssText = 'font-size:10px;color:#6E7480;margin-bottom:10px'
         regionEl.textContent = props.region
 
         const btn = document.createElement('button')
         btn.textContent = 'View Full Report →'
-        btn.style.cssText = 'display:block;width:100%;background:#0118A1;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer'
+        btn.style.cssText = 'display:block;width:100%;background:#AACC00;color:#09090B;border:none;border-radius:6px;padding:7px 14px;font-size:11px;font-weight:700;cursor:pointer'
+        btn.onmouseover = () => { btn.style.opacity = '0.85' }
+        btn.onmouseout  = () => { btn.style.opacity = '1' }
         btn.onclick = () => selectCountryRef.current?.(props.name)
 
         wrap.appendChild(nameEl); wrap.appendChild(badge)
         wrap.appendChild(regionEl); wrap.appendChild(btn)
 
-        new maplibregl.Popup({ closeButton: true, maxWidth: '220px' })
+        new maplibregl.Popup({ closeButton: true, maxWidth: '230px' })
           .setLngLat(e.features[0].geometry.coordinates.slice())
           .setDOMContent(wrap)
           .addTo(map)
@@ -709,7 +725,7 @@ export default function CountryRiskReport() {
       map.on('mouseleave', 'risk-circles', () => { map.getCanvas().style.cursor = '' })
     })
 
-    return () => { map.remove(); mapRef.current = null }
+    return () => { map.remove(); mapRef.current = null; popupStyle.remove() }
   }, [selected])
 
   // Update GeoJSON data when region filter changes
@@ -878,8 +894,7 @@ export default function CountryRiskReport() {
             </div>
 
             {/* Map container */}
-            <div className="rounded-[10px] overflow-hidden border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-              style={{ height: 500 }}>
+            <div className="rounded-[10px] overflow-hidden" style={{ height: 500 }}>
               <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
             </div>
 
