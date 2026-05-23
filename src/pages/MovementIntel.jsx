@@ -1,11 +1,11 @@
 /**
  * src/pages/MovementIntel.jsx
  *
- * Operational Movement Intelligence — full-screen Africa map with:
- * - Lime green city dots for every mapped African location
+ * Operational Movement Intelligence — full-screen dark map with:
+ * - Lime-green city dots (330+ cities, global)
  * - Traffic corridor lines coloured by congestion
- * - Floating top bar (AO filter, layer toggles, Plan Route CTA)
- * - Route Planner as a centered dropdown panel
+ * - Layer panel: MOVEMENT · INTELLIGENCE · INFRASTRUCTURE · WEATHER
+ * - Route Planner floating panel
  */
 
 import { useEffect, useState, useRef, useCallback } from 'react'
@@ -16,6 +16,7 @@ import {
   RefreshCw, X, AlertTriangle, Clock, Search,
   LocateFixed, ArrowRight, TrendingUp, Info,
   Heart, Shield, Flame, Layers,
+  Building2, Cloud, CloudRain, Wind, Thermometer,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import LocationAutocomplete from '../components/LocationAutocomplete'
@@ -36,7 +37,50 @@ const CONG_LABEL = {
   free: 'CLEAR', low: 'LIGHT', moderate: 'MODERATE',
   heavy: 'HEAVY', standstill: 'STANDSTILL', unknown: 'MONITORING',
 }
-const CONG_ORDER = { standstill: 0, heavy: 1, moderate: 2, low: 3, free: 4, unknown: 5 }
+
+// ── Facility colours ──────────────────────────────────────────────────────────
+const FAC_COLOR  = { hospital: '#f87171', police: '#60a5fa', fire: '#fb923c' }
+const FAC_LABEL  = { hospital: 'Hospital', police: 'Police Station', fire: 'Fire Station' }
+
+// ── Incident severity colours ─────────────────────────────────────────────────
+const SEV_COLOR  = { critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e' }
+
+// ── OpenWeatherMap key (add VITE_OPENWEATHERMAP_KEY to .env.local + Vercel) ───
+const OWM_KEY = import.meta.env.VITE_OPENWEATHERMAP_KEY || ''
+
+// ── Layer groups config (drives the LayerPanel UI) ───────────────────────────
+const LAYER_GROUPS = [
+  {
+    id: 'movement', label: 'MOVEMENT', Icon: Route,
+    layers: [
+      { id: 'corridors',  label: 'Traffic Corridors', Icon: Route,       color: '#AACC00' },
+      { id: 'cities',     label: 'City Network',      Icon: MapPin,       color: '#AACC00' },
+    ],
+  },
+  {
+    id: 'intelligence', label: 'INTELLIGENCE', Icon: AlertTriangle,
+    layers: [
+      { id: 'incidents',  label: 'Active Incidents',  Icon: AlertTriangle, color: '#ef4444' },
+    ],
+  },
+  {
+    id: 'infrastructure', label: 'INFRASTRUCTURE', Icon: Building2,
+    layers: [
+      { id: 'hospitals',  label: 'Hospitals',          Icon: Heart,   color: '#f87171' },
+      { id: 'police',     label: 'Police Stations',    Icon: Shield,  color: '#60a5fa' },
+      { id: 'fire',       label: 'Fire Stations',      Icon: Flame,   color: '#fb923c' },
+    ],
+  },
+  {
+    id: 'weather', label: 'WEATHER', Icon: Cloud,
+    layers: [
+      { id: 'weatherPrecip', label: 'Precipitation',  Icon: CloudRain,   color: '#38bdf8', owm: true },
+      { id: 'weatherWind',   label: 'Wind Speed',     Icon: Wind,        color: '#a78bfa', owm: true },
+      { id: 'weatherTemp',   label: 'Temperature',    Icon: Thermometer, color: '#fb923c', owm: true },
+      { id: 'weatherCloud',  label: 'Cloud Cover',    Icon: Cloud,       color: '#94a3b8', owm: true },
+    ],
+  },
+]
 
 function fmtMins(secs) {
   if (!secs) return null
@@ -58,11 +102,158 @@ function LevelBadge({ level, small }) {
   )
 }
 
+// ── Toggle pill ───────────────────────────────────────────────────────────────
+function TogglePill({ active }) {
+  return (
+    <div
+      className="w-7 h-3.5 rounded-full transition-colors shrink-0 relative"
+      style={{ background: active ? '#AACC00' : 'rgba(255,255,255,0.12)' }}
+    >
+      <div
+        className="absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white transition-all duration-150"
+        style={{ left: active ? '13px' : '2px' }}
+      />
+    </div>
+  )
+}
+
+// ── Layer Panel ───────────────────────────────────────────────────────────────
+function LayerPanel({ activeLayers, onToggle, onGroupAll, onClose }) {
+  const allIds     = LAYER_GROUPS.flatMap(g => g.layers.map(l => l.id))
+  const allActive  = allIds.every(id => activeLayers[id])
+
+  return (
+    <div className="absolute z-20" style={{ top: 72, right: 14, width: 268 }}>
+      <div
+        className="rounded-[14px] overflow-hidden"
+        style={{
+          background:    'rgba(9,10,12,0.97)',
+          border:        '1px solid rgba(255,255,255,0.1)',
+          backdropFilter:'blur(20px)',
+          boxShadow:     '0 12px 48px rgba(0,0,0,0.7)',
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-4 py-3"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+        >
+          <div className="flex items-center gap-2">
+            <Layers size={12} className="text-[#AACC00]" />
+            <span className="text-[11px] font-bold text-white tracking-widest uppercase">Map Layers</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => onGroupAll(allIds, !allActive)}
+              className="text-[9px] font-bold uppercase tracking-wider transition-colors"
+              style={{ color: allActive ? '#AACC00' : 'rgba(255,255,255,0.35)' }}
+            >
+              {allActive ? 'Deselect All' : 'Select All'}
+            </button>
+            <button onClick={onClose} className="text-white/35 hover:text-white/70 transition-colors">
+              <X size={13} />
+            </button>
+          </div>
+        </div>
+
+        {/* Groups */}
+        <div
+          className="p-3 space-y-5 overflow-y-auto"
+          style={{ maxHeight: 'calc(100vh - 180px)', scrollbarWidth: 'none' }}
+        >
+          {LAYER_GROUPS.map(group => {
+            const groupIds  = group.layers.map(l => l.id)
+            const groupAll  = groupIds.every(id => activeLayers[id])
+            const noOWM     = group.id === 'weather' && !OWM_KEY
+
+            return (
+              <div key={group.id}>
+                {/* Group header */}
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <group.Icon size={9} className="text-white/25" />
+                    <span className="text-[8px] font-bold text-white/25 uppercase tracking-wider">
+                      {group.label}
+                    </span>
+                    {noOWM && (
+                      <span className="text-[7px] text-orange-400/60 uppercase tracking-wide ml-1">
+                        key required
+                      </span>
+                    )}
+                  </div>
+                  {!noOWM && (
+                    <button
+                      onClick={() => onGroupAll(groupIds, !groupAll)}
+                      className="text-[8px] font-semibold uppercase tracking-wider transition-colors"
+                      style={{ color: groupAll ? '#AACC00' : 'rgba(255,255,255,0.25)' }}
+                    >
+                      {groupAll ? 'None' : 'All'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Layer rows */}
+                <div className="space-y-0.5">
+                  {group.layers.map(layer => {
+                    const disabled = layer.owm && !OWM_KEY
+                    const active   = activeLayers[layer.id]
+                    return (
+                      <button
+                        key={layer.id}
+                        onClick={() => !disabled && onToggle(layer.id)}
+                        disabled={disabled}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[8px] transition-colors hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {/* Dot indicator */}
+                        <div
+                          className="w-2 h-2 rounded-full shrink-0 transition-all"
+                          style={{
+                            background:  active ? layer.color : 'transparent',
+                            border:      `1.5px solid ${active ? layer.color : 'rgba(255,255,255,0.2)'}`,
+                            boxShadow:   active ? `0 0 6px ${layer.color}60` : 'none',
+                          }}
+                        />
+                        {/* Icon */}
+                        <layer.Icon
+                          size={10}
+                          style={{ color: active ? layer.color : 'rgba(255,255,255,0.35)' }}
+                          className="shrink-0"
+                        />
+                        {/* Label */}
+                        <span
+                          className="text-[11px] text-left flex-1"
+                          style={{ color: active ? '#EAEEF5' : 'rgba(255,255,255,0.40)' }}
+                        >
+                          {layer.label}
+                        </span>
+                        {/* Toggle pill */}
+                        <TogglePill active={active} />
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Footer attribution */}
+        <div className="px-4 py-2.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <span className="text-[8px] text-white/15">
+            Facilities: OpenStreetMap · Weather: OpenWeatherMap
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function MovementIntel() {
-  const containerRef = useRef(null)
-  const mapRef       = useRef(null)
-  const markersRef   = useRef({ origin: null, dest: null })
+  const containerRef  = useRef(null)
+  const mapRef        = useRef(null)
+  const markersRef    = useRef({ origin: null, dest: null })
+  const facLoadedRef  = useRef({ hospital: false, police: false, fire: false })
 
   const [mapReady,         setMapReady]         = useState(false)
   const [corridors,        setCorridors]        = useState([])
@@ -71,9 +262,23 @@ export default function MovementIntel() {
   const [aoList,           setAoList]           = useState(['All'])
   const [activeAO,         setActiveAO]         = useState('All')
   const [aoOpen,           setAoOpen]           = useState(false)
-  const [showCorridors,    setShowCorridors]    = useState(true)
+  const [incidents,        setIncidents]        = useState([])
   const [geoStatus,        setGeoStatus]        = useState('idle')
   const userLocationRef = useRef(null)
+
+  const [activeLayers, setActiveLayers] = useState({
+    corridors:     true,
+    cities:        true,
+    incidents:     false,
+    hospitals:     false,
+    police:        false,
+    fire:          false,
+    weatherPrecip: false,
+    weatherWind:   false,
+    weatherTemp:   false,
+    weatherCloud:  false,
+  })
+  const [layerPanelOpen, setLayerPanelOpen] = useState(false)
 
   const [routePlannerOpen, setRoutePlannerOpen] = useState(false)
   const [routeOrigin,      setRouteOrigin]      = useState('')
@@ -81,6 +286,11 @@ export default function MovementIntel() {
   const [routeResult,      setRouteResult]      = useState(null)
   const [routeLoading,     setRouteLoading]     = useState(false)
   const [routeError,       setRouteError]       = useState(null)
+
+  const toggleLayer   = useCallback(id => setActiveLayers(p => ({ ...p, [id]: !p[id] })), [])
+  const setGroupAll   = useCallback((ids, val) =>
+    setActiveLayers(p => { const n = { ...p }; ids.forEach(id => { n[id] = val }); return n })
+  , [])
 
   // ── Init map ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -108,7 +318,7 @@ export default function MovementIntel() {
         padding: 10px 12px;
         font-family: system-ui, sans-serif;
         box-shadow: 0 4px 24px rgba(0,0,0,0.5);
-        max-width: 220px;
+        max-width: 240px;
       }
       .maplibregl-popup-close-button { color: #6E7480; font-size: 16px; }
       .maplibregl-popup-tip { display: none !important; }
@@ -119,62 +329,122 @@ export default function MovementIntel() {
     map.on('load', () => {
       const empty = { type: 'FeatureCollection', features: [] }
 
-      // ── Sources ────────────────────────────────────────────────────────────
-      map.addSource('africa-cities',   { type: 'geojson', data: CITIES_FC })
-      map.addSource('corridors',       { type: 'geojson', data: empty })
-      map.addSource('route-alt',       { type: 'geojson', data: empty })
-      map.addSource('route-primary',   { type: 'geojson', data: empty })
-      map.addSource('route-segments',  { type: 'geojson', data: empty })
+      // ── 1. Weather raster sources (bottom of stack) ────────────────────────
+      if (OWM_KEY) {
+        const WX = [
+          { id: 'precip', tile: 'precipitation_new' },
+          { id: 'wind',   tile: 'wind_new' },
+          { id: 'temp',   tile: 'temp_new' },
+          { id: 'cloud',  tile: 'clouds_new' },
+        ]
+        for (const { id, tile } of WX) {
+          map.addSource(`wx-${id}`, {
+            type:        'raster',
+            tiles:       [`https://tile.openweathermap.org/map/${tile}/{z}/{x}/{y}.png?appid=${OWM_KEY}`],
+            tileSize:    256,
+            attribution: '© OpenWeatherMap',
+          })
+          map.addLayer({
+            id:     `wx-${id}-layer`,
+            type:   'raster',
+            source: `wx-${id}`,
+            paint:  { 'raster-opacity': 0.60 },
+            layout: { visibility: 'none' },
+          })
+        }
+      }
 
-      // ── Africa city dot halo ───────────────────────────────────────────────
+      // ── 2. Facilities sources ──────────────────────────────────────────────
+      for (const t of ['hospital', 'police', 'fire']) {
+        map.addSource(`fac-${t}`, { type: 'geojson', data: empty })
+        map.addLayer({
+          id:     `fac-${t}-circle`,
+          type:   'circle',
+          source: `fac-${t}`,
+          paint: {
+            'circle-radius':       ['interpolate', ['linear'], ['zoom'], 4, 4, 9, 7, 12, 10],
+            'circle-color':         FAC_COLOR[t],
+            'circle-opacity':       0.85,
+            'circle-stroke-width':  1.5,
+            'circle-stroke-color':  '#11131A',
+          },
+          layout: { visibility: 'none' },
+        })
+      }
+
+      // ── 3. Incidents sources ───────────────────────────────────────────────
+      map.addSource('incidents', { type: 'geojson', data: empty })
+      map.addLayer({
+        id: 'incidents-halo', type: 'circle', source: 'incidents',
+        paint: {
+          'circle-radius':  ['interpolate', ['linear'], ['zoom'], 3, 10, 8, 18],
+          'circle-color':   ['get', 'color'],
+          'circle-opacity': 0.12,
+          'circle-blur':    1,
+        },
+        layout: { visibility: 'none' },
+      })
+      map.addLayer({
+        id: 'incidents-dot', type: 'circle', source: 'incidents',
+        paint: {
+          'circle-radius':       ['interpolate', ['linear'], ['zoom'], 3, 4, 8, 7],
+          'circle-color':        ['get', 'color'],
+          'circle-opacity':       0.9,
+          'circle-stroke-width':  1.5,
+          'circle-stroke-color':  '#11131A',
+        },
+        layout: { visibility: 'none' },
+      })
+
+      // ── 4. City dots ───────────────────────────────────────────────────────
+      map.addSource('africa-cities', { type: 'geojson', data: CITIES_FC })
       map.addLayer({
         id: 'city-halo', type: 'circle', source: 'africa-cities',
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 5, 5, 9, 8, 14],
-          'circle-color': '#AACC00',
-          'circle-opacity': 0.08,
-          'circle-blur': 1,
+          'circle-radius':  ['interpolate', ['linear'], ['zoom'], 2, 5, 5, 9, 8, 14],
+          'circle-color':    '#AACC00',
+          'circle-opacity':  0.08,
+          'circle-blur':     1,
         },
       })
-
-      // ── Africa city dots ──────────────────────────────────────────────────
       map.addLayer({
         id: 'city-dot', type: 'circle', source: 'africa-cities',
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 2, 5, 3, 8, 4.5],
-          'circle-color': '#AACC00',
-          'circle-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.5, 4, 0.8, 7, 0.95],
-          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 2, 0, 5, 1],
-          'circle-stroke-color': 'rgba(170,204,0,0.4)',
+          'circle-radius':       ['interpolate', ['linear'], ['zoom'], 2, 2, 5, 3, 8, 4.5],
+          'circle-color':         '#AACC00',
+          'circle-opacity':       ['interpolate', ['linear'], ['zoom'], 2, 0.5, 4, 0.8, 7, 0.95],
+          'circle-stroke-width':  ['interpolate', ['linear'], ['zoom'], 2, 0, 5, 1],
+          'circle-stroke-color':  'rgba(170,204,0,0.4)',
         },
       })
-
-      // ── City label (visible at higher zoom) ───────────────────────────────
       map.addLayer({
         id: 'city-label', type: 'symbol', source: 'africa-cities',
         minzoom: 6,
         layout: {
-          'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Regular'],
-          'text-size': 10,
-          'text-offset': [0, 1.2],
-          'text-anchor': 'top',
+          'text-field':    ['get', 'name'],
+          'text-font':     ['Open Sans Regular'],
+          'text-size':     10,
+          'text-offset':   [0, 1.2],
+          'text-anchor':   'top',
           'text-optional': true,
         },
         paint: {
-          'text-color': 'rgba(170,204,0,0.75)',
-          'text-halo-color': 'rgba(0,0,0,0.6)',
-          'text-halo-width': 1,
+          'text-color':       'rgba(170,204,0,0.75)',
+          'text-halo-color':  'rgba(0,0,0,0.6)',
+          'text-halo-width':  1,
         },
       })
 
-      // ── Corridor glow ──────────────────────────────────────────────────────
+      // ── 5. Corridor + route sources & layers ───────────────────────────────
+      map.addSource('corridors',      { type: 'geojson', data: empty })
+      map.addSource('route-alt',      { type: 'geojson', data: empty })
+      map.addSource('route-primary',  { type: 'geojson', data: empty })
+      map.addSource('route-segments', { type: 'geojson', data: empty })
+
       map.addLayer({
         id: 'corridors-glow', type: 'line', source: 'corridors',
         paint: { 'line-color': ['get', 'color'], 'line-width': 10, 'line-opacity': 0.15, 'line-blur': 5 },
       })
-
-      // ── Corridor lines ─────────────────────────────────────────────────────
       map.addLayer({
         id: 'corridors-line', type: 'line', source: 'corridors',
         paint: {
@@ -183,41 +453,33 @@ export default function MovementIntel() {
           'line-opacity': 0.9,
         },
       })
-
-      // ── Alternate route ────────────────────────────────────────────────────
       map.addLayer({
         id: 'route-alt-line', type: 'line', source: 'route-alt',
         paint: { 'line-color': '#64748b', 'line-width': 2, 'line-dasharray': [5, 4], 'line-opacity': 0.6 },
       })
-
-      // ── Primary route glow ─────────────────────────────────────────────────
       map.addLayer({
         id: 'route-primary-glow', type: 'line', source: 'route-primary',
         paint: { 'line-color': '#3b82f6', 'line-width': 14, 'line-opacity': 0.18, 'line-blur': 8 },
       })
-
-      // ── Primary route ──────────────────────────────────────────────────────
       map.addLayer({
         id: 'route-primary-line', type: 'line', source: 'route-primary',
         paint: {
-          'line-color': '#3b82f6',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 3, 3, 8, 5, 12, 7],
+          'line-color':   '#3b82f6',
+          'line-width':   ['interpolate', ['linear'], ['zoom'], 3, 3, 8, 5, 12, 7],
           'line-opacity': 0.95,
         },
       })
-
-      // ── Risk-coloured route segments ───────────────────────────────────────
       map.addLayer({
         id: 'route-segments-line', type: 'line', source: 'route-segments',
         paint: {
-          'line-color': ['get', 'color'],
-          'line-width': ['interpolate', ['linear'], ['zoom'], 3, 3, 8, 5, 12, 7],
+          'line-color':   ['get', 'color'],
+          'line-width':   ['interpolate', ['linear'], ['zoom'], 3, 3, 8, 5, 12, 7],
           'line-opacity': 0.97,
         },
       })
 
-      // ── Corridor click popup ───────────────────────────────────────────────
-      map.on('click', 'corridors-line', (e) => {
+      // ── Popups ─────────────────────────────────────────────────────────────
+      map.on('click', 'corridors-line', e => {
         const p = e.features?.[0]?.properties
         if (!p) return
         new maplibregl.Popup({ closeButton: true, offset: 10 })
@@ -234,9 +496,8 @@ export default function MovementIntel() {
           .addTo(map)
       })
 
-      // ── City dot click popup ───────────────────────────────────────────────
-      map.on('click', 'city-dot', (e) => {
-        const name = e.features?.[0]?.properties?.name
+      map.on('click', 'city-dot', e => {
+        const name   = e.features?.[0]?.properties?.name
         if (!name) return
         const coords = e.features[0].geometry.coordinates
         new maplibregl.Popup({ closeButton: false, offset: 8 })
@@ -245,10 +506,48 @@ export default function MovementIntel() {
           .addTo(map)
       })
 
+      map.on('click', 'incidents-dot', e => {
+        const p = e.features?.[0]?.properties
+        if (!p) return
+        const col = p.color || '#f97316'
+        new maplibregl.Popup({ closeButton: true, offset: 10 })
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div style="line-height:1.5">
+              <div style="font-weight:700;font-size:12px;margin-bottom:4px">${p.name || 'Incident'}</div>
+              <div style="font-size:10px;color:#6E7480">${p.city || ''}${p.country ? `, ${p.country}` : ''}</div>
+              ${p.event_type ? `<div style="font-size:10px;color:#9ca3af;text-transform:capitalize;margin-top:3px">${p.event_type}</div>` : ''}
+              <span style="background:${col}22;color:${col};border:1px solid ${col}44;padding:2px 8px;border-radius:999px;font-size:9px;font-weight:700;display:inline-block;margin-top:6px">${(p.severity || 'UNKNOWN').toUpperCase()}</span>
+            </div>
+          `)
+          .addTo(map)
+      })
+
+      for (const t of ['hospital', 'police', 'fire']) {
+        map.on('click', `fac-${t}-circle`, e => {
+          const p = e.features?.[0]?.properties
+          if (!p) return
+          new maplibregl.Popup({ closeButton: false, offset: 8 })
+            .setLngLat(e.lngLat)
+            .setHTML(`
+              <div style="line-height:1.5">
+                <div style="font-weight:700;font-size:11px;color:${FAC_COLOR[t]}">${FAC_LABEL[t]}</div>
+                <div style="font-size:12px;color:#EAEEF5;margin-top:2px">${p.name || 'Unknown'}</div>
+                ${p.city ? `<div style="font-size:10px;color:#6E7480">${p.city}${p.country ? `, ${p.country}` : ''}</div>` : ''}
+              </div>
+            `)
+            .addTo(map)
+        })
+        map.on('mouseenter', `fac-${t}-circle`, () => { map.getCanvas().style.cursor = 'pointer' })
+        map.on('mouseleave', `fac-${t}-circle`, () => { map.getCanvas().style.cursor = '' })
+      }
+
       map.on('mouseenter', 'corridors-line', () => { map.getCanvas().style.cursor = 'pointer' })
       map.on('mouseleave', 'corridors-line', () => { map.getCanvas().style.cursor = '' })
-      map.on('mouseenter', 'city-dot', () => { map.getCanvas().style.cursor = 'pointer' })
-      map.on('mouseleave', 'city-dot', () => { map.getCanvas().style.cursor = '' })
+      map.on('mouseenter', 'city-dot',       () => { map.getCanvas().style.cursor = 'pointer' })
+      map.on('mouseleave', 'city-dot',       () => { map.getCanvas().style.cursor = '' })
+      map.on('mouseenter', 'incidents-dot',  () => { map.getCanvas().style.cursor = 'pointer' })
+      map.on('mouseleave', 'incidents-dot',  () => { map.getCanvas().style.cursor = '' })
 
       setMapReady(true)
     })
@@ -336,10 +635,98 @@ export default function MovementIntel() {
       })
 
     map.getSource('corridors').setData({ type: 'FeatureCollection', features })
-    const vis = showCorridors ? 'visible' : 'none'
-    map.setLayoutProperty('corridors-line', 'visibility', vis)
-    map.setLayoutProperty('corridors-glow', 'visibility', vis)
-  }, [mapReady, corridors, snapshots, activeAO, showCorridors])
+  }, [mapReady, corridors, snapshots, activeAO])
+
+  // ── Unified layer visibility ─────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+
+    const set = (id, vis) => { if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis ? 'visible' : 'none') }
+
+    set('corridors-line',    activeLayers.corridors)
+    set('corridors-glow',    activeLayers.corridors)
+    set('city-dot',          activeLayers.cities)
+    set('city-halo',         activeLayers.cities)
+    set('city-label',        activeLayers.cities)
+    set('incidents-dot',     activeLayers.incidents)
+    set('incidents-halo',    activeLayers.incidents)
+    set('fac-hospital-circle', activeLayers.hospitals)
+    set('fac-police-circle',   activeLayers.police)
+    set('fac-fire-circle',     activeLayers.fire)
+    if (OWM_KEY) {
+      set('wx-precip-layer', activeLayers.weatherPrecip)
+      set('wx-wind-layer',   activeLayers.weatherWind)
+      set('wx-temp-layer',   activeLayers.weatherTemp)
+      set('wx-cloud-layer',  activeLayers.weatherCloud)
+    }
+  }, [mapReady, activeLayers])
+
+  // ── Lazy-load facilities data when layer first enabled ───────────────────────
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+
+    const FACS = [
+      { key: 'hospitals', type: 'hospital' },
+      { key: 'police',    type: 'police'   },
+      { key: 'fire',      type: 'fire'     },
+    ]
+
+    for (const { key, type } of FACS) {
+      if (activeLayers[key] && !facLoadedRef.current[type]) {
+        facLoadedRef.current[type] = true
+        fetch(`/api/facilities?type=${type}`)
+          .then(r => r.json())
+          .then(fc => {
+            if (map.getSource(`fac-${type}`)) map.getSource(`fac-${type}`).setData(fc)
+          })
+          .catch(err => console.warn(`[facilities/${type}]`, err.message))
+      }
+    }
+  }, [mapReady, activeLayers.hospitals, activeLayers.police, activeLayers.fire])
+
+  // ── Load incidents when layer enabled ───────────────────────────────────────
+  useEffect(() => {
+    if (!mapReady || !activeLayers.incidents) return
+    const map = mapRef.current
+    if (!map) return
+
+    async function loadIncidents() {
+      const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+      const { data } = await supabase
+        .from('live_intelligence')
+        .select('id,title,city,country,city_lat,city_lon,event_type,severity,published_at')
+        .gte('published_at', cutoff)
+        .not('city_lat', 'is', null)
+        .not('city_lon', 'is', null)
+        .order('published_at', { ascending: false })
+        .limit(500)
+
+      if (!data?.length) return
+      setIncidents(data)
+
+      const fc = {
+        type: 'FeatureCollection',
+        features: data.map(inc => ({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [inc.city_lon, inc.city_lat] },
+          properties: {
+            name:       inc.title,
+            city:       inc.city,
+            country:    inc.country,
+            event_type: inc.event_type,
+            severity:   inc.severity,
+            color:      SEV_COLOR[inc.severity] || '#f97316',
+          },
+        })),
+      }
+
+      if (map.getSource('incidents')) map.getSource('incidents').setData(fc)
+    }
+
+    loadIncidents().catch(err => console.warn('[incidents]', err.message))
+  }, [mapReady, activeLayers.incidents])
 
   // ── Geolocation ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -442,10 +829,11 @@ export default function MovementIntel() {
     }
   }, [routeOrigin, routeDest])
 
-  const alertCount = corridors.filter(c => {
+  const alertCount    = corridors.filter(c => {
     const snap = snapshots.find(s => s.corridor_id === c.id)
     return ['heavy','standstill'].includes(snap?.congestion_level)
   }).length
+  const activeLayerCount = Object.values(activeLayers).filter(Boolean).length
 
   return (
     <Layout>
@@ -455,17 +843,14 @@ export default function MovementIntel() {
         <div ref={containerRef} className="absolute inset-0" style={{ zIndex: 0 }} />
 
         {/* ── Top bar ───────────────────────────────────────────────────────── */}
-        <div
-          className="absolute z-20"
-          style={{ top: 14, left: 14, right: 14, pointerEvents: 'none' }}
-        >
+        <div className="absolute z-20" style={{ top: 14, left: 14, right: 14, pointerEvents: 'none' }}>
           <div
             className="flex items-center gap-2 px-4 h-11 rounded-[12px]"
             style={{
-              background: 'rgba(9,10,12,0.90)',
-              border: '1px solid rgba(255,255,255,0.09)',
-              backdropFilter: 'blur(16px)',
-              boxShadow: '0 4px 32px rgba(0,0,0,0.5)',
+              background:    'rgba(9,10,12,0.90)',
+              border:        '1px solid rgba(255,255,255,0.09)',
+              backdropFilter:'blur(16px)',
+              boxShadow:     '0 4px 32px rgba(0,0,0,0.5)',
               pointerEvents: 'auto',
             }}
           >
@@ -505,15 +890,6 @@ export default function MovementIntel() {
 
             <div className="w-px h-4 bg-white/10 mx-0.5" />
 
-            {/* Corridor toggle */}
-            <button
-              onClick={() => setShowCorridors(v => !v)}
-              title="Toggle corridors"
-              className={`p-1.5 rounded-lg transition-colors ${showCorridors ? 'text-[#AACC00] bg-[#AACC00]/12' : 'text-white/30 hover:bg-white/8'}`}
-            >
-              <Route size={13} />
-            </button>
-
             {/* Status */}
             {loading ? (
               <span className="flex items-center gap-1.5 text-[10px] text-white/35">
@@ -529,9 +905,13 @@ export default function MovementIntel() {
                 )}
               </span>
             )}
+            {activeLayers.incidents && incidents.length > 0 && (
+              <span className="text-[10px] font-semibold" style={{ color: '#f97316' }}>
+                · {incidents.length} incidents
+              </span>
+            )}
 
-            {/* City dot count */}
-            <span className="text-[10px] text-white/20 ml-1">{CITIES.length} cities mapped · Africa · Middle East · Caribbean · Americas</span>
+            <span className="text-[10px] text-white/20 ml-1">{CITIES.length} cities · Africa · Middle East · Caribbean · Americas</span>
 
             <div className="flex-1" />
 
@@ -554,6 +934,27 @@ export default function MovementIntel() {
               </button>
             )}
 
+            {/* Layers toggle */}
+            <button
+              onClick={() => setLayerPanelOpen(v => !v)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] text-[11px] font-semibold transition-all"
+              style={layerPanelOpen
+                ? { background: 'rgba(170,204,0,0.12)', color: '#AACC00', border: '1px solid rgba(170,204,0,0.25)' }
+                : { color: 'rgba(255,255,255,0.55)' }
+              }
+            >
+              <Layers size={12} />
+              Layers
+              {activeLayerCount > 0 && (
+                <span
+                  className="text-[8px] font-bold px-1 py-0.5 rounded-full min-w-[14px] text-center"
+                  style={{ background: '#AACC00', color: '#0A1628' }}
+                >
+                  {activeLayerCount}
+                </span>
+              )}
+            </button>
+
             {/* Plan Route CTA */}
             <button
               onClick={() => setRoutePlannerOpen(v => !v)}
@@ -569,23 +970,29 @@ export default function MovementIntel() {
           </div>
         </div>
 
+        {/* ── Layer Panel ───────────────────────────────────────────────────── */}
+        {layerPanelOpen && (
+          <LayerPanel
+            activeLayers={activeLayers}
+            onToggle={toggleLayer}
+            onGroupAll={setGroupAll}
+            onClose={() => setLayerPanelOpen(false)}
+          />
+        )}
+
         {/* ── Route Planner panel ───────────────────────────────────────────── */}
         {routePlannerOpen && (
           <div
             className="absolute z-20"
-            style={{
-              top: 72,
-              left: 14,
-              width: 'min(480px, calc(100vw - 28px))',
-            }}
+            style={{ top: 72, left: 14, width: 'min(480px, calc(100vw - 28px))' }}
           >
             <div
               className="rounded-[14px] overflow-hidden"
               style={{
-                background: 'rgba(9,10,12,0.97)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                backdropFilter: 'blur(20px)',
-                boxShadow: '0 12px 48px rgba(0,0,0,0.7)',
+                background:    'rgba(9,10,12,0.97)',
+                border:        '1px solid rgba(255,255,255,0.1)',
+                backdropFilter:'blur(20px)',
+                boxShadow:     '0 12px 48px rgba(0,0,0,0.7)',
               }}
             >
               {/* Panel header */}
@@ -601,18 +1008,15 @@ export default function MovementIntel() {
                       className="ml-1 text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-wide"
                       style={{
                         background: `${routeResult.exposure?.color || '#AACC00'}15`,
-                        color: routeResult.exposure?.color || '#AACC00',
-                        border: `1px solid ${routeResult.exposure?.color || '#AACC00'}35`,
+                        color:      routeResult.exposure?.color || '#AACC00',
+                        border:     `1px solid ${routeResult.exposure?.color || '#AACC00'}35`,
                       }}
                     >
                       {routeResult.exposure?.status || 'Active'}
                     </span>
                   )}
                 </div>
-                <button
-                  onClick={() => setRoutePlannerOpen(false)}
-                  className="text-white/35 hover:text-white/70 transition-colors"
-                >
+                <button onClick={() => setRoutePlannerOpen(false)} className="text-white/35 hover:text-white/70 transition-colors">
                   <X size={14} />
                 </button>
               </div>
@@ -620,7 +1024,6 @@ export default function MovementIntel() {
               {/* Input row */}
               <div className="px-4 pt-3 pb-2">
                 <div className="flex items-center gap-2">
-                  {/* Origin */}
                   <div className="flex-1 min-w-0">
                     <label className="block text-[9px] font-bold text-white/35 uppercase tracking-wider mb-1">
                       Origin
@@ -637,12 +1040,10 @@ export default function MovementIntel() {
                     />
                   </div>
 
-                  {/* Arrow */}
                   <div className="mt-4 shrink-0">
                     <ArrowRight size={14} className="text-white/20" />
                   </div>
 
-                  {/* Destination */}
                   <div className="flex-1 min-w-0">
                     <label className="block text-[9px] font-bold text-white/35 uppercase tracking-wider mb-1">
                       Destination
@@ -658,7 +1059,6 @@ export default function MovementIntel() {
                     />
                   </div>
 
-                  {/* Plan button */}
                   <button
                     onClick={planRoute}
                     disabled={routeLoading || !routeOrigin.trim() || !routeDest.trim()}
@@ -683,7 +1083,7 @@ export default function MovementIntel() {
                 </div>
               )}
 
-              {/* ── Route Result (scrollable) ─────────────────────────────── */}
+              {/* ── Route Result ─────────────────────────────────────────────── */}
               {routeResult && !routeError && (
                 <div
                   className="overflow-y-auto"
@@ -691,7 +1091,6 @@ export default function MovementIntel() {
                 >
                   <div className="p-4 space-y-3">
 
-                    {/* Route header */}
                     <div className="flex items-center gap-1.5">
                       <span className="text-[11px] font-semibold text-white/70 truncate">
                         {routeResult.origin?.city || routeResult.origin?.label}
@@ -705,30 +1104,23 @@ export default function MovementIntel() {
                       )}
                     </div>
 
-                    {/* Transit times */}
                     <div className="rounded-[10px] p-3"
                       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
                       <div className="text-[8px] font-bold text-white/25 uppercase tracking-wider mb-2.5">Transit Time</div>
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div>
                           <div className="text-[8px] text-white/35 mb-1">Current</div>
-                          <div className="text-[17px] font-bold text-white leading-none">
-                            {fmtMins(routeResult.here?.travel) || '—'}
-                          </div>
+                          <div className="text-[17px] font-bold text-white leading-none">{fmtMins(routeResult.here?.travel) || '—'}</div>
                           <div className="text-[8px] text-white/25 mt-1">live traffic</div>
                         </div>
                         <div>
                           <div className="text-[8px] text-white/35 mb-1">Yesterday</div>
-                          <div className="text-[17px] font-bold text-white/55 leading-none">
-                            {fmtMins(routeResult.timeEstimates?.yesterday) || '—'}
-                          </div>
+                          <div className="text-[17px] font-bold text-white/55 leading-none">{fmtMins(routeResult.timeEstimates?.yesterday) || '—'}</div>
                           <div className="text-[8px] text-white/25 mt-1">same time</div>
                         </div>
                         <div>
                           <div className="text-[8px] text-white/35 mb-1">No Traffic</div>
-                          <div className="text-[17px] font-bold leading-none" style={{ color: '#4ade80' }}>
-                            {fmtMins(routeResult.timeEstimates?.freeFlow ?? routeResult.here?.freeFlow) || '—'}
-                          </div>
+                          <div className="text-[17px] font-bold leading-none" style={{ color: '#4ade80' }}>{fmtMins(routeResult.timeEstimates?.freeFlow ?? routeResult.here?.freeFlow) || '—'}</div>
                           <div className="text-[8px] text-white/25 mt-1">free-flow</div>
                         </div>
                       </div>
@@ -737,46 +1129,36 @@ export default function MovementIntel() {
                         <div className="flex items-center gap-1.5 text-[9px]">
                           <TrendingUp size={9} className={routeResult.here?.delay > 0 ? 'text-red-400' : 'text-green-400'} />
                           <span className={routeResult.here?.delay > 0 ? 'text-red-400' : 'text-green-400'}>
-                            {routeResult.here?.delay > 0
-                              ? `+${Math.round(routeResult.here.delay / 60)}m delay`
-                              : 'No delay'}
+                            {routeResult.here?.delay > 0 ? `+${Math.round(routeResult.here.delay / 60)}m delay` : 'No delay'}
                           </span>
                         </div>
                         <LevelBadge level={routeResult.consensus} small />
                       </div>
                     </div>
 
-                    {/* Exposure + Corridor Status + Peak */}
                     {(routeResult.exposure || routeResult.safeCorridor || routeResult.peakWindow) && (
                       <div className="rounded-[10px] p-3 space-y-2"
                         style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                         {routeResult.exposure && (
                           <div className="flex items-center justify-between">
                             <span className="text-[9px] text-white/30 uppercase tracking-wider font-semibold">Exposure Level</span>
-                            <span className="text-[11px] font-bold" style={{ color: routeResult.exposure.color }}>
-                              {routeResult.exposure.status}
-                            </span>
+                            <span className="text-[11px] font-bold" style={{ color: routeResult.exposure.color }}>{routeResult.exposure.status}</span>
                           </div>
                         )}
                         {routeResult.safeCorridor && (
-                          <div className="flex items-center justify-between pt-1.5"
-                            style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div className="flex items-center justify-between pt-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                             <span className="text-[9px] text-white/30 uppercase tracking-wider font-semibold">Corridor Status</span>
-                            <span className="text-[11px] font-bold" style={{ color: routeResult.safeCorridor.color }}>
-                              {routeResult.safeCorridor.label}
-                            </span>
+                            <span className="text-[11px] font-bold" style={{ color: routeResult.safeCorridor.color }}>{routeResult.safeCorridor.label}</span>
                           </div>
                         )}
                         {routeResult.peakWindow && (
-                          <div className="flex items-center justify-between pt-1.5"
-                            style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div className="flex items-center justify-between pt-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                             <span className="text-[9px] text-white/30 uppercase tracking-wider font-semibold">Peak Window</span>
                             <span className="text-[9px] text-white/50">{routeResult.peakWindow}</span>
                           </div>
                         )}
                         {routeResult.timeEstimates?.peak && (
-                          <div className="flex items-center justify-between pt-1.5"
-                            style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div className="flex items-center justify-between pt-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                             <span className="text-[9px] text-white/30 uppercase tracking-wider font-semibold">Rush Hour ETA</span>
                             <span className="text-[11px] font-bold text-red-400">{fmtMins(routeResult.timeEstimates.peak)}</span>
                           </div>
@@ -784,7 +1166,6 @@ export default function MovementIntel() {
                       </div>
                     )}
 
-                    {/* Operational Alerts */}
                     {routeResult.operationalAlerts?.length > 0 && (
                       <div>
                         <div className="flex items-center gap-1.5 mb-2">
@@ -802,18 +1183,13 @@ export default function MovementIntel() {
                             const bd  = sig ? 'rgba(239,68,68,0.18)'  : 'rgba(249,115,22,0.14)'
                             const tx  = sig ? '#f87171'               : '#fb923c'
                             return (
-                              <div key={i} className="rounded-[7px] px-2.5 py-2"
-                                style={{ background: bg, border: `1px solid ${bd}` }}>
-                                <div className="text-[10px] font-medium leading-snug" style={{ color: tx }}>
-                                  {a.raw_title || a.title}
-                                </div>
+                              <div key={i} className="rounded-[7px] px-2.5 py-2" style={{ background: bg, border: `1px solid ${bd}` }}>
+                                <div className="text-[10px] font-medium leading-snug" style={{ color: tx }}>{a.raw_title || a.title}</div>
                                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                                   {a.proximityLabel && a.proximityLabel !== 'In Country' && (
                                     <span className="text-[8px] text-white/35 font-semibold uppercase tracking-wide">{a.proximityLabel}</span>
                                   )}
-                                  {a.distKm != null && (
-                                    <span className="text-[8px] text-white/25">{a.distKm} km</span>
-                                  )}
+                                  {a.distKm != null && <span className="text-[8px] text-white/25">{a.distKm} km</span>}
                                   {a.movement_impact && a.movement_impact !== 'none' && (
                                     <span className="text-[8px] text-white/30 capitalize">{a.movement_impact} impact</span>
                                   )}
@@ -825,7 +1201,6 @@ export default function MovementIntel() {
                       </div>
                     )}
 
-                    {/* Emergency Support */}
                     {routeResult.emergencyServices?.length > 0 && (
                       <div>
                         <div className="flex items-center gap-1.5 mb-2">
@@ -838,8 +1213,7 @@ export default function MovementIntel() {
                             const color = s.type === 'hospital' ? '#f87171' : s.type === 'police' ? '#60a5fa' : '#fb923c'
                             const label = s.type === 'hospital' ? 'Hospital' : s.type === 'police' ? 'Police' : 'Fire'
                             return (
-                              <div key={i} className="flex items-center gap-2 py-1"
-                                style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                              <div key={i} className="flex items-center gap-2 py-1" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                                 <Icon size={9} style={{ color }} className="shrink-0" />
                                 <span className="text-[10px] text-white/55 truncate flex-1">{s.name || label}</span>
                                 <span className="text-[8px] shrink-0" style={{ color: `${color}88` }}>{label}</span>
@@ -850,7 +1224,6 @@ export default function MovementIntel() {
                       </div>
                     )}
 
-                    {/* Nearest corridor */}
                     {routeResult.nearestCorridor && (
                       <div className="rounded-[7px] p-2.5 flex items-start gap-2"
                         style={{ background: 'rgba(170,204,0,0.05)', border: '1px solid rgba(170,204,0,0.12)' }}>
@@ -862,18 +1235,14 @@ export default function MovementIntel() {
                       </div>
                     )}
 
-                    {/* Best travel windows */}
                     {routeResult.recommendations?.best?.length > 0 && (
                       <div>
                         <div className="text-[8px] font-bold text-white/20 uppercase tracking-wider mb-1.5">Best Travel Windows</div>
                         {routeResult.recommendations.best.slice(0, 3).map((b, i) => (
-                          <div key={i} className="flex items-center justify-between py-1"
-                            style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <div key={i} className="flex items-center justify-between py-1" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <span className="text-[9px] text-white/40">{b.day} {b.hourLabel}</span>
                             <div className="flex items-center gap-2">
-                              {b.avgTravelSecs && (
-                                <span className="text-[9px] text-white/30">{Math.round(b.avgTravelSecs / 60)}m</span>
-                              )}
+                              {b.avgTravelSecs && <span className="text-[9px] text-white/30">{Math.round(b.avgTravelSecs / 60)}m</span>}
                               <LevelBadge level={b.level} small />
                             </div>
                           </div>
@@ -881,7 +1250,6 @@ export default function MovementIntel() {
                       </div>
                     )}
 
-                    {/* Alternates + Google */}
                     <div className="flex items-center gap-3 flex-wrap">
                       {routeResult.here?.alternatives?.length > 0 && (
                         <span className="text-[9px] text-white/20 flex items-center gap-1">
@@ -908,11 +1276,11 @@ export default function MovementIntel() {
         <div
           className="absolute z-10 flex items-center gap-2.5 px-3 py-2 rounded-[8px]"
           style={{
-            bottom: 14,
-            left: 14,
-            background: 'rgba(9,10,12,0.82)',
-            border: '1px solid rgba(255,255,255,0.07)',
-            backdropFilter: 'blur(10px)',
+            bottom:        14,
+            left:          14,
+            background:    'rgba(9,10,12,0.82)',
+            border:        '1px solid rgba(255,255,255,0.07)',
+            backdropFilter:'blur(10px)',
           }}
         >
           <span className="text-[8px] font-bold text-white/20 uppercase tracking-wider">Congestion</span>
@@ -924,16 +1292,16 @@ export default function MovementIntel() {
           ))}
         </div>
 
-        {/* ── City dot legend (bottom right of legend area) ─────────────────── */}
+        {/* ── City dot legend (bottom centre) ───────────────────────────────── */}
         <div
           className="absolute z-10 flex items-center gap-1.5 px-3 py-2 rounded-[8px]"
           style={{
-            bottom: 14,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(9,10,12,0.82)',
-            border: '1px solid rgba(255,255,255,0.07)',
-            backdropFilter: 'blur(10px)',
+            bottom:        14,
+            left:          '50%',
+            transform:     'translateX(-50%)',
+            background:    'rgba(9,10,12,0.82)',
+            border:        '1px solid rgba(255,255,255,0.07)',
+            backdropFilter:'blur(10px)',
           }}
         >
           <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#AACC00', boxShadow: '0 0 4px #AACC00' }} />
