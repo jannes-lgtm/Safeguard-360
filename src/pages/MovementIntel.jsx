@@ -21,6 +21,7 @@ import Layout from '../components/Layout'
 import LocationAutocomplete from '../components/LocationAutocomplete'
 import { MAP_STYLES } from '../lib/mapConfig'
 import { supabase } from '../lib/supabase'
+import { CITIES, CITIES_FC } from '../lib/mappedCities'
 
 // ── Congestion palette ────────────────────────────────────────────────────────
 const CONG_COLOR = {
@@ -55,121 +56,6 @@ function LevelBadge({ level, small }) {
       {label}
     </span>
   )
-}
-
-// ── African city dots (lon, lat for MapLibre) ─────────────────────────────────
-// All cities covered by our CITY_COORDS lookup, Africa-only
-const AF = [
-  // West Africa
-  ['Lagos',           3.3792,  6.5244], ['Abuja',          7.3986,  9.0765],
-  ['Kano',            8.5920, 12.0022], ['Port Harcourt',  7.0498,  4.8156],
-  ['Kaduna',          7.4380, 10.5264], ['Ibadan',         3.9470,  7.3775],
-  ['Benin City',      5.6037,  6.3350], ['Enugu',          7.5464,  6.4584],
-  ['Warri',           5.7500,  5.5167], ['Aba',            7.3664,  5.1066],
-  ['Maiduguri',      13.1520, 11.8311], ['Jos',            8.8583,  9.8965],
-  ['Ilorin',          4.5500,  8.5000], ['Akure',          5.2058,  7.2571],
-  ['Abidjan',        -4.0083,  5.3600], ['Yamoussoukro',  -5.2893,  6.8276],
-  ['Accra',          -0.1870,  5.6037], ['Kumasi',        -1.6244,  6.6884],
-  ['Tamale',         -0.8424,  9.4035], ['Lomé',           1.2123,  6.1375],
-  ['Cotonou',         2.4183,  6.3654], ['Porto-Novo',     2.6289,  6.4969],
-  ['Conakry',       -13.6773,  9.5370], ['Freetown',     -13.2344,  8.4830],
-  ['Monrovia',      -10.7605,  6.2907], ['Bissau',       -15.5977, 11.8636],
-  ['Dakar',         -17.4677, 14.7167], ['Ziguinchor',   -16.2719, 12.5607],
-  ['Banjul',        -16.5790, 13.4549], ['Bamako',        -8.0029, 12.6392],
-  ['Gao',            -0.0503, 16.2666], ['Mopti',         -4.1975, 14.4943],
-  ['Timbuktu',       -3.0026, 16.7666], ['Ségou',         -6.2676, 13.4317],
-  ['Ouagadougou',    -1.5197, 12.3714], ['Bobo-Dioulasso',-4.2979, 11.1771],
-  ['Ouahigouya',     -2.4284, 13.5731], ['Niamey',         2.1098, 13.5137],
-  ['Zinder',          8.9895, 13.8070], ['Agadez',         7.9992, 16.9742],
-  ['Maradi',          7.1000, 13.5000], ['Tahoua',         5.2642, 14.8892],
-  ['Nouakchott',    -15.9582, 18.0735],
-  // Central Africa
-  ['Yaoundé',        11.5021,  3.8480], ['Douala',         9.7679,  4.0511],
-  ['Bamenda',         9.7085,  5.9597], ['Garoua',        13.3942,  9.3017],
-  ['Maroua',         14.3241, 10.5956], ["N'Djamena",     15.0557, 12.1348],
-  ['Sarh',           18.3910,  9.1445], ['Moundou',       16.0833,  8.5667],
-  ['Bangui',         18.5550,  4.3612], ['Libreville',     9.4544,  0.3901],
-  ['Port-Gentil',     8.7815, -0.7193], ['Brazzaville',   15.2712, -4.2694],
-  ['Pointe-Noire',   11.8659, -4.7692], ['Kinshasa',      15.2663, -4.4419],
-  ['Goma',           29.2278, -1.6796], ['Lubumbashi',    27.4794,-11.6609],
-  ['Bukavu',         28.8608, -2.5083], ['Beni',          29.4739,  0.4907],
-  ['Butembo',        29.2897,  0.1439], ['Kisangani',     25.1906,  0.5167],
-  ['Mbuji-Mayi',     23.6000, -6.1500], ['Kolwezi',       25.4667,-10.7167],
-  ['Matadi',         13.4500, -5.8167], ['Malabo',         8.7833,  3.7500],
-  ['São Tomé',        6.7273,  0.3365],
-  // East Africa
-  ['Nairobi',        36.8219, -1.2921], ['Mombasa',       39.6682, -4.0435],
-  ['Kisumu',         34.7617, -0.1022], ['Nakuru',        36.0800, -0.3031],
-  ['Eldoret',        35.2698,  0.5143], ['Garissa',       39.6401, -0.4536],
-  ['Addis Ababa',    40.4897,  9.1450], ['Dire Dawa',     41.8661,  9.5930],
-  ['Mekelle',        39.4753, 13.4967], ['Gondar',        37.4667, 12.6000],
-  ['Bahir Dar',      37.3614, 11.5742], ['Hawassa',       38.4761,  7.0621],
-  ['Jimma',          36.8347,  7.6767], ['Jijiga',        42.7833,  9.3500],
-  ['Khartoum',       32.5599, 15.5007], ['Omdurman',      32.4881, 15.6452],
-  ['Port Sudan',     37.2164, 19.6158], ['El Fasher',     25.3511, 13.6279],
-  ['Kassala',        36.4000, 15.4500], ['Nyala',         24.8816, 12.0490],
-  ['El Geneina',     22.4500, 13.4500], ['Wau',           28.0000,  7.7000],
-  ['Juba',           31.5825,  4.8517], ['Malakal',       31.6583,  9.5333],
-  ['Asmara',         38.9317, 15.3381], ['Massawa',       39.4499, 15.6092],
-  ['Djibouti City',  43.1456, 11.5720], ['Kampala',       32.5825,  0.3476],
-  ['Entebbe',        32.4637,  0.0512], ['Gulu',          32.2990,  2.7749],
-  ['Jinja',          33.2000,  0.4500], ['Mbarara',       30.6500, -0.6167],
-  ['Lira',           32.8998,  2.2492], ['Kigali',        30.0619, -1.9441],
-  ['Gisenyi',        29.2561, -1.7003], ['Bujumbura',     29.3619, -3.3869],
-  ['Gitega',         29.9306, -3.4264], ['Dar es Salaam', 39.2083, -6.7924],
-  ['Dodoma',         35.7516, -6.1630], ['Arusha',        36.6830, -3.3869],
-  ['Zanzibar',       39.2026, -6.1659], ['Mwanza',        32.9000, -2.5167],
-  ['Tanga',          39.0988, -5.0686], ['Mbeya',         33.4500, -8.9000],
-  ['Mogadishu',      45.3182,  2.0469], ['Hargeisa',      44.0650,  9.5607],
-  ['Kismayo',        42.5454, -0.3582], ['Bosasso',       49.1833, 11.2750],
-  ['Garowe',         48.4845,  8.4054],
-  // Southern Africa
-  ['Johannesburg',   28.0473,-26.2041], ['Cape Town',     18.4241,-33.9249],
-  ['Pretoria',       28.2293,-25.7479], ['Durban',        31.0218,-29.8587],
-  ['Port Elizabeth', 25.5936,-33.9608], ['Bloemfontein',  26.2140,-29.1186],
-  ['East London',    27.9116,-33.0153], ['Nelspruit',     30.9703,-25.4745],
-  ['Polokwane',      29.4688,-23.9045], ['Pietermaritzburg',30.3794,-29.6006],
-  ['Rustenburg',     27.2500,-25.6667], ['Kimberley',     24.7499,-28.7282],
-  ['Maputo',         32.5732,-25.9692], ['Beira',         34.8389,-19.8437],
-  ['Nampula',        39.2666,-15.1165], ['Pemba',         40.5176,-12.9716],
-  ['Quelimane',      36.8883,-17.8787], ['Tete',          33.5867,-16.1564],
-  ['Harare',         31.0335,-17.8252], ['Bulawayo',      28.5833,-20.1500],
-  ['Mutare',         32.6709,-18.9707], ['Lusaka',        28.2833,-15.4167],
-  ['Ndola',          28.6366,-12.9587], ['Kitwe',         28.2132,-12.8024],
-  ['Livingstone',    25.8500,-17.8667], ['Lilongwe',      33.7873,-13.9669],
-  ['Blantyre',       35.0058,-15.7861], ['Mzuzu',         34.0167,-11.4667],
-  ['Gaborone',       25.9231,-24.6282], ['Francistown',   27.5167,-21.1667],
-  ['Windhoek',       17.0832,-22.5597], ['Walvis Bay',    14.5053,-22.9575],
-  ['Maseru',         27.4833,-29.3167], ['Mbabane',       31.1333,-26.3167],
-  ['Manzini',        31.3667,-26.4833], ['Antananarivo',  47.5361,-18.9137],
-  ['Toamasina',      49.4023,-18.1492], ['Fianarantsoa',  47.0856,-21.4531],
-  ['Luanda',         13.2894, -8.8390], ['Huambo',        15.7390,-12.7756],
-  ['Lobito',         13.5494,-12.3560], ['Lubango',       13.5000,-14.9167],
-  ['Moroni',         43.2551,-11.7022], ['Port Louis',    57.4977,-20.1609],
-  // North Africa
-  ['Cairo',          31.2357, 30.0444], ['Alexandria',    29.9187, 31.2001],
-  ['Sharm el-Sheikh',34.3300, 27.9158], ['Luxor',         32.6396, 25.6872],
-  ['Aswan',          32.8998, 24.0889], ['Port Said',     32.3019, 31.2653],
-  ['Suez',           32.5263, 29.9737], ['Tripoli',       13.1913, 32.8872],
-  ['Benghazi',       20.0868, 32.1194], ['Misrata',       15.0925, 32.3754],
-  ['Sirte',          16.5887, 31.2089], ['Sabha',         14.4290, 27.0374],
-  ['Tunis',          10.1658, 36.8190], ['Sfax',          10.7600, 34.7400],
-  ['Sousse',         10.6333, 35.8333], ['Algiers',        3.0588, 36.7538],
-  ['Oran',           -0.6331, 35.6969], ['Constantine',    6.6147, 36.3650],
-  ['Annaba',          7.7667, 36.9000], ['Casablanca',    -7.5898, 33.5731],
-  ['Rabat',          -6.8326, 34.0133], ['Marrakech',     -7.9811, 31.6295],
-  ['Fes',            -5.0078, 34.0181], ['Tangier',       -5.8340, 35.7595],
-  ['Agadir',         -9.5981, 30.4278],
-]
-
-// Build GeoJSON for city dot layer
-const AFRICA_CITIES_FC = {
-  type: 'FeatureCollection',
-  features: AF.map(([name, lon, lat]) => ({
-    type: 'Feature',
-    geometry: { type: 'Point', coordinates: [lon, lat] },
-    properties: { name },
-  })),
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -234,7 +120,7 @@ export default function MovementIntel() {
       const empty = { type: 'FeatureCollection', features: [] }
 
       // ── Sources ────────────────────────────────────────────────────────────
-      map.addSource('africa-cities',   { type: 'geojson', data: AFRICA_CITIES_FC })
+      map.addSource('africa-cities',   { type: 'geojson', data: CITIES_FC })
       map.addSource('corridors',       { type: 'geojson', data: empty })
       map.addSource('route-alt',       { type: 'geojson', data: empty })
       map.addSource('route-primary',   { type: 'geojson', data: empty })
@@ -645,7 +531,7 @@ export default function MovementIntel() {
             )}
 
             {/* City dot count */}
-            <span className="text-[10px] text-white/20 ml-1">{AF.length} cities mapped</span>
+            <span className="text-[10px] text-white/20 ml-1">{CITIES.length} cities mapped · Africa · Middle East · Caribbean · Americas</span>
 
             <div className="flex-1" />
 
@@ -1051,7 +937,7 @@ export default function MovementIntel() {
           }}
         >
           <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#AACC00', boxShadow: '0 0 4px #AACC00' }} />
-          <span className="text-[8px] text-white/35">{AF.length} mapped cities · click to query</span>
+          <span className="text-[8px] text-white/35">{CITIES.length} mapped cities · click to query</span>
         </div>
 
       </div>
