@@ -625,11 +625,15 @@ export default function MovementIntel() {
         map.on('click', `fac-${t}-circle`, e => {
           const p = e.features?.[0]?.properties
           if (!p) return
+          const isHDX = p.source === 'hdx'
           new maplibregl.Popup({ closeButton: false, offset: 8 })
             .setLngLat(e.lngLat)
             .setHTML(`
               <div style="line-height:1.5">
-                <div style="font-weight:700;font-size:11px;color:${FAC_COLOR[t]}">${FAC_LABEL[t]}</div>
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+                  <span style="font-weight:700;font-size:11px;color:${FAC_COLOR[t]}">${FAC_LABEL[t]}</span>
+                  ${isHDX ? `<span style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:999px;background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.25)">HDX VERIFIED</span>` : ''}
+                </div>
                 <div style="font-size:12px;color:#EAEEF5;margin-top:2px">${p.name || 'Unknown'}</div>
                 ${p.city ? `<div style="font-size:10px;color:#6E7480">${p.city}${p.country ? `, ${p.country}` : ''}</div>` : ''}
               </div>

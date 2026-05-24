@@ -79,7 +79,7 @@ async function fetchAllFromCache(sb, type, ttlCutoff) {
   while (rows.length < MAX_RESULTS) {
     const query = sb
       .from('facilities')
-      .select('id,name,facility_type,lat,lon,city,country')
+      .select('id,name,facility_type,lat,lon,city,country,source')
       .eq('facility_type', type)
       .range(from, from + PAGE_SIZE - 1)
     if (ttlCutoff) query.gte('updated_at', ttlCutoff)
@@ -103,6 +103,7 @@ function toFeatureCollection(rows) {
         facility_type: f.facility_type,
         city:          f.city          || null,
         country:       f.country       || null,
+        source:        f.source        || 'osm',
       },
     })),
   }
