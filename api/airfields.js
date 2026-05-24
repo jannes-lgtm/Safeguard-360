@@ -138,7 +138,7 @@ function toFeatureCollection(rows) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
+  // CORS handled by vercel.json — do not override with wildcard
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   try {
