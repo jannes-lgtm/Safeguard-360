@@ -1,23 +1,27 @@
 /**
  * src/pages/HeatMap.jsx
  *
- * Global Risk Heat Map — full-screen dark operational map matching MovementIntel style.
+ * Global Risk Map — choropleth country-fill (default) + bubble overlay.
+ * Countries are filled with their operational risk tier colour.
+ * Enterprise-grade dark operational design matching MovementIntel style.
  *
- * Layers: 'heat' (default) | 'bubble'
- * Floating top bar, left country-list panel, dark glass popups.
+ * Data sources:
+ *   • Country risk levels: static COUNTRIES dataset
+ *   • Country polygons:    Natural Earth 110m via CDN (~350 KB)
+ *
+ * View modes: choropleth (default) | bubble
  */
 import { useEffect, useRef, useState, useCallback } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useNavigate } from 'react-router-dom'
 import {
-  Flame, CircleDot, ChevronDown, Layers,
-  RefreshCw, X, MapPin,
+  Globe, CircleDot, ChevronDown, Layers, X, MapPin,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { MAP_STYLES } from '../lib/mapConfig'
 
-// ── Country dataset ───────────────────────────────────────────────────────────
+// ── Country risk dataset ──────────────────────────────────────────────────────
 const COUNTRIES = {
   // Critical
   'Somalia':                      { lat: 2.0469,   lon: 45.3182,  risk: 'Critical', region: 'Africa' },
@@ -86,12 +90,60 @@ const COUNTRIES = {
   'United Arab Emirates':         { lat: 24.4539,  lon: 54.3773,  risk: 'Low',      region: 'Middle East' },
 }
 
-const RISK_WEIGHT = { Critical: 1.0, High: 0.75, Medium: 0.45, Low: 0.15 }
+// ── Constants ─────────────────────────────────────────────────────────────────
 const RISK_COLOR  = { Critical: '#ef4444', High: '#f97316', Medium: '#eab308', Low: '#22c55e' }
 const RISK_RADIUS = { Critical: 18, High: 14, Medium: 11, Low: 8 }
+const RISK_WEIGHT = { Critical: 1.0, High: 0.75, Medium: 0.45, Low: 0.15 }
 const REGIONS     = ['All', 'Africa', 'Middle East', 'Americas', 'Asia', 'Europe', 'Oceania']
 
-function buildGeoJSON(filter = 'All') {
+// The D3/holtzy world.geojson uses the "name" property for country names.
+// Values that differ from our COUNTRIES keys:
+const GEO_NAME_MAP = {
+  'DR Congo':      'Democratic Republic of the Congo',
+  'United States': 'United States of America',
+  'Tanzania':      'United Republic of Tanzania',
+}
+
+// Reverse map: GeoJSON name → our COUNTRIES key
+const GEO_NAME_REVERSE = Object.fromEntries(
+  Object.entries(GEO_NAME_MAP).map(([k, v]) => [v, k])
+)
+
+function ourKeyToGeoName(name) {
+  return GEO_NAME_MAP[name] || name
+}
+
+function geoNameToOurKey(geoName) {
+  return GEO_NAME_REVERSE[geoName] || geoName
+}
+
+// ── MapLibre match expressions ─────────────────────────────────────────────────
+// The GeoJSON property field is "name" (lowercase) in the holtzy world.geojson
+
+// Fill color — rated countries get risk colour, all others transparent (base shows through)
+function buildFillColorExpr(filter = 'All') {
+  const pairs = []
+  Object.entries(COUNTRIES).forEach(([name, c]) => {
+    if (filter !== 'All' && c.region !== filter) return
+    pairs.push(ourKeyToGeoName(name), RISK_COLOR[c.risk])
+  })
+  if (pairs.length === 0) return 'rgba(255,255,255,0)'
+  return ['match', ['get', 'name'], ...pairs, 'rgba(0,0,0,0)']
+}
+
+// Border color — rated countries get a subtle tinted border
+function buildBorderColorExpr(filter = 'All') {
+  const pairs = []
+  Object.entries(COUNTRIES).forEach(([name, c]) => {
+    if (filter !== 'All' && c.region !== filter) return
+    pairs.push(ourKeyToGeoName(name), RISK_COLOR[c.risk])
+  })
+  if (pairs.length === 0) return 'rgba(255,255,255,0.06)'
+  return ['match', ['get', 'name'], ...pairs, 'rgba(255,255,255,0.06)']
+}
+
+// ── Point GeoJSON for bubble mode ─────────────────────────────────────────────
+function buildPointGeoJSON(filter = 'All') {
   return {
     type: 'FeatureCollection',
     features: Object.entries(COUNTRIES)
@@ -101,9 +153,9 @@ function buildGeoJSON(filter = 'All') {
         geometry: { type: 'Point', coordinates: [c.lon, c.lat] },
         properties: {
           name, risk: c.risk, region: c.region,
-          riskWeight: RISK_WEIGHT[c.risk]  ?? 0.1,
-          color:      RISK_COLOR[c.risk]   ?? '#9ca3af',
-          radius:     RISK_RADIUS[c.risk]  ?? 8,
+          riskWeight: RISK_WEIGHT[c.risk] ?? 0.1,
+          color:      RISK_COLOR[c.risk]  ?? '#9ca3af',
+          radius:     RISK_RADIUS[c.risk] ?? 8,
         },
       })),
   }
@@ -135,7 +187,7 @@ function CountryPanel({ filter, selected, onSelect, onClose }) {
       <div className="flex items-center justify-between px-4 py-3 shrink-0"
         style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="flex items-center gap-2">
-          <Flame size={11} style={{ color: '#AACC00' }} />
+          <Globe size={11} style={{ color: '#AACC00' }} />
           <span className="text-[11px] font-bold text-white tracking-widest uppercase">Countries</span>
         </div>
         <button onClick={onClose} className="text-white/35 hover:text-white/70 transition-colors">
@@ -161,7 +213,7 @@ function CountryPanel({ filter, selected, onSelect, onClose }) {
                     borderBottom: '1px solid rgba(255,255,255,0.04)',
                     background: selected === name ? `${color}12` : undefined,
                   }}>
-                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                  <div className="w-2 h-2 rounded-sm shrink-0" style={{ background: color }} />
                   <span className="text-[11px] font-medium truncate"
                     style={{ color: selected === name ? color : 'rgba(255,255,255,0.65)' }}>
                     {name}
@@ -176,24 +228,34 @@ function CountryPanel({ filter, selected, onSelect, onClose }) {
   )
 }
 
+// ── Natural Earth 110m URL ─────────────────────────────────────────────────────
+// ~350 KB GeoJSON — lightweight, reliable, CORS-open
+const NE_110M_URL =
+  'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson'
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function HeatMap() {
-  const navigate      = useNavigate()
-  const navigateRef   = useRef(navigate)
+  const navigate     = useNavigate()
+  const navigateRef  = useRef(navigate)
   useEffect(() => { navigateRef.current = navigate }, [navigate])
 
-  const containerRef  = useRef(null)
-  const mapRef        = useRef(null)
-  const activePopup   = useRef(null)
+  const containerRef = useRef(null)
+  const mapRef       = useRef(null)
+  const activePopup  = useRef(null)
+  const hoveredId    = useRef(null)
 
   const [regionFilter, setRegionFilter] = useState('All')
   const [regionOpen,   setRegionOpen]   = useState(false)
-  const [viewMode,     setViewMode]     = useState('heat')
+  const [viewMode,     setViewMode]     = useState('choropleth')  // choropleth | bubble
   const [mapReady,     setMapReady]     = useState(false)
   const [selected,     setSelected]     = useState(null)
   const [showList,     setShowList]     = useState(true)
+  const [geoLoaded,    setGeoLoaded]    = useState(false)
 
-  const counts = riskCounts()
+  const counts       = riskCounts()
+  const filteredCount = Object.values(COUNTRIES).filter(
+    c => regionFilter === 'All' || c.region === regionFilter
+  ).length
 
   // ── Map init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -203,7 +265,7 @@ export default function HeatMap() {
       container: containerRef.current,
       style:     MAP_STYLES.operational,
       center:    [20, 10],
-      zoom:      2.5,
+      zoom:      2.2,
       minZoom:   1.5,
       maxZoom:   14,
     })
@@ -211,54 +273,97 @@ export default function HeatMap() {
     map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right')
     map.addControl(new maplibregl.ScaleControl({ maxWidth: 80, unit: 'metric' }), 'bottom-right')
 
-    // Dark popup styles matching MovementIntel
+    // Dark popup styles
     const style = document.createElement('style')
     style.textContent = `
       .maplibregl-popup-content {
-        background: #11131A;
+        background: #0D0F15;
         color: #EAEEF5;
         border: 1px solid rgba(255,255,255,0.10);
-        border-radius: 10px;
-        padding: 12px 14px;
+        border-radius: 12px;
+        padding: 14px 16px;
         font-family: system-ui, sans-serif;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-        min-width: 200px;
+        box-shadow: 0 12px 48px rgba(0,0,0,0.7);
+        min-width: 210px;
       }
-      .maplibregl-popup-close-button { color: #6E7480; font-size: 16px; top: 6px; right: 8px; }
+      .maplibregl-popup-close-button {
+        color: rgba(255,255,255,0.25);
+        font-size: 18px;
+        top: 8px;
+        right: 10px;
+        line-height: 1;
+      }
+      .maplibregl-popup-close-button:hover { color: rgba(255,255,255,0.6); }
       .maplibregl-popup-tip { display: none !important; }
       .maplibregl-ctrl-bottom-right { bottom: 28px !important; }
     `
     document.head.appendChild(style)
 
     map.on('load', () => {
-      map.addSource('countries', { type: 'geojson', data: buildGeoJSON('All') })
+      // ── 1. World country polygons (choropleth) ──────────────────────────────
+      map.addSource('world', {
+        type: 'geojson',
+        data: NE_110M_URL,
+        generateId: true,   // assigns sequential .id for feature-state
+      })
 
-      // ── Heatmap layer ──────────────────────────────────────────────────────
+      // Dark translucent fill for ALL unrated countries (base layer)
       map.addLayer({
-        id: 'risk-heat', type: 'heatmap', source: 'countries',
+        id: 'country-base',
+        type: 'fill',
+        source: 'world',
         paint: {
-          'heatmap-weight':    ['get', 'riskWeight'],
-          'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 1, 0.6, 8, 2.5],
-          'heatmap-color': [
-            'interpolate', ['linear'], ['heatmap-density'],
-            0,   'rgba(0,0,0,0)',
-            0.1, 'rgba(34,197,94,0.4)',
-            0.3, 'rgba(234,179,8,0.65)',
-            0.5, 'rgba(249,115,22,0.78)',
-            0.7, 'rgba(239,68,68,0.88)',
-            1.0, 'rgba(127,29,29,1)',
-          ],
-          'heatmap-radius':  ['interpolate', ['linear'], ['zoom'], 1, 20, 8, 55],
-          'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 6, 0.92, 9, 0.6],
+          'fill-color':   '#0f111a',
+          'fill-opacity': 0.60,
         },
       })
 
-      // ── Bubble layer ───────────────────────────────────────────────────────
+      // Risk-coloured fill — only rated countries get colour
       map.addLayer({
-        id: 'risk-circles', type: 'circle', source: 'countries',
+        id: 'country-fill',
+        type: 'fill',
+        source: 'world',
+        paint: {
+          'fill-color':   buildFillColorExpr('All'),
+          'fill-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            0.88,
+            0.65,
+          ],
+        },
+      })
+
+      // Subtle country border lines
+      map.addLayer({
+        id: 'country-borders',
+        type: 'line',
+        source: 'world',
+        paint: {
+          'line-color': buildBorderColorExpr('All'),
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            2, 0.4,
+            6, 1.0,
+          ],
+          'line-opacity': 0.45,
+        },
+      })
+
+      // ── 2. Point source for bubble mode ────────────────────────────────────
+      map.addSource('country-points', {
+        type: 'geojson',
+        data: buildPointGeoJSON('All'),
+      })
+
+      map.addLayer({
+        id: 'risk-circles',
+        type: 'circle',
+        source: 'country-points',
         layout: { visibility: 'none' },
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'],
+          'circle-radius': [
+            'interpolate', ['linear'], ['zoom'],
             2, ['/', ['get', 'radius'], 2.8],
             8, ['get', 'radius'],
           ],
@@ -270,10 +375,11 @@ export default function HeatMap() {
         },
       })
 
-      // ── Country labels (bubble mode) ───────────────────────────────────────
       map.addLayer({
-        id: 'risk-labels', type: 'symbol', source: 'countries',
-        minzoom: 2,
+        id: 'risk-labels',
+        type: 'symbol',
+        source: 'country-points',
+        minzoom: 2.5,
         layout: {
           visibility:      'none',
           'text-field':    ['get', 'name'],
@@ -289,58 +395,90 @@ export default function HeatMap() {
         },
       })
 
-      // ── Popup builder ──────────────────────────────────────────────────────
-      const showPopup = (props, lngLat) => {
+      // ── 3. Hover state ──────────────────────────────────────────────────────
+      map.on('mousemove', 'country-fill', (e) => {
+        if (!e.features?.length) return
+        const feat    = e.features[0]
+        const geoName = feat.properties?.name || ''
+        const key     = geoNameToOurKey(geoName)
+
+        if (hoveredId.current !== null) {
+          map.setFeatureState({ source: 'world', id: hoveredId.current }, { hover: false })
+        }
+        hoveredId.current = feat.id
+        map.setFeatureState({ source: 'world', id: feat.id }, { hover: true })
+        map.getCanvas().style.cursor = COUNTRIES[key] ? 'pointer' : 'default'
+      })
+
+      map.on('mouseleave', 'country-fill', () => {
+        if (hoveredId.current !== null) {
+          map.setFeatureState({ source: 'world', id: hoveredId.current }, { hover: false })
+          hoveredId.current = null
+        }
+        map.getCanvas().style.cursor = ''
+      })
+
+      // ── 4. Popup builder ────────────────────────────────────────────────────
+      const showPopup = (name, risk, region, lngLat) => {
         if (activePopup.current) { activePopup.current.remove(); activePopup.current = null }
-        const color = RISK_COLOR[props.risk] ?? '#9ca3af'
+        const color = RISK_COLOR[risk] ?? '#9ca3af'
         const el = document.createElement('div')
-        el.style.cssText = 'font-family:system-ui,-apple-system,sans-serif'
+        el.style.fontFamily = 'system-ui,-apple-system,sans-serif'
         el.innerHTML = `
-          <div style="font-weight:700;font-size:13px;color:#EAEEF5;margin-bottom:5px">${props.name}</div>
-          <div style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;
-            background:${color}22;color:${color};border:1px solid ${color}44;margin-bottom:5px">${props.risk?.toUpperCase()} RISK</div>
-          <div style="font-size:10px;color:#6E7480;margin-bottom:10px">${props.region}</div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.06em;
+            color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:6px">
+            ${region}
+          </div>
+          <div style="font-weight:800;font-size:15px;color:#EAEEF5;margin-bottom:8px;
+            letter-spacing:0.01em;line-height:1.2">${name}</div>
+          <div style="display:inline-flex;align-items:center;gap:6px;
+            padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;
+            background:${color}20;color:${color};border:1px solid ${color}45;
+            letter-spacing:0.08em;margin-bottom:12px">
+            <span style="width:6px;height:6px;border-radius:50%;
+              background:${color};display:inline-block"></span>
+            ${risk?.toUpperCase()} RISK
+          </div>
         `
         const btn = document.createElement('button')
-        btn.textContent = 'View Full Report →'
+        btn.textContent = 'View Country Report →'
         btn.style.cssText = [
           'display:block;width:100%;background:#AACC00;color:#09090B;border:none',
-          'border-radius:6px;padding:7px 14px;font-size:11px;font-weight:700;cursor:pointer',
+          'border-radius:8px;padding:8px 14px;font-size:11px;font-weight:800;cursor:pointer',
+          'letter-spacing:0.06em;text-transform:uppercase;transition:opacity 0.15s',
         ].join(';')
         btn.onmouseover = () => { btn.style.opacity = '0.85' }
         btn.onmouseout  = () => { btn.style.opacity = '1' }
-        btn.onclick = () => navigateRef.current(`/country-risk?country=${encodeURIComponent(props.name)}`)
+        btn.onclick = () => navigateRef.current(`/country-risk?country=${encodeURIComponent(name)}`)
         el.appendChild(btn)
 
-        activePopup.current = new maplibregl.Popup({ closeButton: true, maxWidth: '240px', offset: 12 })
+        activePopup.current = new maplibregl.Popup({
+          closeButton: true, maxWidth: '260px', offset: 8,
+        })
           .setLngLat(lngLat)
           .setDOMContent(el)
           .addTo(map)
       }
 
-      map.on('click', 'risk-circles', e => {
+      // ── 5. Click handlers ───────────────────────────────────────────────────
+      map.on('click', 'country-fill', (e) => {
+        const geoName = e.features?.[0]?.properties?.name || ''
+        const key     = geoNameToOurKey(geoName)
+        const data    = COUNTRIES[key]
+        if (!data) return
+        setSelected(key)
+        showPopup(key, data.risk, data.region, e.lngLat)
+      })
+
+      map.on('click', 'risk-circles', (e) => {
         const p = e.features[0].properties
         setSelected(p.name)
-        showPopup(p, e.lngLat)
+        showPopup(p.name, p.risk, p.region, e.lngLat)
       })
       map.on('mouseenter', 'risk-circles', () => { map.getCanvas().style.cursor = 'pointer' })
       map.on('mouseleave', 'risk-circles', () => { map.getCanvas().style.cursor = '' })
 
-      map.on('click', 'risk-heat', e => {
-        const { lng, lat } = e.lngLat
-        let nearest = null, minDist = Infinity
-        Object.entries(COUNTRIES).forEach(([name, c]) => {
-          const d = Math.hypot(c.lon - lng, c.lat - lat)
-          if (d < minDist) { minDist = d; nearest = { name, ...c } }
-        })
-        if (nearest && minDist < 12) {
-          setSelected(nearest.name)
-          showPopup({ name: nearest.name, risk: nearest.risk, region: nearest.region }, e.lngLat)
-        }
-      })
-      map.on('mouseenter', 'risk-heat', () => { map.getCanvas().style.cursor = 'crosshair' })
-      map.on('mouseleave', 'risk-heat', () => { map.getCanvas().style.cursor = '' })
-
+      setGeoLoaded(true)
       setMapReady(true)
     })
 
@@ -353,38 +491,40 @@ export default function HeatMap() {
     }
   }, [])
 
-  // ── Update source on filter change ────────────────────────────────────────────
-  useEffect(() => {
-    if (!mapRef.current || !mapReady) return
-    const src = mapRef.current.getSource('countries')
-    if (src) src.setData(buildGeoJSON(regionFilter))
-  }, [regionFilter, mapReady])
-
-  // ── Toggle layers ─────────────────────────────────────────────────────────────
+  // ── Update choropleth when region filter changes ───────────────────────────
   useEffect(() => {
     if (!mapRef.current || !mapReady) return
     const m = mapRef.current
-    if (viewMode === 'heat') {
-      m.setLayoutProperty('risk-heat',    'visibility', 'visible')
-      m.setLayoutProperty('risk-circles', 'visibility', 'none')
-      m.setLayoutProperty('risk-labels',  'visibility', 'none')
-    } else {
-      m.setLayoutProperty('risk-heat',    'visibility', 'none')
-      m.setLayoutProperty('risk-circles', 'visibility', 'visible')
-      m.setLayoutProperty('risk-labels',  'visibility', 'visible')
-    }
+    try {
+      m.setPaintProperty('country-fill',    'fill-color',  buildFillColorExpr(regionFilter))
+      m.setPaintProperty('country-borders', 'line-color',  buildBorderColorExpr(regionFilter))
+    } catch (_) { /* layer may not exist yet */ }
+    const src = m.getSource('country-points')
+    if (src) src.setData(buildPointGeoJSON(regionFilter))
+  }, [regionFilter, mapReady])
+
+  // ── Toggle view mode ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapRef.current || !mapReady) return
+    const m = mapRef.current
+    const choroplethVisible = viewMode === 'choropleth'
+    const bubbleVisible     = viewMode === 'bubble'
+    try {
+      m.setLayoutProperty('country-base',    'visibility', choroplethVisible ? 'visible' : 'none')
+      m.setLayoutProperty('country-fill',    'visibility', choroplethVisible ? 'visible' : 'none')
+      m.setLayoutProperty('country-borders', 'visibility', choroplethVisible ? 'visible' : 'none')
+      m.setLayoutProperty('risk-circles',    'visibility', bubbleVisible     ? 'visible' : 'none')
+      m.setLayoutProperty('risk-labels',     'visibility', bubbleVisible     ? 'visible' : 'none')
+    } catch (_) { /* layer may not exist yet */ }
   }, [viewMode, mapReady])
 
+  // ── Fly to country ────────────────────────────────────────────────────────
   const flyTo = useCallback((name) => {
     const c = COUNTRIES[name]
     if (!c || !mapRef.current) return
     setSelected(name)
     mapRef.current.flyTo({ center: [c.lon, c.lat], zoom: 5, duration: 1100 })
   }, [])
-
-  const filteredCount = Object.values(COUNTRIES).filter(
-    c => regionFilter === 'All' || c.region === regionFilter
-  ).length
 
   return (
     <Layout>
@@ -393,25 +533,27 @@ export default function HeatMap() {
         {/* Map */}
         <div ref={containerRef} className="absolute inset-0" style={{ zIndex: 0 }} />
 
-        {/* ── Floating top bar ────────────────────────────────────────────────── */}
+        {/* ── Floating top bar ──────────────────────────────────────────────── */}
         <div className="absolute z-20" style={{ top: 14, left: 14, right: 14, pointerEvents: 'none' }}>
           <div
             className="flex items-center gap-2 px-4 h-11 rounded-[12px]"
             style={{
-              background:     'rgba(9,10,12,0.90)',
+              background:     'rgba(9,10,12,0.92)',
               border:         '1px solid rgba(255,255,255,0.09)',
-              backdropFilter: 'blur(16px)',
-              boxShadow:      '0 4px 32px rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(20px)',
+              boxShadow:      '0 4px 32px rgba(0,0,0,0.55)',
               pointerEvents:  'auto',
             }}
           >
             {/* Brand */}
-            <Flame size={13} className="text-[#AACC00] shrink-0" />
-            <span className="text-[11px] font-bold text-white tracking-widest uppercase">Risk Heat Map</span>
+            <Globe size={13} className="text-[#AACC00] shrink-0" />
+            <span className="text-[11px] font-bold text-white tracking-widest uppercase">
+              Global Risk Map
+            </span>
 
             <div className="w-px h-4 bg-white/10 mx-0.5" />
 
-            {/* Risk counts */}
+            {/* Risk tier counts */}
             {[
               { label: 'Critical', color: '#ef4444' },
               { label: 'High',     color: '#f97316' },
@@ -419,14 +561,14 @@ export default function HeatMap() {
               { label: 'Low',      color: '#22c55e' },
             ].map(({ label, color }) => (
               <span key={label} className="flex items-center gap-1 text-[10px]">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+                <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: color }} />
                 <span className="font-bold" style={{ color }}>{counts[label]}</span>
                 <span className="text-white/30 hidden sm:inline">{label}</span>
               </span>
             ))}
 
             <div className="w-px h-4 bg-white/10 mx-0.5" />
-            <span className="text-[10px] text-white/25 hidden md:block">{filteredCount} countries</span>
+            <span className="text-[10px] text-white/25 hidden md:block">{filteredCount} countries monitored</span>
 
             <div className="flex-1" />
 
@@ -446,8 +588,11 @@ export default function HeatMap() {
                   style={{ background: '#0C0E12', border: '1px solid rgba(255,255,255,0.10)', minWidth: 140, zIndex: 100 }}
                 >
                   {REGIONS.map(r => (
-                    <button key={r} onClick={() => { setRegionFilter(r); setRegionOpen(false) }}
-                      className={`w-full text-left px-3 py-2 text-[11px] font-medium transition-colors hover:bg-white/8 ${regionFilter === r ? 'text-[#AACC00]' : 'text-white/65'}`}>
+                    <button
+                      key={r}
+                      onClick={() => { setRegionFilter(r); setRegionOpen(false) }}
+                      className={`w-full text-left px-3 py-2 text-[11px] font-medium transition-colors hover:bg-white/8 ${regionFilter === r ? 'text-[#AACC00]' : 'text-white/65'}`}
+                    >
                       {r}
                     </button>
                   ))}
@@ -457,17 +602,17 @@ export default function HeatMap() {
 
             <div className="w-px h-4 bg-white/10 mx-0.5" />
 
-            {/* Heatmap / Bubbles toggle */}
+            {/* View mode toggle */}
             <div className="flex items-center gap-0.5">
               <button
-                onClick={() => setViewMode('heat')}
+                onClick={() => setViewMode('choropleth')}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-[7px] text-[10px] font-bold transition-all"
-                style={viewMode === 'heat'
+                style={viewMode === 'choropleth'
                   ? { background: 'rgba(170,204,0,0.12)', color: '#AACC00', border: '1px solid rgba(170,204,0,0.25)' }
                   : { color: 'rgba(255,255,255,0.40)' }
                 }
               >
-                <Flame size={10} /> Heat
+                <Globe size={10} /> Countries
               </button>
               <button
                 onClick={() => setViewMode('bubble')}
@@ -483,7 +628,7 @@ export default function HeatMap() {
 
             <div className="w-px h-4 bg-white/10 mx-0.5" />
 
-            {/* Countries list toggle */}
+            {/* Country list toggle */}
             <button
               onClick={() => setShowList(v => !v)}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[10px] font-bold transition-all"
@@ -511,33 +656,35 @@ export default function HeatMap() {
           />
         )}
 
-        {/* ── Risk legend (bottom left) ────────────────────────────────────────── */}
+        {/* ── Risk legend ──────────────────────────────────────────────────── */}
         <div
-          className="absolute z-10 flex items-center gap-3 px-3 py-2 rounded-[8px]"
+          className="absolute z-10 flex items-center gap-4 px-4 py-2.5 rounded-[10px]"
           style={{
             bottom: 14, left: 14,
-            background:     'rgba(9,10,12,0.82)',
-            border:         '1px solid rgba(255,255,255,0.07)',
-            backdropFilter: 'blur(10px)',
+            background:     'rgba(9,10,12,0.88)',
+            border:         '1px solid rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(12px)',
+            boxShadow:      '0 4px 20px rgba(0,0,0,0.5)',
           }}
         >
-          <span className="text-[8px] font-bold text-white/20 uppercase tracking-wider">Risk</span>
+          <span className="text-[8px] font-bold text-white/20 uppercase tracking-wider shrink-0">Risk Level</span>
           {['Critical', 'High', 'Medium', 'Low'].map(level => (
             <div key={level} className="flex items-center gap-1.5">
-              <div className="rounded-full shrink-0"
-                style={{
-                  width:      RISK_RADIUS[level] * 0.9,
-                  height:     RISK_RADIUS[level] * 0.9,
-                  background: RISK_COLOR[level],
-                  opacity:    0.85,
-                }}
+              <div
+                className="rounded-sm shrink-0"
+                style={{ width: 12, height: 12, background: RISK_COLOR[level], opacity: 0.85 }}
               />
-              <span className="text-[8px] text-white/35">{level}</span>
+              <span className="text-[9px] font-medium text-white/45">{level}</span>
             </div>
           ))}
+          <div className="w-px h-3 bg-white/10" />
+          <div className="flex items-center gap-1.5">
+            <div className="rounded-sm shrink-0" style={{ width: 12, height: 12, background: '#1a1c28' }} />
+            <span className="text-[9px] font-medium text-white/25">Unrated</span>
+          </div>
         </div>
 
-        {/* ── Country count (bottom centre) ───────────────────────────────────── */}
+        {/* ── Footer note ──────────────────────────────────────────────────── */}
         <div
           className="absolute z-10 flex items-center gap-1.5 px-3 py-2 rounded-[8px]"
           style={{
@@ -547,7 +694,9 @@ export default function HeatMap() {
             backdropFilter: 'blur(10px)',
           }}
         >
-          <span className="text-[8px] text-white/35">{filteredCount} countries monitored · click to view full report</span>
+          <span className="text-[8px] text-white/30">
+            {filteredCount} countries monitored · click any country to view full report
+          </span>
         </div>
 
       </div>
