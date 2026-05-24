@@ -32,7 +32,7 @@ const REGIONS = [
 ]
 
 const CACHE_TTL_DAYS  = 7
-const MAX_RESULTS     = 2000
+const MAX_RESULTS     = 10000
 const PER_REGION      = 400    // limit per region to keep Overpass fast
 const BATCH_SIZE      = 500
 const OVERPASS_TIMEOUT_MS = 52_000  // 52s — leaves headroom inside 55s maxDuration
