@@ -20,6 +20,7 @@ const OURAIRPORTS_URL = 'https://davidmegginson.github.io/ourairports-data/airpo
 const CACHE_TTL_DAYS  = 30
 const BATCH_SIZE      = 500
 const MAX_RESULTS     = 15000
+const PAGE_SIZE       = 1000  // PostgREST page size — paginate to get all rows
 
 // Bounding boxes [west, south, east, north] — same as facilities.js
 const REGIONS = [
@@ -99,6 +100,24 @@ async function fetchFromOurAirports() {
   return rows
 }
 
+async function fetchAllFromCache(sb, ttlCutoff) {
+  const rows = []
+  let from = 0
+  while (rows.length < MAX_RESULTS) {
+    const query = sb
+      .from('airfields')
+      .select('ident,name,airfield_type,lat,lon,elevation_ft,country,municipality,iata_code')
+      .range(from, from + PAGE_SIZE - 1)
+    if (ttlCutoff) query.gte('updated_at', ttlCutoff)
+    const { data, error } = await query
+    if (error || !data?.length) break
+    rows.push(...data)
+    if (data.length < PAGE_SIZE) break
+    from += PAGE_SIZE
+  }
+  return rows
+}
+
 function toFeatureCollection(rows) {
   return {
     type: 'FeatureCollection',
@@ -127,13 +146,9 @@ export default async function handler(req, res) {
 
     // ── 1. Fresh cache ──────────────────────────────────────────────────────
     const ttlCutoff = new Date(Date.now() - CACHE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString()
-    const { data: cached, error: cacheErr } = await sb
-      .from('airfields')
-      .select('ident,name,airfield_type,lat,lon,elevation_ft,country,municipality,iata_code')
-      .gte('updated_at', ttlCutoff)
-      .limit(MAX_RESULTS)
+    const cached = await fetchAllFromCache(sb, ttlCutoff)
 
-    if (!cacheErr && cached?.length > 500) {
+    if (cached.length > 500) {
       res.setHeader('X-Source', 'cache')
       res.setHeader('X-Count', cached.length)
       return res.status(200).json(toFeatureCollection(cached))
@@ -165,13 +180,11 @@ export default async function handler(req, res) {
     }
 
     // ── 3. Stale cache fallback ─────────────────────────────────────────────
-    const { data: stale } = await sb
-      .from('airfields')
-      .select('ident,name,airfield_type,lat,lon,elevation_ft,country,municipality,iata_code')
-      .limit(MAX_RESULTS)
+    const stale = await fetchAllFromCache(sb, null)
 
-    if (stale?.length > 0) {
+    if (stale.length > 0) {
       res.setHeader('X-Source', 'stale-cache')
+      res.setHeader('X-Count', stale.length)
       return res.status(200).json(toFeatureCollection(stale))
     }
 
