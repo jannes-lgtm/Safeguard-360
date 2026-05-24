@@ -31,23 +31,27 @@ const REGIONS = [
   [-82, -56, -34,  13],   // South America
 ]
 
-const CACHE_TTL_DAYS = 7
-const MAX_RESULTS    = 2000
-const BATCH_SIZE     = 500
+const CACHE_TTL_DAYS  = 7
+const MAX_RESULTS     = 2000
+const PER_REGION      = 400    // limit per region to keep Overpass fast
+const BATCH_SIZE      = 500
+const OVERPASS_TIMEOUT_MS = 52_000  // 52s — leaves headroom inside 55s maxDuration
 
 async function fetchFromOverpass(type) {
   const tag = OVERPASS_TAGS[type]
 
+  // Query each region separately, cap per-region results, combine
   const parts = REGIONS.map(([w, s, e, n]) =>
     `node[${tag}](${s},${w},${n},${e});way[${tag}](${s},${w},${n},${e});`
   ).join('')
 
-  const query = `[out:json][timeout:45];(${parts});out center ${MAX_RESULTS};`
+  const query = `[out:json][timeout:50][maxsize:2000000];(${parts});out center ${PER_REGION * REGIONS.length};`
 
   const res = await fetch('https://overpass-api.de/api/interpreter', {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body:    `data=${encodeURIComponent(query)}`,
+    signal:  AbortSignal.timeout(OVERPASS_TIMEOUT_MS),
   })
 
   if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`)
@@ -94,7 +98,7 @@ export default async function handler(req, res) {
   try {
     const sb = getSupabaseAdmin()
 
-    // ── 1. Try cache ────────────────────────────────────────────────────────────
+    // ── 1. Try fresh cache (within TTL) ────────────────────────────────────────
     const ttlCutoff = new Date(Date.now() - CACHE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString()
     const { data: cached, error: cacheErr } = await sb
       .from('facilities')
@@ -109,17 +113,43 @@ export default async function handler(req, res) {
     }
 
     // ── 2. Fetch fresh from Overpass ────────────────────────────────────────────
-    const facilities = await fetchFromOverpass(type)
-
-    if (facilities.length > 0) {
-      await sb.from('facilities').delete().eq('facility_type', type)
-      for (let i = 0; i < facilities.length; i += BATCH_SIZE) {
-        await sb.from('facilities').insert(facilities.slice(i, i + BATCH_SIZE))
-      }
+    let facilities = []
+    let overpassOk = false
+    try {
+      facilities = await fetchFromOverpass(type)
+      overpassOk = true
+    } catch (overpassErr) {
+      console.warn(`[facilities] Overpass failed (${overpassErr.message}) — falling back to stale cache`)
     }
 
-    res.setHeader('X-Source', 'overpass')
-    return res.status(200).json(toFeatureCollection(facilities.slice(0, MAX_RESULTS)))
+    if (overpassOk && facilities.length > 0) {
+      // Persist to Supabase cache in background (don't await — return fast)
+      sb.from('facilities').delete().eq('facility_type', type)
+        .then(() => {
+          const rows = facilities.slice(0, MAX_RESULTS)
+          const batches = []
+          for (let i = 0; i < rows.length; i += BATCH_SIZE) batches.push(rows.slice(i, i + BATCH_SIZE))
+          return batches.reduce((p, batch) => p.then(() => sb.from('facilities').insert(batch)), Promise.resolve())
+        })
+        .catch(e => console.warn('[facilities] cache write failed:', e.message))
+
+      res.setHeader('X-Source', 'overpass')
+      return res.status(200).json(toFeatureCollection(facilities.slice(0, MAX_RESULTS)))
+    }
+
+    // ── 3. Overpass failed — return stale cache if anything exists ──────────────
+    const { data: stale } = await sb
+      .from('facilities')
+      .select('id,name,facility_type,lat,lon,city,country')
+      .eq('facility_type', type)
+      .limit(MAX_RESULTS)
+
+    if (stale?.length > 0) {
+      res.setHeader('X-Source', 'stale-cache')
+      return res.status(200).json(toFeatureCollection(stale))
+    }
+
+    return res.status(503).json({ error: 'Facilities data temporarily unavailable — Overpass API timeout' })
   } catch (err) {
     console.error('[facilities]', err.message)
     return res.status(500).json({ error: err.message })
