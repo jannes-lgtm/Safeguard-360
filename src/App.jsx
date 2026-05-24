@@ -54,6 +54,7 @@ import ShiftLog from './pages/gsoc/ShiftLog'
 import ProjectsList from './pages/projects/ProjectsList'
 import ProjectDetail from './pages/projects/ProjectDetail'
 import ProtectedRoute from './components/ProtectedRoute'
+import PasswordGate from './components/PasswordGate'
 import HeatMap from './pages/HeatMap'
 import Landing from './pages/Landing'
 
@@ -77,6 +78,7 @@ function AuthStateWatcher() {
 
 export default function App() {
   return (
+    <PasswordGate>
     <BrowserRouter>
       <AuthStateWatcher />
       <Routes>
@@ -137,5 +139,6 @@ export default function App() {
         <Route path="/alerts"           element={<Navigate to="/live-risk-feed" replace />} />
       </Routes>
     </BrowserRouter>
+    </PasswordGate>
   )
 }
