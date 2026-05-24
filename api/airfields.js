@@ -148,7 +148,7 @@ export default async function handler(req, res) {
     const ttlCutoff = new Date(Date.now() - CACHE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString()
     const cached = await fetchAllFromCache(sb, ttlCutoff)
 
-    if (cached.length > 500) {
+    if (cached.length > 5000) {
       res.setHeader('X-Source', 'cache')
       res.setHeader('X-Count', cached.length)
       return res.status(200).json(toFeatureCollection(cached))
