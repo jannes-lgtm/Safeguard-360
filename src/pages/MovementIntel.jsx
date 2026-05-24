@@ -16,7 +16,7 @@ import {
   RefreshCw, X, AlertTriangle, Clock, Search,
   LocateFixed, ArrowRight, TrendingUp, Info,
   Heart, Shield, Flame, Layers,
-  Building2, Cloud, CloudRain, Wind, Thermometer,
+  Building2, Cloud, CloudRain, Wind, Thermometer, Plane,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import LocationAutocomplete from '../components/LocationAutocomplete'
@@ -55,6 +55,7 @@ const LAYER_GROUPS = [
     layers: [
       { id: 'corridors',  label: 'Traffic Corridors', Icon: Route,       color: '#AACC00' },
       { id: 'cities',     label: 'City Network',      Icon: MapPin,       color: '#AACC00' },
+      { id: 'airfields',  label: 'Airfields & Strips', Icon: Plane,       color: '#60a5fa' },
     ],
   },
   {
@@ -269,6 +270,7 @@ export default function MovementIntel() {
   const [activeLayers, setActiveLayers] = useState({
     corridors:     true,
     cities:        true,
+    airfields:     false,
     incidents:     false,
     hospitals:     false,
     police:        false,
@@ -372,7 +374,103 @@ export default function MovementIntel() {
         })
       }
 
-      // ── 3. Incidents sources ───────────────────────────────────────────────
+      // ── 3. Airfields source ────────────────────────────────────────────────
+      map.addSource('airfields', { type: 'geojson', data: empty })
+
+      // Halo for large/medium airports
+      map.addLayer({
+        id: 'airfields-halo', type: 'circle', source: 'airfields',
+        filter: ['in', ['get', 'type'], ['literal', ['large_airport', 'medium_airport']]],
+        paint: {
+          'circle-radius':  ['interpolate', ['linear'], ['zoom'], 4, 7, 10, 14],
+          'circle-color':   '#60a5fa',
+          'circle-opacity': 0.10,
+          'circle-blur':    1,
+        },
+        layout: { visibility: 'none' },
+      })
+
+      // Main airfield dot — colour by type
+      map.addLayer({
+        id: 'airfields-dot', type: 'circle', source: 'airfields',
+        paint: {
+          'circle-radius': [
+            'interpolate', ['linear'], ['zoom'],
+            3, ['match', ['get', 'type'], 'large_airport', 5, 'medium_airport', 3, 2],
+            8, ['match', ['get', 'type'], 'large_airport', 9, 'medium_airport', 6, 4],
+          ],
+          'circle-color': [
+            'match', ['get', 'type'],
+            'large_airport',  '#3b82f6',
+            'medium_airport', '#60a5fa',
+            'small_airport',  '#93c5fd',
+            'heliport',       '#a78bfa',
+            'seaplane_base',  '#06b6d4',
+            '#93c5fd',
+          ],
+          'circle-opacity':      0.85,
+          'circle-stroke-width': 1,
+          'circle-stroke-color': '#11131A',
+        },
+        layout: { visibility: 'none' },
+      })
+
+      // ICAO label — visible at zoom 6+
+      map.addLayer({
+        id: 'airfields-label', type: 'symbol', source: 'airfields',
+        minzoom: 6,
+        filter: ['in', ['get', 'type'], ['literal', ['large_airport', 'medium_airport']]],
+        layout: {
+          'text-field':    ['coalesce', ['get', 'ident'], ['get', 'name']],
+          'text-font':     ['Open Sans Regular'],
+          'text-size':     9,
+          'text-offset':   [0, 1.4],
+          'text-anchor':   'top',
+          'text-optional': true,
+        },
+        paint: {
+          'text-color':      'rgba(96,165,250,0.85)',
+          'text-halo-color': 'rgba(0,0,0,0.6)',
+          'text-halo-width': 1,
+        },
+      })
+
+      // Click popup
+      map.on('click', 'airfields-dot', e => {
+        const p = e.features?.[0]?.properties
+        if (!p) return
+        const TYPE_LABEL = {
+          large_airport:  'International Airport',
+          medium_airport: 'Regional Airport',
+          small_airport:  'Airstrip / Bush Strip',
+          heliport:       'Heliport',
+          seaplane_base:  'Seaplane Base',
+        }
+        const TYPE_COLOR = {
+          large_airport: '#3b82f6', medium_airport: '#60a5fa',
+          small_airport: '#93c5fd', heliport: '#a78bfa', seaplane_base: '#06b6d4',
+        }
+        const col   = TYPE_COLOR[p.type] || '#60a5fa'
+        const label = TYPE_LABEL[p.type]  || p.type
+        new maplibregl.Popup({ closeButton: true, offset: 10 })
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div style="line-height:1.6">
+              <div style="font-weight:700;font-size:13px;color:#EAEEF5">${p.name}</div>
+              ${p.ident ? `<div style="font-size:10px;font-weight:700;color:${col};margin-bottom:4px">${p.ident}${p.iata_code ? ` · ${p.iata_code}` : ''}</div>` : ''}
+              <span style="background:${col}22;color:${col};border:1px solid ${col}44;padding:2px 8px;border-radius:999px;font-size:9px;font-weight:700">${label.toUpperCase()}</span>
+              <div style="margin-top:8px;font-size:10px;color:#6E7480">
+                ${p.municipality ? `<div>${p.municipality}${p.country ? `, ${p.country}` : ''}</div>` : ''}
+                ${p.elevation_ft ? `<div>Elevation: ${p.elevation_ft.toLocaleString()} ft</div>` : ''}
+              </div>
+            </div>
+          `)
+          .addTo(map)
+      })
+      map.on('mouseenter', 'airfields-dot', () => { map.getCanvas().style.cursor = 'pointer' })
+      map.on('mouseleave', 'airfields-dot', () => { map.getCanvas().style.cursor = '' })
+
+      // ── 4. Incidents sources ───────────────────────────────────────────────
       map.addSource('incidents', { type: 'geojson', data: empty })
       map.addLayer({
         id: 'incidents-halo', type: 'circle', source: 'incidents',
@@ -649,6 +747,9 @@ export default function MovementIntel() {
     set('city-dot',          activeLayers.cities)
     set('city-halo',         activeLayers.cities)
     set('city-label',        activeLayers.cities)
+    set('airfields-halo',    activeLayers.airfields)
+    set('airfields-dot',     activeLayers.airfields)
+    set('airfields-label',   activeLayers.airfields)
     set('incidents-dot',     activeLayers.incidents)
     set('incidents-halo',    activeLayers.incidents)
     set('fac-hospital-circle', activeLayers.hospitals)
@@ -685,6 +786,22 @@ export default function MovementIntel() {
       }
     }
   }, [mapReady, activeLayers.hospitals, activeLayers.police, activeLayers.fire])
+
+  // ── Lazy-load airfields on first enable ─────────────────────────────────────
+  const airfieldsLoadedRef = useRef(false)
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady || !activeLayers.airfields) return
+    if (airfieldsLoadedRef.current) return
+    airfieldsLoadedRef.current = true
+
+    fetch('/api/airfields')
+      .then(r => r.json())
+      .then(fc => {
+        if (map.getSource('airfields')) map.getSource('airfields').setData(fc)
+      })
+      .catch(err => console.warn('[airfields]', err.message))
+  }, [mapReady, activeLayers.airfields])
 
   // ── Load incidents when layer enabled ───────────────────────────────────────
   useEffect(() => {

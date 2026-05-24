@@ -44,7 +44,8 @@
     "api/traffic-ingest.js":          { "maxDuration": 60 },
     "api/route-lookup.js":            { "maxDuration": 30 },
     "api/facilities.js":              { "maxDuration": 55 },
-    "api/prewarm-facilities.js":      { "maxDuration": 300 }
+    "api/prewarm-facilities.js":      { "maxDuration": 300 },
+    "api/airfields.js":               { "maxDuration": 55 }
   },
   "crons": [
     { "path": "/api/scan-all",              "schedule": "0 */4 * * *"  },
