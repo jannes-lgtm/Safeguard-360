@@ -32,7 +32,8 @@ const REGIONS = [
 ]
 
 const CACHE_TTL_DAYS  = 7
-const MAX_RESULTS     = 10000
+const MAX_RESULTS     = 15000
+const PAGE_SIZE       = 1000   // Supabase PostgREST page size — fetch all pages
 const PER_REGION      = 400    // limit per region to keep Overpass fast
 const BATCH_SIZE      = 500
 const OVERPASS_TIMEOUT_MS = 52_000  // 52s — leaves headroom inside 55s maxDuration
@@ -70,6 +71,27 @@ async function fetchFromOverpass(type) {
     .filter(f => f.lat != null && f.lon != null)
 }
 
+// Fetches all rows for a facility type by paginating through Supabase
+// (PostgREST caps each response at its configured max-rows)
+async function fetchAllFromCache(sb, type, ttlCutoff) {
+  const rows = []
+  let from = 0
+  while (rows.length < MAX_RESULTS) {
+    const query = sb
+      .from('facilities')
+      .select('id,name,facility_type,lat,lon,city,country')
+      .eq('facility_type', type)
+      .range(from, from + PAGE_SIZE - 1)
+    if (ttlCutoff) query.gte('updated_at', ttlCutoff)
+    const { data, error } = await query
+    if (error || !data?.length) break
+    rows.push(...data)
+    if (data.length < PAGE_SIZE) break
+    from += PAGE_SIZE
+  }
+  return rows
+}
+
 function toFeatureCollection(rows) {
   return {
     type: 'FeatureCollection',
@@ -100,15 +122,11 @@ export default async function handler(req, res) {
 
     // ── 1. Try fresh cache (within TTL) ────────────────────────────────────────
     const ttlCutoff = new Date(Date.now() - CACHE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString()
-    const { data: cached, error: cacheErr } = await sb
-      .from('facilities')
-      .select('id,name,facility_type,lat,lon,city,country')
-      .eq('facility_type', type)
-      .gte('updated_at', ttlCutoff)
-      .limit(MAX_RESULTS)
+    const cached = await fetchAllFromCache(sb, type, ttlCutoff)
 
-    if (!cacheErr && cached?.length > 100) {
+    if (cached.length > 100) {
       res.setHeader('X-Source', 'cache')
+      res.setHeader('X-Count', cached.length)
       return res.status(200).json(toFeatureCollection(cached))
     }
 
@@ -138,14 +156,11 @@ export default async function handler(req, res) {
     }
 
     // ── 3. Overpass failed — return stale cache if anything exists ──────────────
-    const { data: stale } = await sb
-      .from('facilities')
-      .select('id,name,facility_type,lat,lon,city,country')
-      .eq('facility_type', type)
-      .limit(MAX_RESULTS)
+    const stale = await fetchAllFromCache(sb, type, null)
 
-    if (stale?.length > 0) {
+    if (stale.length > 0) {
       res.setHeader('X-Source', 'stale-cache')
+      res.setHeader('X-Count', stale.length)
       return res.status(200).json(toFeatureCollection(stale))
     }
 
