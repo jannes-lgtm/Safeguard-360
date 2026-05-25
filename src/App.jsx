@@ -56,6 +56,7 @@ import ProjectDetail from './pages/projects/ProjectDetail'
 import ProtectedRoute from './components/ProtectedRoute'
 import PasswordGate from './components/PasswordGate'
 import HeatMap from './pages/HeatMap'
+import Geofences from './pages/Geofences'
 import Landing from './pages/Landing'
 
 // Listens for auth state changes inside the router context so it can navigate
@@ -111,6 +112,7 @@ export default function App() {
         <Route path="/news" element={<ProtectedRoute><NewsUpdates /></ProtectedRoute>} />
         <Route path="/country-risk" element={<ProtectedRoute><CountryRiskReport /></ProtectedRoute>} />
         <Route path="/heat-map" element={<ProtectedRoute><HeatMap /></ProtectedRoute>} />
+        <Route path="/geofences" element={<ProtectedRoute orgAdminAllowed><Geofences /></ProtectedRoute>} />
         <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
         <Route path="/sos" element={<ProtectedRoute><SOS /></ProtectedRoute>} />
         <Route path="/checkin" element={<ProtectedRoute><CheckIn /></ProtectedRoute>} />
