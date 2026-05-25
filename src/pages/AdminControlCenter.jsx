@@ -713,6 +713,59 @@ function fmtMins(secs) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
 
+// ── Run Scan Now button ───────────────────────────────────────────────────────
+
+function RunScanButton() {
+  const [state, setState] = useState('idle') // idle | running | done | error
+  const [result, setResult] = useState(null)
+
+  const run = async () => {
+    setState('running')
+    setResult(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin-trigger-scan', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Scan failed')
+      setResult(json)
+      setState('done')
+      setTimeout(() => setState('idle'), 8000)
+    } catch (e) {
+      setResult({ error: e.message })
+      setState('error')
+      setTimeout(() => setState('idle'), 6000)
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1.5 shrink-0">
+      <button onClick={run} disabled={state === 'running'}
+        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+        style={{ background: state === 'done' ? '#16A34A' : state === 'error' ? '#DC2626' : BRAND_BLUE, color: 'white', minWidth: 140 }}>
+        {state === 'running'
+          ? <><RefreshCw size={13} className="animate-spin" /> Scanning…</>
+          : state === 'done'
+          ? <><CheckCircle2 size={13} /> Scan fired!</>
+          : state === 'error'
+          ? <><AlertTriangle size={13} /> Failed</>
+          : <><Zap size={13} /> Run Scan Now</>
+        }
+      </button>
+      {result && state === 'done' && (
+        <p className="text-[10px] text-green-600 font-medium">
+          {result.fanned_out} countr{result.fanned_out === 1 ? 'y' : 'ies'} · {result.itineraries} trips
+        </p>
+      )}
+      {result && state === 'error' && (
+        <p className="text-[10px] text-red-500">{result.error}</p>
+      )}
+    </div>
+  )
+}
+
 function LiveTrafficTab() {
   const [corridors,  setCorridors]  = useState([])
   const [snapshots,  setSnapshots]  = useState({})  // keyed by corridor_id
@@ -1460,12 +1513,15 @@ export default function AdminControlCenter() {
       {/* ── FEEDS ────────────────────────────────────────────────────────────── */}
       {tab==='feeds' && (
         <div className="space-y-5">
-          {/* KPIs */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <KpiCard icon={Rss}       label="RSS Feeds"     value={CAIRO_RSS_FEEDS.length}  color="#22C55E"/>
-            <KpiCard icon={Database}  label="Structured APIs" value={BUILTIN_FEEDS.filter(f=>f.status==='active').length} color={BRAND_BLUE}/>
-            <KpiCard icon={Key}       label="Needs API Key" value={needsKey} color="#F59E0B" link="/intel-feeds"/>
-            <KpiCard icon={BrainCircuit} label="Into CAIRO" value={CAIRO_RSS_FEEDS.filter(f=>f.dest.includes('cairo')).length} color="#7C3AED"/>
+          {/* KPIs + Run Scan button */}
+          <div className="flex items-start gap-4">
+            <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <KpiCard icon={Rss}       label="RSS Feeds"     value={CAIRO_RSS_FEEDS.length}  color="#22C55E"/>
+              <KpiCard icon={Database}  label="Structured APIs" value={BUILTIN_FEEDS.filter(f=>f.status==='active').length} color={BRAND_BLUE}/>
+              <KpiCard icon={Key}       label="Needs API Key" value={needsKey} color="#F59E0B" link="/intel-feeds"/>
+              <KpiCard icon={BrainCircuit} label="Into CAIRO" value={CAIRO_RSS_FEEDS.filter(f=>f.dest.includes('cairo')).length} color="#7C3AED"/>
+            </div>
+            <RunScanButton />
           </div>
 
           {/* Pipeline diagram */}

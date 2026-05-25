@@ -18,6 +18,7 @@
     "api/travel-approval.js":         { "maxDuration": 90 },
     "api/scan-all.js":                { "maxDuration": 30  },
     "api/inngest.js":                 { "maxDuration": 60  },
+    "api/admin-trigger-scan.js":      { "maxDuration": 30  },
     "api/invite-user.js":             { "maxDuration": 20 },
     "api/visa-check.js":              { "maxDuration": 45 },
     "api/visa-letter.js":             { "maxDuration": 60 },
