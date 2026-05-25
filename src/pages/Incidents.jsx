@@ -803,6 +803,24 @@ export default function Incidents() {
 
   useEffect(() => { load() }, [])
 
+  // ── Realtime: live incident updates ─────────────────────────────────────────
+  useEffect(() => {
+    const channel = supabase
+      .channel('incidents-rt')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'incidents' }, ({ new: inc }) => {
+        setIncidents(prev => [inc, ...prev])
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'incidents' }, ({ new: inc }) => {
+        setIncidents(prev => prev.map(i => i.id === inc.id ? inc : i))
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'incidents' }, ({ old }) => {
+        setIncidents(prev => prev.filter(i => i.id !== old.id))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
   const filtered = incidents.filter(i => {
     if (filter === 'open')     return ['Open', 'In Progress', 'Escalated'].includes(i.status)
     if (filter === 'resolved') return ['Resolved', 'Closed'].includes(i.status)

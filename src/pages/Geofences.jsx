@@ -213,6 +213,35 @@ export default function Geofences() {
 
   useEffect(() => { load() }, [load])
 
+  // ── Realtime subscriptions ──────────────────────────────────────────────────
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('geofences-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_locations' }, ({ eventType, new: loc, old }) => {
+        if (eventType === 'DELETE') {
+          setTravellers(prev => prev.filter(t => t.id !== old.id))
+        } else {
+          setTravellers(prev => {
+            const idx = prev.findIndex(t => t.user_id === loc.user_id)
+            if (!loc.is_sharing) return prev.filter(t => t.user_id !== loc.user_id)
+            if (idx >= 0) { const next = [...prev]; next[idx] = loc; return next }
+            return [loc, ...prev]
+          })
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'geofence_events' }, ({ new: ev }) => {
+        setEvents(prev => [ev, ...prev].slice(0, 50))
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'alert_zones' }, () => {
+        supabase.from('alert_zones').select('*').order('created_at', { ascending: false })
+          .then(({ data }) => { if (data) setZones(data) })
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
   // ── Who is inside each zone ─────────────────────────────────────────────────
 
   const occupants = useCallback((zone) => {
