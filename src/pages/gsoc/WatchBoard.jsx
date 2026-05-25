@@ -371,6 +371,7 @@ export default function WatchBoard() {
   const [shiftLog,     setShiftLog]     = useState(null)
   const [lastRefresh,  setLastRefresh]  = useState(null)
   const [loading,      setLoading]      = useState(true)
+  const [rtStatus,     setRtStatus]     = useState('connecting') // connecting | live | error
 
   const [threatFeed,   setThreatFeed]   = useState([])
   const [newsFeed,     setNewsFeed]     = useState([])
@@ -458,9 +459,32 @@ export default function WatchBoard() {
   useEffect(() => {
     fetchAll()
     fetchFeeds()
-    const interval = setInterval(fetchAll, REFRESH_MS)
+
+    // ── Polling fallback (keeps data fresh if Realtime connection drops) ──────
+    const interval     = setInterval(fetchAll, REFRESH_MS)
     const feedInterval = setInterval(fetchFeeds, 5 * 60 * 1000)
-    return () => { clearInterval(interval); clearInterval(feedInterval) }
+
+    // ── Supabase Realtime — instant push on any operational change ─────────────
+    // Fires fetchAll immediately when rows change in any watched table.
+    // Keeps 30s poll as belt-and-suspenders fallback.
+    const channel = supabase
+      .channel('gsoc-realtime-v1')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sos_events' },        fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' },          fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gsoc_escalations' },   fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gsoc_tasks' },         fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_locations' },    fetchAll)
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') setRtStatus('live')
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setRtStatus('error')
+        else setRtStatus('connecting')
+      })
+
+    return () => {
+      clearInterval(interval)
+      clearInterval(feedInterval)
+      supabase.removeChannel(channel)
+    }
   }, [fetchAll, fetchFeeds])
 
   const ackEscalation = async (id) => {
@@ -498,6 +522,21 @@ export default function WatchBoard() {
             title="Refresh">
             <RefreshCw size={14} />
           </button>
+          {/* Realtime connection status */}
+          <span className="hidden sm:flex items-center gap-1.5 text-[10px]">
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              rtStatus === 'live'       ? 'bg-emerald-400 animate-pulse' :
+              rtStatus === 'error'      ? 'bg-red-500' :
+                                          'bg-yellow-500 animate-pulse'
+            }`} />
+            <span className={
+              rtStatus === 'live'  ? 'text-emerald-400 font-semibold' :
+              rtStatus === 'error' ? 'text-red-400' :
+                                     'text-white/30'
+            }>
+              {rtStatus === 'live' ? 'LIVE' : rtStatus === 'error' ? 'OFFLINE' : 'CONNECTING'}
+            </span>
+          </span>
           {lastRefresh && (
             <span className="text-[10px] text-white/20 hidden sm:block">Updated {timeAgo(lastRefresh)}</span>
           )}

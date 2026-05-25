@@ -2003,10 +2003,14 @@ export default function Dashboard() {
   useEffect(() => {
     load({ scanAlerts: true })
     const interval = setInterval(() => load({ scanAlerts: false }), 5 * 60 * 1000)
-    const channel = supabase.channel('dashboard-watch-v3')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'itineraries' }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_alerts' }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, () => load())
+    const channel = supabase.channel('dashboard-watch-v4')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'itineraries' },           () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_alerts' },            () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' },                 () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sos_events' },             () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' },              () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'control_room_requests' },  () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scheduled_checkins' },     () => load())
       .subscribe()
     return () => { clearInterval(interval); supabase.removeChannel(channel) }
   }, [load])
