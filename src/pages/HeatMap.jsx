@@ -39,11 +39,13 @@ const RISK_WEIGHT = { Critical: 1.0, High: 0.75, Medium: 0.45, Low: 0.15 }
 const REGIONS     = ['All', 'Africa', 'Middle East', 'Americas', 'Asia', 'Europe', 'Oceania']
 
 // The D3/holtzy world.geojson uses the "name" property for country names.
-// Values that differ from our COUNTRIES keys:
+// These differ from our COUNTRIES keys — verified against the actual file:
 const GEO_NAME_MAP = {
-  'DR Congo':      'Democratic Republic of the Congo',
-  'United States': 'United States of America',
-  'Tanzania':      'United Republic of Tanzania',
+  'DR Congo':       'Democratic Republic of the Congo',
+  'United States':  'USA',
+  'United Kingdom': 'England',
+  'Tanzania':       'United Republic of Tanzania',
+  // Singapore is too small to appear in 50m polygons — bubble-only
 }
 
 // Reverse map: GeoJSON name → our COUNTRIES key
@@ -184,9 +186,8 @@ function CountryPanel({ filter, selected, onSelect, onClose, dataset }) {
 }
 
 // ── World GeoJSON URL ─────────────────────────────────────────────────────────
-// ~1.5 MB 50m GeoJSON with "name" property — reliable, CORS-open
-const WORLD_GEOJSON_URL =
-  'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson'
+// Self-hosted in /public — served from Vercel CDN, no CORS, no external dependency
+const WORLD_GEOJSON_URL = '/world.geojson'
 
 // ── Build effective COUNTRIES map — static baseline merged with live AI data ──
 // liveRisks: { [countryNameLower]: 'Critical|High|Medium|Low' }
