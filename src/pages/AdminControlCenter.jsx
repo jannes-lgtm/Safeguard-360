@@ -85,6 +85,7 @@ const CAIRO_RSS_FEEDS = [
   { name: 'ReliefWeb Disasters',  category: 'weather',       tier: 1, dest: ['cairo','intel'] },
   { name: 'NOAA NHC Atlantic',    category: 'weather',       tier: 1, dest: ['intel'] },
   { name: 'NOAA NHC East Pacific',category: 'weather',       tier: 1, dest: ['intel'] },
+  { name: 'NetBlocks',            category: 'infrastructure', tier: 2, dest: ['cairo','intel'] },
 ]
 
 const TIER_LABEL = { 1: 'T1', 2: 'T2', 3: 'T3' }
