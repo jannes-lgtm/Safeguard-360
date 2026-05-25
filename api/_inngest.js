@@ -68,14 +68,12 @@ const CACHE_TTL_MS = 6 * 60 * 60 * 1000
 
 export const scanCountry = inngest.createFunction(
   {
-    id:      'scan-country',
-    name:    'Scan Country',
-    retries: 2,
-    // Concurrency: process up to 5 countries simultaneously
+    id:       'scan-country',
+    name:     'Scan Country',
+    retries:  2,
+    triggers: [{ event: 'safeguard360/scan.country' }],
     concurrency: { limit: 5 },
   },
-  { event: 'safeguard360/scan.country' },
-
   async ({ event, step }) => {
     const { country, trips, supabaseUrl, serviceKey, aiKey, today } = event.data
 
