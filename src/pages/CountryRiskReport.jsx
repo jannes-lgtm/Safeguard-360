@@ -829,6 +829,32 @@ export default function CountryRiskReport() {
         },
       })
 
+      // Country name labels
+      map.addLayer({
+        id: 'country-labels',
+        type: 'symbol',
+        source: 'world',
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-font': ['Open Sans Bold', 'Open Sans Regular'],
+          'text-size': [
+            'interpolate', ['linear'], ['zoom'],
+            2, 9,
+            4, 11,
+            6, 13,
+          ],
+          'text-max-width': 6,
+          'text-allow-overlap': false,
+          'text-ignore-placement': false,
+        },
+        paint: {
+          'text-color': 'rgba(255,255,255,0.88)',
+          'text-halo-color': 'rgba(0,0,0,0.70)',
+          'text-halo-width': 1.5,
+          'text-halo-blur': 0.5,
+        },
+      })
+
       // ── Hover feature state ────────────────────────────────────────────────
       let hoveredId = null
       map.on('mousemove', 'country-fill', (e) => {

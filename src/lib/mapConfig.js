@@ -21,13 +21,16 @@ const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY
 const CARTO_DARK_STYLE = {
   version: 8,
   name: 'Operational Dark',
+  // Glyphs enable MapLibre symbol/text layers on top of this raster base
+  glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
   sources: {
     'carto-dark': {
       type: 'raster',
+      // dark_nolabels — removes baked-in raster labels so our own labels aren't doubled
       tiles: [
-        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
       ],
       tileSize: 256,
       attribution: '© OpenStreetMap contributors © CARTO',
