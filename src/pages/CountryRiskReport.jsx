@@ -120,8 +120,8 @@ const SEV = {
 }
 const sev = (s) => SEV[s] || SEV.Unknown
 
-// Risk colours (choropleth fills)
-const RISK_COLOR = { Critical: '#dc2626', High: '#ea580c', Medium: '#eab308', Low: '#22c55e' }
+// Risk colours (choropleth fills) — muted/professional palette
+const RISK_COLOR = { Critical: '#c0392b', High: '#d35400', Medium: '#d4a017', Low: '#1e8449' }
 
 // Keep for popup badge styling
 const RISK_STYLE = {
@@ -137,10 +137,11 @@ const WORLD_GEOJSON_URL = '/world.geojson'
 
 // Our RISK_MAP key → GeoJSON "name" property (verified against Natural Earth 50m)
 const GEO_NAME_MAP = {
-  'DR Congo':       'Democratic Republic of the Congo',
-  'United States':  'USA',
-  'United Kingdom': 'England',
-  'Tanzania':       'United Republic of Tanzania',
+  'DR Congo':                      'Democratic Republic of the Congo',
+  'Democratic Republic of Congo':  'Democratic Republic of the Congo',
+  'United States':                 'USA',
+  'United Kingdom':                'England',
+  'Tanzania':                      'United Republic of Tanzania',
 }
 const GEO_NAME_REVERSE = Object.fromEntries(
   Object.entries(GEO_NAME_MAP).map(([k, v]) => [v, k])
@@ -720,8 +721,8 @@ export default function CountryRiskReport() {
         type: 'fill',
         source: 'world',
         paint: {
-          'fill-color':   '#0f111a',
-          'fill-opacity': 0.55,
+          'fill-color':   '#0d1017',
+          'fill-opacity': 1,
         },
       })
 
@@ -735,13 +736,29 @@ export default function CountryRiskReport() {
           'fill-opacity': [
             'case',
             ['boolean', ['feature-state', 'hover'], false],
-            0.88,
-            0.65,
+            0.90,
+            0.55,
           ],
         },
       })
 
-      // Subtle borders
+      // Universal grid — thin line on EVERY country so adjacent same-colour countries are always separable
+      map.addLayer({
+        id: 'country-grid',
+        type: 'line',
+        source: 'world',
+        paint: {
+          'line-color': 'rgba(255,255,255,0.18)',
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            1, 0.3,
+            5, 0.7,
+            8, 1.2,
+          ],
+        },
+      })
+
+      // Brighter accent border on rated countries, drawn on top of the grid
       map.addLayer({
         id: 'country-borders',
         type: 'line',
@@ -750,10 +767,10 @@ export default function CountryRiskReport() {
           'line-color': buildBorderExpr(RISK_MAP, regionFilter),
           'line-width': [
             'interpolate', ['linear'], ['zoom'],
-            2, 0.4,
-            6, 1.0,
+            2, 0.6,
+            6, 1.4,
           ],
-          'line-opacity': 0.45,
+          'line-opacity': 0.65,
         },
       })
 
