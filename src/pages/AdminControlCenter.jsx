@@ -83,6 +83,8 @@ const CAIRO_RSS_FEEDS = [
   { name: 'Africa CDC',           category: 'health',        tier: 2, dest: ['cairo','intel'] },
   // Weather & disasters
   { name: 'ReliefWeb Disasters',  category: 'weather',       tier: 1, dest: ['cairo','intel'] },
+  { name: 'NOAA NHC Atlantic',    category: 'weather',       tier: 1, dest: ['intel'] },
+  { name: 'NOAA NHC East Pacific',category: 'weather',       tier: 1, dest: ['intel'] },
 ]
 
 const TIER_LABEL = { 1: 'T1', 2: 'T2', 3: 'T3' }
@@ -203,9 +205,11 @@ const BUILTIN_FEEDS = [
   { id: 'promed',            name: 'ProMED Mail',              category: 'health',       status: 'active' },
   { id: 'gdacs',             name: 'GDACS (UN Disasters)',     category: 'weather',      status: 'active' },
   { id: 'usgs',              name: 'USGS Earthquakes',         category: 'weather',      status: 'active' },
-  { id: 'openweathermap',    name: 'OpenWeatherMap',           category: 'weather',      status: 'pending_key' },
+  { id: 'openweathermap',    name: 'OpenWeatherMap',           category: 'weather',      status: 'active' },
+  { id: 'nhc-atlantic',      name: 'NOAA NHC — Atlantic',      category: 'weather',      status: 'active' },
+  { id: 'nhc-pacific',       name: 'NOAA NHC — East Pacific',  category: 'weather',      status: 'active' },
   { id: 'eonet',             name: 'NASA EONET',               category: 'weather',      status: 'active' },
-  { id: 'open-meteo',        name: 'Open-Meteo',              category: 'weather',      status: 'active' },
+  { id: 'open-meteo',        name: 'Open-Meteo',               category: 'weather',      status: 'active' },
   { id: 'osac',              name: 'OSAC',                     category: 'security',     status: 'pending' },
   { id: 'oxford-analytica',  name: 'Oxford Analytica',         category: 'security',     status: 'active' },
   { id: 'soufan-center',     name: 'The Soufan Center',        category: 'security',     status: 'active' },
