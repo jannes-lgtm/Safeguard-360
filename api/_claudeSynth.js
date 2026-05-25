@@ -540,6 +540,64 @@ export async function fetchUSGS(country) {
   }
 }
 
+// ── OpenWeatherMap severe weather alerts ──────────────────────────────────────
+//
+// Uses OWM Geocoding + One Call API 3.0 to fetch active government-issued
+// weather alerts for a city. Returns structured alert objects with severity
+// mapped to our internal scale (Critical / High / Medium).
+//
+// Requires OPENWEATHERMAP_API_KEY env var (same key as VITE_OPENWEATHERMAP_KEY).
+
+const OWM_SEV = {
+  Extreme:  'Critical',
+  Severe:   'High',
+  Moderate: 'Medium',
+  Minor:    'Low',
+}
+
+function owmSeverity(tags = []) {
+  if (tags.includes('Extreme'))  return 'Critical'
+  if (tags.includes('Severe'))   return 'High'
+  if (tags.includes('Moderate')) return 'Medium'
+  return 'Medium'
+}
+
+export async function fetchWeatherAlerts(city, country) {
+  const key = process.env.OPENWEATHERMAP_API_KEY || process.env.VITE_OPENWEATHERMAP_KEY || ''
+  if (!key) return []
+  try {
+    // Step 1: Geocode city → lat/lon
+    const geoQuery = city ? `${city},${country}` : country
+    const geoRes = await fetch(
+      `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(geoQuery)}&limit=1&appid=${key}`,
+      { signal: AbortSignal.timeout(4000) }
+    )
+    if (!geoRes.ok) return []
+    const [geo] = await geoRes.json()
+    if (!geo) return []
+
+    // Step 2: One Call API — fetch only alerts
+    const owmRes = await fetch(
+      `https://api.openweathermap.org/data/3.0/onecall?lat=${geo.lat}&lon=${geo.lon}&exclude=minutely,hourly,daily,current&appid=${key}`,
+      { signal: AbortSignal.timeout(5000) }
+    )
+    if (!owmRes.ok) return []
+    const owmData = await owmRes.json()
+
+    return (owmData.alerts || []).map(a => ({
+      title:       a.event || 'Severe Weather Alert',
+      description: a.description || null,
+      source:      a.sender_name || 'OpenWeatherMap',
+      severity:    owmSeverity(a.tags || []),
+      start:       a.start ? new Date(a.start * 1000).toISOString() : null,
+      end:         a.end   ? new Date(a.end   * 1000).toISOString() : null,
+      tags:        a.tags || [],
+    }))
+  } catch {
+    return []
+  }
+}
+
 // ── Claude AI country security synthesis ─────────────────────────────────────
 /**
  * Synthesise a structured travel security brief using Claude.

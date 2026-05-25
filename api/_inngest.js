@@ -7,7 +7,7 @@
  */
 
 import { Inngest } from 'inngest'
-import { comprehensiveRiskScan, fetchGDACS, fetchUSGS, fetchHealthOutbreaks } from './_claudeSynth.js'
+import { comprehensiveRiskScan, fetchGDACS, fetchUSGS, fetchHealthOutbreaks, fetchWeatherAlerts } from './_claudeSynth.js'
 import { notifyAlert } from './_notify.js'
 
 export const inngest = new Inngest({ id: 'safeguard360' })
@@ -79,17 +79,19 @@ export const scanCountry = inngest.createFunction(
 
     // ── Step 1: Fetch external data feeds ────────────────────────────────────
     const feeds = await step.run('fetch-feeds', async () => {
-      const [gdacsEvents, quakes, health] = await Promise.all([
+      const firstCity = trips[0]?.arrival_city || null
+      const [gdacsEvents, quakes, health, weatherAlerts] = await Promise.all([
         fetchGDACS(country).catch(() => []),
         fetchUSGS(country).catch(() => []),
         fetchHealthOutbreaks(country).catch(() => []),
+        fetchWeatherAlerts(firstCity, country).catch(() => []),
       ])
       const internalAlerts = await sbGet(supabaseUrl, serviceKey, 'alerts', {
         status:  'eq.Active',
         country: `ilike.%${country}%`,
         select:  'id,title,description,severity,alert_type,country,source,date_issued',
       }).catch(() => [])
-      return { gdacsEvents, quakes, health, internalAlerts }
+      return { gdacsEvents, quakes, health, weatherAlerts, internalAlerts }
     })
 
     // ── Step 2: AI synthesis (separate step — expensive, retriable alone) ────
@@ -132,6 +134,19 @@ export const scanCountry = inngest.createFunction(
             country, arrival_city: trip.arrival_city, trip_name: trip.trip_name,
             dedup_key:    `usgs-${q.id}-${trip.id}`,
             event_date:   p.time ? new Date(p.time).toISOString() : null,
+          })
+        }
+        for (const wa of feeds.weatherAlerts || []) {
+          if (!['Critical', 'High', 'Medium'].includes(wa.severity)) continue
+          rows.push({
+            itinerary_id: trip.id, user_id: trip.user_id,
+            alert_type:   'weather', severity: wa.severity,
+            title:        wa.title,
+            description:  [wa.description, wa.end ? `Active until ${new Date(wa.end).toLocaleDateString('en-GB')}` : null].filter(Boolean).join(' — '),
+            source:       wa.source || 'OpenWeatherMap', country,
+            arrival_city: trip.arrival_city, trip_name: trip.trip_name,
+            dedup_key:    `weather-${wa.title.toLowerCase().replace(/\s+/g,'-').slice(0,40)}-${trip.id}-${today}`,
+            event_date:   wa.start || new Date().toISOString(),
           })
         }
         for (const al of feeds.internalAlerts) {

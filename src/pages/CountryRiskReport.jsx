@@ -704,6 +704,15 @@ export default function CountryRiskReport() {
   const mapRef           = useRef(null)
   const selectCountryRef = useRef(null)
 
+  const OWM_KEY = import.meta.env.VITE_OPENWEATHERMAP_KEY || ''
+  const [wxLayer, setWxLayer] = useState(null) // null | 'precipitation_new' | 'wind_new' | 'temp_new'
+
+  const WX_LAYERS = [
+    { id: 'precipitation_new', label: 'Rain', color: '#38bdf8' },
+    { id: 'wind_new',          label: 'Wind', color: '#a78bfa' },
+    { id: 'temp_new',          label: 'Temp', color: '#fb923c' },
+  ]
+
   const selectedParam = searchParams.get('country') || ''
   const [selected, setSelected] = useState(
     Object.keys(COUNTRY_META).includes(selectedParam) ? selectedParam : null
@@ -731,6 +740,16 @@ export default function CountryRiskReport() {
 
   // Keep ref current so MapLibre popup buttons never use a stale closure
   selectCountryRef.current = selectCountry
+
+  // Toggle weather layers on the map
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map?.isStyleLoaded() || !OWM_KEY) return
+    WX_LAYERS.forEach(({ id }) => {
+      if (!map.getLayer(`wx-${id}`)) return
+      map.setLayoutProperty(`wx-${id}`, 'visibility', wxLayer === id ? 'visible' : 'none')
+    })
+  }, [wxLayer])
 
   // ── MapLibre map init ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -854,6 +873,25 @@ export default function CountryRiskReport() {
           'text-halo-blur': 0.5,
         },
       })
+
+      // ── Weather overlay (OpenWeatherMap tiles) ────────────────────────────
+      if (OWM_KEY) {
+        WX_LAYERS.forEach(({ id }) => {
+          map.addSource(`wx-${id}`, {
+            type: 'raster',
+            tiles: [`https://tile.openweathermap.org/map/${id}/{z}/{x}/{y}.png?appid=${OWM_KEY}`],
+            tileSize: 256,
+            attribution: '© OpenWeatherMap',
+          })
+          map.addLayer({
+            id:     `wx-${id}`,
+            type:   'raster',
+            source: `wx-${id}`,
+            layout: { visibility: 'none' },
+            paint:  { 'raster-opacity': 0.65 },
+          })
+        })
+      }
 
       // ── Hover feature state ────────────────────────────────────────────────
       let hoveredId = null
@@ -1094,8 +1132,23 @@ export default function CountryRiskReport() {
             </div>
 
             {/* Map container */}
-            <div className="rounded-[10px] overflow-hidden" style={{ height: 500 }}>
+            <div className="rounded-[10px] overflow-hidden relative" style={{ height: 500 }}>
               <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
+              {/* Weather layer toggles */}
+              {OWM_KEY && (
+                <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5">
+                  {WX_LAYERS.map(({ id, label, color }) => (
+                    <button key={id} onClick={() => setWxLayer(wxLayer === id ? null : id)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all"
+                      style={wxLayer === id
+                        ? { background: color, color: '#fff', boxShadow: `0 0 10px ${color}60` }
+                        : { background: 'rgba(9,10,12,0.80)', color: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.10)' }
+                      }>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Legend */}
