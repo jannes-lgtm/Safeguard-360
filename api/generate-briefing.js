@@ -54,7 +54,7 @@ async function _handler(req, res) {
   if (!user?.id) return res.status(401).json({ error: 'Invalid token' })
 
   // Rate limit: 15 briefing generations per user per hour
-  const { allowed } = checkRateLimit(req, 'generate-briefing', { max: 15, windowMs: 3_600_000 })
+  const { allowed } = await checkRateLimit(req, 'generate-briefing', { max: 15, windowMs: 3_600_000 })
   if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   const { trip_id } = req.body || {}

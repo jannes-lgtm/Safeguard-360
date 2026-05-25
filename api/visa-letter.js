@@ -52,7 +52,7 @@ async function handler(req, res) {
   }
 
   // Rate limit: 10 letter generations per user per hour (heavy AI operation)
-  const { allowed } = checkRateLimit(req, 'visa-letter', { max: 10, windowMs: 3_600_000 })
+  const { allowed } = await checkRateLimit(req, 'visa-letter', { max: 10, windowMs: 3_600_000 })
   if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   const {

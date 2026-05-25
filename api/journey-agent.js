@@ -897,7 +897,7 @@ async function _handler(req, res) {
   }
 
   // Rate limit: 20 journey agent calls per user per hour (heavier than basic assistant)
-  const { allowed } = checkRateLimit(req, 'journey-agent', { max: 20, windowMs: 3_600_000 })
+  const { allowed } = await checkRateLimit(req, 'journey-agent', { max: 20, windowMs: 3_600_000 })
   if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   const {

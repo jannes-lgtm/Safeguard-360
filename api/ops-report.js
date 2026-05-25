@@ -18,7 +18,7 @@ async function _handler(req, res) {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
     // Light rate limit (report can be refreshed frequently from the dashboard)
-    const { allowed } = checkRateLimit(req, 'ops-report', { max: 60, windowMs: 3_600_000 })
+    const { allowed } = await checkRateLimit(req, 'ops-report', { max: 60, windowMs: 3_600_000 })
     if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded' })
 
     let sb

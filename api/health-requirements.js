@@ -272,7 +272,7 @@ async function _handler(req, res) {
   if (!valid) return res.status(401).json({ error: 'Unauthorized' })
 
   // Rate limit: 20 AI health checks per user per hour
-  const { allowed } = checkRateLimit(req, 'health-requirements', { max: 20, windowMs: 3_600_000 })
+  const { allowed } = await checkRateLimit(req, 'health-requirements', { max: 20, windowMs: 3_600_000 })
   if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   const { destination, country, depart_date } = req.body || {}

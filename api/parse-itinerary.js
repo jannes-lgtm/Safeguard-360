@@ -124,7 +124,7 @@ async function _handler(req, res) {
   }
 
   // Rate limit: 20 parse requests per user per hour
-  const { allowed } = checkRateLimit(req, 'parse-itinerary', { max: 20, windowMs: 3_600_000 })
+  const { allowed } = await checkRateLimit(req, 'parse-itinerary', { max: 20, windowMs: 3_600_000 })
   if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   const { content, type, filename } = req.body || {}
