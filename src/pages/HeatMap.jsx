@@ -41,11 +41,17 @@ const REGIONS     = ['All', 'Africa', 'Middle East', 'Americas', 'Asia', 'Europe
 // The D3/holtzy world.geojson uses the "name" property for country names.
 // These differ from our COUNTRIES keys — verified against the actual file:
 const GEO_NAME_MAP = {
-  'DR Congo':       'Democratic Republic of the Congo',
-  'United States':  'USA',
-  'United Kingdom': 'England',
-  'Tanzania':       'United Republic of Tanzania',
-  // Singapore is too small to appear in 50m polygons — bubble-only
+  'DR Congo':                      'Democratic Republic of the Congo',
+  'Democratic Republic of Congo':  'Democratic Republic of the Congo',
+  'United States':                 'USA',
+  'United Kingdom':                'England',
+  'Tanzania':                      'United Republic of Tanzania',
+  'Ivory Coast':                   'Ivory Coast',
+  'Eswatini':                      'Swaziland',
+  'Republic of Congo':             'Republic of the Congo',
+  'Guinea-Bissau':                 'Guinea Bissau',
+  'Bahamas':                       'The Bahamas',
+  'West Bank':                     'West Bank',
 }
 
 // Reverse map: GeoJSON name → our COUNTRIES key
