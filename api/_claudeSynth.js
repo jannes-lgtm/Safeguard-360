@@ -488,6 +488,71 @@ export async function fetchHealthOutbreaks(country) {
   }
 }
 
+// ── NOAA National Hurricane Center — Atlantic + Pacific active storms ─────────
+//
+// Parses NHC RSS feeds for active tropical storms, hurricanes and advisories.
+// Matches against Caribbean and Latin American countries by name + known basin.
+// Returns structured alert objects compatible with the trip_alert pipeline.
+
+const NHC_FEEDS = [
+  { url: 'https://www.nhc.noaa.gov/index-at.xml', basin: 'Atlantic',       label: 'NHC Atlantic' },
+  { url: 'https://www.nhc.noaa.gov/index-ep.xml', basin: 'East Pacific',   label: 'NHC East Pacific' },
+  { url: 'https://www.nhc.noaa.gov/index-cp.xml', basin: 'Central Pacific', label: 'NHC Central Pacific' },
+]
+
+// Countries in NHC watch zones — used to decide if a basin is relevant
+const ATLANTIC_BASIN = ['bahamas','cuba','haiti','dominican republic','jamaica','puerto rico','trinidad','tobago','barbados','antigua','grenada','st lucia','st vincent','dominica','martinique','guadeloupe','cayman islands','turks','caicos','aruba','curacao','bonaire','belize','mexico','honduras','nicaragua','costa rica','panama','colombia','venezuela','guyana','suriname','french guiana','united states','bermuda','azores']
+const EAST_PACIFIC_BASIN = ['mexico','guatemala','el salvador','honduras','nicaragua','costa rica','panama','colombia','ecuador','peru']
+
+function countryInBasin(country, basin) {
+  const q = country.toLowerCase()
+  if (basin === 'Atlantic')        return ATLANTIC_BASIN.some(c => q.includes(c) || c.includes(q))
+  if (basin === 'East Pacific')    return EAST_PACIFIC_BASIN.some(c => q.includes(c) || c.includes(q))
+  if (basin === 'Central Pacific') return q.includes('hawaii') || q.includes('pacific')
+  return false
+}
+
+function nhcSeverity(title = '') {
+  const t = title.toLowerCase()
+  if (t.includes('category 4') || t.includes('category 5') || t.includes('major hurricane')) return 'Critical'
+  if (t.includes('category 3') || t.includes('hurricane warning'))  return 'Critical'
+  if (t.includes('category 2') || t.includes('hurricane watch'))    return 'High'
+  if (t.includes('category 1') || t.includes('tropical storm warning')) return 'High'
+  if (t.includes('tropical storm') || t.includes('tropical depression')) return 'Medium'
+  if (t.includes('advisory') || t.includes('outlook'))              return 'Medium'
+  return 'Medium'
+}
+
+export async function fetchHurricaneAlerts(country) {
+  try {
+    const results = []
+    await Promise.all(NHC_FEEDS.map(async ({ url, basin, label }) => {
+      if (!countryInBasin(country, basin)) return
+      const r = await fetch(url, { signal: AbortSignal.timeout(5000) })
+      if (!r.ok) return
+      const xml  = await r.text()
+      // Parse <item> blocks from NHC RSS
+      const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(m => m[1])
+      for (const item of items) {
+        const title = (item.match(/<title>([\s\S]*?)<\/title>/) || [])[1]?.replace(/<[^>]+>/g, '').trim() || ''
+        const desc  = (item.match(/<description>([\s\S]*?)<\/description>/) || [])[1]?.replace(/<[^>]+>/g, '').trim() || ''
+        const link  = (item.match(/<link>([\s\S]*?)<\/link>/) || [])[1]?.trim() || 'https://www.nhc.noaa.gov'
+        if (!title || title.toLowerCase().includes('there are no')) continue
+        results.push({
+          title:       `${title} (${basin})`,
+          description: desc.slice(0, 400) || null,
+          source:      label,
+          source_url:  link,
+          severity:    nhcSeverity(title),
+        })
+      }
+    }))
+    return results
+  } catch {
+    return []
+  }
+}
+
 // ── GDACS live disaster events ────────────────────────────────────────────────
 export async function fetchGDACS(country) {
   try {
