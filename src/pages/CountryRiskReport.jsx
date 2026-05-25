@@ -120,7 +120,10 @@ const SEV = {
 }
 const sev = (s) => SEV[s] || SEV.Unknown
 
-// Risk map style (circle markers)
+// Risk colours (choropleth fills)
+const RISK_COLOR = { Critical: '#dc2626', High: '#ea580c', Medium: '#eab308', Low: '#22c55e' }
+
+// Keep for popup badge styling
 const RISK_STYLE = {
   Critical: { color: '#dc2626', fillColor: '#dc2626', radius: 18 },
   High:     { color: '#ea580c', fillColor: '#ea580c', radius: 14 },
@@ -128,6 +131,41 @@ const RISK_STYLE = {
   Low:      { color: '#16a34a', fillColor: '#22c55e', radius: 8  },
 }
 const rs = (r) => RISK_STYLE[r] || RISK_STYLE.Low
+
+// ── Choropleth helpers ────────────────────────────────────────────────────────
+const WORLD_GEOJSON_URL = '/world.geojson'
+
+// Our RISK_MAP key → GeoJSON "name" property (verified against Natural Earth 50m)
+const GEO_NAME_MAP = {
+  'DR Congo':       'Democratic Republic of the Congo',
+  'United States':  'USA',
+  'United Kingdom': 'England',
+  'Tanzania':       'United Republic of Tanzania',
+}
+const GEO_NAME_REVERSE = Object.fromEntries(
+  Object.entries(GEO_NAME_MAP).map(([k, v]) => [v, k])
+)
+function geoToKey(geoName) { return GEO_NAME_REVERSE[geoName] || geoName }
+
+function buildFillExpr(dataset, filter = 'All') {
+  const pairs = []
+  Object.entries(dataset).forEach(([name, c]) => {
+    if (filter !== 'All' && c.region !== filter) return
+    pairs.push(GEO_NAME_MAP[name] || name, RISK_COLOR[c.risk])
+  })
+  if (!pairs.length) return 'rgba(0,0,0,0)'
+  return ['match', ['get', 'name'], ...pairs, 'rgba(0,0,0,0)']
+}
+
+function buildBorderExpr(dataset, filter = 'All') {
+  const pairs = []
+  Object.entries(dataset).forEach(([name, c]) => {
+    if (filter !== 'All' && c.region !== filter) return
+    pairs.push(GEO_NAME_MAP[name] || name, RISK_COLOR[c.risk])
+  })
+  if (!pairs.length) return 'rgba(255,255,255,0.06)'
+  return ['match', ['get', 'name'], ...pairs, 'rgba(255,255,255,0.06)']
+}
 
 // WMO weather codes
 const WMO = {
@@ -669,73 +707,137 @@ export default function CountryRiskReport() {
     document.head.appendChild(popupStyle)
 
     map.on('load', () => {
-      map.addSource('risk-countries', { type: 'geojson', data: buildRiskGeoJSON(regionFilter) })
-
-      map.addLayer({
-        id: 'risk-circles',
-        type: 'circle',
-        source: 'risk-countries',
-        paint: {
-          'circle-radius': ['match', ['get', 'risk'], 'Critical', 18, 'High', 14, 'Medium', 11, 8],
-          'circle-color':  ['match', ['get', 'risk'], 'Critical', '#dc2626', 'High', '#ea580c', 'Medium', '#eab308', '#22c55e'],
-          'circle-opacity': 0.75,
-          'circle-stroke-width': 1.5,
-          'circle-stroke-color': ['match', ['get', 'risk'], 'Critical', '#b91c1c', 'High', '#c2410c', 'Medium', '#ca8a04', '#16a34a'],
-          'circle-stroke-opacity': 0.9,
-        }
+      // ── World polygon source (choropleth) ─────────────────────────────────
+      map.addSource('world', {
+        type: 'geojson',
+        data: WORLD_GEOJSON_URL,
+        generateId: true,
       })
 
-      map.on('click', 'risk-circles', (e) => {
-        const props     = e.features[0].properties
-        const rStyle    = RISK_STYLE[props.risk] || RISK_STYLE.Low
-        const textColor = props.risk === 'Medium' ? '#1f2937' : '#fff'
+      // Dark base fill for all unrated countries
+      map.addLayer({
+        id: 'country-base',
+        type: 'fill',
+        source: 'world',
+        paint: {
+          'fill-color':   '#0f111a',
+          'fill-opacity': 0.55,
+        },
+      })
+
+      // Risk-coloured fill for rated countries
+      map.addLayer({
+        id: 'country-fill',
+        type: 'fill',
+        source: 'world',
+        paint: {
+          'fill-color':   buildFillExpr(RISK_MAP, regionFilter),
+          'fill-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            0.88,
+            0.65,
+          ],
+        },
+      })
+
+      // Subtle borders
+      map.addLayer({
+        id: 'country-borders',
+        type: 'line',
+        source: 'world',
+        paint: {
+          'line-color': buildBorderExpr(RISK_MAP, regionFilter),
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            2, 0.4,
+            6, 1.0,
+          ],
+          'line-opacity': 0.45,
+        },
+      })
+
+      // ── Hover feature state ────────────────────────────────────────────────
+      let hoveredId = null
+      map.on('mousemove', 'country-fill', (e) => {
+        if (!e.features?.length) return
+        const feat = e.features[0]
+        const geoName = feat.properties?.name || ''
+        const key = geoToKey(geoName)
+        if (!RISK_MAP[key]) return   // only highlight rated countries
+
+        if (hoveredId !== null) {
+          map.setFeatureState({ source: 'world', id: hoveredId }, { hover: false })
+        }
+        hoveredId = feat.id
+        map.setFeatureState({ source: 'world', id: hoveredId }, { hover: true })
+        map.getCanvas().style.cursor = 'pointer'
+      })
+
+      map.on('mouseleave', 'country-fill', () => {
+        if (hoveredId !== null) {
+          map.setFeatureState({ source: 'world', id: hoveredId }, { hover: false })
+          hoveredId = null
+        }
+        map.getCanvas().style.cursor = ''
+      })
+
+      // ── Click → popup ──────────────────────────────────────────────────────
+      map.on('click', 'country-fill', (e) => {
+        if (!e.features?.length) return
+        const geoName = e.features[0].properties?.name || ''
+        const key     = geoToKey(geoName)
+        const entry   = RISK_MAP[key]
+        if (!entry) return   // unrated country — no popup
+
+        const rStyle = RISK_STYLE[entry.risk] || RISK_STYLE.Low
 
         const wrap = document.createElement('div')
         wrap.style.cssText = 'font-family:system-ui,-apple-system,sans-serif;min-width:190px'
 
         const nameEl = document.createElement('div')
         nameEl.style.cssText = 'font-weight:700;font-size:13px;color:#EAEEF5;margin-bottom:5px'
-        nameEl.textContent = props.name
+        nameEl.textContent = key
 
         const badge = document.createElement('div')
         badge.style.cssText = `display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;background:${rStyle.fillColor}22;color:${rStyle.fillColor};border:1px solid ${rStyle.fillColor}44;margin-bottom:5px`
-        badge.textContent = `${props.risk?.toUpperCase()} RISK`
+        badge.textContent = `${entry.risk?.toUpperCase()} RISK`
 
         const regionEl = document.createElement('div')
         regionEl.style.cssText = 'font-size:10px;color:#6E7480;margin-bottom:10px'
-        regionEl.textContent = props.region
+        regionEl.textContent = entry.region
 
         const btn = document.createElement('button')
         btn.textContent = 'View Full Report →'
         btn.style.cssText = 'display:block;width:100%;background:#AACC00;color:#09090B;border:none;border-radius:6px;padding:7px 14px;font-size:11px;font-weight:700;cursor:pointer'
         btn.onmouseover = () => { btn.style.opacity = '0.85' }
         btn.onmouseout  = () => { btn.style.opacity = '1' }
-        btn.onclick = () => selectCountryRef.current?.(props.name)
+        btn.onclick = () => selectCountryRef.current?.(key)
 
         wrap.appendChild(nameEl); wrap.appendChild(badge)
         wrap.appendChild(regionEl); wrap.appendChild(btn)
 
         new maplibregl.Popup({ closeButton: true, maxWidth: '230px' })
-          .setLngLat(e.features[0].geometry.coordinates.slice())
+          .setLngLat(e.lngLat)
           .setDOMContent(wrap)
           .addTo(map)
       })
-
-      map.on('mouseenter', 'risk-circles', () => { map.getCanvas().style.cursor = 'pointer' })
-      map.on('mouseleave', 'risk-circles', () => { map.getCanvas().style.cursor = '' })
     })
 
     return () => { map.remove(); mapRef.current = null; popupStyle.remove() }
   }, [selected])
 
-  // Update GeoJSON data when region filter changes
+  // Update choropleth paint when region filter changes
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
     const apply = () => {
-      const src = map.getSource('risk-countries')
-      if (!src) return
-      src.setData(buildRiskGeoJSON(regionFilter))
+      if (map.getLayer('country-fill')) {
+        map.setPaintProperty('country-fill', 'fill-color', buildFillExpr(RISK_MAP, regionFilter))
+      }
+      if (map.getLayer('country-borders')) {
+        map.setPaintProperty('country-borders', 'line-color', buildBorderExpr(RISK_MAP, regionFilter))
+      }
     }
     if (map.isStyleLoaded()) apply(); else map.once('load', apply)
   }, [regionFilter])
@@ -901,18 +1003,19 @@ export default function CountryRiskReport() {
             {/* Legend */}
             <div className="mt-3 flex items-center gap-4 flex-wrap bg-white border border-gray-200 rounded-[8px] px-4 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Risk Level</span>
-              {['Critical', 'High', 'Medium', 'Low'].map(level => {
-                const s = RISK_STYLE[level]
-                return (
-                  <div key={level} className="flex items-center gap-1.5">
-                    <div className="rounded-full shrink-0"
-                      style={{ width: s.radius * 1.2, height: s.radius * 1.2, background: s.fillColor, opacity: 0.85 }} />
-                    <span className="text-xs text-gray-600">{level}</span>
-                  </div>
-                )
-              })}
+              {['Critical', 'High', 'Medium', 'Low'].map(level => (
+                <div key={level} className="flex items-center gap-1.5">
+                  <div className="rounded-[3px] shrink-0"
+                    style={{ width: 14, height: 14, background: RISK_COLOR[level], opacity: 0.85 }} />
+                  <span className="text-xs text-gray-600">{level}</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-1.5">
+                <div className="rounded-[3px] shrink-0" style={{ width: 14, height: 14, background: '#1a1c28' }} />
+                <span className="text-xs text-gray-400">Unrated</span>
+              </div>
               <span className="ml-auto text-[10px] text-gray-400 hidden sm:block">
-                {Object.entries(RISK_MAP).filter(([, c]) => regionFilter === 'All' || c.region === regionFilter).length} countries · click any circle for report
+                {Object.entries(RISK_MAP).filter(([, c]) => regionFilter === 'All' || c.region === regionFilter).length} countries monitored · click any country for report
               </span>
             </div>
           </div>
