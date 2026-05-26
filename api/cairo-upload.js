@@ -83,14 +83,15 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── PDF text extraction via Claude ────────────────────────────────────────
+  // ── PDF intelligence extraction via Claude ────────────────────────────────
   if (pdf_b64) {
     try {
       content = await claudeCall(ANTHROPIC_API_KEY, {
-        model:       MODELS.smart,            // Sonnet handles image-heavy PDFs better
-        maxTokens:   TOKEN_LIMITS.pdf,        // 8k tokens for full doc
-        timeout:     TIMEOUTS.upload,         // 100s — well under 120s Vercel limit
+        model:       MODELS.smart,
+        maxTokens:   TOKEN_LIMITS.pdf,   // 8k
+        timeout:     200_000,            // 200s hard limit, Vercel allows 300s
         betaHeaders: ['pdfs-2024-09-25'],
+        system: 'You are a security intelligence analyst. Extract the key intelligence from this document into a structured digest optimised for later search and retrieval. For each event or topic covered, output: COUNTRY/REGION | DATE | CATEGORY | HEADLINE | DETAILS (2-3 sentences). Separate entries with a blank line. Keep it factual and specific.',
         messages: [{
           role: 'user',
           content: [
@@ -100,7 +101,7 @@ export default async function handler(req, res) {
             },
             {
               type: 'text',
-              text: 'Extract the full text content of this document. Return only the extracted text, preserving headings and structure. Do not summarise — return everything.',
+              text: 'Extract all intelligence events and incidents from this document as a structured digest.',
             },
           ],
         }],
