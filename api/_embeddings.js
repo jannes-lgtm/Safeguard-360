@@ -1,63 +1,59 @@
 /**
- * _embeddings.js — Vector embedding helper for CAIRO intelligence pipeline.
+ * _embeddings.js — Voyage AI embedding helper for CAIRO intelligence pipeline.
  *
- * Uses Voyage AI voyage-3-lite (1024 dims) — Anthropic's recommended
- * embedding model for RAG with Claude.
- *
+ * All model constants imported from _embedding-config.js — no magic numbers here.
  * Requires env var: VOYAGE_API_KEY
- * Get a free key at: https://www.voyageai.com
- *
- * Gracefully returns null if key is not configured — system falls back
- * to keyword search automatically.
  */
 
-const VOYAGE_URL   = 'https://api.voyageai.com/v1/embeddings'
-const VOYAGE_MODEL = 'voyage-3-lite'   // 1024 dims, optimised for retrieval
-const MAX_CHARS    = 16_000            // ~4k tokens — Voyage context limit
+import {
+  EMBEDDING_MODEL,
+  VOYAGE_EMBEDDINGS_URL,
+  MAX_EMBEDDING_CHARS,
+  EMBEDDING_TIMEOUT_MS,
+  validateEmbedding,
+} from './_embedding-config.js'
 
 /**
- * Generate a 1024-dimension embedding vector for a text string.
- * Returns null (not an error) if VOYAGE_API_KEY is not set.
+ * Generate an embedding vector for a document chunk.
+ * Throws on API errors so callers can log + dead-letter the failure.
  *
- * @param {string} text
- * @returns {Promise<number[]|null>}
+ * @param   {string}          text
+ * @returns {Promise<number[]>}
  */
 export async function generateEmbedding(text) {
   const key = process.env.VOYAGE_API_KEY
-  if (!key) return null
+  if (!key) throw new Error('VOYAGE_API_KEY not set')
 
-  try {
-    const res = await fetch(VOYAGE_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: VOYAGE_MODEL,
-        input: [text.slice(0, MAX_CHARS)],
-        input_type: 'document',
-      }),
-      signal: AbortSignal.timeout(15_000),
-    })
+  const res = await fetch(VOYAGE_EMBEDDINGS_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model:      EMBEDDING_MODEL,
+      input:      [text.slice(0, MAX_EMBEDDING_CHARS)],
+      input_type: 'document',
+    }),
+    signal: AbortSignal.timeout(EMBEDDING_TIMEOUT_MS),
+  })
 
-    if (!res.ok) {
-      const err = await res.text().catch(() => '')
-      const msg = `Voyage HTTP ${res.status}: ${err.slice(0, 300)}`
-      console.warn('[embeddings]', msg)
-      throw new Error(msg)
-    }
-
-    const data = await res.json()
-    const embedding = data.data?.[0]?.embedding || null
-    if (!embedding) throw new Error(`Voyage returned no embedding. Response: ${JSON.stringify(data).slice(0, 200)}`)
-    return embedding
-  } catch (err) {
-    console.warn('[embeddings] embedding generation failed:', err.message)
-    throw err   // re-throw so callers can report the real error
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`Voyage HTTP ${res.status}: ${body.slice(0, 300)}`)
   }
+
+  const data = await res.json()
+  const embedding = data.data?.[0]?.embedding
+
+  const valid = validateEmbedding(embedding)
+  if (!valid.ok) throw new Error(`Voyage returned invalid embedding: ${valid.error}`)
+
+  return embedding
 }
 
 /**
- * Generate an embedding for a search query (uses query input_type).
- * @param {string} query
+ * Generate an embedding for a natural-language search query.
+ * Returns null (not a throw) so search gracefully falls back to keyword mode.
+ *
+ * @param   {string}                query
  * @returns {Promise<number[]|null>}
  */
 export async function generateQueryEmbedding(query) {
@@ -65,20 +61,22 @@ export async function generateQueryEmbedding(query) {
   if (!key) return null
 
   try {
-    const res = await fetch(VOYAGE_URL, {
+    const res = await fetch(VOYAGE_EMBEDDINGS_URL, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
       body: JSON.stringify({
-        model:      VOYAGE_MODEL,
+        model:      EMBEDDING_MODEL,
         input:      [query.slice(0, 2000)],
         input_type: 'query',
       }),
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(EMBEDDING_TIMEOUT_MS),
     })
 
     if (!res.ok) return null
     const data = await res.json()
-    return data.data?.[0]?.embedding || null
+    const embedding = data.data?.[0]?.embedding
+    const valid = validateEmbedding(embedding)
+    return valid.ok ? embedding : null
   } catch {
     return null
   }
@@ -86,7 +84,10 @@ export async function generateQueryEmbedding(query) {
 
 /**
  * Build the embedding text from a knowledge document.
- * Combines title, tags, countries, and content for richer semantic matching.
+ * Combines title, metadata, and content for richer semantic matching.
+ *
+ * @param   {object} doc
+ * @returns {string}
  */
 export function buildEmbeddingText(doc) {
   const parts = [

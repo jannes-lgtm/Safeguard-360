@@ -13,6 +13,7 @@
 
 import { createClient }            from '@supabase/supabase-js'
 import { generateQueryEmbedding }  from './_embeddings.js'
+import { EMBEDDING_MODEL, EMBEDDING_DIMS } from './_embedding-config.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -120,7 +121,15 @@ export default async function handler(req, res) {
         .map(({ _score, ...d }) => d)
     }
 
-    return res.json({ docs, total: docs.length, country, region, method })
+    return res.json({
+      docs,
+      total:   docs.length,
+      country,
+      region,
+      method,
+      embedding_model: method === 'vector' ? EMBEDDING_MODEL : null,
+      embedding_dims:  method === 'vector' ? EMBEDDING_DIMS  : null,
+    })
   } catch (err) {
     console.error('[cairo-context]', err.message)
     return res.status(500).json({ error: err.message })

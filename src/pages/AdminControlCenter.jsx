@@ -817,8 +817,14 @@ function BackfillEmbeddingsButton() {
           {result.success} embedded · {result.failed} failed
         </p>
       )}
+      {result && state === 'done' && result.model && (
+        <p className="text-[10px] text-gray-400">
+          {result.model} · {result.dims}d
+          {result.smoke_test?.ok ? ' · ✓ retrieval ok' : result.smoke_test ? ' · ⚠ retrieval failed' : ''}
+        </p>
+      )}
       {result?.errors?.length > 0 && state === 'done' && (
-        <p className="text-[10px] text-orange-400 max-w-[220px] text-right leading-tight">
+        <p className="text-[10px] text-orange-400 max-w-[240px] text-right leading-tight">
           {result.errors[0]}
         </p>
       )}
@@ -826,7 +832,7 @@ function BackfillEmbeddingsButton() {
         <p className="text-[10px] text-gray-500">{result.message}</p>
       )}
       {result && state === 'error' && (
-        <p className="text-[10px] text-red-500">{result.error}</p>
+        <p className="text-[10px] text-red-500 max-w-[240px] text-right leading-tight">{result.error}</p>
       )}
     </div>
   )
