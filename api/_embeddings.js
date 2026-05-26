@@ -20,33 +20,50 @@ import {
  * @param   {string}          text
  * @returns {Promise<number[]>}
  */
-export async function generateEmbedding(text) {
+export async function generateEmbedding(text, { retries = 2, retryDelayMs = 22_000 } = {}) {
   const key = process.env.VOYAGE_API_KEY
   if (!key) throw new Error('VOYAGE_API_KEY not set')
 
-  const res = await fetch(VOYAGE_EMBEDDINGS_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model:      EMBEDDING_MODEL,
-      input:      [text.slice(0, MAX_EMBEDDING_CHARS)],
-      input_type: 'document',
-    }),
-    signal: AbortSignal.timeout(EMBEDDING_TIMEOUT_MS),
-  })
+  let lastError
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    if (attempt > 0) {
+      // 429 rate-limit backoff: wait before retry
+      console.warn(`[embeddings] rate-limited, waiting ${retryDelayMs}ms before retry ${attempt}/${retries}`)
+      await new Promise(r => setTimeout(r, retryDelayMs))
+    }
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Voyage HTTP ${res.status}: ${body.slice(0, 300)}`)
+    const res = await fetch(VOYAGE_EMBEDDINGS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model:      EMBEDDING_MODEL,
+        input:      [text.slice(0, MAX_EMBEDDING_CHARS)],
+        input_type: 'document',
+      }),
+      signal: AbortSignal.timeout(EMBEDDING_TIMEOUT_MS),
+    })
+
+    if (res.status === 429) {
+      const body = await res.text().catch(() => '')
+      lastError = new Error(`Voyage HTTP 429: ${body.slice(0, 300)}`)
+      continue   // retry after delay
+    }
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      throw new Error(`Voyage HTTP ${res.status}: ${body.slice(0, 300)}`)
+    }
+
+    const data = await res.json()
+    const embedding = data.data?.[0]?.embedding
+
+    const valid = validateEmbedding(embedding)
+    if (!valid.ok) throw new Error(`Voyage returned invalid embedding: ${valid.error}`)
+
+    return embedding
   }
 
-  const data = await res.json()
-  const embedding = data.data?.[0]?.embedding
-
-  const valid = validateEmbedding(embedding)
-  if (!valid.ok) throw new Error(`Voyage returned invalid embedding: ${valid.error}`)
-
-  return embedding
+  throw lastError || new Error('Voyage embedding failed after retries')
 }
 
 /**
