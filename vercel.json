@@ -42,7 +42,7 @@
     "api/journey-agent.js":           { "maxDuration": 60 },
     "api/ingest-feeds.js":            { "maxDuration": 120 },
     "api/country-risk-warmup.js":     { "maxDuration": 300 },
-    "api/cairo-upload.js":            { "maxDuration": 120 },
+    "api/cairo-upload.js":            { "maxDuration": 300 },
     "api/traffic-ingest.js":          { "maxDuration": 60 },
     "api/route-lookup.js":            { "maxDuration": 30 },
     "api/facilities.js":              { "maxDuration": 55 },

@@ -7,12 +7,14 @@ export const TOKEN_LIMITS = {
   summary:  400,
   standard: 1200,
   report:   4000,
+  pdf:      8000,   // full document extraction
 }
 
 export const TIMEOUTS = {
   fast:     8_000,
   standard: 20_000,
   long:     28_000,
+  upload:   100_000, // PDF ingestion — well under 120s Vercel limit
 }
 
 export const CACHE_TTL = {

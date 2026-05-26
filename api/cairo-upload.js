@@ -87,9 +87,9 @@ export default async function handler(req, res) {
   if (pdf_b64) {
     try {
       content = await claudeCall(ANTHROPIC_API_KEY, {
-        model:       MODELS.fast,
-        maxTokens:   TOKEN_LIMITS.report,
-        timeout:     TIMEOUTS.long,
+        model:       MODELS.smart,            // Sonnet handles image-heavy PDFs better
+        maxTokens:   TOKEN_LIMITS.pdf,        // 8k tokens for full doc
+        timeout:     TIMEOUTS.upload,         // 100s — well under 120s Vercel limit
         betaHeaders: ['pdfs-2024-09-25'],
         messages: [{
           role: 'user',
