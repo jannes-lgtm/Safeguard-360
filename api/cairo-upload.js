@@ -55,6 +55,7 @@ export default async function handler(req, res) {
   const {
     title, type, countries = [], regions = [], threat_categories = [],
     tags = [], outcome, source_file, pdf_base64, org_id,
+    doc_tier = 'country',
   } = req.body
 
   let { content } = req.body
@@ -123,6 +124,7 @@ export default async function handler(req, res) {
       threat_categories: threat_categories,
       tags:              tags,
       outcome:           outcome || null,
+      doc_tier:          doc_tier || 'country',
       org_id:            effectiveOrgId,
       created_by:        user.id,
     })

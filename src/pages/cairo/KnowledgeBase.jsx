@@ -76,6 +76,7 @@ const EMPTY_FORM = {
   outcome: '',
   publisher: '',
   report_date: '',
+  doc_tier: 'country',
 }
 
 function AddModal({ onClose, onSuccess }) {
@@ -138,6 +139,7 @@ function AddModal({ onClose, onSuccess }) {
             threat_categories: parseCSV(form.threat_categories),
             tags:              tagsArr,
             outcome:           form.type === 'case' ? form.outcome || null : null,
+            doc_tier:          form.doc_tier || 'country',
           }),
         })
         const data = await res.json()
@@ -158,6 +160,7 @@ function AddModal({ onClose, onSuccess }) {
           threat_categories: parseCSV(form.threat_categories),
           tags:              tagsArr,
           outcome:           form.type === 'case' ? form.outcome || null : null,
+          doc_tier:          form.doc_tier || 'country',
           is_active:         true,
         })
         if (dbErr) {
@@ -221,6 +224,27 @@ function AddModal({ onClose, onSuccess }) {
                   </button>
                 )
               })}
+            </div>
+          </div>
+
+          {/* Doc Tier */}
+          <div>
+            <label className={labelCls}>Coverage</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'country',  label: 'Country' },
+                { value: 'regional', label: 'Regional' },
+                { value: 'global',   label: 'Global' },
+              ].map(opt => (
+                <button key={opt.value} type="button"
+                  onClick={() => set('doc_tier', opt.value)}
+                  className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-all
+                    ${form.doc_tier === opt.value
+                      ? 'border-[#0118A1] bg-[#0118A1]/5 text-[#0118A1]'
+                      : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
 
