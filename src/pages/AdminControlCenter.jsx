@@ -817,6 +817,11 @@ function BackfillEmbeddingsButton() {
           {result.success} embedded · {result.failed} failed
         </p>
       )}
+      {result?.errors?.length > 0 && state === 'done' && (
+        <p className="text-[10px] text-orange-400 max-w-[220px] text-right leading-tight">
+          {result.errors[0]}
+        </p>
+      )}
       {result?.message && state === 'done' && (
         <p className="text-[10px] text-gray-500">{result.message}</p>
       )}

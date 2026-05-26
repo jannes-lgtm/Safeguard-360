@@ -40,15 +40,18 @@ export async function generateEmbedding(text) {
 
     if (!res.ok) {
       const err = await res.text().catch(() => '')
-      console.warn('[embeddings] Voyage API error:', res.status, err.slice(0, 200))
-      return null
+      const msg = `Voyage HTTP ${res.status}: ${err.slice(0, 300)}`
+      console.warn('[embeddings]', msg)
+      throw new Error(msg)
     }
 
     const data = await res.json()
-    return data.data?.[0]?.embedding || null
+    const embedding = data.data?.[0]?.embedding || null
+    if (!embedding) throw new Error(`Voyage returned no embedding. Response: ${JSON.stringify(data).slice(0, 200)}`)
+    return embedding
   } catch (err) {
     console.warn('[embeddings] embedding generation failed:', err.message)
-    return null
+    throw err   // re-throw so callers can report the real error
   }
 }
 

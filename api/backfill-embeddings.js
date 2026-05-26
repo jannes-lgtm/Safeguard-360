@@ -69,14 +69,16 @@ export default async function handler(req, res) {
 
   for (const doc of docs) {
     try {
-      const text      = buildEmbeddingText(doc)
-      const embedding = await generateEmbedding(text)
+      const text = buildEmbeddingText(doc)
 
-      if (!embedding) {
+      // Guard: skip docs with no usable text
+      if (!text || text.trim().length < 5) {
         results.failed++
-        results.errors.push(`${doc.title}: embedding returned null`)
+        results.errors.push(`${doc.id} "${doc.title}": no usable text (content empty?)`)
         continue
       }
+
+      const embedding = await generateEmbedding(text)
 
       const { error: updateErr } = await supabase
         .from('cairo_knowledge')
