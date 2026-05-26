@@ -260,7 +260,22 @@ function compressDoc(scored) {
 
 async function buildKnowledgeContext(destination, message = '') {
   try {
-    const { data: allDocs } = await getSB()
+    const sb     = getSB()
+    const region = destination ? DESTINATION_REGION_MAP[destination] : null
+
+    // Use unified intel retrieval core
+    const { retrieveIntelligence } = await import('./_intel.js')
+    const intel = await retrieveIntelligence(sb, {
+      query:   message || destination || '',
+      country: destination || null,
+      region:  region || null,
+      limit:   13,
+    })
+
+    if (intel.docs.length) return intel.docs
+
+    // Legacy fallback: keyword scoring via scoreDoc
+    const { data: allDocs } = await sb
       .from('cairo_knowledge')
       .select('type, title, content, summary, countries, regions, threat_categories, tags, doc_tier')
       .eq('retrieval_ready', true)
@@ -270,26 +285,11 @@ async function buildKnowledgeContext(destination, message = '') {
 
     if (!allDocs?.length) return []
 
-    const region      = destination ? DESTINATION_REGION_MAP[destination] : null
     const queryTokens = message.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).filter(t => t.length > 3)
-
-    const scored = allDocs
+    return allDocs
       .map(doc => scoreDoc(doc, destination, region, queryTokens))
       .sort((a, b) => b.score - a.score)
-
-    // Tier limits: country=5 (highest), regional=3, global=3, doctrine=2 (fallback)
-    const selected    = []
-    const tierCounts  = { 1: 0, 2: 0, 3: 0, 4: 0 }
-    const tierLimits  = { 1: 5, 2: 3, 3: 3, 4: 2 }
-    for (const s of scored) {
-      if (selected.length >= 13) break
-      if (tierCounts[s.tier] < tierLimits[s.tier]) {
-        selected.push(s)
-        tierCounts[s.tier]++
-      }
-    }
-
-    return selected
+      .slice(0, 13)
   } catch {
     return []
   }

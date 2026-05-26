@@ -879,14 +879,22 @@ When all required fields (trip_name, departure_city, arrival_city, depart_date, 
       context.activeAlerts && `Active platform alerts: ${context.activeAlerts}`,
     ].filter(Boolean).join('\n')
 
-    // Inject proprietary knowledge base reports
-    const kbDocs = await fetchKnowledgeForChat(context.country || null)
-    const kbSection = kbDocs.length
-      ? `\n\n## PROPRIETARY INTELLIGENCE REPORTS (from your organisation's knowledge base)\nThese are internal reports uploaded by your organisation. Reference them directly when relevant — they take precedence over general knowledge.\n\n` +
-        kbDocs.map((d, i) =>
-          `### Report ${i + 1}: ${d.title}${d.summary ? `\nSummary: ${d.summary}` : ''}\n${d.excerpt}`
-        ).join('\n\n---\n\n')
-      : ''
+    // Inject proprietary knowledge base via unified intel core
+    let kbSection = ''
+    try {
+      const sb = getSupabase()
+      if (sb) {
+        const { retrieveIntelligence, formatIntelBlock } = await import('./_intel.js')
+        const intel = await retrieveIntelligence(sb, {
+          query:   userMessage,
+          country: context.country || null,
+          limit:   6,
+        })
+        kbSection = intel.docs.length
+          ? '\n\n' + formatIntelBlock(intel.docs, intel.method)
+          : ''
+      }
+    } catch { /* non-critical — proceed without KB */ }
 
     system = `You are CAIRO — an expert travel security AI analyst embedded in SafeGuard360. The platform has live intelligence feeds (FCDO, BBC, Al Jazeera, ACLED, WHO, GDACS, USGS) continuously updated, plus proprietary intelligence reports from your organisation's knowledge base.
 

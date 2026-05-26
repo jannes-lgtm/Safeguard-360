@@ -773,6 +773,119 @@ function RunScanButton() {
 
 // ── Backfill Embeddings button ────────────────────────────────────────────────
 
+function IntelHealthPanel() {
+  const [health, setHealth] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const check = async () => {
+    setLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/intel-health', {
+        headers: { Authorization: `Bearer ${session?.access_token}` }
+      })
+      const text = await res.text()
+      setHealth(JSON.parse(text))
+    } catch (e) {
+      setHealth({ error: e.message })
+    }
+    setLoading(false)
+  }
+
+  const score = health?.health_score
+  const scoreColor = score >= 80 ? '#16A34A' : score >= 60 ? '#F59E0B' : '#DC2626'
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Intelligence Health</p>
+        <button type="button" onClick={check} disabled={loading}
+          className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors"
+          style={{ background: '#F3F4F6', color: '#374151' }}>
+          {loading ? 'Checking…' : 'Run Health Check'}
+        </button>
+      </div>
+
+      {!health && !loading && (
+        <p className="text-xs text-gray-400">Click to run retrieval validation across all intelligence sources.</p>
+      )}
+
+      {health?.error && (
+        <p className="text-xs text-red-500">{health.error}</p>
+      )}
+
+      {health && !health.error && (
+        <div className="space-y-3">
+          {/* Score */}
+          <div className="flex items-center gap-3">
+            <div className="text-3xl font-black" style={{ color: scoreColor }}>{score}</div>
+            <div>
+              <p className="text-xs font-bold" style={{ color: scoreColor }}>{score >= 80 ? 'HEALTHY' : score >= 60 ? 'DEGRADED' : 'CRITICAL'}</p>
+              <p className="text-[10px] text-gray-400">Overall intelligence health score</p>
+            </div>
+          </div>
+
+          {/* Retrieval */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-gray-50 rounded-lg p-2.5">
+              <p className="text-[10px] text-gray-500 mb-1">Vector Search</p>
+              <p className="text-xs font-bold" style={{ color: health.retrieval.vector_ok ? '#16A34A' : '#DC2626' }}>
+                {health.retrieval.vector_ok ? `✓ ${health.retrieval.vector_results} results` : '✗ Failed'}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-2.5">
+              <p className="text-[10px] text-gray-500 mb-1">Keyword Search</p>
+              <p className="text-xs font-bold" style={{ color: health.retrieval.keyword_ok ? '#16A34A' : '#DC2626' }}>
+                {health.retrieval.keyword_ok ? '✓ OK' : '✗ Failed'}
+              </p>
+            </div>
+          </div>
+
+          {/* Documents */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-gray-50 rounded-lg p-2">
+              <p className="text-base font-black text-gray-800">{health.documents.total}</p>
+              <p className="text-[9px] text-gray-500">Total Docs</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-2">
+              <p className="text-base font-black" style={{ color: '#7C3AED' }}>{health.embeddings.embedded}</p>
+              <p className="text-[9px] text-gray-500">Embedded</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-2">
+              <p className="text-base font-black" style={{ color: health.embeddings.missing > 0 ? '#F59E0B' : '#16A34A' }}>{health.embeddings.missing}</p>
+              <p className="text-[9px] text-gray-500">Missing Emb.</p>
+            </div>
+          </div>
+
+          {/* Freshness */}
+          <div className="flex gap-2 text-[10px] text-gray-500">
+            <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">{health.documents.fresh_7d} this week</span>
+            <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{health.documents.fresh_30d} this month</span>
+            {health.documents.stale_90d > 0 && (
+              <span className="bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full font-medium">{health.documents.stale_90d} stale (&gt;90d)</span>
+            )}
+          </div>
+
+          {/* Dead letter */}
+          {health.dead_letter.unresolved > 0 && (
+            <div className="bg-red-50 rounded-lg p-2.5">
+              <p className="text-xs font-bold text-red-700">⚠ {health.dead_letter.unresolved} failed ingestion(s)</p>
+              {Object.entries(health.dead_letter.by_stage).map(([stage, count]) => (
+                <p key={stage} className="text-[10px] text-red-500">{stage}: {count}</p>
+              ))}
+            </div>
+          )}
+
+          {/* Retrieval errors */}
+          {health.retrieval.errors?.length > 0 && (
+            <p className="text-[10px] text-orange-500">{health.retrieval.errors[0]}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function BackfillEmbeddingsButton() {
   const [state, setState]   = useState('idle')
   const [result, setResult] = useState(null)
@@ -1602,6 +1715,9 @@ export default function AdminControlCenter() {
               <BackfillEmbeddingsButton />
             </div>
           </div>
+
+          {/* Intelligence Health Dashboard */}
+          <IntelHealthPanel />
 
           {/* Pipeline diagram */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
