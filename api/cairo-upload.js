@@ -24,6 +24,7 @@ import { claudeCall }    from './_claudeClient.js'
 import { MODELS, TOKEN_LIMITS, TIMEOUTS } from './_config.js'
 import { generateEmbedding, buildEmbeddingText } from './_embeddings.js'
 import { validateEmbedding, EMBEDDING_MODEL, EMBEDDING_DIMS } from './_embedding-config.js'
+import { dbInsert, dbFireAndForget } from './_db.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -34,14 +35,15 @@ const ALLOWED_ROLES = ['admin', 'developer', 'org_admin']
 
 // ── Dead-letter helper ────────────────────────────────────────────────────────
 async function deadLetter({ document_id, document_title, storage_path, failure_stage, failure_reason, raw_error }) {
-  await supabase.from('cairo_dead_letter').insert({
+  const { error } = await dbInsert(supabase, 'cairo_dead_letter', {
     document_id:    document_id || null,
     document_title: document_title || null,
     storage_path:   storage_path || null,
     failure_stage,
     failure_reason,
     raw_error:      raw_error?.slice(0, 2000),
-  }).catch(() => {})
+  })
+  if (error) console.warn('[cairo-upload] dead-letter insert failed:', error.message)
 }
 
 // ── Retrieval smoke test ──────────────────────────────────────────────────────
@@ -107,8 +109,11 @@ export default async function handler(req, res) {
       if (dlErr) throw new Error(dlErr.message)
       const buffer = Buffer.from(await fileData.arrayBuffer())
       pdf_b64 = buffer.toString('base64')
-      // Clean up temp file (non-blocking)
-      supabase.storage.from('cairo-uploads').remove([storage_path]).catch(() => {})
+      // Clean up temp file (fire and forget)
+      dbFireAndForget(`storage_remove:${storage_path}`, async () => {
+        const { error } = await supabase.storage.from('cairo-uploads').remove([storage_path])
+        return { error }
+      })
     } catch (err) {
       await deadLetter({ document_title: title, storage_path, failure_stage: 'storage_download', failure_reason: err.message, raw_error: err.message })
       return res.status(422).json({ error: `Storage download failed: ${err.message}` })
@@ -242,19 +247,21 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── Telemetry log ─────────────────────────────────────────────────────────
-  supabase.from('cairo_ingestion_log').insert({
-    knowledge_id:  inserted.id,
-    event:         extractionWarning ? 'partial' : 'indexed',
-    detail: JSON.stringify({
-      extraction: extractionWarning ? 'timed_out' : 'ok',
-      embedding:  embeddingStatus,
-      model:      embeddingStatus === 'done' ? EMBEDDING_MODEL : null,
-      dims:       embeddingDiag.dims,
-      smoke_test: smokeTest,
-      content_length: content?.length,
-    }),
-  }).catch(() => {})
+  // ── Telemetry log (fire and forget) ──────────────────────────────────────
+  dbFireAndForget(`ingestion_log:${inserted.id}`, () =>
+    dbInsert(supabase, 'cairo_ingestion_log', {
+      knowledge_id:  inserted.id,
+      event:         extractionWarning ? 'partial' : 'indexed',
+      detail: JSON.stringify({
+        extraction:     extractionWarning ? 'timed_out' : 'ok',
+        embedding:      embeddingStatus,
+        model:          embeddingStatus === 'done' ? EMBEDDING_MODEL : null,
+        dims:           embeddingDiag.dims,
+        smoke_test:     smokeTest,
+        content_length: content?.length,
+      }),
+    })
+  )
 
   return res.json({
     ok: true,
