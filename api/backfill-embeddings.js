@@ -35,6 +35,25 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'VOYAGE_API_KEY not configured' })
   }
 
+  // ── Quick Voyage connectivity test ────────────────────────────────────────
+  try {
+    const testRes = await fetch('https://api.voyageai.com/v1/embeddings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.VOYAGE_API_KEY}` },
+      body: JSON.stringify({ model: 'voyage-3-lite', input: ['test'], input_type: 'document' }),
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!testRes.ok) {
+      const errText = await testRes.text().catch(() => '')
+      return res.status(400).json({
+        error: `Voyage API key rejected (HTTP ${testRes.status}): ${errText.slice(0, 300)}`,
+      })
+    }
+  } catch (e) {
+    return res.status(400).json({ error: `Voyage connectivity failed: ${e.message}` })
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // Fetch all docs without embeddings
   const { data: docs, error } = await supabase
     .from('cairo_knowledge')
