@@ -48,6 +48,70 @@ async function fetchKnowledgeReports(country) {
   }
 }
 
+/**
+ * Fetch knowledge base entries for CAIRO chat injection.
+ * Broader than fetchKnowledgeReports — all types, optional country filter,
+ * falls back to most-recent global docs when no country match found.
+ */
+async function fetchKnowledgeForChat(country) {
+  try {
+    const sb = getSupabase()
+    if (!sb) return []
+
+    let docs = []
+
+    // Try country-specific first
+    if (country) {
+      const { data: countryDocs } = await sb
+        .from('cairo_knowledge')
+        .select('type, title, summary, content, countries, created_at')
+        .eq('retrieval_ready', true)
+        .eq('intelligence_enabled', true)
+        .contains('countries', [country])
+        .order('created_at', { ascending: false })
+        .limit(4)
+      docs = countryDocs || []
+    }
+
+    // Always include global/regional docs (no country restriction)
+    const { data: globalDocs } = await sb
+      .from('cairo_knowledge')
+      .select('type, title, summary, content, countries, created_at')
+      .eq('retrieval_ready', true)
+      .eq('intelligence_enabled', true)
+      .eq('doc_tier', 'global')
+      .order('created_at', { ascending: false })
+      .limit(2)
+
+    // Merge, deduplicate by title
+    const seen = new Set(docs.map(d => d.title))
+    for (const d of (globalDocs || [])) {
+      if (!seen.has(d.title)) { docs.push(d); seen.add(d.title) }
+    }
+
+    // If still empty, grab the 3 most recent regardless of country
+    if (!docs.length) {
+      const { data: recent } = await sb
+        .from('cairo_knowledge')
+        .select('type, title, summary, content, countries, created_at')
+        .eq('retrieval_ready', true)
+        .eq('intelligence_enabled', true)
+        .order('created_at', { ascending: false })
+        .limit(3)
+      docs = recent || []
+    }
+
+    return docs.slice(0, 5).map(r => ({
+      type:    r.type,
+      title:   r.title,
+      summary: r.summary || '',
+      excerpt: (r.content || '').slice(0, 1500),
+    }))
+  } catch {
+    return []
+  }
+}
+
 // ── All-source risk feeds (conflict / security / weather + health) ────────────
 // Used by fetchArticlesForCountry() to build a comprehensive intelligence picture.
 const ALL_RISK_FEEDS = [
@@ -815,10 +879,20 @@ When all required fields (trip_name, departure_city, arrival_city, depart_date, 
       context.activeAlerts && `Active platform alerts: ${context.activeAlerts}`,
     ].filter(Boolean).join('\n')
 
-    system = `You are an expert travel security AI analyst embedded in SafeGuard360. The platform has live intelligence feeds (FCDO, BBC, Al Jazeera, ACLED, WHO, GDACS, USGS) that are continuously updated — you are operating in an environment with current awareness.
+    // Inject proprietary knowledge base reports
+    const kbDocs = await fetchKnowledgeForChat(context.country || null)
+    const kbSection = kbDocs.length
+      ? `\n\n## PROPRIETARY INTELLIGENCE REPORTS (from your organisation's knowledge base)\nThese are internal reports uploaded by your organisation. Reference them directly when relevant — they take precedence over general knowledge.\n\n` +
+        kbDocs.map((d, i) =>
+          `### Report ${i + 1}: ${d.title}${d.summary ? `\nSummary: ${d.summary}` : ''}\n${d.excerpt}`
+        ).join('\n\n---\n\n')
+      : ''
+
+    system = `You are CAIRO — an expert travel security AI analyst embedded in SafeGuard360. The platform has live intelligence feeds (FCDO, BBC, Al Jazeera, ACLED, WHO, GDACS, USGS) continuously updated, plus proprietary intelligence reports from your organisation's knowledge base.
 
 Rules:
 - Answer travel security questions directly and confidently from your expertise
+- When proprietary reports are provided below, reference them explicitly by name — they are the most authoritative source
 - Do NOT open responses with knowledge-cutoff disclaimers — this undermines confidence. If real-time verification is needed for a very specific recent event, add a brief note at the END only
 - Use plain conversational prose for short answers. Use bullet points (- item) for lists. Avoid markdown headers (# ##) entirely — this is a chat interface, not a document
 - Be concise and actionable. Lead with the most useful information
@@ -828,7 +902,7 @@ Rules:
 - Maintain full conversation context — refer to prior messages naturally
 
 Today: ${today}
-${contextLines ? `\nTraveller context:\n${contextLines}` : ''}`
+${contextLines ? `\nTraveller context:\n${contextLines}` : ''}${kbSection}`
   }
 
   // Build multi-turn message history — skip the initial greeting (index 0)
