@@ -111,29 +111,33 @@ export default async function handler(req, res) {
   // ── Insert into DB ────────────────────────────────────────────────────────
   const effectiveOrgId = org_id || (profile.role === 'org_admin' ? profile.org_id : null)
 
+  // Only include columns that exist in the table
+  const row = {
+    title,
+    type,
+    content,
+    summary:           summary || null,
+    source_file:       source_file || null,
+    countries:         Array.isArray(countries) ? countries : [],
+    regions:           Array.isArray(regions) ? regions : [],
+    threat_categories: Array.isArray(threat_categories) ? threat_categories : [],
+    tags:              Array.isArray(tags) ? tags : [],
+    doc_tier:          doc_tier || 'global',
+    org_id:            effectiveOrgId || null,
+    created_by:        user.id,
+  }
+
+  console.log('[cairo-upload] inserting row:', JSON.stringify({ ...row, content: row.content?.slice(0, 100) + '…' }))
+
   const { data: inserted, error: insertErr } = await supabase
     .from('cairo_knowledge')
-    .insert({
-      title,
-      type,
-      content,
-      summary,
-      source_file:       source_file || null,
-      countries:         countries,
-      regions:           regions,
-      threat_categories: threat_categories,
-      tags:              tags,
-      outcome:           outcome || null,
-      doc_tier:          doc_tier || 'country',
-      org_id:            effectiveOrgId,
-      created_by:        user.id,
-    })
+    .insert(row)
     .select('id, title, type, summary')
     .single()
 
   if (insertErr) {
-    console.error('[cairo-upload]', insertErr.message)
-    return res.status(500).json({ error: insertErr.message })
+    console.error('[cairo-upload] insert error:', JSON.stringify(insertErr))
+    return res.status(500).json({ error: `DB error: ${insertErr.message} (code: ${insertErr.code})` })
   }
 
   return res.json({ ok: true, ...inserted })

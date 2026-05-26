@@ -138,8 +138,7 @@ function AddModal({ onClose, onSuccess }) {
             regions:           parseCSV(form.regions),
             threat_categories: parseCSV(form.threat_categories),
             tags:              tagsArr,
-            outcome:           form.type === 'case' ? form.outcome || null : null,
-            doc_tier:          form.doc_tier || 'country',
+            doc_tier:          form.doc_tier || 'global',
           }),
         })
         const data = await res.json()
@@ -159,9 +158,7 @@ function AddModal({ onClose, onSuccess }) {
           regions:           parseCSV(form.regions),
           threat_categories: parseCSV(form.threat_categories),
           tags:              tagsArr,
-          outcome:           form.type === 'case' ? form.outcome || null : null,
-          doc_tier:          form.doc_tier || 'country',
-          is_active:         true,
+          doc_tier:          form.doc_tier || 'global',
         })
         if (dbErr) {
           // Translate cryptic DB errors into plain messages
