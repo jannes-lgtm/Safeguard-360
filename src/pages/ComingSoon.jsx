@@ -1,3 +1,5 @@
+import { DS } from '../lib/ds'
+
 export default function ComingSoon() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: DS.green }}>

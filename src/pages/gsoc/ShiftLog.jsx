@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, Clock, Plus, X, AlertTriangle, CheckCircle, Shield } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { DS } from '../../lib/ds'
 
 const THREAT_LEVEL = {
   critical: { label: 'CRITICAL', color: '#ef4444', bg: 'bg-red-500/20',    border: 'border-red-500/40' },

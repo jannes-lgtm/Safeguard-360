@@ -18,6 +18,7 @@ import { RISK_MAP, buildRiskGeoJSON } from '../../lib/riskData'
 import { timeAgo } from '../../lib/dateUtils'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { DS } from '../../lib/ds'
 
 const DARK_MAP  = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 const REFRESH_MS = 30_000

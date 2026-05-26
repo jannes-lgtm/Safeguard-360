@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
+import { DS } from '../lib/ds'
 
 const inputClass = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-white'
 const labelClass = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'

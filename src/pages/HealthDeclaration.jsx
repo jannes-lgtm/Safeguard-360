@@ -7,6 +7,7 @@ import {
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { resolveCountry } from '../lib/cityToCountry'
+import { DS } from '../lib/ds'
 
 const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-white'
 const labelCls = 'block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide'

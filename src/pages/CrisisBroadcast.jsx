@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Megaphone, Send, Users, AlertTriangle, CheckCircle2, Clock, ChevronDown } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
+import { DS } from '../lib/ds'
 
 const SEVERITY_OPTIONS = [
   { value: 'Critical', label: 'Critical', color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', emoji: '🚨' },

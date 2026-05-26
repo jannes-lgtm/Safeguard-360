@@ -13,6 +13,7 @@ import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 import { timeAgo } from '../lib/dateUtils'
 import { getCountryRisk, getDestinationFeed } from '../services/intelligenceService'
 import { sendAssistantMessage } from '../services/cairoService'
+import { DS } from '../lib/ds'
 
 // ── WMO weather codes ─────────────────────────────────────────────────────────
 const WMO = {

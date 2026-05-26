@@ -10,6 +10,7 @@ import {
   Clock, Flag, Globe, X, CheckCircle2, AlertTriangle,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { DS } from '../../lib/ds'
 
 const PRIORITY_STYLE = {
   critical: 'bg-red-500/20 text-red-400 border-red-500/30',

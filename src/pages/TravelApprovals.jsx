@@ -13,6 +13,7 @@ import {
 import Layout from '../components/Layout'
 import SeverityBadge from '../components/SeverityBadge'
 import { supabase } from '../lib/supabase'
+import { DS } from '../lib/ds'
 
 const STATUS_TABS = ['pending', 'approved', 'rejected']
 

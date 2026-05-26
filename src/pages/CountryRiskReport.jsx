@@ -14,6 +14,7 @@ import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { timeAgo } from '../lib/dateUtils'
 import { getCountryRisk, listFeeds, getFeedById } from '../services/intelligenceService'
+import { DS } from '../lib/ds'
 
 // ── Print stylesheet — injected/removed around window.print() ─────────────────
 const PRINT_CSS = `

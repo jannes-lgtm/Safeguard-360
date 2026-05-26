@@ -19,6 +19,7 @@ import {
 import Layout from '../components/Layout'
 import { MAP_STYLES } from '../lib/mapConfig'
 import { supabase } from '../lib/supabase'
+import { DS } from '../lib/ds'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
