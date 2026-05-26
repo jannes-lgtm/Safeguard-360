@@ -33,9 +33,11 @@ async function fetchKnowledgeReports(country) {
       .from('cairo_knowledge')
       .select('title, summary, content, created_at')
       .eq('type', 'report')
+      .eq('retrieval_ready', true)
+      .eq('intelligence_enabled', true)
       .contains('countries', [country])
       .order('created_at', { ascending: false })
-      .limit(2)
+      .limit(3)
     return (data || []).map(r => ({
       title:   r.title,
       summary: r.summary || '',

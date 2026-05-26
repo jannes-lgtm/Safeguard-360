@@ -263,7 +263,8 @@ async function buildKnowledgeContext(destination, message = '') {
     const { data: allDocs } = await getSB()
       .from('cairo_knowledge')
       .select('type, title, content, summary, countries, regions, threat_categories, tags, doc_tier')
-      .eq('is_active', true)
+      .eq('retrieval_ready', true)
+      .eq('intelligence_enabled', true)
       .order('doc_tier', { ascending: true })
       .limit(60)
 

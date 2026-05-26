@@ -20,9 +20,10 @@
  * }
  */
 
-import { createClient } from '@supabase/supabase-js'
-import { claudeCall }   from './_claudeClient.js'
-import { MODELS, TOKEN_LIMITS, TIMEOUTS } from './_config.js'
+import { createClient }   from '@supabase/supabase-js'
+import { claudeCall }     from './_claudeClient.js'
+import { MODELS, TOKEN_LIMITS } from './_config.js'
+import { generateEmbedding, buildEmbeddingText } from './_embeddings.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -137,34 +138,55 @@ export default async function handler(req, res) {
   // ── Insert into DB ────────────────────────────────────────────────────────
   const effectiveOrgId = org_id || (profile.role === 'org_admin' ? profile.org_id : null)
 
-  // Only include columns that exist in the table
+  // ── Generate embedding (non-blocking — graceful if Voyage key not set) ───
+  const embeddingText = buildEmbeddingText({
+    title, content, summary, countries, regions, threat_categories, tags,
+  })
+  const embedding = await generateEmbedding(embeddingText).catch(() => null)
+
+  // ── Insert ────────────────────────────────────────────────────────────────
   const row = {
     title,
     type,
     content,
-    summary:           summary || null,
-    source_file:       source_file || null,
-    countries:         Array.isArray(countries) ? countries : [],
-    regions:           Array.isArray(regions) ? regions : [],
-    threat_categories: Array.isArray(threat_categories) ? threat_categories : [],
-    tags:              Array.isArray(tags) ? tags : [],
-    doc_tier:          doc_tier || 'global',
-    org_id:            effectiveOrgId || null,
-    created_by:        user.id,
+    summary:             summary || null,
+    source_file:         source_file || null,
+    countries:           Array.isArray(countries) ? countries : [],
+    regions:             Array.isArray(regions) ? regions : [],
+    threat_categories:   Array.isArray(threat_categories) ? threat_categories : [],
+    tags:                Array.isArray(tags) ? tags : [],
+    doc_tier:            doc_tier || 'global',
+    org_id:              effectiveOrgId || null,
+    created_by:          user.id,
+    // Intelligence pipeline status
+    is_active:           true,
+    intelligence_enabled: true,
+    retrieval_ready:     true,
+    ingestion_status:    extractionWarning ? 'partial' : 'active',
+    parsed_text_length:  content?.length || 0,
+    embedding:           embedding,
+    embedding_status:    embedding ? 'done' : 'pending',
+    indexed_at:          new Date().toISOString(),
+    verified_at:         extractionWarning ? null : new Date().toISOString(),
   }
-
-  console.log('[cairo-upload] inserting row:', JSON.stringify({ ...row, content: row.content?.slice(0, 100) + '…' }))
 
   const { data: inserted, error: insertErr } = await supabase
     .from('cairo_knowledge')
     .insert(row)
-    .select('id, title, type, summary')
+    .select('id, title, type, summary, retrieval_ready, embedding_status')
     .single()
 
   if (insertErr) {
     console.error('[cairo-upload] insert error:', JSON.stringify(insertErr))
     return res.status(500).json({ error: `DB error: ${insertErr.message} (code: ${insertErr.code})` })
   }
+
+  // Log ingestion event
+  supabase.from('cairo_ingestion_log').insert({
+    knowledge_id: inserted.id,
+    event:        extractionWarning ? 'partial' : 'indexed',
+    detail:       extractionWarning || `Embedding: ${embedding ? 'generated' : 'pending (no Voyage key)'}`,
+  }).catch(() => {})
 
   return res.json({ ok: true, ...inserted, warning: extractionWarning || undefined })
 }

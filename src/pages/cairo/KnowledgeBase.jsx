@@ -477,9 +477,17 @@ function KnowledgeCard({ item, onToggle, onDelete }) {
 
       {/* Status indicator */}
       <div className="flex items-center justify-between pt-1 border-t border-gray-50">
-        <span className={`text-[10px] font-semibold ${item.is_active ? 'text-green-600' : 'text-gray-400'}`}>
-          {item.is_active ? '● Active' : '○ Inactive'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-[10px] font-semibold ${item.retrieval_ready ? 'text-green-600' : 'text-amber-500'}`}>
+            {item.retrieval_ready ? '● CAIRO Ready' : '○ Pending'}
+          </span>
+          {item.embedding_status === 'done' && (
+            <span className="text-[9px] font-medium text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded-full">⚡ Vector</span>
+          )}
+          {item.ingestion_status === 'partial' && (
+            <span className="text-[9px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">⚠ Partial</span>
+          )}
+        </div>
         {item.source_file && (
           <span className="text-[10px] text-gray-400 truncate max-w-[140px]" title={item.source_file}>
             {item.source_file}
