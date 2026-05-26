@@ -786,7 +786,11 @@ function BackfillEmbeddingsButton() {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
       })
-      const json = await res.json()
+      const raw = await res.text()
+      let json
+      try { json = JSON.parse(raw) } catch {
+        throw new Error(`API returned non-JSON (HTTP ${res.status}): ${raw.slice(0, 300)}`)
+      }
       if (!res.ok) throw new Error(json.error || 'Backfill failed')
       setResult(json)
       setState('done')
