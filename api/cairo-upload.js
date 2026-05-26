@@ -54,8 +54,10 @@ export default async function handler(req, res) {
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
   const {
     title, type, countries = [], regions = [], threat_categories = [],
-    tags = [], outcome, source_file, pdf_base64, org_id,
-    doc_tier = 'country',
+    tags = [], source_file, org_id,
+    doc_tier = 'global',
+    storage_path,  // new: path in cairo-uploads bucket
+    pdf_base64,    // legacy fallback
   } = req.body
 
   let { content } = req.body
@@ -63,8 +65,26 @@ export default async function handler(req, res) {
   if (!title || !type) return res.status(400).json({ error: 'title and type are required' })
   if (!['sop', 'case', 'report'].includes(type)) return res.status(400).json({ error: 'type must be sop, case or report' })
 
-  // ── PDF extraction via Claude ─────────────────────────────────────────────
-  if (pdf_base64) {
+  // ── Resolve PDF: download from storage or use legacy base64 ──────────────
+  let pdf_b64 = pdf_base64 || null
+
+  if (storage_path) {
+    try {
+      const { data: fileData, error: dlErr } = await supabase.storage
+        .from('cairo-uploads')
+        .download(storage_path)
+      if (dlErr) throw new Error(dlErr.message)
+      const buffer = Buffer.from(await fileData.arrayBuffer())
+      pdf_b64 = buffer.toString('base64')
+      // Clean up temp file (non-blocking)
+      supabase.storage.from('cairo-uploads').remove([storage_path]).catch(() => {})
+    } catch (err) {
+      return res.status(422).json({ error: `Storage download failed: ${err.message}` })
+    }
+  }
+
+  // ── PDF text extraction via Claude ────────────────────────────────────────
+  if (pdf_b64) {
     try {
       content = await claudeCall(ANTHROPIC_API_KEY, {
         model:       MODELS.fast,
@@ -76,7 +96,7 @@ export default async function handler(req, res) {
           content: [
             {
               type:   'document',
-              source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 },
+              source: { type: 'base64', media_type: 'application/pdf', data: pdf_b64 },
             },
             {
               type: 'text',

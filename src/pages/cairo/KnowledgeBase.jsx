@@ -120,20 +120,23 @@ function AddModal({ onClose, onSuccess }) {
       if (!token) throw new Error('Not authenticated — please sign in again.')
 
       if (pdfFile) {
-        // ── PDF path: validate file first ──────────────────────────────────
-        console.log('[cairo-upload] file:', pdfFile.name, pdfFile.type, pdfFile.size)
+        // ── PDF path ───────────────────────────────────────────────────────
+        // Upload PDF to Supabase Storage first (avoids 4.5 MB Vercel limit),
+        // then pass the storage path to the API for Claude text extraction.
+
         if (!['application/pdf'].includes(pdfFile.type)) {
-          throw new Error(`Unsupported file type: ${pdfFile.type || 'unknown'}. Only PDF is accepted.`)
+          throw new Error(`Unsupported file type: ${pdfFile.type || 'unknown'}. Only PDF files are accepted.`)
         }
 
-        setUploadStep('Reading PDF…')
-        let pdf_base64
-        try {
-          pdf_base64 = await toBase64(pdfFile)
-          console.log('[cairo-upload] base64 length:', pdf_base64?.length)
-        } catch (b64Err) {
-          throw new Error(`Failed to read file: ${b64Err.message}`)
-        }
+        setUploadStep('Uploading PDF…')
+        const safeName = `${Date.now()}_${pdfFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+        const storagePath = `temp/${safeName}`
+
+        const { error: storageErr } = await supabase.storage
+          .from('cairo-uploads')
+          .upload(storagePath, pdfFile, { contentType: 'application/pdf', upsert: false })
+
+        if (storageErr) throw new Error(`Storage upload failed: ${storageErr.message}`)
 
         setUploadStep('Extracting text with AI…')
         const tagsArr = parseCSV(form.tags)
@@ -142,7 +145,7 @@ function AddModal({ onClose, onSuccess }) {
         const payload = {
           type:              form.type,
           title:             form.title.trim(),
-          pdf_base64,
+          storage_path:      storagePath,
           source_file:       (form.publisher.trim() || pdfFile.name).replace(/[^a-zA-Z0-9._\-\s]/g, '').trim(),
           countries:         parseCSV(form.countries),
           regions:           parseCSV(form.regions),
@@ -150,7 +153,6 @@ function AddModal({ onClose, onSuccess }) {
           tags:              tagsArr,
           doc_tier:          form.doc_tier || 'global',
         }
-        console.log('[cairo-upload] payload keys:', Object.keys(payload), '| type:', payload.type, '| title:', payload.title)
 
         let res, rawText
         try {
