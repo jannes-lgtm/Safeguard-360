@@ -303,8 +303,8 @@ function IncidentPanel({ incident, isAdmin, profile, orgMembers, onClose, onUpda
               </div>
 
               {incident.resolution_notes && (
-                <div className="p-3.5 bg-green-50 border border-green-200 rounded-xl">
-                  <p className="text-[10px] font-bold text-green-700 uppercase tracking-wider mb-1">Resolution Notes</p>
+                <div className="p-3.5 bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] rounded-xl">
+                  <p className="text-[10px] font-bold text-[#AACC00] uppercase tracking-wider mb-1">Resolution Notes</p>
                   <p className="text-xs text-green-800 leading-relaxed">{incident.resolution_notes}</p>
                 </div>
               )}
@@ -561,7 +561,7 @@ function ReportModal({ profile, trips, onClose, onSaved }) {
           {/* Type */}
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-              Incident Type <span className="text-red-500">*</span>
+              Incident Type <span className="text-[#EF7474]">*</span>
             </label>
             <div className="grid grid-cols-2 gap-2">
               {INCIDENT_TYPES.map(t => {
@@ -585,7 +585,7 @@ function ReportModal({ profile, trips, onClose, onSaved }) {
           {/* Severity */}
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-              Severity <span className="text-red-500">*</span>
+              Severity <span className="text-[#EF7474]">*</span>
             </label>
             <div className="grid grid-cols-4 gap-2">
               {SEVERITIES.map(s => (
@@ -621,7 +621,7 @@ function ReportModal({ profile, trips, onClose, onSaved }) {
           {/* Title */}
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-              Incident Title <span className="text-red-500">*</span>
+              Incident Title <span className="text-[#EF7474]">*</span>
             </label>
             <input value={form.title} onChange={e => set('title', e.target.value)}
               placeholder="Brief description of what happened"
@@ -647,7 +647,7 @@ function ReportModal({ profile, trips, onClose, onSaved }) {
           {/* Date */}
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-              Incident Date <span className="text-red-500">*</span>
+              Incident Date <span className="text-[#EF7474]">*</span>
             </label>
             <input type="date" value={form.incident_date} onChange={e => set('incident_date', e.target.value)}
               className="w-full text-sm text-gray-800 border border-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none" />
@@ -662,7 +662,7 @@ function ReportModal({ profile, trips, onClose, onSaved }) {
               className="w-full text-sm text-gray-800 placeholder-gray-300 border border-gray-200 rounded-xl px-3.5 py-2.5 focus:outline-none resize-none leading-relaxed" />
           </div>
 
-          {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5">{error}</p>}
+          {error && <p className="text-xs text-[#EF7474] bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-xl px-3.5 py-2.5">{error}</p>}
 
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
@@ -856,12 +856,12 @@ export default function Incidents() {
       </div>
 
       {tableError && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
+        <div className="bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] rounded-2xl p-4 mb-6">
           <div className="flex items-start gap-3">
-            <FileWarning size={16} className="text-amber-600 shrink-0 mt-0.5" />
+            <FileWarning size={16} className="text-[#D4A64A] shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-bold text-amber-800 mb-1">Run migration required</p>
-              <p className="text-xs text-amber-700 leading-relaxed">
+              <p className="text-xs text-[#D4A64A] leading-relaxed">
                 Run <code className="bg-amber-100 px-1 rounded">supabase-migration-incidents-lifecycle.sql</code> in your Supabase SQL editor to add lifecycle columns.
               </p>
             </div>

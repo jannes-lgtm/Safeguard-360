@@ -12,8 +12,8 @@ import { supabase } from '../lib/supabase'
 const CATEGORIES = [
   { id: 'flight',         label: 'Flight Intelligence',  icon: Plane,          bg: 'bg-sky-100',    text: 'text-sky-800',    border: 'border-sky-200' },
   { id: 'vessel',         label: 'Vessel Tracking',       icon: Ship,           bg: 'bg-cyan-100',   text: 'text-cyan-800',   border: 'border-cyan-200' },
-  { id: 'conflict',       label: 'Armed Conflict',        icon: Crosshair,      bg: 'bg-red-100',    text: 'text-red-800',    border: 'border-red-200' },
-  { id: 'loadshedding',   label: 'Load Shedding',         icon: Zap,            bg: 'bg-amber-100',  text: 'text-amber-800',  border: 'border-amber-200' },
+  { id: 'conflict',       label: 'Armed Conflict',        icon: Crosshair,      bg: 'bg-red-100',    text: 'text-red-800',    border: 'border-[rgba(138,46,46,0.30)]' },
+  { id: 'loadshedding',   label: 'Load Shedding',         icon: Zap,            bg: 'bg-amber-100',  text: 'text-amber-800',  border: 'border-[rgba(144,106,37,0.30)]' },
   { id: 'country-risk',   label: 'Country Risk',          icon: Globe,          bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200' },
   { id: 'security',       label: 'Security Intelligence', icon: Shield,         bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' },
   { id: 'crime',          label: 'Organised Crime',       icon: AlertCircle,    bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200' },
@@ -22,7 +22,7 @@ const CATEGORIES = [
   { id: 'infrastructure', label: 'Infrastructure',        icon: Zap,            bg: 'bg-slate-100',  text: 'text-slate-800',  border: 'border-slate-200' },
   { id: 'aviation',       label: 'Aviation Incidents',    icon: Plane,          bg: 'bg-blue-100',   text: 'text-blue-800',   border: 'border-blue-200' },
   { id: 'health',         label: 'Disease & Health',      icon: Activity,       bg: 'bg-rose-100',   text: 'text-rose-800',   border: 'border-rose-200' },
-  { id: 'community',      label: 'Community Reports',     icon: MessageSquare,  bg: 'bg-green-100',  text: 'text-green-800',  border: 'border-green-200' },
+  { id: 'community',      label: 'Community Reports',     icon: MessageSquare,  bg: 'bg-green-100',  text: 'text-green-800',  border: 'border-[rgba(170,204,0,0.25)]' },
   { id: 'weather',        label: 'Weather & Disasters',   icon: CloudLightning, bg: 'bg-teal-100',   text: 'text-teal-800',   border: 'border-teal-200' },
 ]
 const getCat = (id) => CATEGORIES.find(c => c.id === id) || CATEGORIES[5]
@@ -340,11 +340,11 @@ const BUILTIN_FEEDS = [
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS = {
-  active:      { label: 'Live',                dot: 'bg-green-500',  text: 'text-green-700',  bg: 'bg-green-50',  border: 'border-green-200' },
-  pending_key: { label: 'API Key Needed',      dot: 'bg-amber-400',  text: 'text-amber-700',  bg: 'bg-amber-50',  border: 'border-amber-200' },
+  active:      { label: 'Live',                dot: 'bg-green-500',  text: 'text-[#AACC00]',  bg: 'bg-[rgba(170,204,0,0.10)]',  border: 'border-[rgba(170,204,0,0.25)]' },
+  pending_key: { label: 'API Key Needed',      dot: 'bg-amber-400',  text: 'text-[#D4A64A]',  bg: 'bg-[rgba(144,106,37,0.12)]',  border: 'border-[rgba(144,106,37,0.30)]' },
   partnership: { label: 'Pending Partnership', dot: 'bg-violet-400', text: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-200' },
   pending:     { label: 'Pending Setup',       dot: 'bg-gray-400',   text: 'text-gray-600',   bg: 'bg-gray-50',   border: 'border-gray-200' },
-  error:       { label: 'Error',               dot: 'bg-red-500',    text: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200' },
+  error:       { label: 'Error',               dot: 'bg-red-500',    text: 'text-[#EF7474]',    bg: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-[rgba(138,46,46,0.30)]' },
 }
 
 // ── Audit: feeds needing activation ──────────────────────────────────────────
@@ -427,10 +427,10 @@ const SUGGESTED_FEEDS = []
 // ── Status icon ───────────────────────────────────────────────────────────────
 function StatusIcon({ status }) {
   if (status === 'active') {
-    return <Check size={15} className="text-green-500" strokeWidth={2.5} />
+    return <Check size={15} className="text-[#AACC00]" strokeWidth={2.5} />
   }
   if (status === 'error') {
-    return <X size={15} className="text-red-500" strokeWidth={2.5} />
+    return <X size={15} className="text-[#EF7474]" strokeWidth={2.5} />
   }
   return <Plus size={15} className="text-amber-400" strokeWidth={2.5} />
 }
@@ -450,9 +450,9 @@ function StatusLegend() {
   return (
     <div className="flex items-center gap-5 text-xs text-gray-500 mb-3">
       <span className="font-medium text-gray-600">Status:</span>
-      <span className="flex items-center gap-1.5"><Check size={12} className="text-green-500" strokeWidth={2.5} /> Live</span>
+      <span className="flex items-center gap-1.5"><Check size={12} className="text-[#AACC00]" strokeWidth={2.5} /> Live</span>
       <span className="flex items-center gap-1.5"><Plus size={12} className="text-amber-400" strokeWidth={2.5} /> Needs activation</span>
-      <span className="flex items-center gap-1.5"><X size={12} className="text-red-500" strokeWidth={2.5} /> Error</span>
+      <span className="flex items-center gap-1.5"><X size={12} className="text-[#EF7474]" strokeWidth={2.5} /> Error</span>
     </div>
   )
 }
@@ -465,7 +465,7 @@ function FeedRow({ feed, onDelete }) {
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-gray-900">{feed.name}</span>
           {!feed.builtin && (
-            <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded font-medium">Custom</span>
+            <span className="text-[10px] bg-blue-50 text-[#6EA8C8] border border-blue-200 px-1.5 py-0.5 rounded font-medium">Custom</span>
           )}
         </div>
         {feed.envVar && (
@@ -490,7 +490,7 @@ function FeedRow({ feed, onDelete }) {
         <div className="flex items-center gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
           {feed.sourceUrl && (
             <a href={feed.sourceUrl} target="_blank" rel="noopener noreferrer"
-              className="text-xs text-[#0118A1] hover:underline font-medium flex items-center gap-1">
+              className="text-xs text-[#AACC00] hover:underline font-medium flex items-center gap-1">
               <ExternalLink size={11} />
               {feed.status === 'pending_key' ? 'Get key' : feed.status === 'partnership' ? 'Website' : 'Source'}
             </a>
@@ -561,8 +561,8 @@ function ActivationCard({ feed, guide }) {
   const [open, setOpen] = useState(false)
   if (!guide) return null
   return (
-    <div className="bg-white border border-amber-200 rounded-[8px] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-      <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border-b border-amber-200 cursor-pointer"
+    <div className="bg-white border border-[rgba(144,106,37,0.30)] rounded-[8px] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+      <div className="flex items-center justify-between px-4 py-3 bg-[rgba(144,106,37,0.12)] border-b border-[rgba(144,106,37,0.30)] cursor-pointer"
         onClick={() => setOpen(o => !o)}>
         <div className="flex items-center gap-3">
           <Plus size={14} className="text-amber-500" strokeWidth={2.5} />
@@ -572,7 +572,7 @@ function ActivationCard({ feed, guide }) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-amber-700 bg-amber-100 border border-amber-200 rounded px-2 py-0.5 font-medium">{guide.cost}</span>
+          <span className="text-xs text-[#D4A64A] bg-amber-100 border border-[rgba(144,106,37,0.30)] rounded px-2 py-0.5 font-medium">{guide.cost}</span>
           {open ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
         </div>
       </div>
@@ -582,13 +582,13 @@ function ActivationCard({ feed, guide }) {
           <ol className="space-y-1.5 mb-4">
             {guide.steps.map((step, i) => (
               <li key={i} className="flex items-start gap-2 text-xs text-gray-700">
-                <span className="shrink-0 w-5 h-5 rounded-full bg-amber-100 text-amber-700 font-bold flex items-center justify-center text-[10px] mt-0.5">{i + 1}</span>
+                <span className="shrink-0 w-5 h-5 rounded-full bg-amber-100 text-[#D4A64A] font-bold flex items-center justify-center text-[10px] mt-0.5">{i + 1}</span>
                 {step}
               </li>
             ))}
           </ol>
           <a href={guide.url} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold px-4 py-2 rounded-[6px] text-xs transition-colors">
+            className="inline-flex items-center gap-1.5 bg-[#AACC00] hover:bg-[#99bb00] text-[#AACC00] font-semibold px-4 py-2 rounded-[6px] text-xs transition-colors">
             <ExternalLink size={12} />
             {guide.cost.startsWith('$') || guide.cost.toLowerCase().includes('month') ? 'Purchase & get key' : 'Register for free key'}
           </a>
@@ -612,11 +612,11 @@ function SuggestedCard({ suggestion }) {
             </span>
           )}
           {suggestion.tier === 'free' && (
-            <span className="text-[10px] bg-green-50 text-green-700 border border-green-200 rounded px-1.5 py-0.5 font-semibold">Free</span>
+            <span className="text-[10px] bg-[rgba(170,204,0,0.10)] text-[#AACC00] border border-[rgba(170,204,0,0.25)] rounded px-1.5 py-0.5 font-semibold">Free</span>
           )}
         </div>
         <a href={suggestion.url} target="_blank" rel="noopener noreferrer"
-          className="shrink-0 text-[#0118A1] hover:text-[#0118A1]/70 transition-colors">
+          className="shrink-0 text-[#AACC00] hover:text-[#AACC00]/70 transition-colors">
           <ExternalLink size={13} />
         </a>
       </div>
@@ -647,14 +647,14 @@ function AuditPanel({ allFeeds }) {
           <h2 className="text-base font-bold text-gray-900">Active & Live</h2>
           <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{activeFeeds.length} feeds</span>
         </div>
-        <div className="bg-white border border-green-200 rounded-[8px] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+        <div className="bg-white border border-[rgba(170,204,0,0.25)] rounded-[8px] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
           {activeFeeds.map((feed, i) => {
             const c = getCat(feed.category)
             const Icon = c.icon
             return (
               <div key={feed.id}
                 className={`flex items-center gap-3 px-4 py-3 ${i < activeFeeds.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                <Check size={14} className="text-green-500 shrink-0" strokeWidth={2.5} />
+                <Check size={14} className="text-[#AACC00] shrink-0" strokeWidth={2.5} />
                 <span className="text-sm font-semibold text-gray-900 min-w-[160px]">{feed.name}</span>
                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
                   <Icon size={9} />{c.label}
@@ -663,7 +663,7 @@ function AuditPanel({ allFeeds }) {
                 <span className="text-[10px] text-gray-400">{feed.updateFrequency}</span>
                 {feed.sourceUrl && (
                   <a href={feed.sourceUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-gray-300 hover:text-[#0118A1] transition-colors shrink-0">
+                    className="text-gray-300 hover:text-[#AACC00] transition-colors shrink-0">
                     <ExternalLink size={12} />
                   </a>
                 )}
@@ -694,7 +694,7 @@ function AuditPanel({ allFeeds }) {
       {SUGGESTED_FEEDS.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Lightbulb size={16} className="text-[#0118A1]" />
+            <Lightbulb size={16} className="text-[#AACC00]" />
             <h2 className="text-base font-bold text-gray-900">Suggested Additions</h2>
           </div>
           <p className="text-xs text-gray-500 mb-5">Additional feeds recommended for a comprehensive duty-of-care programme.</p>
@@ -796,7 +796,7 @@ function AddFeedModal({ onClose, onSaved, defaultScope = 'international', defaul
                   onClick={() => setForm(p => ({ ...p, scope: opt.value }))}
                   className={`px-3 py-2.5 rounded-[6px] text-xs font-medium border text-left transition-colors
                     ${form.scope === opt.value
-                      ? 'bg-[#0118A1] text-white border-[#0118A1]'
+                      ? 'bg-[#0118A1] text-white border-[#AACC00]'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
                   {opt.value === 'international' ? '🌍' : '📍'} {opt.label}
                 </button>
@@ -860,12 +860,12 @@ function AddFeedModal({ onClose, onSaved, defaultScope = 'international', defaul
             <textarea className={inputClass} rows={2} placeholder="Partnership contact, pricing, API key location…" {...f('notes')} />
           </div>
 
-          {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>}
+          {error && <p className="text-xs text-[#EF7474] bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded px-3 py-2">{error}</p>}
         </div>
         <div className="flex items-center justify-end gap-3 p-5 border-t border-gray-100">
           <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2">Cancel</button>
           <button onClick={handleSave} disabled={saving}
-            className="bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold px-5 py-2 rounded-[6px] text-sm transition-colors disabled:opacity-60">
+            className="bg-[#AACC00] hover:bg-[#99bb00] text-[#AACC00] font-semibold px-5 py-2 rounded-[6px] text-sm transition-colors disabled:opacity-60">
             {saving ? 'Saving…' : 'Add Feed'}
           </button>
         </div>
@@ -947,7 +947,7 @@ export default function IntelFeeds() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Radio size={20} className="text-[#1E2461]" />
+            <Radio size={20} className="text-[#AACC00]" />
             <h1 className="text-2xl font-bold text-gray-900">Intel Feeds</h1>
           </div>
           <p className="text-sm text-gray-500">All intelligence sources — manage, categorise and add new data channels</p>
@@ -958,7 +958,7 @@ export default function IntelFeeds() {
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           </button>
           <button onClick={() => openModal({ scope: activeTab === 'local' ? 'local' : 'international', country: selectedCountry || '' })}
-            className="flex items-center gap-2 bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold px-4 py-2 rounded-[6px] text-sm transition-colors">
+            className="flex items-center gap-2 bg-[#AACC00] hover:bg-[#99bb00] text-[#AACC00] font-semibold px-4 py-2 rounded-[6px] text-sm transition-colors">
             <Plus size={15} />
             Add Feed
           </button>
@@ -969,9 +969,9 @@ export default function IntelFeeds() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {[
           { label: 'Total Feeds', value: allFeeds.length },
-          { label: 'Live & Active', value: liveCount, color: 'text-green-600' },
-          { label: 'Needs Activation', value: pendingCount, color: 'text-amber-600' },
-          { label: 'Custom Added', value: customFeeds.length, color: 'text-[#0118A1]' },
+          { label: 'Live & Active', value: liveCount, color: 'text-[#AACC00]' },
+          { label: 'Needs Activation', value: pendingCount, color: 'text-[#D4A64A]' },
+          { label: 'Custom Added', value: customFeeds.length, color: 'text-[#AACC00]' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-4 text-center">
             <div className={`text-3xl font-bold ${s.color || 'text-gray-900'}`}>{s.value}</div>
@@ -987,7 +987,7 @@ export default function IntelFeeds() {
           return (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors
-                ${activeTab === tab.id ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'}`}>
+                ${activeTab === tab.id ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#AACC00]'}`}>
               <Icon size={14} />
               {tab.label}
               {tab.count !== null && (
@@ -1005,7 +1005,7 @@ export default function IntelFeeds() {
           <div className="flex items-center justify-between mb-3">
             <StatusLegend />
             <button onClick={() => openModal({ scope: 'international' })}
-              className="text-xs text-[#0118A1] hover:underline flex items-center gap-1 shrink-0">
+              className="text-xs text-[#AACC00] hover:underline flex items-center gap-1 shrink-0">
               <Plus size={11} /> Add international feed
             </button>
           </div>
@@ -1017,7 +1017,7 @@ export default function IntelFeeds() {
           <div className="flex items-center justify-between mb-3">
             <StatusLegend />
             <button onClick={() => openModal({ scope: 'local', country: selectedCountry || '' })}
-              className="text-xs text-[#0118A1] hover:underline flex items-center gap-1 shrink-0">
+              className="text-xs text-[#AACC00] hover:underline flex items-center gap-1 shrink-0">
               <Plus size={11} /> Add local feed
             </button>
           </div>
@@ -1028,7 +1028,7 @@ export default function IntelFeeds() {
               <p className="text-sm font-medium text-gray-500 mb-1">No local feeds yet</p>
               <p className="text-xs mb-4">Add country-specific feeds for each office location</p>
               <button onClick={() => openModal({ scope: 'local' })}
-                className="inline-flex items-center gap-2 bg-[#AACC00] text-[#0118A1] font-semibold px-4 py-2 rounded-[6px] text-sm">
+                className="inline-flex items-center gap-2 bg-[#AACC00] text-[#AACC00] font-semibold px-4 py-2 rounded-[6px] text-sm">
                 <Plus size={14} /> Add local feed
               </button>
             </div>
@@ -1040,7 +1040,7 @@ export default function IntelFeeds() {
                     onClick={() => setLocalCountry(country)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
                       ${selectedCountry === country
-                        ? 'bg-[#0118A1] text-white border-[#0118A1]'
+                        ? 'bg-[#0118A1] text-white border-[#AACC00]'
                         : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
                     <MapPin size={10} />
                     {country}
@@ -1058,7 +1058,7 @@ export default function IntelFeeds() {
               {selectedCountry && (
                 <div>
                   <div className="flex items-center gap-2 mb-4">
-                    <MapPin size={14} className="text-[#1E2461]" />
+                    <MapPin size={14} className="text-[#AACC00]" />
                     <h3 className="text-sm font-bold text-gray-800">{selectedCountry}</h3>
                     <span className="text-xs text-gray-400">{countryFeeds.length} feed{countryFeeds.length !== 1 ? 's' : ''}</span>
                   </div>

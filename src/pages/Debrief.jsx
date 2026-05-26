@@ -214,7 +214,7 @@ export default function Debrief() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', background: DS.bgAlt, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ width: 32, height: 32, border: `3px solid ${BRAND_BLUE}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       </div>
@@ -223,7 +223,7 @@ export default function Debrief() {
 
   if (fetchError) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ minHeight: '100vh', background: DS.bgAlt, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ maxWidth: 400, textAlign: 'center' }}>
           <p style={{ fontSize: 15, color: '#374151', marginBottom: 16 }}>{fetchError}</p>
           <button onClick={() => navigate('/itinerary')} style={{ background: DS.green, color: DS.bg, border: 'none', borderRadius: 12, padding: '12px 24px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
@@ -235,7 +235,7 @@ export default function Debrief() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: DS.bgAlt, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } } * { box-sizing: border-box; }`}</style>
 
       {/* Header bar */}
@@ -261,7 +261,7 @@ export default function Debrief() {
         {/* Already submitted state */}
         {alreadyDone && (
           <div style={{ background: DS.surface, borderRadius: 20, border: `1px solid ${DS.border}`, padding: 32, textAlign: 'center', marginTop: 8 }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: DS.greenDim, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
@@ -282,7 +282,7 @@ export default function Debrief() {
         {/* Success state */}
         {submitted && !alreadyDone && (
           <div style={{ background: DS.surface, borderRadius: 20, border: `1px solid ${DS.border}`, padding: 32, textAlign: 'center', marginTop: 8 }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: DS.greenDim, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>

@@ -6,14 +6,14 @@ import {
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 
-const inputClass = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
+const inputClass = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-white'
 const labelClass = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
 
 function Section({ icon: Icon, title, subtitle, children }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-6">
       <div className="flex items-start gap-3 mb-5">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: '#EEF1FF' }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: DS.greenDim }}>
           <Icon size={16} color="#0118A1" />
         </div>
         <div>
@@ -111,14 +111,14 @@ export default function Profile() {
           <p className="text-sm text-gray-500 mt-0.5">Your personal details, travel documents, and emergency contacts</p>
         </div>
         {onboardingDone && (
-          <div className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-200">
+          <div className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-[rgba(170,204,0,0.10)] text-[#AACC00] border border-[rgba(170,204,0,0.25)]">
             <CheckCircle2 size={13} /> Onboarding complete
           </div>
         )}
       </div>
 
       {toast && (
-        <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-800 rounded-xl text-sm flex items-center gap-2">
+        <div className="mb-4 px-4 py-3 bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] text-green-800 rounded-xl text-sm flex items-center gap-2">
           <CheckCircle2 size={15} /> {toast}
         </div>
       )}
@@ -135,7 +135,7 @@ export default function Profile() {
             <div>
               <label className={labelClass}>Email</label>
               <input className={inputClass} value={profile?.email || ''} disabled
-                style={{ background: '#F9FAFB', color: '#9CA3AF' }} />
+                style={{ background: DS.bgAlt, color: '#9CA3AF' }} />
             </div>
             <div>
               <label className={labelClass}>Phone Number</label>
@@ -307,7 +307,7 @@ export default function Profile() {
 
         <button type="submit" disabled={saving}
           className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-60"
-          style={{ background: '#0118A1' }}>
+          style={{ background: DS.green }}>
           {saving
             ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saving…</>
             : 'Save profile'}

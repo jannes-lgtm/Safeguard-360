@@ -112,7 +112,7 @@ function ZoneFormModal({ initial, onSave, onClose }) {
         <div className="space-y-4">
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-              Zone Name <span className="text-red-500">*</span>
+              Zone Name <span className="text-[#EF7474]">*</span>
             </label>
             <input autoFocus value={form.name} onChange={e => set('name', e.target.value)}
               placeholder="e.g. Conflict Buffer Zone — Northern Mali"
@@ -127,7 +127,7 @@ function ZoneFormModal({ initial, onSave, onClose }) {
                   className="py-1.5 rounded-lg text-[10px] font-bold border transition-all"
                   style={form.severity === s
                     ? { background: SEV_LIGHT[s], color: SEV_TEXT[s], borderColor: SEV_COLOR[s] }
-                    : { background: '#F8FAFC', color: '#94A3B8', borderColor: '#E2E8F0' }
+                    : { background: DS.bgAlt, color: '#94A3B8', borderColor: '#E2E8F0' }
                   }>
                   {s}
                 </button>
@@ -151,7 +151,7 @@ function ZoneFormModal({ initial, onSave, onClose }) {
           </button>
           <button onClick={() => form.name.trim() && onSave(form)} disabled={!form.name.trim()}
             className="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-40"
-            style={{ background: '#0118A1', color: 'white' }}>
+            style={{ background: DS.green, color: 'white' }}>
             Save Zone
           </button>
         </div>
@@ -560,7 +560,7 @@ export default function Geofences() {
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
         <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-white">
           <div className="flex items-center gap-3">
-            <Shield size={16} className="text-[#0118A1]" />
+            <Shield size={16} className="text-[#AACC00]" />
             <div>
               <h1 className="text-sm font-bold text-gray-900">Alert Zones</h1>
               <p className="text-[10px] text-gray-400">{activeZones} active · {totalOccupants} traveller{totalOccupants !== 1 ? 's' : ''} inside zones</p>
@@ -598,7 +598,7 @@ export default function Geofences() {
                 </button>
                 <button onClick={startDraw}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold text-white"
-                  style={{ background: '#0118A1' }}>
+                  style={{ background: DS.green }}>
                   <Pencil size={11} /> Draw Zone
                 </button>
               </>
@@ -615,7 +615,7 @@ export default function Geofences() {
             {/* Stat strip */}
             <div className="grid grid-cols-2 gap-2 p-3 border-b border-gray-100">
               {[
-                { label: 'Zones',      value: zones.length,      color: '#0118A1' },
+                { label: 'Zones',      value: zones.length,      color: DS.bg },
                 { label: 'In zones',   value: totalOccupants,    color: '#EF4444' },
               ].map(s => (
                 <div key={s.label} className="rounded-xl p-2.5 text-center" style={{ background: `${s.color}08` }}>
@@ -652,12 +652,12 @@ export default function Geofences() {
                           <button onClick={e => { e.stopPropagation(); toggleZone(zone) }}
                             className="p-1 rounded-md hover:bg-gray-100 transition-colors">
                             {zone.is_active
-                              ? <Eye size={11} className="text-green-500" />
+                              ? <Eye size={11} className="text-[#AACC00]" />
                               : <EyeOff size={11} className="text-gray-300" />
                             }
                           </button>
                           <button onClick={e => { e.stopPropagation(); deleteZone(zone.id) }}
-                            className="p-1 rounded-md hover:bg-red-50 transition-colors">
+                            className="p-1 rounded-md hover:bg-[rgba(138,46,46,0.12)] transition-colors">
                             <Trash2 size={11} className="text-gray-300 hover:text-red-400" />
                           </button>
                         </div>
@@ -665,7 +665,7 @@ export default function Geofences() {
                       <div className="flex items-center gap-2">
                         <SevPill severity={zone.severity} />
                         {inside.length > 0 && (
-                          <span className="text-[9px] font-bold text-red-600 flex items-center gap-0.5">
+                          <span className="text-[9px] font-bold text-[#EF7474] flex items-center gap-0.5">
                             <Users size={8} /> {inside.length} inside
                           </span>
                         )}
@@ -690,7 +690,7 @@ export default function Geofences() {
                   {events.slice(0, 20).map(ev => (
                     <div key={ev.id} className="px-3 py-1.5 border-b border-gray-50">
                       <p className="text-[10px] font-semibold text-gray-700">
-                        <span className={ev.event_type === 'enter' ? 'text-red-500' : 'text-green-500'}>
+                        <span className={ev.event_type === 'enter' ? 'text-[#EF7474]' : 'text-[#AACC00]'}>
                           {ev.event_type === 'enter' ? '▶' : '◀'}
                         </span>
                         {' '}{ev.user_name}

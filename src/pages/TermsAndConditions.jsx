@@ -241,7 +241,7 @@ export default function TermsAndConditions() {
               </ul>
               <p className="mt-2">
                 To exercise any of these rights, contact your organisation's Travel Manager
-                or email <span className="font-medium text-[#0118A1]">privacy@safeguard360.com</span>.
+                or email <span className="font-medium text-[#AACC00]">privacy@safeguard360.com</span>.
               </p>
             </Section>
 
@@ -299,7 +299,7 @@ export default function TermsAndConditions() {
                 className="sr-only"
               />
               <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                checked ? 'border-[#0118A1] bg-[#0118A1]' : 'border-gray-300'
+                checked ? 'border-[#AACC00] bg-[#0118A1]' : 'border-gray-300'
               }`}>
                 {checked && <CheckCircle2 size={12} color="white" strokeWidth={3} />}
               </div>
@@ -314,7 +314,7 @@ export default function TermsAndConditions() {
 
           {/* Error message */}
           {acceptError && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] text-sm text-[#EF7474]">
               <AlertTriangle size={14} className="shrink-0" />
               {acceptError}
             </div>
@@ -343,9 +343,9 @@ export default function TermsAndConditions() {
 // ── Section component ─────────────────────────────────────────────────────────
 function Section({ icon: Icon, title, children, highlight }) {
   return (
-    <div className={`rounded-xl p-4 ${highlight ? 'bg-amber-50 border border-amber-100' : 'bg-gray-50'}`}>
+    <div className={`rounded-xl p-4 ${highlight ? 'bg-[rgba(144,106,37,0.12)] border border-amber-100' : 'bg-gray-50'}`}>
       <div className="flex items-center gap-2 mb-2">
-        {Icon && <Icon size={14} className={highlight ? 'text-amber-600' : 'text-gray-400'} />}
+        {Icon && <Icon size={14} className={highlight ? 'text-[#D4A64A]' : 'text-gray-400'} />}
         <h2 className={`text-xs font-bold uppercase tracking-wide ${highlight ? 'text-amber-800' : 'text-gray-500'}`}>
           {title}
         </h2>

@@ -109,7 +109,7 @@ export default function ShiftLog() {
         </div>
         <button onClick={() => setShowForm(true)}
           className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
-          style={{ background: '#AACC00', color: '#0118A1' }}>
+          style={{ background: '#AACC00', color: DS.bg }}>
           <Plus size={13} /> New Entry
         </button>
       </div>
@@ -146,7 +146,7 @@ export default function ShiftLog() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                        style={{ background: '#0118A1', color: '#AACC00' }}>
+                        style={{ background: DS.green, color: '#AACC00' }}>
                         {(log.profiles?.full_name || '?').charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
@@ -269,7 +269,7 @@ export default function ShiftLog() {
               </button>
               <button onClick={submit} disabled={saving || !form.summary.trim()}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 transition-all"
-                style={{ background: '#AACC00', color: '#0118A1' }}>
+                style={{ background: '#AACC00', color: DS.bg }}>
                 {saving ? 'Saving…' : 'Submit Handover'}
               </button>
             </div>

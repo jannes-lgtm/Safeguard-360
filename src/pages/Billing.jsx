@@ -22,12 +22,12 @@ function UpgradePlanCard({ plan, current, onUpgrade, loading }) {
   return (
     <div className={`rounded-[8px] border p-4 flex flex-col gap-3 transition-shadow ${
       isCurrent
-        ? 'border-[#1E2461] bg-[#1E2461]/5'
+        ? 'border-[rgba(170,204,0,0.30)] bg-[#1E2461]/5'
         : 'border-gray-200 bg-white hover:shadow-sm'
     }`}>
       <div className="flex items-center justify-between">
         <div>
-          <span className={`text-[9px] font-black tracking-[0.18em] uppercase ${isCurrent ? 'text-[#1E2461]' : 'text-gray-400'}`}>
+          <span className={`text-[9px] font-black tracking-[0.18em] uppercase ${isCurrent ? 'text-[#AACC00]' : 'text-gray-400'}`}>
             {plan.name}
           </span>
           {isCurrent && (
@@ -196,10 +196,10 @@ export default function Billing() {
   const isOrgAdmin  = profile?.role === 'org_admin' || isAdmin
 
   const billingStatusColor = {
-    active:   'text-green-600 bg-green-50',
-    trialing: 'text-blue-600 bg-blue-50',
-    past_due: 'text-amber-600 bg-amber-50',
-    canceled: 'text-red-600 bg-red-50',
+    active:   'text-[#AACC00] bg-[rgba(170,204,0,0.10)]',
+    trialing: 'text-[#6EA8C8] bg-blue-50',
+    past_due: 'text-[#D4A64A] bg-[rgba(144,106,37,0.12)]',
+    canceled: 'text-[#EF7474] bg-[rgba(138,46,46,0.12)]',
     inactive: 'text-gray-500 bg-gray-100',
   }
 
@@ -208,12 +208,12 @@ export default function Billing() {
       {/* Toast */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-[8px] shadow-lg text-sm font-medium max-w-sm ${
-          toast.type === 'success' ? 'bg-green-50 border border-green-200 text-green-800' :
-          toast.type === 'warn'    ? 'bg-amber-50 border border-amber-200 text-amber-800' :
-                                     'bg-red-50 border border-red-200 text-red-800'
+          toast.type === 'success' ? 'bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] text-green-800' :
+          toast.type === 'warn'    ? 'bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] text-amber-800' :
+                                     'bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] text-red-800'
         }`}>
           {toast.type === 'success'
-            ? <CheckCircle2 size={15} className="text-green-600 shrink-0" />
+            ? <CheckCircle2 size={15} className="text-[#AACC00] shrink-0" />
             : <AlertTriangle size={15} className="shrink-0" />}
           {toast.msg}
         </div>
@@ -280,13 +280,13 @@ export default function Billing() {
 
           {/* Near-limit warning */}
           {nearLimit && seatsLeft >= 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-[8px] px-4 py-3 flex items-start gap-2.5">
-              <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] rounded-[8px] px-4 py-3 flex items-start gap-2.5">
+              <AlertTriangle size={14} className="text-[#D4A64A] shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-amber-800">
                   {seatsLeft === 0 ? 'Seat limit reached' : `${seatsLeft} seat${seatsLeft > 1 ? 's' : ''} remaining`}
                 </p>
-                <p className="text-xs text-amber-700 mt-0.5">
+                <p className="text-xs text-[#D4A64A] mt-0.5">
                   {seatsLeft === 0
                     ? 'Upgrade your plan to add more travellers.'
                     : 'You\'re close to your traveller seat limit. Consider upgrading before adding more users.'}
@@ -320,7 +320,7 @@ export default function Billing() {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-gray-900 text-sm">Available plans</h3>
                 <a href="/pricing" target="_blank"
-                  className="text-xs text-[#1E2461] hover:underline flex items-center gap-1">
+                  className="text-xs text-[#AACC00] hover:underline flex items-center gap-1">
                   Full plan comparison <ArrowUpRight size={11} />
                 </a>
               </div>
@@ -348,7 +348,7 @@ export default function Billing() {
               <button
                 onClick={openBillingPortal}
                 disabled={portalLoading}
-                className="text-xs font-semibold text-[#1E2461] hover:underline flex items-center gap-1 disabled:opacity-50">
+                className="text-xs font-semibold text-[#AACC00] hover:underline flex items-center gap-1 disabled:opacity-50">
                 Open billing portal <ExternalLink size={11} />
               </button>
             </div>
@@ -356,15 +356,15 @@ export default function Billing() {
 
           {/* No subscription yet */}
           {!org.stripe_customer_id && isOrgAdmin && (
-            <div className="bg-[#1E2461]/5 border border-[#1E2461]/20 rounded-[8px] px-4 py-4 flex items-start gap-3">
-              <Zap size={15} className="text-[#1E2461] shrink-0 mt-0.5" />
+            <div className="bg-[#1E2461]/5 border border-[rgba(170,204,0,0.30)]/20 rounded-[8px] px-4 py-4 flex items-start gap-3">
+              <Zap size={15} className="text-[#AACC00] shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-[#1E2461]">No active subscription</p>
+                <p className="text-sm font-semibold text-[#AACC00]">No active subscription</p>
                 <p className="text-xs text-gray-500 mt-0.5 mb-3">
                   Select a plan above to activate your subscription and unlock full platform capabilities.
                 </p>
                 <a href="/pricing" target="_blank"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0118A1] hover:underline">
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#AACC00] hover:underline">
                   View pricing page <ArrowUpRight size={11} />
                 </a>
               </div>

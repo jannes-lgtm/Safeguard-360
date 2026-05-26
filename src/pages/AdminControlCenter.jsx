@@ -105,7 +105,7 @@ const CAT_ICON = {
 
 const RSS_CATEGORIES = ['all','conflict','security','crime','economic','infrastructure','aviation','health','weather']
 
-const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1]'
+const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]'
 const labelCls = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
 
 function fmtDate(d) {
@@ -120,9 +120,9 @@ function initials(name) {
 // ── Small shared components ───────────────────────────────────────────────────
 function Pill({ label, color = 'gray' }) {
   const map = {
-    green:  'bg-green-100 text-green-700 border-green-200',
-    red:    'bg-red-100 text-red-700 border-red-200',
-    amber:  'bg-amber-100 text-amber-700 border-amber-200',
+    green:  'bg-green-100 text-[#AACC00] border-[rgba(170,204,0,0.25)]',
+    red:    'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',
+    amber:  'bg-amber-100 text-[#D4A64A] border-[rgba(144,106,37,0.30)]',
     blue:   'bg-blue-100 text-blue-700 border-blue-200',
     purple: 'bg-purple-100 text-purple-700 border-purple-200',
     gray:   'bg-gray-100 text-gray-600 border-gray-200',
@@ -271,7 +271,7 @@ function OrgModal({ org, onClose, onSaved }) {
 
   return (
     <Modal title={org ? 'Edit Organisation' : 'Add Organisation'} onClose={onClose} wide>
-      {error && <p className="mb-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+      {error && <p className="mb-3 text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] rounded-xl px-3 py-2">{error}</p>}
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
@@ -389,7 +389,7 @@ function InviteModal({ orgs, onClose, onSaved }) {
         </div>
       ) : (
         <div className="space-y-4">
-          {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+          {error && <p className="text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] rounded-xl px-3 py-2">{error}</p>}
           <div>
             <label className={labelCls}>Email Address *</label>
             <input className={inputCls} type="email" placeholder="traveller@company.com" {...f('email')} />
@@ -505,7 +505,7 @@ function FeedModal({ feed, onClose, onSaved }) {
 
   return (
     <Modal title={feed ? 'Edit Custom Feed' : 'Add Custom Intel Feed'} onClose={onClose}>
-      {error && <p className="mb-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+      {error && <p className="mb-3 text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] rounded-xl px-3 py-2">{error}</p>}
       <div className="space-y-4">
         <div>
           <label className={labelCls}>Feed Name *</label>
@@ -572,7 +572,7 @@ function PolicyModal({ policy, orgs, onClose, onSaved }) {
 
   return (
     <Modal title={policy ? 'Edit Policy' : 'Add Policy'} onClose={onClose}>
-      {error && <p className="mb-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+      {error && <p className="mb-3 text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] rounded-xl px-3 py-2">{error}</p>}
       <div className="space-y-4">
         <div>
           <label className={labelCls}>Policy Name *</label>
@@ -654,7 +654,7 @@ function TrainingModal({ module, orgs, onClose, onSaved }) {
 
   return (
     <Modal title={module ? 'Edit Training Module' : 'Add Training Module'} onClose={onClose}>
-      {error && <p className="mb-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+      {error && <p className="mb-3 text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] rounded-xl px-3 py-2">{error}</p>}
       <div className="space-y-4">
         <div>
           <label className={labelCls}>Module Title *</label>
@@ -709,7 +709,7 @@ const CONGESTION_STYLE = {
   free:       { label: 'Free',       dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',  bar: 'bg-emerald-400', pct: 5  },
   low:        { label: 'Low',        dot: 'bg-yellow-400',  badge: 'bg-yellow-50 text-yellow-700 border-yellow-200',     bar: 'bg-yellow-400',  pct: 25 },
   moderate:   { label: 'Moderate',   dot: 'bg-orange-400',  badge: 'bg-orange-50 text-orange-700 border-orange-200',     bar: 'bg-orange-400',  pct: 55 },
-  heavy:      { label: 'Heavy',      dot: 'bg-red-500',     badge: 'bg-red-50 text-red-700 border-red-200',              bar: 'bg-red-500',     pct: 80 },
+  heavy:      { label: 'Heavy',      dot: 'bg-red-500',     badge: 'bg-[rgba(138,46,46,0.12)] text-[#EF7474] border-[rgba(138,46,46,0.30)]',              bar: 'bg-red-500',     pct: 80 },
   standstill: { label: 'Standstill', dot: 'bg-red-900',     badge: 'bg-red-100 text-red-900 border-red-300',             bar: 'bg-red-900',     pct: 100},
 }
 
@@ -761,12 +761,12 @@ function RunScanButton() {
         }
       </button>
       {result && state === 'done' && (
-        <p className="text-[10px] text-green-600 font-medium">
+        <p className="text-[10px] text-[#AACC00] font-medium">
           {result.fanned_out} countr{result.fanned_out === 1 ? 'y' : 'ies'} · {result.itineraries} trips
         </p>
       )}
       {result && state === 'error' && (
-        <p className="text-[10px] text-red-500">{result.error}</p>
+        <p className="text-[10px] text-[#EF7474]">{result.error}</p>
       )}
     </div>
   )
@@ -812,7 +812,7 @@ function IntelHealthPanel() {
       )}
 
       {health?.error && (
-        <p className="text-xs text-red-500">{health.error}</p>
+        <p className="text-xs text-[#EF7474]">{health.error}</p>
       )}
 
       {health && !health.error && (
@@ -860,7 +860,7 @@ function IntelHealthPanel() {
 
           {/* Freshness */}
           <div className="flex gap-2 text-[10px] text-gray-500">
-            <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">{health.documents.fresh_7d} this week</span>
+            <span className="bg-[rgba(170,204,0,0.10)] text-[#AACC00] px-2 py-0.5 rounded-full font-medium">{health.documents.fresh_7d} this week</span>
             <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{health.documents.fresh_30d} this month</span>
             {health.documents.stale_90d > 0 && (
               <span className="bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full font-medium">{health.documents.stale_90d} stale (&gt;90d)</span>
@@ -869,10 +869,10 @@ function IntelHealthPanel() {
 
           {/* Dead letter */}
           {health.dead_letter.unresolved > 0 && (
-            <div className="bg-red-50 rounded-lg p-2.5">
-              <p className="text-xs font-bold text-red-700">⚠ {health.dead_letter.unresolved} failed ingestion(s)</p>
+            <div className="bg-[rgba(138,46,46,0.12)] rounded-lg p-2.5">
+              <p className="text-xs font-bold text-[#EF7474]">⚠ {health.dead_letter.unresolved} failed ingestion(s)</p>
               {Object.entries(health.dead_letter.by_stage).map(([stage, count]) => (
-                <p key={stage} className="text-[10px] text-red-500">{stage}: {count}</p>
+                <p key={stage} className="text-[10px] text-[#EF7474]">{stage}: {count}</p>
               ))}
             </div>
           )}
@@ -931,7 +931,7 @@ function BackfillEmbeddingsButton() {
         }
       </button>
       {result && state === 'done' && (
-        <p className="text-[10px] text-green-600 font-medium">
+        <p className="text-[10px] text-[#AACC00] font-medium">
           {result.success} embedded · {result.failed} failed
         </p>
       )}
@@ -950,7 +950,7 @@ function BackfillEmbeddingsButton() {
         <p className="text-[10px] text-gray-500">{result.message}</p>
       )}
       {result && state === 'error' && (
-        <p className="text-[10px] text-red-500 max-w-[240px] text-right leading-tight">{result.error}</p>
+        <p className="text-[10px] text-[#EF7474] max-w-[240px] text-right leading-tight">{result.error}</p>
       )}
     </div>
   )
@@ -1042,7 +1042,7 @@ function LiveTrafficTab() {
             </div>
           </div>
           <button onClick={triggerIngest} disabled={ingesting}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-gray-200 text-xs font-medium text-gray-600 hover:border-[#0118A1] hover:text-[#0118A1] transition-colors disabled:opacity-50">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-gray-200 text-xs font-medium text-gray-600 hover:border-[#AACC00] hover:text-[#AACC00] transition-colors disabled:opacity-50">
             {ingesting ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
             {ingesting ? 'Running…' : 'Run Ingest Now'}
           </button>
@@ -1066,7 +1066,7 @@ function LiveTrafficTab() {
         {countries.map(c => (
           <button key={c} onClick={() => setFilter(c)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
-              ${filter === c ? 'bg-[#0118A1] text-white border-[#0118A1]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+              ${filter === c ? 'bg-[#0118A1] text-white border-[#AACC00]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
             {c}
           </button>
         ))}
@@ -1075,7 +1075,7 @@ function LiveTrafficTab() {
       {/* Corridor cards */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 size={20} className="animate-spin text-[#0118A1]" />
+          <Loader2 size={20} className="animate-spin text-[#AACC00]" />
         </div>
       ) : visible.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
@@ -1138,7 +1138,7 @@ function LiveTrafficTab() {
                       </div>
                       <div className="bg-gray-50 rounded-[6px] px-2.5 py-1.5">
                         <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Delay</div>
-                        <div className={`text-xs font-bold ${delay > 15 ? 'text-red-600' : delay > 5 ? 'text-orange-500' : 'text-gray-800'}`}>
+                        <div className={`text-xs font-bold ${delay > 15 ? 'text-[#EF7474]' : delay > 5 ? 'text-orange-500' : 'text-gray-800'}`}>
                           {delay > 0 ? `+${delay}m` : '—'}
                         </div>
                       </div>
@@ -1169,15 +1169,15 @@ function LiveTrafficTab() {
                     {snap.incident_count > 0 && (
                       <div className="space-y-1">
                         {hereInc.slice(0,3).map((inc, i) => (
-                          <div key={i} className="flex items-start gap-2 text-[11px] text-gray-600 bg-red-50/50 border border-red-100 rounded-[6px] px-2.5 py-1.5">
+                          <div key={i} className="flex items-start gap-2 text-[11px] text-gray-600 bg-[rgba(138,46,46,0.12)]/50 border border-red-100 rounded-[6px] px-2.5 py-1.5">
                             <AlertTriangle size={10} className="text-red-400 shrink-0 mt-0.5" />
                             <span className="truncate">{inc.description || inc.type}</span>
-                            {inc.delay_mins && <span className="text-red-500 shrink-0">+{inc.delay_mins}m</span>}
+                            {inc.delay_mins && <span className="text-[#EF7474] shrink-0">+{inc.delay_mins}m</span>}
                             <span className="text-[9px] text-gray-300 shrink-0 uppercase">HERE</span>
                           </div>
                         ))}
                         {osmInc.slice(0,2).map((inc, i) => (
-                          <div key={i} className="flex items-start gap-2 text-[11px] text-gray-600 bg-amber-50/50 border border-amber-100 rounded-[6px] px-2.5 py-1.5">
+                          <div key={i} className="flex items-start gap-2 text-[11px] text-gray-600 bg-[rgba(144,106,37,0.12)]/50 border border-amber-100 rounded-[6px] px-2.5 py-1.5">
                             <AlertTriangle size={10} className="text-amber-400 shrink-0 mt-0.5" />
                             <span className="truncate">{inc.description}</span>
                             <span className="text-[9px] text-gray-300 shrink-0 uppercase">OSM</span>
@@ -1191,7 +1191,7 @@ function LiveTrafficTab() {
                       <div className="flex gap-1.5">
                         <span className={`text-[9px] px-1.5 py-0.5 rounded border ${snap.tomtom_ok ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>HERE Route</span>
                         <span className={`text-[9px] px-1.5 py-0.5 rounded border ${snap.here_ok ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>HERE Flow</span>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded border ${snap.google_ok ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>Google</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border ${snap.google_ok ? 'bg-blue-50 text-[#6EA8C8] border-blue-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>Google</span>
                         <span className={`text-[9px] px-1.5 py-0.5 rounded border ${snap.osm_ok ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>OSM</span>
                       </div>
                       <span className="text-[10px] text-gray-300">
@@ -1373,7 +1373,7 @@ export default function AdminControlCenter() {
   if (loading) return (
     <Layout>
       <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-[#AACC00] border-t-transparent rounded-full animate-spin" />
       </div>
     </Layout>
   )
@@ -1460,7 +1460,7 @@ export default function AdminControlCenter() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h2 className="text-sm font-bold text-gray-900">Recent Sign-ups</h2>
-              <button onClick={()=>setTab('travellers')} className="text-xs text-[#0118A1] font-medium hover:underline flex items-center gap-1">
+              <button onClick={()=>setTab('travellers')} className="text-xs text-[#AACC00] font-medium hover:underline flex items-center gap-1">
                 View all <ChevronRight size={12}/>
               </button>
             </div>
@@ -1491,13 +1491,13 @@ export default function AdminControlCenter() {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
               <input className={`${inputCls} pl-9`} placeholder="Search name or email…" value={search} onChange={e=>setSearch(e.target.value)}/>
             </div>
-            <select className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0118A1]"
+            <select className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]"
               value={orgFilter} onChange={e=>setOrgFilter(e.target.value)}>
               <option value="all">All organisations</option>
               {orgs.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
               <option value="">No organisation</option>
             </select>
-            <select className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0118A1]"
+            <select className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]"
               value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}>
               <option value="all">All roles</option>
               <option value="traveller">Traveller</option>
@@ -1556,7 +1556,7 @@ export default function AdminControlCenter() {
                         </td>
                         <td className="px-4 py-3 hidden lg:table-cell">
                           {travellingIds.has(p.id)
-                            ? <div className="flex items-center gap-1.5 text-green-600 text-xs font-semibold">
+                            ? <div className="flex items-center gap-1.5 text-[#AACC00] text-xs font-semibold">
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>Travelling
                               </div>
                             : <span className="text-gray-400 text-xs">At home</span>}
@@ -1564,7 +1564,7 @@ export default function AdminControlCenter() {
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1.5 flex-wrap">
                             <button onClick={()=>setLinkProfile(p)}
-                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#0118A1] bg-blue-50 hover:bg-blue-100 transition-colors">
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#AACC00] bg-blue-50 hover:bg-blue-100 transition-colors">
                               <Link2 size={11}/> Assign Org
                             </button>
                             <button onClick={()=>setRoleProfile(p)}
@@ -1573,12 +1573,12 @@ export default function AdminControlCenter() {
                             </button>
                             {p.org_id && (
                               <button onClick={async()=>{ if(confirm('Remove from organisation?')) { await supabase.from('profiles').update({org_id:null}).eq('id',p.id); refresh() }}}
-                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors">
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#D4A64A] bg-[rgba(144,106,37,0.12)] hover:bg-amber-100 transition-colors">
                                 <Link2Off size={11}/> Unlink
                               </button>
                             )}
                             <button onClick={()=>handleDeleteProfile(p)}
-                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#EF7474] bg-[rgba(138,46,46,0.12)] hover:bg-red-100 transition-colors">
                               <Trash2 size={11}/> Delete
                             </button>
                           </div>
@@ -1647,7 +1647,7 @@ export default function AdminControlCenter() {
                         <td className="px-4 py-3 font-semibold text-gray-900">{orgTravellerCount[o.id]||0}</td>
                         <td className="px-4 py-3 hidden lg:table-cell">
                           {tNow>0
-                            ? <div className="flex items-center gap-1.5 text-green-600 text-xs font-semibold">
+                            ? <div className="flex items-center gap-1.5 text-[#AACC00] text-xs font-semibold">
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>{tNow}
                               </div>
                             : <span className="text-gray-400 text-xs">0</span>}
@@ -1667,22 +1667,22 @@ export default function AdminControlCenter() {
                           <div className="flex items-center justify-end gap-1">
                             {o.approval_status !== 'approved' && (
                               <button onClick={()=>handleOrgApproval(o,'approved')} title="Approve"
-                                className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors">
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-[#AACC00] hover:bg-[rgba(170,204,0,0.10)] transition-colors">
                                 <UserCheck size={14}/>
                               </button>
                             )}
                             {o.approval_status !== 'rejected' && (
                               <button onClick={()=>handleOrgApproval(o,'rejected')} title="Reject"
-                                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-[#EF7474] hover:bg-[rgba(138,46,46,0.12)] transition-colors">
                                 <UserX size={14}/>
                               </button>
                             )}
                             <button onClick={()=>setEditOrg(o)} title="Edit organisation"
-                              className="p-1.5 rounded-lg text-gray-400 hover:text-[#0118A1] hover:bg-blue-50 transition-colors">
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-[#AACC00] hover:bg-blue-50 transition-colors">
                               <Pencil size={14}/>
                             </button>
                             <button onClick={()=>handleDeleteOrg(o)} title="Delete organisation"
-                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-[#EF7474] hover:bg-[rgba(138,46,46,0.12)] transition-colors">
                               <Trash2 size={14}/>
                             </button>
                           </div>
@@ -1724,13 +1724,13 @@ export default function AdminControlCenter() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">Intelligence Pipeline</p>
             <div className="flex flex-wrap items-center gap-3 text-sm">
-              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5">
-                <Rss size={14} className="text-green-600"/>
+              <div className="flex items-center gap-2 bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] rounded-xl px-4 py-2.5">
+                <Rss size={14} className="text-[#AACC00]"/>
                 <span className="font-semibold text-green-800">{CAIRO_RSS_FEEDS.length} RSS Feeds</span>
               </div>
               <ChevronRight size={16} className="text-gray-300 shrink-0"/>
               <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
-                <Cpu size={14} className="text-blue-600"/>
+                <Cpu size={14} className="text-[#6EA8C8]"/>
                 <span className="font-semibold text-blue-800">Context Assembly Engine</span>
               </div>
               <ChevronRight size={16} className="text-gray-300 shrink-0"/>
@@ -1746,7 +1746,7 @@ export default function AdminControlCenter() {
               </div>
               <ChevronRight size={16} className="text-gray-300 shrink-0"/>
               <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
-                <Cpu size={14} className="text-blue-600"/>
+                <Cpu size={14} className="text-[#6EA8C8]"/>
                 <span className="font-semibold text-blue-800">Intel Cron (hourly)</span>
               </div>
               <ChevronRight size={16} className="text-gray-300 shrink-0"/>
@@ -1773,7 +1773,7 @@ export default function AdminControlCenter() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <Rss size={14} className="text-green-600"/>
+                <Rss size={14} className="text-[#AACC00]"/>
                 <h2 className="text-sm font-bold text-gray-900">RSS Intelligence Feeds</h2>
                 <span className="text-xs text-gray-400 ml-1">— feed into CAIRO context pipeline + hourly intel cron</span>
               </div>
@@ -1838,11 +1838,11 @@ export default function AdminControlCenter() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <Database size={14} className="text-blue-600"/>
+                <Database size={14} className="text-[#6EA8C8]"/>
                 <h2 className="text-sm font-bold text-gray-900">Structured Data Connectors</h2>
                 <span className="text-xs text-gray-400 ml-1">— API/structured feeds into intel cron</span>
               </div>
-              <Link to="/intel-feeds" className="flex items-center gap-1.5 text-xs text-[#0118A1] font-medium hover:underline">
+              <Link to="/intel-feeds" className="flex items-center gap-1.5 text-xs text-[#AACC00] font-medium hover:underline">
                 Full manager <ExternalLink size={12}/>
               </Link>
             </div>
@@ -1881,8 +1881,8 @@ export default function AdminControlCenter() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Pill label={f.status==='active'?'Live':'Inactive'} color={f.status==='active'?'green':'gray'}/>
-                  <button onClick={()=>setEditFeed(f)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#0118A1] hover:bg-blue-50 transition-colors"><Pencil size={13}/></button>
-                  <button onClick={()=>deleteFeed(f.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={13}/></button>
+                  <button onClick={()=>setEditFeed(f)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#AACC00] hover:bg-blue-50 transition-colors"><Pencil size={13}/></button>
+                  <button onClick={()=>deleteFeed(f.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#EF7474] hover:bg-[rgba(138,46,46,0.12)] transition-colors"><Trash2 size={13}/></button>
                 </div>
               </div>
             ))}
@@ -1933,8 +1933,8 @@ export default function AdminControlCenter() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={()=>setEditPolicy(p)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#0118A1] hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
-                          <button onClick={()=>deletePolicy(p.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={14}/></button>
+                          <button onClick={()=>setEditPolicy(p)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#AACC00] hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
+                          <button onClick={()=>deletePolicy(p.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#EF7474] hover:bg-[rgba(138,46,46,0.12)] transition-colors"><Trash2 size={14}/></button>
                         </div>
                       </td>
                     </tr>
@@ -1946,7 +1946,7 @@ export default function AdminControlCenter() {
           </div>
 
           <div className="flex justify-end">
-            <Link to="/policies" className="flex items-center gap-1.5 text-sm font-medium text-[#0118A1] hover:underline">
+            <Link to="/policies" className="flex items-center gap-1.5 text-sm font-medium text-[#AACC00] hover:underline">
               View policy library (user view) <ExternalLink size={13}/>
             </Link>
           </div>
@@ -1999,8 +1999,8 @@ export default function AdminControlCenter() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={()=>setEditModule(m)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#0118A1] hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
-                          <button onClick={()=>deleteModule(m.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={14}/></button>
+                          <button onClick={()=>setEditModule(m)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#AACC00] hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
+                          <button onClick={()=>deleteModule(m.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#EF7474] hover:bg-[rgba(138,46,46,0.12)] transition-colors"><Trash2 size={14}/></button>
                         </div>
                       </td>
                     </tr>
@@ -2012,7 +2012,7 @@ export default function AdminControlCenter() {
           </div>
 
           <div className="flex justify-end">
-            <Link to="/training" className="flex items-center gap-1.5 text-sm font-medium text-[#0118A1] hover:underline">
+            <Link to="/training" className="flex items-center gap-1.5 text-sm font-medium text-[#AACC00] hover:underline">
               View training (user view) <ExternalLink size={13}/>
             </Link>
           </div>
@@ -2023,18 +2023,18 @@ export default function AdminControlCenter() {
       {tab === 'audit' && (() => {
         const ACTION_COLORS = {
           'trip.approved':  'bg-blue-100 text-blue-700 border-blue-200',
-          'trip.rejected':  'bg-red-100 text-red-700 border-red-200',
+          'trip.rejected':  'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',
           'trip.submitted': 'bg-indigo-100 text-indigo-700 border-indigo-200',
-          'user.deleted':   'bg-red-100 text-red-700 border-red-200',
+          'user.deleted':   'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',
           'user.role_changed': 'bg-purple-100 text-purple-700 border-purple-200',
           'user.org_assigned': 'bg-violet-100 text-violet-700 border-violet-200',
-          'org.approved':   'bg-green-100 text-green-700 border-green-200',
-          'org.rejected':   'bg-red-100 text-red-700 border-red-200',
-          'org.deleted':    'bg-red-100 text-red-700 border-red-200',
+          'org.approved':   'bg-green-100 text-[#AACC00] border-[rgba(170,204,0,0.25)]',
+          'org.rejected':   'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',
+          'org.deleted':    'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',
           'checkin.submitted': 'bg-emerald-100 text-emerald-700 border-emerald-200',
           'sos.triggered':  'bg-red-100 text-red-800 border-red-300',
-          'policy.created': 'bg-amber-100 text-amber-700 border-amber-200',
-          'policy.deleted': 'bg-amber-100 text-amber-700 border-amber-200',
+          'policy.created': 'bg-amber-100 text-[#D4A64A] border-[rgba(144,106,37,0.30)]',
+          'policy.deleted': 'bg-amber-100 text-[#D4A64A] border-[rgba(144,106,37,0.30)]',
           'training.completed': 'bg-teal-100 text-teal-700 border-teal-200',
         }
 
@@ -2081,17 +2081,17 @@ export default function AdminControlCenter() {
                   <input
                     value={auditSearch} onChange={e => setAuditSearch(e.target.value)}
                     placeholder="Search actor, action, description…"
-                    className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-[#0118A1]"
+                    className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]"
                   />
                 </div>
                 <select value={auditAction} onChange={e => setAuditAction(e.target.value)}
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]">
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]">
                   {ACTION_CATEGORIES.map(c => (
                     <option key={c} value={c}>{c === 'all' ? 'All actions' : c.charAt(0).toUpperCase() + c.slice(1)}</option>
                   ))}
                 </select>
                 <button onClick={loadAuditLogs} disabled={auditLoading}
-                  className="flex items-center gap-1.5 text-sm text-[#0118A1] font-medium hover:underline disabled:opacity-40">
+                  className="flex items-center gap-1.5 text-sm text-[#AACC00] font-medium hover:underline disabled:opacity-40">
                   <RefreshCw size={13} className={auditLoading ? 'animate-spin' : ''} />Refresh
                 </button>
               </div>
@@ -2204,7 +2204,7 @@ export default function AdminControlCenter() {
           <p className="text-xs text-gray-400 text-center">
             If the platform does not load here, open it directly at{' '}
             <a href="https://risk360.co" target="_blank" rel="noopener noreferrer"
-              className="text-[#0118A1] hover:underline">risk360.co</a>
+              className="text-[#AACC00] hover:underline">risk360.co</a>
             {' '}(some browsers block cross-origin iframes).
           </p>
         </div>
@@ -2263,7 +2263,7 @@ export default function AdminControlCenter() {
                     <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{m.desc}</p>
                   </div>
                   <div className="mt-auto">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-[#D4A64A] border border-[rgba(144,106,37,0.30)]">
                       Coming Soon
                     </span>
                   </div>

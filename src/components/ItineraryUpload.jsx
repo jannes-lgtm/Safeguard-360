@@ -22,8 +22,8 @@ function fileToText(file) {
 
 function RiskBadge({ level }) {
   const colours = {
-    Critical: 'bg-red-100 text-red-700',
-    High: 'bg-amber-100 text-amber-700',
+    Critical: 'bg-red-100 text-[#EF7474]',
+    High: 'bg-amber-100 text-[#D4A64A]',
     Medium: 'bg-yellow-50 text-yellow-700',
   }
   return (
@@ -197,7 +197,7 @@ export default function ItineraryUpload({ onClose, onSaved, userId, session, pro
 
   const canParse = mode === 'paste' ? pasteText.trim().length > 0 : !!file
 
-  const inputClass = 'w-full border border-gray-300 rounded-[6px] px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent'
+  const inputClass = 'w-full border border-gray-300 rounded-[6px] px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent'
   const labelClass = 'block text-xs font-medium text-gray-600 mb-0.5'
 
   return (
@@ -233,7 +233,7 @@ export default function ItineraryUpload({ onClose, onSaved, userId, session, pro
         {/* Parsing spinner */}
         {!success && parsing && (
           <div className="flex flex-col items-center justify-center py-16 gap-4">
-            <div className="w-10 h-10 border-4 border-[#0118A1] border-t-transparent rounded-full animate-spin" />
+            <div className="w-10 h-10 border-4 border-[#AACC00] border-t-transparent rounded-full animate-spin" />
             <p className="text-sm text-gray-600 font-medium">Reading your itinerary...</p>
           </div>
         )}
@@ -262,7 +262,7 @@ export default function ItineraryUpload({ onClose, onSaved, userId, session, pro
                     </div>
                     <button
                       onClick={() => removeTrip(idx)}
-                      className="text-xs text-gray-400 hover:text-red-500 shrink-0 transition-colors"
+                      className="text-xs text-gray-400 hover:text-[#EF7474] shrink-0 transition-colors"
                     >
                       ✕ Remove
                     </button>
@@ -369,7 +369,7 @@ export default function ItineraryUpload({ onClose, onSaved, userId, session, pro
                 onClick={() => { setMode('upload'); setParseError('') }}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-[6px] text-sm font-semibold border-2 transition-colors ${
                   mode === 'upload'
-                    ? 'border-[#0118A1] bg-[#0118A1]/5 text-[#0118A1]'
+                    ? 'border-[#AACC00] bg-[#0118A1]/5 text-[#AACC00]'
                     : 'border-gray-200 text-gray-500 hover:border-gray-300'
                 }`}
               >
@@ -379,7 +379,7 @@ export default function ItineraryUpload({ onClose, onSaved, userId, session, pro
                 onClick={() => { setMode('paste'); setParseError('') }}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-[6px] text-sm font-semibold border-2 transition-colors ${
                   mode === 'paste'
-                    ? 'border-[#0118A1] bg-[#0118A1]/5 text-[#0118A1]'
+                    ? 'border-[#AACC00] bg-[#0118A1]/5 text-[#AACC00]'
                     : 'border-gray-200 text-gray-500 hover:border-gray-300'
                 }`}
               >
@@ -396,7 +396,7 @@ export default function ItineraryUpload({ onClose, onSaved, userId, session, pro
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
                   className={`border-2 border-dashed rounded-[8px] p-10 text-center cursor-pointer transition-colors ${
-                    dragOver ? 'border-[#0118A1] bg-[#0118A1]/5' : 'border-gray-300 hover:border-gray-400'
+                    dragOver ? 'border-[#AACC00] bg-[#0118A1]/5' : 'border-gray-300 hover:border-gray-400'
                   }`}
                 >
                   <input
@@ -428,7 +428,7 @@ export default function ItineraryUpload({ onClose, onSaved, userId, session, pro
               <div>
                 <textarea
                   rows={8}
-                  className="w-full border border-gray-300 rounded-[8px] px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent resize-none"
+                  className="w-full border border-gray-300 rounded-[8px] px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent resize-none"
                   placeholder="Paste your itinerary here — email confirmations, travel agent documents, booking confirmations..."
                   value={pasteText}
                   onChange={e => setPasteText(e.target.value)}
@@ -438,7 +438,7 @@ export default function ItineraryUpload({ onClose, onSaved, userId, session, pro
 
             {/* Error */}
             {parseError && (
-              <div className="mt-3 px-4 py-2.5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-[6px]">
+              <div className="mt-3 px-4 py-2.5 bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] text-[#EF7474] text-sm rounded-[6px]">
                 {parseError}
               </div>
             )}

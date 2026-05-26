@@ -45,7 +45,7 @@ function ModuleCard({ mod, completionCount, totalTravellers, onEdit, onDelete })
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-sm font-semibold text-gray-900">{mod.title}</p>
               {mod.required && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-[#D4A64A] border border-[rgba(144,106,37,0.30)]">
                   Required
                 </span>
               )}
@@ -62,11 +62,11 @@ function ModuleCard({ mod, completionCount, totalTravellers, onEdit, onDelete })
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button onClick={() => onEdit(mod)}
-            className="p-1.5 text-gray-400 hover:text-[#0118A1] hover:bg-gray-100 rounded-lg transition-colors">
+            className="p-1.5 text-gray-400 hover:text-[#AACC00] hover:bg-gray-100 rounded-lg transition-colors">
             <Pencil size={13} />
           </button>
           <button onClick={() => onDelete(mod.id)}
-            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+            className="p-1.5 text-gray-400 hover:text-[#EF7474] hover:bg-[rgba(138,46,46,0.12)] rounded-lg transition-colors">
             <Trash2 size={13} />
           </button>
         </div>
@@ -86,7 +86,7 @@ function ModuleCard({ mod, completionCount, totalTravellers, onEdit, onDelete })
 
       {mod.content_url && (
         <a href={mod.content_url} target="_blank" rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 mt-2 text-xs text-[#0118A1] hover:underline font-medium">
+          className="inline-flex items-center gap-1 mt-2 text-xs text-[#AACC00] hover:underline font-medium">
           <LinkIcon size={10} /> View content
         </a>
       )}
@@ -122,7 +122,7 @@ function ModuleModal({ mod, maxOrder, onClose, onSaved, orgId, userId }) {
     else console.error('save module error:', error)
   }
 
-  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20"
   const labelClass = "text-xs font-semibold text-gray-600 block mb-1.5"
 
   return (
@@ -137,7 +137,7 @@ function ModuleModal({ mod, maxOrder, onClose, onSaved, orgId, userId }) {
 
         <div className="px-6 py-5 space-y-4">
           <div>
-            <label className={labelClass}>Module title <span className="text-red-500">*</span></label>
+            <label className={labelClass}>Module title <span className="text-[#EF7474]">*</span></label>
             <input className={inputClass} placeholder="e.g. Company Travel Policy Overview" {...f('title')} />
           </div>
 
@@ -157,7 +157,7 @@ function ModuleModal({ mod, maxOrder, onClose, onSaved, orgId, userId }) {
                   <button key={t.key} onClick={() => setForm(p => ({ ...p, content_type: t.key }))}
                     className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border text-xs font-medium transition-all ${
                       form.content_type === t.key
-                        ? 'border-[#0118A1] bg-[#0118A1]/5 text-[#0118A1]'
+                        ? 'border-[#AACC00] bg-[#0118A1]/5 text-[#AACC00]'
                         : 'border-gray-200 text-gray-500 hover:border-gray-300'
                     }`}>
                     <Icon size={16} />
@@ -254,7 +254,7 @@ function RequestTrainingModal({ orgName, onClose }) {
     onClose()
   }
 
-  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20"
   const labelClass = "text-xs font-semibold text-gray-600 block mb-1.5"
 
   return (
@@ -270,7 +270,7 @@ function RequestTrainingModal({ orgName, onClose }) {
 
         <div className="px-6 py-5 space-y-4">
           <div>
-            <label className={labelClass}>What training do you need? <span className="text-red-500">*</span></label>
+            <label className={labelClass}>What training do you need? <span className="text-[#EF7474]">*</span></label>
             <input className={inputClass} placeholder="e.g. Active Shooter Response Training" {...f('title')} />
           </div>
 
@@ -376,7 +376,7 @@ export default function OrgTraining() {
           </button>
           <button onClick={() => setShowRequestModal(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-colors hover:bg-[#0118A1]/5"
-            style={{ borderColor: BRAND_BLUE, color: DS.green, background: 'white' }}>
+            style={{ borderColor: BRAND_BLUE, color: DS.green, background: DS.surface }}>
             <Mail size={15} /> Request from SafeGuard360
           </button>
           <button onClick={() => setModal('new')}
@@ -424,10 +424,10 @@ export default function OrgTraining() {
         <div className="space-y-4">
           {modules.map(mod => (
             deletingId === mod.id ? (
-              <div key={mod.id} className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
-                <p className="text-sm text-red-700 flex-1">Delete <strong>{mod.title}</strong>?</p>
+              <div key={mod.id} className="bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-xl p-4 flex items-center gap-3">
+                <p className="text-sm text-[#EF7474] flex-1">Delete <strong>{mod.title}</strong>?</p>
                 <button onClick={() => deleteModule(mod.id)}
-                  className="text-xs font-bold text-red-600 hover:text-red-700 border border-red-300 px-3 py-1.5 rounded-lg hover:bg-red-100">
+                  className="text-xs font-bold text-[#EF7474] hover:text-[#EF7474] border border-red-300 px-3 py-1.5 rounded-lg hover:bg-red-100">
                   Delete
                 </button>
                 <button onClick={() => setDeletingId(null)}

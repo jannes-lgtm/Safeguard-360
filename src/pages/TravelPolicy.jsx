@@ -130,7 +130,7 @@ function PolicyDocument({ config }) {
             </thead>
             <tbody>
               <tr className="border-b border-gray-100">
-                <td className="px-3 py-2 font-medium text-green-700">Low</td>
+                <td className="px-3 py-2 font-medium text-[#AACC00]">Low</td>
                 <td className="px-3 py-2">Travel Manager</td>
                 <td className="px-3 py-2">Standard check-in protocol</td>
               </tr>
@@ -145,7 +145,7 @@ function PolicyDocument({ config }) {
                 <td className="px-3 py-2">Security briefing, twice-daily check-ins, emergency plan</td>
               </tr>
               <tr>
-                <td className="px-3 py-2 font-medium text-red-700">Critical</td>
+                <td className="px-3 py-2 font-medium text-[#EF7474]">Critical</td>
                 <td className="px-3 py-2">Executive + Board</td>
                 <td className="px-3 py-2">Full risk assessment, dedicated security support, 24/7 monitoring</td>
               </tr>
@@ -222,7 +222,7 @@ function PolicyDocument({ config }) {
 
         <div className="rounded-xl p-4 mb-3" style={{ background: '#FFF5F5', border: '1px solid #FCA5A5' }}>
           <p className="font-bold text-red-800 mb-2">IN A LIFE-THREATENING EMERGENCY:</p>
-          <ol className="list-decimal list-inside space-y-1 text-red-700">
+          <ol className="list-decimal list-inside space-y-1 text-[#EF7474]">
             <li>Activate the SOS button in SafeGuard360 immediately — this sends your GPS location to the control room</li>
             <li>Call local emergency services (Police / Ambulance / Fire)</li>
             <li>Call the 24/7 Company Emergency Line: <strong><Field value={c.emergency_number} fallback="[Emergency Number]" /></strong></li>
@@ -442,7 +442,7 @@ function SigningModal({ policy, onClose, onSigned }) {
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. Jane Smith"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0118A1]"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]"
             />
           </div>
 
@@ -452,7 +452,7 @@ function SigningModal({ policy, onClose, onSigned }) {
               Location at time of signing <span className="text-gray-400 font-normal">(recommended)</span>
             </label>
             {location ? (
-              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800">
+              <div className="flex items-center gap-2 px-3 py-2 bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] rounded-lg text-xs text-green-800">
                 <MapPin size={12} className="shrink-0" />
                 <span>{location.locationName}</span>
               </div>
@@ -466,7 +466,7 @@ function SigningModal({ policy, onClose, onSigned }) {
                 {locating ? 'Getting location…' : 'Capture my location'}
               </button>
             )}
-            {locError && <p className="text-xs text-amber-600 mt-1">{locError}</p>}
+            {locError && <p className="text-xs text-[#D4A64A] mt-1">{locError}</p>}
           </div>
 
           {/* Timestamp notice */}
@@ -475,7 +475,7 @@ function SigningModal({ policy, onClose, onSigned }) {
           </p>
 
           {error && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+            <div className="flex items-center gap-2 px-3 py-2 bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-lg text-xs text-[#EF7474]">
               <AlertTriangle size={12} className="shrink-0" /> {error}
             </div>
           )}
@@ -526,7 +526,7 @@ function ConfigForm({ config, onSave }) {
     onSave(form)
   }
 
-  const inputClass = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent'
+  const inputClass = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent'
   const labelClass = 'block text-xs font-semibold text-gray-600 mb-1'
 
   return (
@@ -695,21 +695,21 @@ export default function TravelPolicy() {
 
       {/* No org warning */}
       {!policy && !isAdmin && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
+        <div className="bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] rounded-2xl p-6 text-center">
           <FileText size={28} className="mx-auto mb-3 text-amber-400" />
           <p className="text-sm font-semibold text-amber-800">Policy not yet configured</p>
-          <p className="text-xs text-amber-600 mt-1">Ask your company administrator to set up the travel policy.</p>
+          <p className="text-xs text-[#D4A64A] mt-1">Ask your company administrator to set up the travel policy.</p>
         </div>
       )}
 
       {/* Signature status banner (traveller) */}
       {!isAdmin && policy && (
         <div className={`rounded-2xl p-5 mb-6 flex items-center justify-between gap-4 ${
-          signature ? 'bg-green-50 border border-green-200' : 'border-2 border-dashed border-amber-300 bg-amber-50'
+          signature ? 'bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)]' : 'border-2 border-dashed border-amber-300 bg-[rgba(144,106,37,0.12)]'
         }`}>
           <div className="flex items-center gap-3">
             {signature ? (
-              <CheckCircle2 size={22} className="text-green-600 shrink-0" />
+              <CheckCircle2 size={22} className="text-[#AACC00] shrink-0" />
             ) : (
               <AlertTriangle size={22} className="text-amber-500 shrink-0" />
             )}
@@ -717,7 +717,7 @@ export default function TravelPolicy() {
               {signature ? (
                 <>
                   <p className="font-bold text-green-800 text-sm">Policy signed</p>
-                  <p className="text-xs text-green-600 mt-0.5">
+                  <p className="text-xs text-[#AACC00] mt-0.5">
                     Signed as <strong>{signature.signed_name}</strong> on{' '}
                     {new Date(signature.signed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                     {signature.location_name ? ` · ${signature.location_name}` : ''}
@@ -726,7 +726,7 @@ export default function TravelPolicy() {
               ) : (
                 <>
                   <p className="font-bold text-amber-800 text-sm">Policy not yet signed</p>
-                  <p className="text-xs text-amber-600 mt-0.5">Read the policy below and sign before your next trip</p>
+                  <p className="text-xs text-[#D4A64A] mt-0.5">Read the policy below and sign before your next trip</p>
                 </>
               )}
             </div>
@@ -789,7 +789,7 @@ export default function TravelPolicy() {
                       {sig.location_name ? ` · ${sig.location_name}` : ''}
                     </p>
                   </div>
-                  <CheckCircle2 size={16} className="text-green-500 shrink-0" />
+                  <CheckCircle2 size={16} className="text-[#AACC00] shrink-0" />
                 </div>
               ))}
             </div>

@@ -384,7 +384,7 @@ function MobileBottomNav({ role, alertCount }) {
           style={{ boxShadow: '0 0 0 3px rgba(220,38,38,0.15)' }}>
           <AlertOctagon size={22} color="white" strokeWidth={2.5} />
         </div>
-        <span className="text-[9px] font-semibold tracking-wide text-red-500 mt-0.5">SOS</span>
+        <span className="text-[9px] font-semibold tracking-wide text-[#EF7474] mt-0.5">SOS</span>
       </NavLink>
     )
   }

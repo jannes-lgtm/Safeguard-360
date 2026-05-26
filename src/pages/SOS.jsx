@@ -36,9 +36,9 @@ const fmtDate = d => d ? new Date(d).toLocaleString('en-GB', {
 }) : '—'
 
 const STATUS_STYLE = {
-  active:      { label: '🔴 Active',      bg: 'bg-red-50',    border: 'border-red-300',    text: 'text-red-700'    },
-  resolved:    { label: '✅ Resolved',     bg: 'bg-green-50',  border: 'border-green-300',  text: 'text-green-700'  },
-  false_alarm: { label: '⚠️ False Alarm', bg: 'bg-amber-50',  border: 'border-amber-300',  text: 'text-amber-700'  },
+  active:      { label: '🔴 Active',      bg: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-red-300',    text: 'text-[#EF7474]'    },
+  resolved:    { label: '✅ Resolved',     bg: 'bg-[rgba(170,204,0,0.10)]',  border: 'border-green-300',  text: 'text-[#AACC00]'  },
+  false_alarm: { label: '⚠️ False Alarm', bg: 'bg-[rgba(144,106,37,0.12)]',  border: 'border-amber-300',  text: 'text-[#D4A64A]'  },
 }
 
 // ── GPS capture ───────────────────────────────────────────────────────────────
@@ -266,27 +266,27 @@ export default function SOS() {
 
         {/* Sent confirmation */}
         {step === 'sent' ? (
-          <div className="bg-red-50 border-2 border-red-400 rounded-[12px] p-8 text-center mb-6">
-            <AlertOctagon size={40} className="text-red-600 mx-auto mb-3"/>
+          <div className="bg-[rgba(138,46,46,0.12)] border-2 border-red-400 rounded-[12px] p-8 text-center mb-6">
+            <AlertOctagon size={40} className="text-[#EF7474] mx-auto mb-3"/>
             <h2 className="text-xl font-bold text-red-800 mb-2">SOS Alert Sent</h2>
-            <p className="text-sm text-red-600 mb-1">Your emergency team has been notified.</p>
+            <p className="text-sm text-[#EF7474] mb-1">Your emergency team has been notified.</p>
             {pos && (
               <div className="mt-3 flex justify-center">
                 <W3WAddress lat={pos.latitude} lng={pos.longitude} />
               </div>
             )}
-            <button onClick={() => setStep('idle')} className="mt-5 text-sm text-red-600 underline">
+            <button onClick={() => setStep('idle')} className="mt-5 text-sm text-[#EF7474] underline">
               Back
             </button>
           </div>
         ) : step === 'confirm' ? (
           /* Confirm step */
-          <div className="bg-red-50 border-2 border-red-300 rounded-[12px] p-6 mb-6 space-y-4">
+          <div className="bg-[rgba(138,46,46,0.12)] border-2 border-red-300 rounded-[12px] p-6 mb-6 space-y-4">
             <h2 className="text-lg font-bold text-red-800">Confirm SOS Alert</h2>
-            <p className="text-sm text-red-600">This will immediately notify your emergency team with your location.</p>
+            <p className="text-sm text-[#EF7474]">This will immediately notify your emergency team with your location.</p>
 
             {/* GPS status */}
-            <div className={`flex items-center gap-2 text-xs rounded p-2 ${pos ? 'bg-green-50 text-green-700' : gpsError ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-500'}`}>
+            <div className={`flex items-center gap-2 text-xs rounded p-2 ${pos ? 'bg-[rgba(170,204,0,0.10)] text-[#AACC00]' : gpsError ? 'bg-[rgba(144,106,37,0.12)] text-[#D4A64A]' : 'bg-gray-50 text-gray-500'}`}>
               <Navigation size={11}/>
               {gpsLoading ? 'Capturing GPS location…' :
                pos ? `Location captured (±${Math.round(pos.accuracy || 0)}m)` :
@@ -305,10 +305,10 @@ export default function SOS() {
               <label className="text-xs font-medium text-gray-600 mb-1 block">Message (optional)</label>
               <textarea value={message} onChange={e => setMessage(e.target.value)} rows={2}
                 placeholder="Describe your situation, location details, or what help is needed…"
-                className="w-full border border-red-200 rounded-[6px] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none bg-white"/>
+                className="w-full border border-[rgba(138,46,46,0.30)] rounded-[6px] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none bg-white"/>
             </div>
 
-            {error && <p className="text-xs text-red-600">{error}</p>}
+            {error && <p className="text-xs text-[#EF7474]">{error}</p>}
 
             <div className="flex gap-3">
               <button onClick={sendSOS} disabled={step === 'sending'}
@@ -345,7 +345,7 @@ export default function SOS() {
             <div className="space-y-3">
               {emergencyContacts.map((c, i) => (
                 <div key={c.id} className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-[#0118A1]/10 flex items-center justify-center shrink-0 text-[10px] font-bold text-[#0118A1]">
+                  <div className="w-7 h-7 rounded-full bg-[#0118A1]/10 flex items-center justify-center shrink-0 text-[10px] font-bold text-[#AACC00]">
                     {i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -369,14 +369,14 @@ export default function SOS() {
             </div>
             <p className="text-[10px] text-gray-400 mt-3">
               These contacts will be notified immediately when you trigger an SOS. Update them in{' '}
-              <span className="text-[#0118A1] font-medium">My Profile</span>.
+              <span className="text-[#AACC00] font-medium">My Profile</span>.
             </p>
           </div>
         )}
         {emergencyContacts.length === 0 && !loading && (
-          <div className="bg-amber-50 border border-amber-200 rounded-[12px] p-4 mb-6">
+          <div className="bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] rounded-[12px] p-4 mb-6">
             <p className="text-xs font-semibold text-amber-800 mb-1">⚠️ No emergency contacts set</p>
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-[#D4A64A]">
               Add emergency contacts in <span className="font-semibold">My Profile</span> so someone can be notified if you trigger an SOS.
             </p>
           </div>

@@ -8,7 +8,7 @@ import {
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 
-const inputClass = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
+const inputClass = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-white'
 const labelClass = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
 
 const BLANK_CONTACT = { full_name: '', relationship: '', phone: '', email: '' }
@@ -443,7 +443,7 @@ export default function Onboarding() {
                   </div>
                 </div>
                 <div className="p-6 space-y-6">
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                  <div className="bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] rounded-xl p-3 text-xs text-amber-800">
                     These contacts are notified automatically on missed check-ins and SOS events. They will also receive your trip itinerary by email when you log a new trip. No platform account is needed.
                   </div>
 
@@ -457,7 +457,7 @@ export default function Onboarding() {
                         <span className="text-sm font-semibold text-gray-700">
                           {i === 0 ? 'Primary Contact *' : i === 1 ? 'Secondary Contact' : 'Tertiary Contact'}
                         </span>
-                        {i === 0 && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">Required</span>}
+                        {i === 0 && <span className="text-[10px] bg-red-100 text-[#EF7474] px-2 py-0.5 rounded-full font-bold">Required</span>}
                         {i > 0 && <span className="text-[10px] text-gray-400">(optional)</span>}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-8">
@@ -563,7 +563,7 @@ export default function Onboarding() {
           )}
 
           {error && (
-            <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 mt-4">
+            <div className="flex items-center gap-2 px-4 py-3 bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-xl text-sm text-[#EF7474] mt-4">
               <AlertTriangle size={14} className="shrink-0" />{error}
             </div>
           )}
@@ -597,7 +597,7 @@ export default function Onboarding() {
 
 // ── Shared signing step wrapper ───────────────────────────────────────────────
 function SigningStep({ scrollRef, scrolled, setScrolled, signedName, setSignedName, location, locating, locError, getLocation, title, subtitle, children }) {
-  const inputClass  = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
+  const inputClass  = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-white'
   const labelClass  = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -632,7 +632,7 @@ function SigningStep({ scrollRef, scrolled, setScrolled, signedName, setSignedNa
         <div>
           <label className={labelClass}>Location at signing <span className="font-normal normal-case text-gray-400">(recommended)</span></label>
           {location ? (
-            <div className="flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-800">
+            <div className="flex items-center gap-2 px-4 py-3 bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] rounded-xl text-xs text-green-800">
               <MapPin size={12} className="shrink-0" />{location.locationName}
             </div>
           ) : (
@@ -642,7 +642,7 @@ function SigningStep({ scrollRef, scrolled, setScrolled, signedName, setSignedNa
               {locating ? 'Getting location…' : 'Capture my current location'}
             </button>
           )}
-          {locError && <p className="text-xs text-amber-600 mt-1">{locError}</p>}
+          {locError && <p className="text-xs text-[#D4A64A] mt-1">{locError}</p>}
         </div>
         <p className="text-[11px] text-gray-400">
           Signing timestamp: <strong className="text-gray-600">

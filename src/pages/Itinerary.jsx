@@ -15,6 +15,7 @@ import { supabase } from '../lib/supabase'
 import { toIcao, isKnownIata } from '../lib/airlineCodes'
 import { resolveCountry } from '../lib/cityToCountry'
 import { sendAssistantMessage } from '../services/cairoService'
+import { DS } from '../lib/ds'
 
 const HIGH_RISK_CRITICAL = ['lagos', 'kinshasa', 'mogadishu', 'kabul', 'juba', 'khartoum', 'tripoli', 'baghdad']
 const HIGH_RISK_HIGH     = ['nairobi', 'kampala', 'harare', 'lusaka', 'moscow', 'kyiv', 'tehran', 'karachi']
@@ -62,13 +63,15 @@ function mdToHtml(text) {
 }
 
 const STATUS_STYLE = {
-  Active:    { bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE', dot: '#3B82F6' },
-  Upcoming:  { bg: '#F0FDF4', text: '#15803D', border: '#BBF7D0', dot: '#22C55E' },
-  Completed: { bg: '#F9FAFB', text: '#6B7280', border: '#E5E7EB', dot: '#9CA3AF' },
+  Active:    { bg: 'rgba(58,88,112,0.12)',   text: '#6EA8C8', border: 'rgba(58,88,112,0.30)',   dot: '#4A6E8A'  },
+  Upcoming:  { bg: 'rgba(170,204,0,0.10)',   text: '#AACC00', border: 'rgba(170,204,0,0.25)',   dot: '#AACC00'  },
+  Completed: { bg: 'rgba(255,255,255,0.04)', text: '#6E7480', border: 'rgba(255,255,255,0.08)', dot: '#3C4050'  },
 }
 
-const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
-const labelCls = 'block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide'
+const inputCls = 'w-full border rounded-[6px] px-4 py-3 text-sm focus:outline-none'
+const inputStyle = { background: DS.surface, borderColor: 'rgba(255,255,255,0.09)', color: DS.text }
+const labelCls = 'block text-[10px] font-bold mb-1.5 uppercase tracking-widest'
+const labelStyle = { color: DS.textSub }
 
 export default function Itinerary() {
   const navigate                      = useNavigate()
@@ -380,12 +383,13 @@ export default function Itinerary() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowUpload(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-[#0118A1] text-[#0118A1] hover:bg-[#EEF1FF] transition-colors">
+            className="flex items-center gap-2 px-4 py-2.5 rounded-[6px] text-sm font-semibold transition-colors"
+            style={{ border: `1px solid ${DS.borderHi}`, color: DS.textSub, background: DS.surface }}>
             <Upload size={14} /> Upload
           </button>
           <button onClick={openNewTrip}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors"
-            style={{ background: '#0118A1' }}>
+            className="flex items-center gap-2 px-4 py-2.5 rounded-[6px] text-sm font-semibold transition-colors"
+            style={{ background: DS.green, color: DS.bg }}>
             <Plus size={14} /> Plan a trip
           </button>
         </div>
@@ -393,17 +397,18 @@ export default function Itinerary() {
 
       {/* Toast */}
       {toast && (
-        <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-800 rounded-2xl text-sm flex items-center gap-2">
+        <div className="mb-4 px-4 py-3 rounded-[6px] text-sm flex items-center gap-2"
+          style={{ background: DS.greenDim, border: `1px solid rgba(170,204,0,0.25)`, color: DS.green }}>
           <CheckCircle2 size={15} /> {toast}
         </div>
       )}
 
       {/* ── Trip planner panel ── */}
       {showForm && (
-        <div id="trip-form" className="mb-6 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div id="trip-form" className="mb-6 rounded-[8px] overflow-hidden" style={{ background: DS.surface, border: `1px solid ${DS.border}` }}>
 
           {/* Panel header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${DS.border}` }}>
             <div>
               <h2 className="text-sm font-bold text-gray-900">
                 {editingId ? 'Edit trip' : 'Plan a new trip'}
@@ -414,13 +419,15 @@ export default function Itinerary() {
             </div>
             <div className="flex items-center gap-3">
               {!editingId && (
-                <div className="flex items-center bg-gray-100 rounded-xl p-1">
+                <div className="flex items-center rounded-[6px] p-1" style={{ background: DS.bgAlt }}>
                   <button onClick={() => setPlanMode('ai')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${planMode === 'ai' ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'}`}>
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-semibold transition-all"
+                    style={planMode === 'ai' ? { background: DS.green, color: DS.bg } : { color: DS.textSub }}>
                     <Sparkles size={11} /> AI Planner
                   </button>
                   <button onClick={() => setPlanMode('manual')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${planMode === 'manual' ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'}`}>
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-semibold transition-all"
+                    style={planMode === 'manual' ? { background: DS.green, color: DS.bg } : { color: DS.textSub }}>
                     <Edit3 size={11} /> Manual
                   </button>
                 </div>
@@ -433,7 +440,7 @@ export default function Itinerary() {
 
           {/* ── AI Planner ── */}
           {planMode === 'ai' && !editingId && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
+            <div className="grid grid-cols-1 lg:grid-cols-2" style={{ borderTop: `1px solid ${DS.border}` }}>
 
               {/* Chat */}
               <div className="flex flex-col" style={{ height: 440 }}>
@@ -456,7 +463,7 @@ export default function Itinerary() {
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ background: '#F8F9FC' }}>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ background: DS.bgAlt }}>
                   {aiMessages.map((m, i) => (
                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                       {m.role === 'assistant' && (
@@ -466,11 +473,12 @@ export default function Itinerary() {
                         </div>
                       )}
                       {m.role === 'assistant' ? (
-                        <div className="max-w-[80%] px-3.5 py-2.5 rounded-2xl rounded-tl-sm bg-white border border-gray-100 shadow-sm text-xs text-gray-800 leading-relaxed"
+                        <div className="max-w-[80%] px-3.5 py-2.5 rounded-[8px] text-xs leading-relaxed"
+                          style={{ background: DS.surfaceHi, border: `1px solid ${DS.border}`, color: DS.text }}
                           dangerouslySetInnerHTML={{ __html: `<p style="margin:0">${mdToHtml(m.text)}</p>` }} />
                       ) : (
-                        <div className="max-w-[80%] px-3.5 py-2.5 rounded-2xl rounded-tr-sm text-xs text-white leading-relaxed"
-                          style={{ background: '#0118A1' }}>
+                        <div className="max-w-[80%] px-3.5 py-2.5 rounded-[8px] text-xs leading-relaxed"
+                          style={{ background: DS.surfaceHi, border: `1px solid ${DS.borderHi}`, color: DS.text }}>
                           {m.text}
                         </div>
                       )}
@@ -482,7 +490,7 @@ export default function Itinerary() {
                         style={{ background: 'rgba(170,204,0,0.12)', border: '1px solid rgba(170,204,0,0.2)' }}>
                         <Compass size={10} color="#AACC00" />
                       </div>
-                      <div className="px-3.5 py-2.5 rounded-2xl rounded-tl-sm bg-white border border-gray-100 shadow-sm flex items-center gap-1 h-9">
+                      <div className="px-3.5 py-2.5 rounded-[8px] flex items-center gap-1 h-9" style={{ background: DS.surfaceHi, border: `1px solid ${DS.border}` }}>
                         <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                         <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                         <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -493,10 +501,11 @@ export default function Itinerary() {
                 </div>
 
                 {/* Input */}
-                <div className="p-3 border-t border-gray-100 bg-white shrink-0">
+                <div className="p-3 shrink-0" style={{ borderTop: `1px solid ${DS.border}`, background: DS.surface }}>
                   <div className="flex items-center gap-2">
                     <input
-                      className="flex-1 border border-gray-200 rounded-xl px-3.5 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent"
+                      className="flex-1 rounded-[6px] px-3.5 py-2 text-sm focus:outline-none"
+                      style={{ background: DS.bgAlt, border: `1px solid rgba(255,255,255,0.09)`, color: DS.text }}
                       placeholder="Type your answer…"
                       value={aiInput}
                       onChange={e => setAiInput(e.target.value)}
@@ -505,7 +514,7 @@ export default function Itinerary() {
                     />
                     <button onClick={sendToAI} disabled={!aiInput.trim() || aiThinking}
                       className="w-9 h-9 rounded-xl flex items-center justify-center transition-all disabled:opacity-40"
-                      style={{ background: '#0118A1' }}>
+                      style={{ background: DS.green }}>
                       <Send size={14} color="white" />
                     </button>
                   </div>
@@ -513,7 +522,7 @@ export default function Itinerary() {
               </div>
 
               {/* Detected fields + submit */}
-              <div className="flex flex-col p-5 bg-white" style={{ minHeight: 440 }}>
+              <div className="flex flex-col p-5" style={{ background: DS.surface, minHeight: 440 }}>
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Detected trip details</p>
                   {Object.keys(detectedFields).length > 0 && (
@@ -524,8 +533,8 @@ export default function Itinerary() {
 
                 {Object.keys(detectedFields).length === 0 ? (
                   <div className="flex-1 flex flex-col items-center justify-center text-center py-6">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: '#EEF1FF' }}>
-                      <MapPin size={20} color="#0118A1" />
+                    <div className="w-12 h-12 rounded-[8px] flex items-center justify-center mb-3" style={{ background: DS.greenDim }}>
+                      <MapPin size={20} color={DS.green} />
                     </div>
                     <p className="text-sm font-semibold text-gray-400">Chat with the AI planner</p>
                     <p className="text-xs text-gray-300 mt-1">Trip details will appear here as you chat</p>
@@ -540,8 +549,8 @@ export default function Itinerary() {
                           <span className="text-xs font-semibold text-gray-400 w-20 shrink-0">{label}</span>
                           {val ? (
                             <>
-                              <span className="text-xs font-semibold px-2.5 py-1 rounded-lg" style={{ background: '#EEF1FF', color: '#0118A1' }}>{val}</span>
-                              {required && <CheckCircle2 size={12} className="text-green-500 shrink-0 ml-auto" />}
+                              <span className="text-xs font-semibold px-2.5 py-1 rounded-lg" style={{ background: DS.greenDim, color: DS.green }}>{val}</span>
+                              {required && <CheckCircle2 size={12} className="text-[#AACC00] shrink-0 ml-auto" />}
                             </>
                           ) : (
                             <span className="text-xs italic text-gray-200">{required ? 'Required' : 'Optional'}</span>
@@ -554,7 +563,7 @@ export default function Itinerary() {
 
                 {/* Check-in frequency for solo */}
                 {profile?.role === 'solo' && Object.keys(detectedFields).length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
+                  <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${DS.border}` }}>
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Check-in frequency</p>
                     <div className="flex flex-wrap gap-1.5">
                       {[{ label: 'Daily', v: 1 }, { label: 'Every 2 days', v: 2 }, { label: 'Every 3 days', v: 3 }, { label: 'Weekly', v: 7 }].map(opt => (
@@ -562,8 +571,8 @@ export default function Itinerary() {
                           onClick={() => setForm(p => ({ ...p, checkin_interval_days: opt.v }))}
                           className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
                           style={form.checkin_interval_days === opt.v
-                            ? { background: '#0118A1', color: '#fff', borderColor: '#0118A1' }
-                            : { background: '#fff', color: '#6B7280', borderColor: '#E5E7EB' }}>
+                            ? { background: DS.green, color: '#fff', borderColor: DS.green }
+                            : { background: DS.surface, color: '#6B7280', borderColor: '#E5E7EB' }}>
                           {opt.label}
                         </button>
                       ))}
@@ -572,14 +581,14 @@ export default function Itinerary() {
                 )}
 
                 {/* Submit */}
-                <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${DS.border}` }}>
                   {aiReady ? (
                     <>
                       <button onClick={handleSubmit} disabled={submitting}
                         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-60"
-                        style={{ background: '#AACC00', color: '#0118A1' }}>
+                        style={{ background: '#AACC00', color: DS.bg }}>
                         {submitting
-                          ? <><div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" />Saving…</>
+                          ? <><div className="w-4 h-4 border-2 border-[#AACC00] border-t-transparent rounded-full animate-spin" />Saving…</>
                           : <><CheckCircle2 size={15} />{profile?.role === 'solo' ? 'Save trip' : 'Submit for approval'}</>}
                       </button>
                       {/* Risk Advisory CTA */}
@@ -608,7 +617,7 @@ export default function Itinerary() {
                       </button>
                     </>
                   ) : (
-                    <div className="w-full py-3 rounded-xl text-xs text-gray-400 text-center border border-dashed border-gray-200 bg-gray-50">
+                    <div className="w-full py-3 rounded-[6px] text-xs text-center border border-dashed" style={{ color: DS.textSub, borderColor: DS.border, background: DS.bgAlt }}>
                       {Object.keys(detectedFields).length === 0
                         ? 'Tell the AI about your trip to get started'
                         : `Still need: ${REQUIRED_FIELDS.filter(k => !detectedFields[k]).map(k => FIELD_LABELS[k]).join(', ')}`}
@@ -617,7 +626,7 @@ export default function Itinerary() {
                   {Object.keys(detectedFields).length > 0 && !aiReady && (
                     <button onClick={() => setPlanMode('manual')}
                       className="w-full mt-2 text-xs py-1 transition-colors hover:underline"
-                      style={{ color: '#0118A1' }}>
+                      style={{ color: DS.green }}>
                       Switch to manual entry →
                     </button>
                   )}
@@ -630,10 +639,11 @@ export default function Itinerary() {
           {(planMode === 'manual' || editingId) && (
             <div className="p-6">
               {!editingId && (
-                <div className="flex gap-1 mb-5 bg-gray-100 rounded-xl p-1 w-fit">
+                <div className="flex gap-1 mb-5 rounded-[6px] p-1 w-fit" style={{ background: DS.bgAlt }}>
                   {['Flight', 'Hotel', 'Meeting', 'Ground transport'].map(tab => (
                     <button key={tab} onClick={() => setActiveTab(tab)}
-                      className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeTab === tab ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'}`}>
+                      className="px-4 py-1.5 rounded-[4px] text-xs font-semibold transition-all"
+                      style={activeTab === tab ? { background: DS.green, color: DS.bg } : { color: DS.textSub }}>
                       {tab}
                     </button>
                   ))}
@@ -652,7 +662,7 @@ export default function Itinerary() {
                       <label className={labelCls}>Flight number</label>
                       <input className={inputCls} placeholder="e.g. BA001 or BAW001" {...f('flight_number')} />
                       {form.flight_number && isKnownIata(form.flight_number) && (
-                        <p className="mt-1 text-xs text-blue-600">Will track as ICAO <strong>{toIcao(form.flight_number)}</strong></p>
+                        <p className="mt-1 text-xs text-[#6EA8C8]">Will track as ICAO <strong>{toIcao(form.flight_number)}</strong></p>
                       )}
                     </div>
                     <div>
@@ -708,8 +718,8 @@ export default function Itinerary() {
                               onClick={() => setForm(p => ({ ...p, checkin_interval_days: opt.v }))}
                               className="px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors"
                               style={form.checkin_interval_days === opt.v
-                                ? { background: '#0118A1', color: '#fff', borderColor: '#0118A1' }
-                                : { background: '#fff', color: '#6B7280', borderColor: '#E5E7EB' }}>
+                                ? { background: DS.green, color: '#fff', borderColor: DS.green }
+                                : { background: DS.surface, color: '#6B7280', borderColor: '#E5E7EB' }}>
                               {opt.label}
                             </button>
                           ))}
@@ -805,9 +815,9 @@ export default function Itinerary() {
                 <div className="mt-5 flex items-center gap-3">
                   <button type="submit" disabled={submitting}
                     className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-60"
-                    style={{ background: '#AACC00', color: '#0118A1' }}>
+                    style={{ background: '#AACC00', color: DS.bg }}>
                     {submitting
-                      ? <><div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" />Saving…</>
+                      ? <><div className="w-4 h-4 border-2 border-[#AACC00] border-t-transparent rounded-full animate-spin" />Saving…</>
                       : editingId ? 'Update trip' : profile?.role === 'solo' ? 'Save trip' : 'Submit for approval'}
                   </button>
                   <button type="button" onClick={resetPanel} className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
@@ -821,7 +831,7 @@ export default function Itinerary() {
       )}
 
       {/* ── Trip list ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="rounded-[8px] p-5" style={{ background: DS.surface, border: `1px solid ${DS.border}` }}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-bold text-gray-900">Your trips</h2>
           <span className="text-xs text-gray-400">{trips.length} trip{trips.length !== 1 ? 's' : ''}</span>
@@ -833,19 +843,19 @@ export default function Itinerary() {
           </div>
         ) : loadError ? (
           <div className="flex items-center gap-2 py-4">
-            <span className="text-sm text-red-600">{loadError}</span>
-            <button onClick={loadTrips} className="text-sm font-semibold hover:underline" style={{ color: '#0118A1' }}>Retry</button>
+            <span className="text-sm text-[#EF7474]">{loadError}</span>
+            <button onClick={loadTrips} className="text-sm font-semibold hover:underline" style={{ color: DS.green }}>Retry</button>
           </div>
         ) : trips.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-14 text-center">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background: '#EEF1FF' }}>
-              <Plane size={22} color="#0118A1" />
+            <div className="w-14 h-14 rounded-[8px] flex items-center justify-center mb-3" style={{ background: DS.greenDim }}>
+              <Plane size={22} color={DS.green} />
             </div>
             <p className="text-sm font-semibold text-gray-500">No trips yet</p>
             <p className="text-xs text-gray-400 mt-1 mb-4">Click "Plan a trip" to add your first one</p>
             <button onClick={openNewTrip}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white"
-              style={{ background: '#0118A1' }}>
+              style={{ background: DS.green }}>
               <Plus size={12} /> Plan a trip
             </button>
           </div>
@@ -854,11 +864,11 @@ export default function Itinerary() {
             {trips.map(trip => {
               const sc = STATUS_STYLE[trip.status] || STATUS_STYLE.Completed
               return (
-                <div key={trip.id} className="rounded-2xl border border-gray-100 overflow-hidden">
+                <div key={trip.id} className="rounded-[6px] overflow-hidden" style={{ border: `1px solid ${DS.border}` }}>
                   {/* Risk banner */}
                   {(trip.risk_level === 'Critical' || trip.risk_level === 'High') && (
                     <div className="flex items-center gap-2 px-4 py-2 text-xs font-semibold"
-                      style={{ background: '#FFF7ED', borderBottom: '1px solid #FED7AA', color: '#92400E' }}>
+                      style={{ background: DS.amberDim, borderBottom: `1px solid ${DS.amber}`, color: DS.amberText }}>
                       <AlertTriangle size={12} /> Elevated risk destination — check Alerts for details
                     </div>
                   )}
@@ -877,13 +887,13 @@ export default function Itinerary() {
                               {trip.status}
                             </span>
                             {trip.approval_required !== false && trip.approval_status === 'pending' && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700">⏳ Pending approval</span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] text-[#D4A64A]">⏳ Pending approval</span>
                             )}
                             {trip.approval_required !== false && trip.approval_status === 'approved' && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 border border-green-200 text-green-700">✓ Approved</span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] text-[#AACC00]">✓ Approved</span>
                             )}
                             {trip.approval_status === 'rejected' && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700">✗ Rejected</span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] text-[#EF7474]">✗ Rejected</span>
                             )}
                           </div>
                           <div className="flex items-center gap-1.5 text-xs text-gray-500">
@@ -911,26 +921,26 @@ export default function Itinerary() {
                         )}
                         {trip.insurance_insurer && (
                           <div className="flex items-center gap-1 text-xs text-gray-400" title={`Policy: ${trip.insurance_policy_number || '—'} | Emergency: ${trip.insurance_emergency_number || '—'}`}>
-                            <Shield size={10} className="text-green-500" />
-                            <span className="text-green-600 font-medium">{trip.insurance_insurer}</span>
+                            <Shield size={10} className="text-[#AACC00]" />
+                            <span className="text-[#AACC00] font-medium">{trip.insurance_insurer}</span>
                             {trip.insurance_policy_number && <span className="text-gray-300">· {trip.insurance_policy_number}</span>}
                           </div>
                         )}
                         <div className="flex items-center gap-2 mt-1">
                           <button onClick={() => startEdit(trip)}
-                            className="text-xs text-gray-400 hover:text-[#0118A1] transition-colors flex items-center gap-1">
+                            className="text-xs text-gray-400 hover:text-[#AACC00] transition-colors flex items-center gap-1">
                             <Pencil size={10} /> Edit
                           </button>
                           <span className="text-gray-200">|</span>
                           {deletingId === trip.id ? (
                             <span className="flex items-center gap-1.5 text-xs">
-                              <span className="text-red-500 font-semibold">Delete?</span>
-                              <button onClick={() => handleDelete(trip.id)} className="text-red-500 font-bold underline text-xs">Yes</button>
+                              <span className="text-[#EF7474] font-semibold">Delete?</span>
+                              <button onClick={() => handleDelete(trip.id)} className="text-[#EF7474] font-bold underline text-xs">Yes</button>
                               <button onClick={() => setDeletingId(null)} className="text-gray-400 underline text-xs">No</button>
                             </span>
                           ) : (
                             <button onClick={() => setDeletingId(trip.id)}
-                              className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1">
+                              className="text-xs text-gray-400 hover:text-[#EF7474] transition-colors flex items-center gap-1">
                               <Trash2 size={10} /> Delete
                             </button>
                           )}
@@ -940,7 +950,7 @@ export default function Itinerary() {
 
                     {/* Flight + country risk */}
                     {(trip.flight_number || trip.arrival_city) && (
-                      <div className="pt-3 border-t border-gray-100 flex flex-col gap-1.5">
+                      <div className="pt-3 flex flex-col gap-1.5" style={{ borderTop: `1px solid ${DS.border}` }}>
                         {trip.flight_number && <FlightStatus flightNumber={trip.flight_number} tripName={trip.trip_name} profile={profile} />}
                         {trip.arrival_city && resolveCountry(trip.arrival_city) && (
                           <CountryRisk country={resolveCountry(trip.arrival_city)} tripName={trip.trip_name} profile={profile} />
@@ -950,8 +960,8 @@ export default function Itinerary() {
 
                     {/* Rejection reason */}
                     {trip.approval_status === 'rejected' && trip.approval_notes && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <div className="px-3 py-2 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700">
+                      <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${DS.border}` }}>
+                        <div className="px-3 py-2 rounded-[6px] text-xs" style={{ background: 'rgba(138,46,46,0.12)', border: '1px solid rgba(138,46,46,0.30)', color: '#EF7474' }}>
                           <span className="font-bold">Rejected: </span>{trip.approval_notes}
                         </div>
                       </div>
@@ -959,29 +969,33 @@ export default function Itinerary() {
 
                     {/* Pre-travel training */}
                     {trip.approval_status === 'approved' && trainingMap[trip.id]?.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${DS.border}` }}>
                         <button onClick={() => setExpandedTraining(p => ({ ...p, [trip.id]: !p[trip.id] }))}
-                          className="w-full flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 hover:text-gray-600">
+                          className="w-full flex items-center justify-between text-[10px] font-bold uppercase tracking-wider mb-2"
+                          style={{ color: DS.textSub }}>
                           <span className="flex items-center gap-1.5">
                             <BookOpen size={10} />
                             Pre-travel Training ({trainingMap[trip.id].filter(a => a.completed).length}/{trainingMap[trip.id].length})
                           </span>
                           {expandedTraining[trip.id] ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                         </button>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5 mb-2">
+                        <div className="w-full rounded-full h-1.5 mb-2" style={{ background: DS.bgAlt }}>
                           <div className="h-1.5 rounded-full transition-all" style={{
                             width: `${Math.round(trainingMap[trip.id].filter(a => a.completed).length / trainingMap[trip.id].length * 100)}%`,
-                            background: trainingMap[trip.id].every(a => a.completed) ? '#AACC00' : '#0118A1',
+                            background: trainingMap[trip.id].every(a => a.completed) ? '#AACC00' : DS.steelAlt,
                           }} />
                         </div>
                         {expandedTraining[trip.id] && (
                           <div className="space-y-1">
                             {trainingMap[trip.id].map(mod => (
-                              <div key={mod.id} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs ${mod.completed ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'}`}>
-                                {mod.completed ? <CheckCircle2 size={11} className="text-green-500 shrink-0" /> : <Lock size={11} className="text-gray-300 shrink-0" />}
-                                <span className={mod.completed ? 'line-through text-green-600' : ''}>{mod.module_name}</span>
+                              <div key={mod.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-[6px] text-xs"
+                                style={mod.completed
+                                  ? { background: 'rgba(170,204,0,0.10)', color: '#AACC00' }
+                                  : { background: DS.bgAlt, color: DS.textSub }}>
+                                {mod.completed ? <CheckCircle2 size={11} className="text-[#AACC00] shrink-0" /> : <Lock size={11} className="text-gray-300 shrink-0" />}
+                                <span className={mod.completed ? 'line-through text-[#AACC00]' : ''}>{mod.module_name}</span>
                                 {!mod.completed && mod.required_before_travel && (
-                                  <span className="ml-auto text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-lg">Required</span>
+                                  <span className="ml-auto text-[9px] font-bold text-[#D4A64A] bg-[rgba(144,106,37,0.12)] px-1.5 py-0.5 rounded-[4px]">Required</span>
                                 )}
                               </div>
                             ))}
@@ -992,24 +1006,28 @@ export default function Itinerary() {
 
                     {/* Trip alerts */}
                     {tripAlertMap[trip.id]?.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">
+                      <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${DS.border}` }}>
+                        <p className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: DS.textSub }}>
                           Trip Alerts ({tripAlertMap[trip.id].length})
                         </p>
                         <div className="space-y-1">
                           {tripAlertMap[trip.id].slice(0, 3).map(ta => (
-                            <div key={ta.id} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs ${
-                              ta.severity === 'Critical' ? 'bg-red-50 border-l-2 border-red-400' :
-                              ta.severity === 'High'     ? 'bg-amber-50 border-l-2 border-amber-400' :
-                              'bg-yellow-50 border-l-2 border-yellow-300'
-                            }`}>
+                            <div key={ta.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-[6px] text-xs"
+                              style={ta.severity === 'Critical'
+                                ? { background: 'rgba(138,46,46,0.12)', borderLeft: '2px solid #A83535' }
+                                : ta.severity === 'High'
+                                ? { background: 'rgba(144,106,37,0.12)', borderLeft: '2px solid #B08535' }
+                                : { background: 'rgba(144,106,37,0.08)', borderLeft: '2px solid rgba(144,106,37,0.4)' }}>
                               <span>{ta.alert_type === 'disaster' ? '🌋' : ta.alert_type === 'earthquake' ? '🔴' : ta.alert_type === 'flight' ? '✈️' : ta.alert_type === 'weather' ? '⛈️' : ta.alert_type === 'security' ? '🛡️' : '⚠️'}</span>
-                              <span className="text-gray-700 truncate">{ta.title}</span>
-                              <span className={`ml-auto text-[10px] font-bold shrink-0 ${ta.severity === 'Critical' ? 'text-red-600' : ta.severity === 'High' ? 'text-amber-600' : 'text-yellow-600'}`}>{ta.severity}</span>
+                              <span style={{ color: DS.text }} className="truncate">{ta.title}</span>
+                              <span className="ml-auto text-[10px] font-bold shrink-0"
+                                style={{ color: ta.severity === 'Critical' ? '#EF7474' : ta.severity === 'High' ? '#D4A64A' : '#D4A64A' }}>
+                                {ta.severity}
+                              </span>
                             </div>
                           ))}
                           {tripAlertMap[trip.id].length > 3 && (
-                            <p className="text-[10px] text-gray-400 pl-1">+{tripAlertMap[trip.id].length - 3} more — check Dashboard</p>
+                            <p className="text-[10px] pl-1" style={{ color: DS.textSub }}>+{tripAlertMap[trip.id].length - 3} more — check Dashboard</p>
                           )}
                         </div>
                       </div>
@@ -1017,17 +1035,18 @@ export default function Itinerary() {
 
                     {/* Pre-travel health declaration CTA */}
                     {trip.approval_status === 'approved' && trip.status !== 'Completed' && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${DS.border}` }}>
                         {healthSet.has(trip.id) ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-xl">
-                            <CheckCircle2 size={12} className="text-green-500 shrink-0" />
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-[6px]"
+                            style={{ color: DS.green, background: DS.greenDim, border: `1px solid rgba(170,204,0,0.25)` }}>
+                            <CheckCircle2 size={12} className="text-[#AACC00] shrink-0" />
                             Health declaration submitted
                           </span>
                         ) : (
                           <button
                             onClick={() => navigate(`/health/${trip.id}`)}
-                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold border-2 transition-all"
-                            style={{ borderColor: '#0118A1', color: '#0118A1', background: '#EEF1FF' }}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[6px] text-sm font-bold transition-all"
+                            style={{ borderColor: DS.green, color: DS.green, background: DS.greenDim, border: `1px solid ${DS.green}` }}
                           >
                             Complete pre-travel health declaration →
                           </button>
@@ -1037,17 +1056,18 @@ export default function Itinerary() {
 
                     {/* Post-travel debrief CTA */}
                     {trip.status === 'Completed' && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${DS.border}` }}>
                         {debriefSet.has(trip.id) ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-xl">
-                            <CheckCircle2 size={12} className="text-green-500 shrink-0" />
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-[6px]"
+                            style={{ color: DS.green, background: DS.greenDim, border: `1px solid rgba(170,204,0,0.25)` }}>
+                            <CheckCircle2 size={12} className="text-[#AACC00] shrink-0" />
                             Debrief submitted
                           </span>
                         ) : (
                           <button
                             onClick={() => navigate(`/debrief/${trip.id}`)}
-                            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all"
-                            style={{ background: '#AACC00', color: '#0118A1', minHeight: 44 }}
+                            className="w-full flex items-center justify-center gap-2 py-3 rounded-[6px] text-sm font-bold transition-all"
+                            style={{ background: DS.green, color: DS.bg, minHeight: 44 }}
                           >
                             Complete post-travel debrief →
                           </button>

@@ -66,7 +66,7 @@ function StatusChip({ status }) {
 function InternalBadge() {
   return (
     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide"
-      style={{ background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' }}>
+      style={{ background: DS.greenDim, color: '#15803D', border: '1px solid #BBF7D0' }}>
       Internal
     </span>
   )
@@ -204,7 +204,7 @@ function AddPolicyModal({ orgId, onClose, onSaved }) {
     onClose()
   }
 
-  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20"
   const labelClass = "text-xs font-semibold text-gray-600 block mb-1.5"
 
   return (
@@ -220,11 +220,11 @@ function AddPolicyModal({ orgId, onClose, onSaved }) {
 
         <div className="px-6 py-5 space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700">{error}</div>
+            <div className="bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-xl px-4 py-3 text-xs text-[#EF7474]">{error}</div>
           )}
 
           <div>
-            <label className={labelClass}>Policy name <span className="text-red-500">*</span></label>
+            <label className={labelClass}>Policy name <span className="text-[#EF7474]">*</span></label>
             <input className={inputClass} placeholder="e.g. International Travel Security Policy" {...f('name')} />
           </div>
 
@@ -286,7 +286,7 @@ function RequestPolicyModal({ orgName, onClose }) {
     onClose()
   }
 
-  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20"
   const labelClass = "text-xs font-semibold text-gray-600 block mb-1.5"
 
   return (
@@ -302,7 +302,7 @@ function RequestPolicyModal({ orgName, onClose }) {
 
         <div className="px-6 py-5 space-y-4">
           <div>
-            <label className={labelClass}>Policy title / topic needed <span className="text-red-500">*</span></label>
+            <label className={labelClass}>Policy title / topic needed <span className="text-[#EF7474]">*</span></label>
             <input className={inputClass} placeholder="e.g. Remote Work Security Policy" {...f('title')} />
           </div>
 
@@ -427,7 +427,7 @@ export default function Policies() {
           <div className="flex items-center gap-2 shrink-0 mt-1">
             <button onClick={() => setShowRequestModal(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-colors hover:bg-[#0118A1]/5"
-              style={{ borderColor: BRAND_BLUE, color: DS.green, background: 'white' }}>
+              style={{ borderColor: BRAND_BLUE, color: DS.green, background: DS.surface }}>
               <Mail size={15} /> Request from SafeGuard360
             </button>
             <button onClick={() => setShowAddModal(true)}
@@ -441,12 +441,12 @@ export default function Policies() {
 
       {/* Acknowledgement table missing */}
       {ackTableMissing && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
+        <div className="bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] rounded-2xl p-4 mb-6">
           <div className="flex items-start gap-3">
-            <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+            <AlertCircle size={15} className="text-[#D4A64A] shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-bold text-amber-800 mb-1">Acknowledgement tracking not set up</p>
-              <p className="text-xs text-amber-700 leading-relaxed">
+              <p className="text-xs text-[#D4A64A] leading-relaxed">
                 Run the SQL at the top of <code className="bg-amber-100 px-1 rounded">src/pages/Policies.jsx</code> in Supabase to enable policy sign-offs.
               </p>
             </div>

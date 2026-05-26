@@ -3,10 +3,10 @@ import { useParams } from 'react-router-dom'
 import { MapPin, Plane, Hotel, Calendar, Shield, AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 const RISK_COLOR = {
-  Critical: 'bg-red-100 text-red-700 border-red-200',
-  High:     'bg-amber-100 text-amber-700 border-amber-200',
+  Critical: 'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',
+  High:     'bg-amber-100 text-[#D4A64A] border-[rgba(144,106,37,0.30)]',
   Medium:   'bg-yellow-50 text-yellow-700 border-yellow-200',
-  Low:      'bg-green-50 text-green-700 border-green-200',
+  Low:      'bg-[rgba(170,204,0,0.10)] text-[#AACC00] border-[rgba(170,204,0,0.25)]',
 }
 
 function fmtDate(d) {
@@ -49,7 +49,7 @@ export default function TripShare() {
           <Shield size={18} className="text-white" />
         </div>
         <div>
-          <p className="text-sm font-bold text-[#0118A1] leading-none">Safeguard 360</p>
+          <p className="text-sm font-bold text-[#AACC00] leading-none">Safeguard 360</p>
           <p className="text-[10px] text-gray-400 mt-0.5">Travel Safety Platform</p>
         </div>
       </div>
@@ -73,13 +73,13 @@ export default function TripShare() {
                 onChange={e => setPasscode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="000000"
                 autoFocus
-                className="w-full border border-gray-300 rounded-[6px] px-4 py-3 text-2xl font-mono tracking-[.3em] text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0118A1]"
+                className="w-full border border-gray-300 rounded-[6px] px-4 py-3 text-2xl font-mono tracking-[.3em] text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]"
               />
             </div>
             {error && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-[6px]">
-                <AlertTriangle size={13} className="text-red-500 shrink-0" />
-                <p className="text-sm text-red-700">{error}</p>
+              <div className="flex items-center gap-2 px-3 py-2 bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-[6px]">
+                <AlertTriangle size={13} className="text-[#EF7474] shrink-0" />
+                <p className="text-sm text-[#EF7474]">{error}</p>
               </div>
             )}
             <button
@@ -166,9 +166,9 @@ export default function TripShare() {
             </div>
 
             {/* Missed check-in notice */}
-            <div className="bg-amber-50 border border-amber-200 rounded-[8px] px-4 py-3">
+            <div className="bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] rounded-[8px] px-4 py-3">
               <p className="text-xs text-amber-800 font-semibold mb-0.5">⚠️ If you can't reach this traveller</p>
-              <p className="text-xs text-amber-700 leading-relaxed">
+              <p className="text-xs text-[#D4A64A] leading-relaxed">
                 If {travellerName?.split(' ')[0] || 'the traveller'} misses a scheduled safety check-in you will receive
                 an automatic notification. If you receive one and are unable to make contact, treat it as an emergency.
               </p>

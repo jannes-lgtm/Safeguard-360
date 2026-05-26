@@ -28,7 +28,7 @@ function TypeBadge({ type }) {
     </span>
   )
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-[#D4A64A]">
       <BookOpen size={10} />CASE
     </span>
   )
@@ -37,8 +37,8 @@ function TypeBadge({ type }) {
 function Chip({ label, color = 'gray' }) {
   const colors = {
     gray: 'bg-gray-100 text-gray-600',
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-700',
+    blue: 'bg-blue-50 text-[#6EA8C8]',
+    green: 'bg-[rgba(170,204,0,0.10)] text-[#AACC00]',
   }
   return (
     <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${colors[color]}`}>
@@ -254,7 +254,7 @@ function AddModal({ onClose, onSuccess }) {
                     onClick={() => set('type', opt.value)}
                     className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border text-xs font-semibold transition-all
                       ${form.type === opt.value
-                        ? 'border-[#0118A1] bg-[#0118A1]/5 text-[#0118A1]'
+                        ? 'border-[#AACC00] bg-[#0118A1]/5 text-[#AACC00]'
                         : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                     <Icon size={16} />
                     {opt.label}
@@ -277,7 +277,7 @@ function AddModal({ onClose, onSuccess }) {
                   onClick={() => set('doc_tier', opt.value)}
                   className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-all
                     ${form.doc_tier === opt.value
-                      ? 'border-[#0118A1] bg-[#0118A1]/5 text-[#0118A1]'
+                      ? 'border-[#AACC00] bg-[#0118A1]/5 text-[#AACC00]'
                       : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                   {opt.label}
                 </button>
@@ -291,16 +291,16 @@ function AddModal({ onClose, onSuccess }) {
             <div
               onClick={() => fileRef.current?.click()}
               className={`flex items-center gap-3 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors
-                ${pdfFile ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:border-gray-300 bg-gray-50'}`}>
+                ${pdfFile ? 'border-green-300 bg-[rgba(170,204,0,0.10)]' : 'border-gray-200 hover:border-gray-300 bg-gray-50'}`}>
               {pdfFile
-                ? <><File size={16} className="text-green-600 shrink-0" /><span className="text-sm font-medium text-green-700 truncate">{pdfFile.name}</span></>
+                ? <><File size={16} className="text-[#AACC00] shrink-0" /><span className="text-sm font-medium text-[#AACC00] truncate">{pdfFile.name}</span></>
                 : <><Upload size={16} className="text-gray-400 shrink-0" /><span className="text-sm text-gray-400">Click to upload PDF (max 20 MB)</span></>
               }
             </div>
             <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={handleFile} />
             {pdfFile && (
               <button type="button" onClick={() => { setPdfFile(null); if (fileRef.current) fileRef.current.value = '' }}
-                className="text-xs text-red-500 hover:underline mt-1">Remove file</button>
+                className="text-xs text-[#EF7474] hover:underline mt-1">Remove file</button>
             )}
           </div>
 
@@ -384,7 +384,7 @@ function AddModal({ onClose, onSuccess }) {
           )}
 
           {error && (
-            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-lg px-3 py-2">
               <AlertCircle size={14} />{error}
             </div>
           )}
@@ -448,7 +448,7 @@ function KnowledgeCard({ item, onToggle, onDelete }) {
             onClick={handleDelete}
             disabled={deleting}
             title="Delete"
-            className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors disabled:opacity-50"
+            className="p-1.5 rounded-lg hover:bg-[rgba(138,46,46,0.12)] text-gray-300 hover:text-[#EF7474] transition-colors disabled:opacity-50"
           >
             {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
           </button>
@@ -470,7 +470,7 @@ function KnowledgeCard({ item, onToggle, onDelete }) {
         {(item.countries || []).map(c => <Chip key={c} label={c} color="blue" />)}
         {(item.threat_categories || []).map(t => <Chip key={t} label={t} color="gray" />)}
         {item.type === 'case' && item.outcome && (
-          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[rgba(144,106,37,0.12)] text-[#D4A64A] border border-[rgba(144,106,37,0.30)]">
             {item.outcome}
           </span>
         )}
@@ -479,14 +479,14 @@ function KnowledgeCard({ item, onToggle, onDelete }) {
       {/* Status indicator */}
       <div className="flex items-center justify-between pt-1 border-t border-gray-50">
         <div className="flex items-center gap-2">
-          <span className={`text-[10px] font-semibold ${item.retrieval_ready ? 'text-green-600' : 'text-amber-500'}`}>
+          <span className={`text-[10px] font-semibold ${item.retrieval_ready ? 'text-[#AACC00]' : 'text-amber-500'}`}>
             {item.retrieval_ready ? '● CAIRO Ready' : '○ Pending'}
           </span>
           {item.embedding_status === 'done' && (
             <span className="text-[9px] font-medium text-purple-500 bg-purple-50 px-1.5 py-0.5 rounded-full">⚡ Vector</span>
           )}
           {item.ingestion_status === 'partial' && (
-            <span className="text-[9px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">⚠ Partial</span>
+            <span className="text-[9px] font-medium text-[#D4A64A] bg-[rgba(144,106,37,0.12)] px-1.5 py-0.5 rounded-full">⚠ Partial</span>
           )}
         </div>
         {item.source_file && (

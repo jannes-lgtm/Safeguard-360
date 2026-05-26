@@ -189,3 +189,40 @@ export const metaText = {
   color: DS.textSub,
   fontWeight: 500,
 }
+
+// Centralized status style map — replaces all local STATUS_STYLE objects
+export const STATUS_MAP = {
+  active:    { bg: 'rgba(58,88,112,0.12)',   text: '#6EA8C8', border: 'rgba(58,88,112,0.30)',   dot: '#4A6E8A',  label: 'Active'    },
+  upcoming:  { bg: 'rgba(170,204,0,0.10)',   text: '#AACC00', border: 'rgba(170,204,0,0.25)',   dot: '#AACC00',  label: 'Upcoming'  },
+  completed: { bg: 'rgba(255,255,255,0.04)', text: '#6E7480', border: 'rgba(255,255,255,0.08)', dot: '#3C4050',  label: 'Completed' },
+  pending:   { bg: 'rgba(144,106,37,0.12)',  text: '#D4A64A', border: 'rgba(144,106,37,0.28)',  dot: '#B08535',  label: 'Pending'   },
+  approved:  { bg: 'rgba(170,204,0,0.10)',   text: '#AACC00', border: 'rgba(170,204,0,0.22)',   dot: '#AACC00',  label: 'Approved'  },
+  rejected:  { bg: 'rgba(138,46,46,0.13)',   text: '#EF7474', border: 'rgba(138,46,46,0.30)',   dot: '#A83535',  label: 'Rejected'  },
+  safe:      { bg: 'rgba(170,204,0,0.10)',   text: '#AACC00', border: 'rgba(170,204,0,0.22)',   dot: '#AACC00',  label: 'Safe'      },
+  warning:   { bg: 'rgba(144,106,37,0.12)',  text: '#D4A64A', border: 'rgba(144,106,37,0.28)',  dot: '#B08535',  label: 'Warning'   },
+  critical:  { bg: 'rgba(138,46,46,0.13)',   text: '#EF7474', border: 'rgba(138,46,46,0.30)',   dot: '#A83535',  label: 'Critical'  },
+  inactive:  { bg: 'rgba(255,255,255,0.03)', text: '#3C4050', border: 'rgba(255,255,255,0.06)', dot: '#2A2E3A',  label: 'Inactive'  },
+  online:    { bg: 'rgba(170,204,0,0.10)',   text: '#AACC00', border: 'rgba(170,204,0,0.22)',   dot: '#AACC00',  label: 'Online'    },
+  offline:   { bg: 'rgba(255,255,255,0.03)', text: '#6E7480', border: 'rgba(255,255,255,0.06)', dot: '#3C4050',  label: 'Offline'   },
+  distress:  { bg: 'rgba(138,46,46,0.13)',   text: '#EF7474', border: 'rgba(138,46,46,0.30)',   dot: '#A83535',  label: 'Distress'  },
+}
+export function status(key) { return STATUS_MAP[key?.toLowerCase()] || STATUS_MAP.inactive }
+
+// Input / form base styles (apply as inline style)
+export const INPUT_STYLE = {
+  background: '#11131A',
+  border: '1px solid rgba(255,255,255,0.09)',
+  color: '#D0D4DC',
+  borderRadius: 6,
+  fontSize: 13,
+  outline: 'none',
+}
+
+// Banner styles per severity
+export const BANNER = {
+  info:     { bg: 'rgba(58,88,112,0.12)',  border: 'rgba(58,88,112,0.30)',   text: '#6EA8C8', icon: '#4A6E8A'  },
+  warning:  { bg: 'rgba(144,106,37,0.14)', border: 'rgba(144,106,37,0.35)', text: '#D4A64A', icon: '#B08535'  },
+  critical: { bg: 'rgba(138,46,46,0.14)',  border: 'rgba(138,46,46,0.35)',  text: '#EF7474', icon: '#A83535'  },
+  success:  { bg: 'rgba(170,204,0,0.10)',  border: 'rgba(170,204,0,0.25)',  text: '#AACC00', icon: '#AACC00'  },
+}
+export function banner(variant) { return BANNER[variant] || BANNER.info }

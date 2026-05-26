@@ -50,17 +50,17 @@ const COUNTRIES = [
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const PROVIDER_STATUS = {
-  vetted:    { label: 'Vetted',    icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50',  border: 'border-green-200' },
-  pending:   { label: 'Pending',   icon: Clock,       color: 'text-amber-600', bg: 'bg-amber-50',  border: 'border-amber-200' },
-  suspended: { label: 'Suspended', icon: X,           color: 'text-red-600',   bg: 'bg-red-50',    border: 'border-red-200'   },
+  vetted:    { label: 'Vetted',    icon: CheckCircle, color: 'text-[#AACC00]', bg: 'bg-[rgba(170,204,0,0.10)]',  border: 'border-[rgba(170,204,0,0.25)]' },
+  pending:   { label: 'Pending',   icon: Clock,       color: 'text-[#D4A64A]', bg: 'bg-[rgba(144,106,37,0.12)]',  border: 'border-[rgba(144,106,37,0.30)]' },
+  suspended: { label: 'Suspended', icon: X,           color: 'text-[#EF7474]',   bg: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-[rgba(138,46,46,0.30)]'   },
 }
 const getStatus = s => PROVIDER_STATUS[s] || PROVIDER_STATUS.pending
 
 const REF_STATUS = {
   pending:   { label: 'Not contacted', color: 'text-gray-500',   bg: 'bg-gray-100' },
-  contacted: { label: 'Contacted',     color: 'text-amber-600',  bg: 'bg-amber-50' },
-  verified:  { label: 'Verified ✓',    color: 'text-green-600',  bg: 'bg-green-50' },
-  failed:    { label: 'Failed ✗',      color: 'text-red-600',    bg: 'bg-red-50'   },
+  contacted: { label: 'Contacted',     color: 'text-[#D4A64A]',  bg: 'bg-[rgba(144,106,37,0.12)]' },
+  verified:  { label: 'Verified ✓',    color: 'text-[#AACC00]',  bg: 'bg-[rgba(170,204,0,0.10)]' },
+  failed:    { label: 'Failed ✗',      color: 'text-[#EF7474]',    bg: 'bg-[rgba(138,46,46,0.12)]'   },
 }
 
 // ── Compliance score ──────────────────────────────────────────────────────────
@@ -79,8 +79,8 @@ function calcScore(docs, refs) {
 }
 
 function ScoreBadge({ score }) {
-  const color = score >= 75 ? 'text-green-600' : score >= 40 ? 'text-amber-600' : 'text-red-500'
-  const bg    = score >= 75 ? 'bg-green-50 border-green-200' : score >= 40 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'
+  const color = score >= 75 ? 'text-[#AACC00]' : score >= 40 ? 'text-[#D4A64A]' : 'text-[#EF7474]'
+  const bg    = score >= 75 ? 'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.25)]' : score >= 40 ? 'bg-[rgba(144,106,37,0.12)] border-[rgba(144,106,37,0.30)]' : 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)]'
   return (
     <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border ${bg} ${color}`}>
       <Shield size={10} />{score}%
@@ -110,9 +110,9 @@ function getPassCount(template, checklist) {
 
 function VettingStatusPill({ status }) {
   const cfg = {
-    pass:        { label: '✅ Pass',          bg: 'bg-green-50 border-green-200',  text: 'text-green-700'  },
-    conditional: { label: '⚠️ Conditional',   bg: 'bg-amber-50 border-amber-200',  text: 'text-amber-700'  },
-    fail:        { label: '❌ Failed',         bg: 'bg-red-50 border-red-200',      text: 'text-red-700'    },
+    pass:        { label: '✅ Pass',          bg: 'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.25)]',  text: 'text-[#AACC00]'  },
+    conditional: { label: '⚠️ Conditional',   bg: 'bg-[rgba(144,106,37,0.12)] border-[rgba(144,106,37,0.30)]',  text: 'text-[#D4A64A]'  },
+    fail:        { label: '❌ Failed',         bg: 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)]',      text: 'text-[#EF7474]'    },
   }[status] || { label: status, bg: 'bg-gray-50 border-gray-200', text: 'text-gray-600' }
   return (
     <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.text}`}>
@@ -130,7 +130,7 @@ function ProviderCard({ provider, score, isAdmin, onEdit, onDelete, onView }) {
   return (
     <div
       onClick={onView}
-      className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-3 hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)] hover:border-[#0118A1]/30 transition-all cursor-pointer">
+      className="bg-white rounded-[8px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-3 hover:shadow-[0_2px_8px_rgba(0,0,0,0.10)] hover:border-[#AACC00]/30 transition-all cursor-pointer">
       {/* Top: category + status */}
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -175,7 +175,7 @@ function ProviderCard({ provider, score, isAdmin, onEdit, onDelete, onView }) {
           <a href={provider.contact_website.startsWith('http') ? provider.contact_website : `https://${provider.contact_website}`}
             target="_blank" rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
-            className="text-xs text-[#0118A1] hover:underline flex items-center gap-1.5">
+            className="text-xs text-[#AACC00] hover:underline flex items-center gap-1.5">
             <Globe size={10} />{provider.contact_website.replace(/^https?:\/\//, '')}
           </a>
         )}
@@ -183,10 +183,10 @@ function ProviderCard({ provider, score, isAdmin, onEdit, onDelete, onView }) {
 
       {isAdmin && (
         <div className="flex items-center gap-2 border-t border-gray-100 pt-2" onClick={e => e.stopPropagation()}>
-          <button onClick={() => onEdit(provider)} className="text-xs text-gray-500 hover:text-[#0118A1] flex items-center gap-1">
+          <button onClick={() => onEdit(provider)} className="text-xs text-gray-500 hover:text-[#AACC00] flex items-center gap-1">
             <Edit2 size={10} />Edit
           </button>
-          <button onClick={() => onDelete(provider)} className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1 ml-auto">
+          <button onClick={() => onDelete(provider)} className="text-xs text-gray-400 hover:text-[#EF7474] flex items-center gap-1 ml-auto">
             <Trash2 size={10} />Remove
           </button>
         </div>
@@ -207,7 +207,7 @@ function DocRow({ doc, isAdmin, onDelete }) {
   }, [doc.file_path])
 
   return (
-    <div className={`flex items-start gap-3 px-4 py-3 border-b border-gray-100 last:border-0 ${expired ? 'bg-red-50/40' : ''}`}>
+    <div className={`flex items-start gap-3 px-4 py-3 border-b border-gray-100 last:border-0 ${expired ? 'bg-[rgba(138,46,46,0.12)]/40' : ''}`}>
       <FileText size={14} className={expired ? 'text-red-400' : 'text-gray-400'} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900">{doc.document_name}</p>
@@ -215,7 +215,7 @@ function DocRow({ doc, isAdmin, onDelete }) {
           <span className="text-[11px] text-gray-500">{getDocType(doc.document_type).label}</span>
           {doc.country && <span className="text-[11px] text-gray-400 flex items-center gap-1"><MapPin size={9}/>{doc.country}</span>}
           {doc.expiry_date && (
-            <span className={`text-[11px] flex items-center gap-1 font-medium ${expired ? 'text-red-600' : 'text-gray-500'}`}>
+            <span className={`text-[11px] flex items-center gap-1 font-medium ${expired ? 'text-[#EF7474]' : 'text-gray-500'}`}>
               <Calendar size={9}/>{expired ? 'Expired ' : 'Expires '}{fmtDate(doc.expiry_date)}
             </span>
           )}
@@ -225,7 +225,7 @@ function DocRow({ doc, isAdmin, onDelete }) {
       <div className="flex items-center gap-2 shrink-0">
         {url && (
           <a href={url} target="_blank" rel="noopener noreferrer"
-            className="text-xs text-[#0118A1] hover:underline flex items-center gap-1 font-medium">
+            className="text-xs text-[#AACC00] hover:underline flex items-center gap-1 font-medium">
             <Download size={11} />View
           </a>
         )}
@@ -278,7 +278,7 @@ function DocumentUpload({ providerId, onUploaded }) {
     onUploaded()
   }
 
-  const input = 'w-full border border-gray-200 rounded-[6px] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]'
+  const input = 'w-full border border-gray-200 rounded-[6px] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00]'
 
   return (
     <div className="bg-gray-50 rounded-[8px] border border-gray-200 p-4 space-y-3">
@@ -320,7 +320,7 @@ function DocumentUpload({ providerId, onUploaded }) {
           className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-[6px] file:border-0 file:text-xs file:font-semibold file:bg-[#0118A1] file:text-white hover:file:bg-[#0118A1]/80 cursor-pointer" />
         <p className="text-[10px] text-gray-400 mt-1">PDF, JPG, PNG, DOC — max 10 MB</p>
       </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-[#EF7474]">{error}</p>}
       <button onClick={handleUpload} disabled={uploading}
         style={{ background: BRAND_GREEN, color: DS.green }}
         className="flex items-center gap-2 font-semibold px-4 py-2 rounded-[6px] text-sm disabled:opacity-60 hover:opacity-90">
@@ -343,7 +343,7 @@ function RefRow({ ref: reference, isAdmin, onStatusChange, onDelete }) {
         {reference.reference_company && <p className="text-xs text-gray-500">{reference.reference_company}</p>}
         <div className="flex items-center gap-3 mt-1 flex-wrap">
           {reference.reference_email && (
-            <a href={`mailto:${reference.reference_email}`} className="text-[11px] text-[#0118A1] hover:underline flex items-center gap-1">
+            <a href={`mailto:${reference.reference_email}`} className="text-[11px] text-[#AACC00] hover:underline flex items-center gap-1">
               <Mail size={9}/>{reference.reference_email}
             </a>
           )}
@@ -384,7 +384,7 @@ function AddReference({ providerId, onAdded }) {
   const [form, setForm] = useState({ name: '', company: '', email: '', phone: '', notes: '' })
   const [saving, setSaving] = useState(false)
   const f = k => ({ value: form[k], onChange: e => setForm(p => ({ ...p, [k]: e.target.value })) })
-  const input = 'w-full border border-gray-200 rounded-[6px] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]'
+  const input = 'w-full border border-gray-200 rounded-[6px] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00]'
 
   const handleAdd = async () => {
     if (!form.name.trim()) return
@@ -530,7 +530,7 @@ function VettingTab({ provider, isAdmin, onVettingComplete }) {
     setSaving(false)
   }
 
-  const inp = 'w-full border border-gray-200 rounded-[6px] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]'
+  const inp = 'w-full border border-gray-200 rounded-[6px] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00]'
   const days = daysUntil(provider.next_review_date)
 
   return (
@@ -545,7 +545,7 @@ function VettingTab({ provider, isAdmin, onVettingComplete }) {
           </div>
           <div>
             <p className="text-[10px] text-gray-400 uppercase tracking-wider">Next Review Due</p>
-            <p className={`text-sm font-semibold mt-0.5 ${days !== null && days < 0 ? 'text-red-600' : days !== null && days <= 30 ? 'text-amber-600' : 'text-gray-800'}`}>
+            <p className={`text-sm font-semibold mt-0.5 ${days !== null && days < 0 ? 'text-[#EF7474]' : days !== null && days <= 30 ? 'text-[#D4A64A]' : 'text-gray-800'}`}>
               {fmtDate(provider.next_review_date)}
               {days !== null && days < 0  && <span className="text-xs font-normal ml-1">— Overdue</span>}
               {days !== null && days >= 0 && days <= 30 && <span className="text-xs font-normal ml-1">— {days}d left</span>}
@@ -580,7 +580,7 @@ function VettingTab({ provider, isAdmin, onVettingComplete }) {
                   return (
                     <div key={item.id}
                       className={`px-4 py-3 border-b border-gray-100 last:border-0 transition-colors
-                        ${item.required && !state.pass ? 'bg-red-50/20' : state.pass ? 'bg-green-50/20' : ''}`}>
+                        ${item.required && !state.pass ? 'bg-[rgba(138,46,46,0.12)]/20' : state.pass ? 'bg-[rgba(170,204,0,0.10)]/20' : ''}`}>
                       <div className="flex items-start gap-3">
                         <button onClick={() => toggle(item.id)}
                           className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all
@@ -595,7 +595,7 @@ function VettingTab({ provider, isAdmin, onVettingComplete }) {
                           {item.type === 'number' && (
                             <input type="number" placeholder={`Enter ${item.unit}…`}
                               value={state.value} onChange={e => setVal(item.id, e.target.value)}
-                              className="mt-1.5 w-36 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"/>
+                              className="mt-1.5 w-36 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20"/>
                           )}
                         </div>
                       </div>
@@ -741,7 +741,7 @@ function ProviderDetail({ provider, isAdmin, onClose, onEditInfo, onVettingCompl
             <div className="flex items-center gap-2">
               {isAdmin && (
                 <button onClick={() => onEditInfo(provider)}
-                  className="text-xs text-gray-500 hover:text-[#0118A1] flex items-center gap-1 px-3 py-1.5 border border-gray-200 rounded-[6px]">
+                  className="text-xs text-gray-500 hover:text-[#AACC00] flex items-center gap-1 px-3 py-1.5 border border-gray-200 rounded-[6px]">
                   <Edit2 size={11}/>Edit
                 </button>
               )}
@@ -770,7 +770,7 @@ function ProviderDetail({ provider, isAdmin, onClose, onEditInfo, onVettingCompl
               return (
                 <button key={t.id} onClick={() => setTab(t.id)}
                   className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors
-                    ${tab === t.id ? 'border-[#0118A1] text-[#0118A1]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                    ${tab === t.id ? 'border-[#AACC00] text-[#AACC00]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                   <Icon size={12}/>{t.label}
                 </button>
               )
@@ -803,19 +803,19 @@ function ProviderDetail({ provider, isAdmin, onClose, onEditInfo, onVettingCompl
                     </div>
                   )}
                   {provider.contact_phone && (
-                    <a href={`tel:${provider.contact_phone}`} className="flex items-center gap-2 text-sm text-gray-700 hover:text-[#0118A1]">
+                    <a href={`tel:${provider.contact_phone}`} className="flex items-center gap-2 text-sm text-gray-700 hover:text-[#AACC00]">
                       <Phone size={13} className="text-gray-400 shrink-0"/>{provider.contact_phone}
                     </a>
                   )}
                   {provider.contact_email && (
-                    <a href={`mailto:${provider.contact_email}`} className="flex items-center gap-2 text-sm text-gray-700 hover:text-[#0118A1]">
+                    <a href={`mailto:${provider.contact_email}`} className="flex items-center gap-2 text-sm text-gray-700 hover:text-[#AACC00]">
                       <Mail size={13} className="text-gray-400 shrink-0"/>{provider.contact_email}
                     </a>
                   )}
                   {provider.contact_website && (
                     <a href={provider.contact_website.startsWith('http') ? provider.contact_website : `https://${provider.contact_website}`}
                       target="_blank" rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-[#0118A1] hover:underline">
+                      className="flex items-center gap-2 text-sm text-[#AACC00] hover:underline">
                       <Globe size={13} className="shrink-0"/>{provider.contact_website.replace(/^https?:\/\//,'')}
                       <ExternalLink size={11}/>
                     </a>
@@ -838,7 +838,7 @@ function ProviderDetail({ provider, isAdmin, onClose, onEditInfo, onVettingCompl
                   ].filter(([, v]) => v && v !== '—').map(([label, val]) => (
                     <div key={label}>
                       <p className="text-[10px] text-gray-400">{label}</p>
-                      <p className={`text-sm font-medium ${label === 'Insurance Expiry' && isExpired(provider.insurance_expiry) ? 'text-red-600' : 'text-gray-800'}`}>{val}</p>
+                      <p className={`text-sm font-medium ${label === 'Insurance Expiry' && isExpired(provider.insurance_expiry) ? 'text-[#EF7474]' : 'text-gray-800'}`}>{val}</p>
                     </div>
                   ))}
                 </div>
@@ -858,7 +858,7 @@ function ProviderDetail({ provider, isAdmin, onClose, onEditInfo, onVettingCompl
                   <div key={item.label} className={`flex items-center gap-2.5 py-1.5 text-sm
                     ${item.done ? 'text-gray-700' : 'text-gray-400'}`}>
                     {item.done
-                      ? <Check size={14} className="text-green-500 shrink-0" strokeWidth={2.5}/>
+                      ? <Check size={14} className="text-[#AACC00] shrink-0" strokeWidth={2.5}/>
                       : <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-300 shrink-0"/>}
                     {item.label}
                   </div>
@@ -988,7 +988,7 @@ function ProviderModal({ provider, onClose, onSaved }) {
     onSaved(); onClose()
   }
 
-  const inp = 'w-full border border-gray-200 rounded-[6px] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1] text-gray-900'
+  const inp = 'w-full border border-gray-200 rounded-[6px] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00] text-gray-900'
   const lbl = 'block text-xs font-medium text-gray-600 mb-1'
   const sec = 'text-[11px] font-bold text-gray-500 uppercase tracking-wider pt-4 pb-1 border-t border-gray-100 mt-2'
 
@@ -1103,7 +1103,7 @@ function ProviderModal({ provider, onClose, onSaved }) {
           <textarea className={inp} rows={2}
             placeholder="Vetting date, contract reference, any concerns…" {...f('notes')}/>
 
-          {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>}
+          {error && <p className="text-xs text-[#EF7474] bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded px-3 py-2">{error}</p>}
         </div>
         <div className="flex items-center justify-end gap-3 p-5 border-t border-gray-100">
           <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2">Cancel</button>
@@ -1234,7 +1234,7 @@ export default function Services() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Briefcase size={20} className="text-[#0118A1]"/>
+            <Briefcase size={20} className="text-[#AACC00]"/>
             <h1 className="text-2xl font-bold text-gray-900">Service Providers</h1>
           </div>
           <p className="text-sm text-gray-500">Vetted and compliant suppliers — transport, protection, medical and more</p>
@@ -1261,8 +1261,8 @@ export default function Services() {
         if (overdue.length === 0 && dueSoon.length === 0) return null
         const isRed = overdue.length > 0
         return (
-          <div className={`rounded-[8px] border p-4 mb-5 flex items-start gap-3 ${isRed ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
-            <AlertCircle size={15} className={`${isRed ? 'text-red-500' : 'text-amber-500'} shrink-0 mt-0.5`}/>
+          <div className={`rounded-[8px] border p-4 mb-5 flex items-start gap-3 ${isRed ? 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)]' : 'bg-[rgba(144,106,37,0.12)] border-[rgba(144,106,37,0.30)]'}`}>
+            <AlertCircle size={15} className={`${isRed ? 'text-[#EF7474]' : 'text-amber-500'} shrink-0 mt-0.5`}/>
             <div className="flex-1">
               <p className={`text-sm font-semibold ${isRed ? 'text-red-800' : 'text-amber-800'}`}>
                 {overdue.length > 0 && `${overdue.length} provider${overdue.length !== 1 ? 's' : ''} overdue for vetting`}
@@ -1274,8 +1274,8 @@ export default function Services() {
                   <button key={p.id} onClick={() => setViewingProvider(p)}
                     className={`text-xs px-2.5 py-0.5 rounded-full font-medium transition-colors
                       ${overdue.includes(p)
-                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                        : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}`}>
+                        ? 'bg-red-100 text-[#EF7474] hover:bg-red-200'
+                        : 'bg-amber-100 text-[#D4A64A] hover:bg-amber-200'}`}>
                     {p.name}
                   </button>
                 ))}
@@ -1292,9 +1292,9 @@ export default function Services() {
       <div className="grid grid-cols-4 gap-4 mb-6">
         {[
           { label: 'Total Providers',  value: providers.length,                                            color: 'text-gray-900' },
-          { label: 'Vetted',           value: providers.filter(p => p.status === 'vetted').length,         color: 'text-green-600' },
-          { label: 'Pending Review',   value: providers.filter(p => p.status === 'pending').length,        color: 'text-amber-600' },
-          { label: 'Countries',        value: new Set(providers.map(p => p.country)).size,                 color: 'text-[#0118A1]' },
+          { label: 'Vetted',           value: providers.filter(p => p.status === 'vetted').length,         color: 'text-[#AACC00]' },
+          { label: 'Pending Review',   value: providers.filter(p => p.status === 'pending').length,        color: 'text-[#D4A64A]' },
+          { label: 'Countries',        value: new Set(providers.map(p => p.country)).size,                 color: 'text-[#AACC00]' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-4 text-center">
             <div className={`text-3xl font-bold ${s.color}`}>{s.value}</div>
@@ -1308,11 +1308,11 @@ export default function Services() {
         <div className="relative max-w-xs">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search providers…"
-            className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"/>
+            className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00]"/>
         </div>
         <div className="relative">
           <select value={countryFilter} onChange={e => setCountryFilter(e.target.value)}
-            className="appearance-none pl-3 pr-8 py-2 border border-gray-200 rounded-[6px] text-sm bg-white text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20">
+            className="appearance-none pl-3 pr-8 py-2 border border-gray-200 rounded-[6px] text-sm bg-white text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20">
             {activeCountries.map(c => <option key={c} value={c}>{c === 'All' ? '🌍 All Countries' : c}</option>)}
           </select>
           <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"/>
@@ -1320,13 +1320,13 @@ export default function Services() {
         <div className="flex gap-1.5 flex-wrap">
           <button onClick={() => setCatFilter('all')}
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
-              ${catFilter === 'all' ? 'bg-[#0118A1] text-white border-[#0118A1]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+              ${catFilter === 'all' ? 'bg-[#0118A1] text-white border-[#AACC00]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
             All
           </button>
           {CATEGORIES.map(c => (
             <button key={c.id} onClick={() => setCatFilter(c.id)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
-                ${catFilter === c.id ? 'bg-[#0118A1] text-white border-[#0118A1]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                ${catFilter === c.id ? 'bg-[#0118A1] text-white border-[#AACC00]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
               {c.emoji} {c.label}
             </button>
           ))}
@@ -1359,7 +1359,7 @@ export default function Services() {
           {Object.entries(grouped).sort(([a],[b]) => a.localeCompare(b)).map(([country, list]) => (
             <div key={country}>
               <div className="flex items-center gap-2 mb-3">
-                <MapPin size={14} className="text-[#0118A1]"/>
+                <MapPin size={14} className="text-[#AACC00]"/>
                 <h2 className="text-sm font-bold text-gray-800">{country}</h2>
                 <span className="text-xs text-gray-400">{list.length} provider{list.length !== 1 ? 's' : ''}</span>
               </div>

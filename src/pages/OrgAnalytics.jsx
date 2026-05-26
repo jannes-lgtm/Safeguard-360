@@ -193,7 +193,7 @@ export default function OrgAnalytics() {
 
   if (error) return (
     <Layout>
-      <div className="bg-red-50 border border-red-100 rounded-2xl p-6 text-sm text-red-700">{error}</div>
+      <div className="bg-[rgba(138,46,46,0.12)] border border-red-100 rounded-2xl p-6 text-sm text-[#EF7474]">{error}</div>
     </Layout>
   )
 

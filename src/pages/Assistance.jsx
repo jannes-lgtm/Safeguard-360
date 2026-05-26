@@ -29,16 +29,16 @@ const REQUEST_TYPES = [
 ]
 
 const SEVERITY_OPTIONS = [
-  { key: 'critical', label: 'Critical', desc: 'Life threatening', color: 'border-red-400 bg-red-50 text-red-700' },
-  { key: 'high',     label: 'High',     desc: 'Urgent help needed', color: 'border-amber-400 bg-amber-50 text-amber-700' },
+  { key: 'critical', label: 'Critical', desc: 'Life threatening', color: 'border-red-400 bg-[rgba(138,46,46,0.12)] text-[#EF7474]' },
+  { key: 'high',     label: 'High',     desc: 'Urgent help needed', color: 'border-amber-400 bg-[rgba(144,106,37,0.12)] text-[#D4A64A]' },
   { key: 'medium',   label: 'Medium',   desc: 'Need assistance soon', color: 'border-blue-400 bg-blue-50 text-blue-700' },
   { key: 'low',      label: 'Low',      desc: 'General query', color: 'border-gray-300 bg-gray-50 text-gray-600' },
 ]
 
 const STATUS_CONFIG = {
-  pending:     { label: 'Awaiting operator',  color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200', icon: Clock },
-  in_progress: { label: 'Operator connected', color: 'text-blue-600',  bg: 'bg-blue-50 border-blue-200',  icon: Headphones },
-  resolved:    { label: 'Resolved',           color: 'text-green-600', bg: 'bg-green-50 border-green-200', icon: CheckCircle2 },
+  pending:     { label: 'Awaiting operator',  color: 'text-[#D4A64A]', bg: 'bg-[rgba(144,106,37,0.12)] border-[rgba(144,106,37,0.30)]', icon: Clock },
+  in_progress: { label: 'Operator connected', color: 'text-[#6EA8C8]',  bg: 'bg-blue-50 border-blue-200',  icon: Headphones },
+  resolved:    { label: 'Resolved',           color: 'text-[#AACC00]', bg: 'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.25)]', icon: CheckCircle2 },
   cancelled:   { label: 'Cancelled',          color: 'text-gray-500',  bg: 'bg-gray-50 border-gray-200',  icon: X },
 }
 
@@ -109,8 +109,8 @@ function ActiveRequestCard({ req, userId, onUpdate }) {
 
           {/* Operator response notes */}
           {req.response_notes && (
-            <div className="bg-[#0118A1]/5 border border-[#0118A1]/10 rounded-lg px-3 py-2">
-              <p className="text-[10px] font-bold text-[#0118A1] mb-1 uppercase tracking-wide">Operator response</p>
+            <div className="bg-[#0118A1]/5 border border-[#AACC00]/10 rounded-lg px-3 py-2">
+              <p className="text-[10px] font-bold text-[#AACC00] mb-1 uppercase tracking-wide">Operator response</p>
               <p className="text-sm text-gray-800">{req.response_notes}</p>
             </div>
           )}
@@ -147,7 +147,7 @@ function ActiveRequestCard({ req, userId, onUpdate }) {
                 onChange={e => setReply(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && sendReply()}
                 placeholder="Send a message to the control room…"
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 bg-white"
+                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 bg-white"
               />
               <button onClick={sendReply} disabled={sending || !reply.trim()}
                 className="px-3 py-2 rounded-lg text-white disabled:opacity-50"
@@ -159,7 +159,7 @@ function ActiveRequestCard({ req, userId, onUpdate }) {
 
           {req.status === 'pending' && (
             <button onClick={cancelRequest}
-              className="text-xs text-gray-400 hover:text-red-500 transition-colors">
+              className="text-xs text-gray-400 hover:text-[#EF7474] transition-colors">
               Cancel request
             </button>
           )}
@@ -293,7 +293,7 @@ export default function Assistance() {
 
       {/* Success toast */}
       {submitted && (
-        <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-800 rounded-xl text-sm flex items-center gap-2">
+        <div className="mb-4 px-4 py-3 bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] text-green-800 rounded-xl text-sm flex items-center gap-2">
           <CheckCircle2 size={15} /> Request submitted — an operator will respond shortly.
         </div>
       )}
@@ -319,7 +319,7 @@ export default function Assistance() {
       {!showForm ? (
         <button
           onClick={() => setShowForm(true)}
-          className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-[#0118A1] hover:text-[#0118A1] transition-colors text-sm font-medium"
+          className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 hover:border-[#AACC00] hover:text-[#AACC00] transition-colors text-sm font-medium"
         >
           <Plus size={16} /> Request Assistance
         </button>
@@ -336,14 +336,14 @@ export default function Assistance() {
           {/* Type grid */}
           <div>
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
-              What do you need help with? <span className="text-red-500">*</span>
+              What do you need help with? <span className="text-[#EF7474]">*</span>
             </label>
             <div className="grid grid-cols-2 gap-2">
               {REQUEST_TYPES.map(t => (
                 <button key={t.key} onClick={() => setReqType(t.key)}
                   className={`flex items-center gap-2.5 p-3 rounded-xl border text-left transition-all ${
                     reqType === t.key
-                      ? 'border-[#0118A1] bg-[#0118A1]/5 text-[#0118A1]'
+                      ? 'border-[#AACC00] bg-[#0118A1]/5 text-[#AACC00]'
                       : 'border-gray-200 hover:border-gray-300 text-gray-700'
                   }`}>
                   <span className="text-lg shrink-0">{t.icon}</span>
@@ -359,7 +359,7 @@ export default function Assistance() {
           {/* Severity */}
           <div>
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
-              How urgent? <span className="text-red-500">*</span>
+              How urgent? <span className="text-[#EF7474]">*</span>
             </label>
             <div className="grid grid-cols-2 gap-2">
               {SEVERITY_OPTIONS.map(s => (
@@ -377,20 +377,20 @@ export default function Assistance() {
           {/* Description */}
           <div>
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
-              Describe your situation <span className="text-red-500">*</span>
+              Describe your situation <span className="text-[#EF7474]">*</span>
             </label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={4}
               placeholder="Tell us what's happening, where you are, and what help you need…"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 resize-none"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 resize-none"
             />
           </div>
 
           {/* GPS status */}
-          <div className={`rounded-lg p-2.5 ${gpsPos ? 'bg-green-50 border border-green-100' : 'bg-gray-50'}`}>
-            <div className={`flex items-center gap-2 text-xs ${gpsPos ? 'text-green-700' : 'text-gray-500'}`}>
+          <div className={`rounded-lg p-2.5 ${gpsPos ? 'bg-[rgba(170,204,0,0.10)] border border-green-100' : 'bg-gray-50'}`}>
+            <div className={`flex items-center gap-2 text-xs ${gpsPos ? 'text-[#AACC00]' : 'text-gray-500'}`}>
               <Navigation size={11} />
               {gpsLoading ? 'Capturing location…' :
                gpsPos ? `Location captured (±${Math.round(gpsPos.accuracy || 0)}m) — will be shared with operator` :
@@ -413,7 +413,7 @@ export default function Assistance() {
                 <button key={m} onClick={() => setContactMethod(m)}
                   className={`text-xs px-3 py-1.5 rounded-full border font-medium capitalize transition-colors ${
                     contactMethod === m
-                      ? 'bg-[#0118A1] text-white border-[#0118A1]'
+                      ? 'bg-[#0118A1] text-white border-[#AACC00]'
                       : 'border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}>
                   {m === 'in_app' ? 'In-App' : m === 'whatsapp' ? 'WhatsApp' : m.charAt(0).toUpperCase() + m.slice(1)}
@@ -425,7 +425,7 @@ export default function Assistance() {
                 value={contactDetail}
                 onChange={e => setContactDetail(e.target.value)}
                 placeholder={contactMethod === 'email' ? 'Your email address' : 'Your phone number'}
-                className="mt-2 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+                className="mt-2 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20"
               />
             )}
           </div>

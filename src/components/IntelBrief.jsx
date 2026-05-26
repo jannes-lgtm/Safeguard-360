@@ -33,10 +33,10 @@ function SectionHeader({ label, icon: Icon }) {
 }
 
 const THREAT_STYLE = {
-  Critical: { bg: 'bg-red-50',    border: 'border-red-200',    text: 'text-red-700',    dot: 'bg-red-500'    },
+  Critical: { bg: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-[rgba(138,46,46,0.30)]',    text: 'text-[#EF7474]',    dot: 'bg-red-500'    },
   High:     { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', dot: 'bg-orange-500' },
-  Medium:   { bg: 'bg-amber-50',  border: 'border-amber-200',  text: 'text-amber-700',  dot: 'bg-amber-400'  },
-  Low:      { bg: 'bg-green-50',  border: 'border-green-200',  text: 'text-green-700',  dot: 'bg-green-500'  },
+  Medium:   { bg: 'bg-[rgba(144,106,37,0.12)]',  border: 'border-[rgba(144,106,37,0.30)]',  text: 'text-[#D4A64A]',  dot: 'bg-amber-400'  },
+  Low:      { bg: 'bg-[rgba(170,204,0,0.10)]',  border: 'border-[rgba(170,204,0,0.25)]',  text: 'text-[#AACC00]',  dot: 'bg-green-500'  },
 }
 
 // ── AI Security Brief ─────────────────────────────────────────────────────────
@@ -45,11 +45,11 @@ function AiBriefSection({ brief, loading }) {
 
   if (loading) {
     return (
-      <div className="rounded-[8px] border border-[#0118A1]/20 bg-[#0118A1]/5 p-4 animate-pulse">
+      <div className="rounded-[8px] border border-[#AACC00]/20 bg-[#0118A1]/5 p-4 animate-pulse">
         <div className="flex items-center gap-2 mb-3">
-          <Brain size={13} className="text-[#0118A1]"/>
-          <span className="text-xs font-bold text-[#0118A1]">Generating AI brief...</span>
-          <RefreshCw size={10} className="text-[#0118A1]/60 animate-spin ml-auto"/>
+          <Brain size={13} className="text-[#AACC00]"/>
+          <span className="text-xs font-bold text-[#AACC00]">Generating AI brief...</span>
+          <RefreshCw size={10} className="text-[#AACC00]/60 animate-spin ml-auto"/>
         </div>
         <div className="space-y-2">
           <div className="h-3 bg-[#0118A1]/10 rounded w-full"/>
@@ -160,11 +160,11 @@ function RiskOverview({ data, loading }) {
         <div className="flex flex-col gap-1">
           {fcdoSrc?.url && (
             <a href={fcdoSrc.url} target="_blank" rel="noopener noreferrer"
-              className="text-xs text-[#0118A1] hover:underline font-medium">→ UK FCDO travel advice</a>
+              className="text-xs text-[#AACC00] hover:underline font-medium">→ UK FCDO travel advice</a>
           )}
           {usSrc?.url && (
             <a href={usSrc.url} target="_blank" rel="noopener noreferrer"
-              className="text-xs text-[#0118A1] hover:underline font-medium">→ US State Dept advisory</a>
+              className="text-xs text-[#AACC00] hover:underline font-medium">→ US State Dept advisory</a>
           )}
         </div>
       </div>
@@ -257,7 +257,7 @@ function AlertsSection({ country }) {
           {[1,2].map(i => <div key={i} className="h-10 bg-gray-50 rounded animate-pulse"/>)}
         </div>
       ) : alerts.length === 0 ? (
-        <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 rounded-[8px] px-3 py-2">
+        <div className="flex items-center gap-2 text-sm text-[#AACC00] bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] rounded-[8px] px-3 py-2">
           <CheckCircle size={13}/> No active alerts for {country}
         </div>
       ) : (
@@ -284,7 +284,7 @@ function AlertsSection({ country }) {
 // ── Live news feed (Google News RSS + security intel feeds) ───────────────────
 const CAT_PILL = {
   news:     { bg: '#EFF6FF', color: '#1D4ED8' },
-  security: { bg: '#FEF3C7', color: '#92400E' },
+  security: { bg: '#FEF3C7', color: DS.amberText },
   health:   { bg: '#F0FDF4', color: '#166534' },
   conflict: { bg: '#FEF2F2', color: '#991B1B' },
   weather:  { bg: '#F0F9FF', color: '#0369A1' },
@@ -318,7 +318,7 @@ function LiveNewsSection({ country, city }) {
           )}
           {!loading && (
             <button onClick={() => setRetryTs(Date.now())}
-              className="text-[10px] text-gray-400 hover:text-[#0118A1] flex items-center gap-0.5 transition-colors">
+              className="text-[10px] text-gray-400 hover:text-[#AACC00] flex items-center gap-0.5 transition-colors">
               <RefreshCw size={9}/> Refresh
             </button>
           )}
@@ -342,12 +342,12 @@ function LiveNewsSection({ country, city }) {
             const pill = CAT_PILL[a.category] || CAT_PILL.news
             return (
               <a key={i} href={a.url || '#'} target="_blank" rel="noopener noreferrer"
-                className="block bg-white border border-gray-100 rounded-[8px] px-3 py-2.5 hover:border-[#0118A1]/30 hover:shadow-sm transition-all group">
+                className="block bg-white border border-gray-100 rounded-[8px] px-3 py-2.5 hover:border-[#AACC00]/30 hover:shadow-sm transition-all group">
                 <div className="flex items-start justify-between gap-2 mb-1.5">
-                  <p className="text-xs font-medium text-gray-800 leading-snug group-hover:text-[#0118A1] line-clamp-2 flex-1">
+                  <p className="text-xs font-medium text-gray-800 leading-snug group-hover:text-[#AACC00] line-clamp-2 flex-1">
                     {a.title}
                   </p>
-                  <ExternalLink size={10} className="text-gray-300 group-hover:text-[#0118A1] shrink-0 mt-0.5"/>
+                  <ExternalLink size={10} className="text-gray-300 group-hover:text-[#AACC00] shrink-0 mt-0.5"/>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
@@ -395,30 +395,30 @@ function HealthSection({ country, items = [], loading }) {
 
       {/* Outbreak alerts */}
       {items.length > 0 ? (
-        <div className="rounded-[8px] border border-amber-200 bg-amber-50 mb-3">
+        <div className="rounded-[8px] border border-[rgba(144,106,37,0.30)] bg-[rgba(144,106,37,0.12)] mb-3">
           <button
             className="w-full flex items-center justify-between px-4 py-3 text-left"
             onClick={() => setExpanded(e => !e)}
           >
             <div className="flex items-center gap-2">
-              <Activity size={12} className="text-amber-600"/>
-              <span className="text-xs font-bold text-amber-700">
+              <Activity size={12} className="text-[#D4A64A]"/>
+              <span className="text-xs font-bold text-[#D4A64A]">
                 {items.length} Health Alert{items.length !== 1 ? 's' : ''} Detected
               </span>
             </div>
             {expanded ? <ChevronUp size={12} className="text-amber-400"/> : <ChevronDown size={12} className="text-amber-400"/>}
           </button>
           {expanded && (
-            <div className="px-4 pb-4 space-y-2.5 border-t border-amber-200/60 pt-3">
+            <div className="px-4 pb-4 space-y-2.5 border-t border-[rgba(144,106,37,0.30)]/60 pt-3">
               {items.map((item, i) => (
-                <div key={i} className="bg-white border border-amber-200 rounded-[6px] p-3">
+                <div key={i} className="bg-white border border-[rgba(144,106,37,0.30)] rounded-[6px] p-3">
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <p className="text-xs font-semibold text-gray-800 leading-snug flex-1">
                       {item.title}
                     </p>
                     {item.link && (
                       <a href={item.link} target="_blank" rel="noopener noreferrer"
-                        className="shrink-0 text-[#0118A1] hover:opacity-70">
+                        className="shrink-0 text-[#AACC00] hover:opacity-70">
                         <ExternalLink size={10}/>
                       </a>
                     )}
@@ -427,7 +427,7 @@ function HealthSection({ country, items = [], loading }) {
                     <p className="text-[11px] text-gray-500 leading-snug line-clamp-2">{item.description}</p>
                   )}
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <span className="text-[9px] font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded uppercase tracking-wide">
+                    <span className="text-[9px] font-semibold bg-amber-100 text-[#D4A64A] px-1.5 py-0.5 rounded uppercase tracking-wide">
                       {item.source}
                     </span>
                     {item.date && <span className="text-[10px] text-gray-400">{timeAgo(item.date)}</span>}
@@ -438,7 +438,7 @@ function HealthSection({ country, items = [], loading }) {
           )}
         </div>
       ) : (
-        <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 rounded-[8px] px-3 py-2.5 mb-3">
+        <div className="flex items-center gap-2 text-sm text-[#AACC00] bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] rounded-[8px] px-3 py-2.5 mb-3">
           <CheckCircle size={13}/>
           <span className="text-xs font-medium">No active health outbreak alerts for {country}</span>
         </div>
@@ -453,7 +453,7 @@ function HealthSection({ country, items = [], loading }) {
         <div className="space-y-1.5">
           {HEALTH_LINKS.map((l, i) => (
             <a key={i} href={l.url} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-[11px] text-[#0118A1] hover:underline">
+              className="flex items-center gap-1.5 text-[11px] text-[#AACC00] hover:underline">
               <ExternalLink size={9} className="shrink-0"/>
               {l.label}
             </a>
@@ -632,12 +632,12 @@ export default function IntelBrief({ country, city, travelerName, returnDate, tr
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
-                <Globe size={16} className="text-[#0118A1] shrink-0"/>
+                <Globe size={16} className="text-[#AACC00] shrink-0"/>
                 <h2 className="text-lg font-bold text-gray-900 truncate">{country}</h2>
                 {/* AI indicator */}
-                <div className="flex items-center gap-1 bg-[#0118A1]/10 border border-[#0118A1]/20 rounded-full px-2 py-0.5">
-                  <Zap size={8} className="text-[#0118A1]"/>
-                  <span className="text-[9px] font-bold text-[#0118A1]">AI</span>
+                <div className="flex items-center gap-1 bg-[#0118A1]/10 border border-[#AACC00]/20 rounded-full px-2 py-0.5">
+                  <Zap size={8} className="text-[#AACC00]"/>
+                  <span className="text-[9px] font-bold text-[#AACC00]">AI</span>
                 </div>
               </div>
               {travelerName && (
@@ -653,7 +653,7 @@ export default function IntelBrief({ country, city, travelerName, returnDate, tr
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => setRefreshTs(Date.now())}
-                className="text-gray-400 hover:text-[#0118A1] p-1 transition-colors"
+                className="text-gray-400 hover:text-[#AACC00] p-1 transition-colors"
                 title="Refresh intel"
               >
                 <RefreshCw size={14}/>

@@ -53,17 +53,17 @@ function TripCard({ trip, tab, assignments, onApprove, onReject }) {
               <span className="font-semibold text-gray-900">{trip.trip_name}</span>
               <SeverityBadge severity={trip.risk_level} />
               {tab === 'pending' && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 border border-amber-200 text-amber-700">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 border border-[rgba(144,106,37,0.30)] text-[#D4A64A]">
                   ⏳ Awaiting approval
                 </span>
               )}
               {tab === 'approved' && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 border border-green-200 text-green-700">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 border border-[rgba(170,204,0,0.25)] text-[#AACC00]">
                   ✓ Approved
                 </span>
               )}
               {tab === 'rejected' && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 border border-red-200 text-red-700">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 border border-[rgba(138,46,46,0.30)] text-[#EF7474]">
                   ✗ Rejected
                 </span>
               )}
@@ -94,8 +94,8 @@ function TripCard({ trip, tab, assignments, onApprove, onReject }) {
 
             {/* Rejection reason */}
             {tab === 'rejected' && trip.approval_notes && (
-              <div className="mb-3 px-3 py-2 bg-red-50 border border-red-100 rounded-lg">
-                <p className="text-xs text-red-700">
+              <div className="mb-3 px-3 py-2 bg-[rgba(138,46,46,0.12)] border border-red-100 rounded-lg">
+                <p className="text-xs text-[#EF7474]">
                   <span className="font-semibold">Reason: </span>{trip.approval_notes}
                 </p>
               </div>
@@ -137,14 +137,14 @@ function TripCard({ trip, tab, assignments, onApprove, onReject }) {
               <div className="flex gap-2">
                 <button
                   onClick={onReject}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-[#EF7474] border border-[rgba(138,46,46,0.30)] rounded-lg hover:bg-[rgba(138,46,46,0.12)] transition-colors"
                 >
                   <XCircle size={13} /> Reject
                 </button>
                 <button
                   onClick={onApprove}
                   className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg transition-colors"
-                  style={{ background: '#AACC00', color: '#0118A1' }}
+                  style={{ background: '#AACC00', color: DS.bg }}
                 >
                   <CheckCircle2 size={13} /> Approve
                 </button>
@@ -153,13 +153,13 @@ function TripCard({ trip, tab, assignments, onApprove, onReject }) {
             {tab === 'approved' && (
               <div className="text-right">
                 <p className="text-[10px] text-gray-400">Approved</p>
-                <p className="text-xs font-semibold text-green-700">{fmtDate(trip.approved_at)}</p>
+                <p className="text-xs font-semibold text-[#AACC00]">{fmtDate(trip.approved_at)}</p>
               </div>
             )}
             {tab === 'rejected' && (
               <div className="text-right">
                 <p className="text-[10px] text-gray-400">Rejected</p>
-                <p className="text-xs font-semibold text-red-600">{fmtDate(trip.approved_at)}</p>
+                <p className="text-xs font-semibold text-[#EF7474]">{fmtDate(trip.approved_at)}</p>
               </div>
             )}
           </div>
@@ -168,7 +168,7 @@ function TripCard({ trip, tab, assignments, onApprove, onReject }) {
         {/* Expand toggle */}
         <button
           onClick={() => setExpanded(e => !e)}
-          className="mt-3 flex items-center gap-1 text-[11px] text-[#0118A1] font-medium hover:underline"
+          className="mt-3 flex items-center gap-1 text-[11px] text-[#AACC00] font-medium hover:underline"
         >
           {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           {expanded ? 'Hide details' : 'View full trip details'}
@@ -374,8 +374,8 @@ export default function TravelApprovals() {
       {toast.msg && (
         <div className={`mb-4 px-4 py-3 rounded-lg text-sm border flex items-center gap-2 ${
           toast.type === 'error'
-            ? 'bg-red-50 border-red-200 text-red-800'
-            : 'bg-green-50 border-green-200 text-green-800'
+            ? 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)] text-red-800'
+            : 'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.25)] text-green-800'
         }`}>
           {toast.type === 'error' ? <XCircle size={15} /> : <CheckCircle2 size={15} />}
           {toast.msg}
@@ -387,13 +387,13 @@ export default function TravelApprovals() {
         {STATUS_TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
-              tab === t ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'
+              tab === t ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#AACC00]'
             }`}>
             {t}
             {counts[t] > 0 && (
               <span className={`text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 ${
                 tab === t
-                  ? 'bg-white text-[#0118A1]'
+                  ? 'bg-white text-[#AACC00]'
                   : 'bg-gray-300 text-gray-600'
               }`}>
                 {counts[t]}
@@ -439,7 +439,7 @@ export default function TravelApprovals() {
       {actionTrip && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in fade-in slide-in-from-bottom-4 duration-200">
-            <h2 className={`text-lg font-bold mb-0.5 ${actionType === 'approve' ? 'text-gray-900' : 'text-red-700'}`}>
+            <h2 className={`text-lg font-bold mb-0.5 ${actionType === 'approve' ? 'text-gray-900' : 'text-[#EF7474]'}`}>
               {actionType === 'approve' ? '✓ Approve Trip' : '✗ Reject Trip'}
             </h2>
             <p className="text-sm text-gray-500 mb-4">
@@ -469,13 +469,13 @@ export default function TravelApprovals() {
 
             <label className="text-sm font-medium text-gray-700 block mb-1.5">
               {actionType === 'reject' ? 'Reason for rejection' : 'Notes for traveller'}
-              {actionType === 'reject' && <span className="text-red-500 ml-1">*</span>}
+              {actionType === 'reject' && <span className="text-[#EF7474] ml-1">*</span>}
             </label>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
               rows={3}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 resize-none"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 resize-none"
               placeholder={
                 actionType === 'approve'
                   ? 'Any conditions or guidance for the traveller…'
@@ -495,7 +495,7 @@ export default function TravelApprovals() {
                 disabled={submitting || (actionType === 'reject' && !notes.trim())}
                 className={`flex-1 px-4 py-2.5 text-sm font-bold rounded-xl transition-colors disabled:opacity-50 ${
                   actionType === 'approve'
-                    ? 'bg-[#AACC00] text-[#0118A1] hover:bg-[#99bb00]'
+                    ? 'bg-[#AACC00] text-[#AACC00] hover:bg-[#99bb00]'
                     : 'bg-red-600 text-white hover:bg-red-700'
                 }`}
               >

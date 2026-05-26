@@ -29,16 +29,16 @@ const TYPE_LABELS = {
 }
 
 const SEVERITY_STYLE = {
-  critical: { bg: 'bg-red-50',    border: 'border-red-400',   badge: 'bg-red-100 text-red-700 border-red-300',    dot: 'bg-red-500',    label: 'Critical' },
-  high:     { bg: 'bg-amber-50',  border: 'border-amber-400', badge: 'bg-amber-100 text-amber-700 border-amber-300', dot: 'bg-amber-500', label: 'High' },
+  critical: { bg: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-red-400',   badge: 'bg-red-100 text-[#EF7474] border-red-300',    dot: 'bg-red-500',    label: 'Critical' },
+  high:     { bg: 'bg-[rgba(144,106,37,0.12)]',  border: 'border-amber-400', badge: 'bg-amber-100 text-[#D4A64A] border-amber-300', dot: 'bg-amber-500', label: 'High' },
   medium:   { bg: 'bg-blue-50',   border: 'border-blue-200',  badge: 'bg-blue-100 text-blue-700 border-blue-200',  dot: 'bg-blue-500',   label: 'Medium' },
   low:      { bg: 'bg-gray-50',   border: 'border-gray-200',  badge: 'bg-gray-100 text-gray-600 border-gray-200',  dot: 'bg-gray-400',   label: 'Low' },
 }
 
 const STATUS_STYLE = {
-  pending:     { label: 'Pending',     color: 'text-amber-600',  bg: 'bg-amber-50  border-amber-200' },
-  in_progress: { label: 'In Progress', color: 'text-blue-600',   bg: 'bg-blue-50   border-blue-200' },
-  resolved:    { label: 'Resolved',    color: 'text-green-600',  bg: 'bg-green-50  border-green-200' },
+  pending:     { label: 'Pending',     color: 'text-[#D4A64A]',  bg: 'bg-[rgba(144,106,37,0.12)]  border-[rgba(144,106,37,0.30)]' },
+  in_progress: { label: 'In Progress', color: 'text-[#6EA8C8]',   bg: 'bg-blue-50   border-blue-200' },
+  resolved:    { label: 'Resolved',    color: 'text-[#AACC00]',  bg: 'bg-[rgba(170,204,0,0.10)]  border-[rgba(170,204,0,0.25)]' },
   cancelled:   { label: 'Cancelled',   color: 'text-gray-500',   bg: 'bg-gray-50   border-gray-200' },
 }
 
@@ -211,7 +211,7 @@ function RequestCard({ req, onUpdate }) {
                 onChange={e => setResponse(e.target.value)}
                 rows={2}
                 placeholder="Type a response to the traveller…"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 resize-none bg-white"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 resize-none bg-white"
               />
               <div className="flex gap-2 mt-2 flex-wrap">
                 {req.status === 'pending' && (
@@ -235,7 +235,7 @@ function RequestCard({ req, onUpdate }) {
           )}
 
           {req.status === 'resolved' && (
-            <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 px-3 py-2 rounded-lg border border-green-100">
+            <div className="flex items-center gap-2 text-xs text-[#AACC00] bg-[rgba(170,204,0,0.10)] px-3 py-2 rounded-lg border border-green-100">
               <CheckCircle2 size={13} /> Resolved {fmtTime(req.resolved_at)}
             </div>
           )}
@@ -369,9 +369,9 @@ export default function ControlRoom() {
       {/* Stats bar */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
-          { label: 'Pending',     value: pending,    color: 'text-amber-600',  bg: 'bg-amber-50',  border: 'border-amber-200' },
-          { label: 'In Progress', value: inProgress, color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-200' },
-          { label: 'Critical',    value: critical,   color: 'text-red-600',    bg: 'bg-red-50',    border: 'border-red-200' },
+          { label: 'Pending',     value: pending,    color: 'text-[#D4A64A]',  bg: 'bg-[rgba(144,106,37,0.12)]',  border: 'border-[rgba(144,106,37,0.30)]' },
+          { label: 'In Progress', value: inProgress, color: 'text-[#6EA8C8]',   bg: 'bg-blue-50',   border: 'border-blue-200' },
+          { label: 'Critical',    value: critical,   color: 'text-[#EF7474]',    bg: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-[rgba(138,46,46,0.30)]' },
         ].map(s => (
           <div key={s.label} className={`rounded-xl border p-4 ${s.bg} ${s.border}`}>
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -389,7 +389,7 @@ export default function ControlRoom() {
         ].map(t => (
           <button key={t.key} onClick={() => setFilter(t.key)}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              filter === t.key ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'
+              filter === t.key ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#AACC00]'
             }`}>
             {t.label}
           </button>

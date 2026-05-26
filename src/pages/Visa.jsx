@@ -11,7 +11,7 @@ import { cityToCountry } from '../data/intelData'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 import { DS } from '../lib/ds'
 
-const inputClass  = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
+const inputClass  = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-white'
 const labelClass  = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
 const selectClass = inputClass
 
@@ -143,7 +143,7 @@ function VisaCheckTab({ profile, trips }) {
                 className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all"
                 style={travelPurpose === p.value
                   ? { background: DS.greenDim, border: `1.5px solid ${BRAND_BLUE}`, color: DS.green }
-                  : { background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#64748B' }}>
+                  : { background: DS.bgAlt, border: '1px solid #E2E8F0', color: '#64748B' }}>
                 <span>{p.icon}</span> {p.label}
               </button>
             ))}
@@ -167,7 +167,7 @@ function VisaCheckTab({ profile, trips }) {
         )}
 
         {error && (
-          <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-xl text-sm text-[#EF7474]">
             <AlertTriangle size={14} className="shrink-0" /> {error}
           </div>
         )}
@@ -448,7 +448,7 @@ function VisaLetterTab({ profile, trips, orgProfile }) {
                   className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all"
                   style={travelPurpose === p.value
                     ? { background: DS.greenDim, border: `1.5px solid ${BRAND_BLUE}`, color: DS.green }
-                    : { background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#64748B' }}>
+                    : { background: DS.bgAlt, border: '1px solid #E2E8F0', color: '#64748B' }}>
                   <span>{p.icon}</span> {p.label}
                 </button>
               ))}
@@ -524,7 +524,7 @@ function VisaLetterTab({ profile, trips, orgProfile }) {
         )}
 
         {error && (
-          <div className="mt-4 flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <div className="mt-4 flex items-center gap-2 px-4 py-3 bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-xl text-sm text-[#EF7474]">
             <AlertTriangle size={14} className="shrink-0" /> {error}
           </div>
         )}
@@ -624,8 +624,8 @@ export default function Visa() {
           </div>
         </div>
 
-        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
-          <AlertTriangle size={13} className="shrink-0 mt-0.5 text-amber-600" />
+        <div className="mt-4 p-3 bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] rounded-xl flex items-start gap-2">
+          <AlertTriangle size={13} className="shrink-0 mt-0.5 text-[#D4A64A]" />
           <p className="text-xs text-amber-800 leading-relaxed">
             Visa requirements change frequently. Always verify current requirements with the official embassy or consulate of your destination country before applying.
           </p>

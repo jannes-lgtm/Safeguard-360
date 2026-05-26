@@ -228,7 +228,7 @@ function AssetsPanel({ locations }) {
       {locations.map(l => (
         <div key={l.id} className="px-4 py-2.5 border-b border-white/5 last:border-0 flex items-center gap-3">
           <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
-            style={{ background: '#0118A1', color: '#AACC00' }}>
+            style={{ background: DS.green, color: '#AACC00' }}>
             {(l.profiles?.full_name || '?').charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
@@ -508,7 +508,7 @@ export default function WatchBoard() {
         style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)' }}>
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded flex items-center justify-center" style={{ background: '#AACC00' }}>
-            <Globe size={14} style={{ color: '#0118A1' }} />
+            <Globe size={14} style={{ color: DS.bg }} />
           </div>
           <div>
             <p className="text-sm font-bold text-white tracking-wide">GSOC</p>

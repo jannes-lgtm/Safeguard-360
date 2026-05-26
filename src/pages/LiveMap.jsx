@@ -789,7 +789,7 @@ export default function LiveMap() {
               {/* Stats strip */}
               <div className={`grid grid-cols-3 gap-1.5 rounded-xl p-2.5 border backdrop-blur-md ${panelBg}`}>
                 {[
-                  { label: 'Sharing',  value: locations.length,    color: '#0118A1' },
+                  { label: 'Sharing',  value: locations.length,    color: DS.bg },
                   { label: 'Alerts',   value: tripAlerts.length,   color: tripAlerts.some(a => a.severity === 'Critical') ? '#ef4444' : '#f59e0b' },
                   { label: 'Nearby',   value: proximityWarnings.length, color: proximityWarnings.length ? '#ef4444' : '#6b7280' },
                 ].map(s => (

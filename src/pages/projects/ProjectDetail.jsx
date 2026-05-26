@@ -16,36 +16,36 @@ import { timeAgo } from '../../lib/dateUtils'
 
 const STATUS_STYLE = {
   planning:  { label: 'Planning',  bg: 'bg-blue-100',  text: 'text-blue-700'  },
-  active:    { label: 'Active',    bg: 'bg-green-100', text: 'text-green-700' },
-  on_hold:   { label: 'On Hold',   bg: 'bg-amber-100', text: 'text-amber-700' },
+  active:    { label: 'Active',    bg: 'bg-green-100', text: 'text-[#AACC00]' },
+  on_hold:   { label: 'On Hold',   bg: 'bg-amber-100', text: 'text-[#D4A64A]' },
   completed: { label: 'Completed', bg: 'bg-gray-100',  text: 'text-gray-500'  },
-  cancelled: { label: 'Cancelled', bg: 'bg-red-100',   text: 'text-red-600'   },
+  cancelled: { label: 'Cancelled', bg: 'bg-red-100',   text: 'text-[#EF7474]'   },
 }
 
 const TASK_STATUS = {
   open:        { label: 'Open',        bg: 'bg-gray-100',   text: 'text-gray-600'   },
   in_progress: { label: 'In Progress', bg: 'bg-blue-100',   text: 'text-blue-700'   },
-  blocked:     { label: 'Blocked',     bg: 'bg-red-100',    text: 'text-red-700'    },
-  done:        { label: 'Done',        bg: 'bg-green-100',  text: 'text-green-700'  },
+  blocked:     { label: 'Blocked',     bg: 'bg-red-100',    text: 'text-[#EF7474]'    },
+  done:        { label: 'Done',        bg: 'bg-green-100',  text: 'text-[#AACC00]'  },
 }
 
 const PRI_DOT = { critical: '#dc2626', high: '#ea580c', medium: '#ca8a04', low: '#16a34a' }
 
 const THREAT_LEVEL = {
-  critical: { label: 'CRITICAL', color: '#ef4444', bg: 'bg-red-50',    border: 'border-red-200'    },
+  critical: { label: 'CRITICAL', color: '#ef4444', bg: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-[rgba(138,46,46,0.30)]'    },
   elevated: { label: 'ELEVATED', color: '#f97316', bg: 'bg-orange-50', border: 'border-orange-200' },
-  guarded:  { label: 'GUARDED',  color: '#f59e0b', bg: 'bg-amber-50',  border: 'border-amber-200'  },
-  normal:   { label: 'NORMAL',   color: '#10b981', bg: 'bg-green-50',  border: 'border-green-200'  },
+  guarded:  { label: 'GUARDED',  color: '#f59e0b', bg: 'bg-[rgba(144,106,37,0.12)]',  border: 'border-[rgba(144,106,37,0.30)]'  },
+  normal:   { label: 'NORMAL',   color: '#10b981', bg: 'bg-[rgba(170,204,0,0.10)]',  border: 'border-[rgba(170,204,0,0.25)]'  },
 }
 
-const inputCls  = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1] transition-colors"
+const inputCls  = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00] transition-colors"
 const selectCls = inputCls + " bg-white"
 
 function Field({ label, required, children }) {
   return (
     <div>
       <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+        {label}{required && <span className="text-[#EF7474] ml-0.5">*</span>}
       </label>
       {children}
     </div>
@@ -300,7 +300,7 @@ function TasksTab({ projectId, tasks, setTasks, memberOptions, profile }) {
             return (
               <div key={t.id} className="bg-white rounded-xl border border-gray-100 px-4 py-3 flex items-start gap-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
                 <button onClick={() => toggleDone(t)} className="mt-0.5 shrink-0">
-                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${t.status === 'done' ? 'border-green-500 bg-green-500' : 'border-gray-300 hover:border-[#0118A1]'}`}>
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${t.status === 'done' ? 'border-green-500 bg-green-500' : 'border-gray-300 hover:border-[#AACC00]'}`}>
                     {t.status === 'done' && <span className="text-white text-[10px] font-bold">✓</span>}
                   </div>
                 </button>
@@ -428,7 +428,7 @@ function IncidentsTab({ projectId, linkedIncidents, setLinkedIncidents, profile 
                   <p className="text-sm font-medium text-gray-800 truncate">{inc.title}</p>
                   <p className="text-[11px] text-gray-400 mt-0.5">{inc.severity} · {inc.country} · {inc.status}</p>
                 </div>
-                <Link to="/incidents" className="text-[10px] text-[#0118A1] hover:underline shrink-0">View</Link>
+                <Link to="/incidents" className="text-[10px] text-[#AACC00] hover:underline shrink-0">View</Link>
               </div>
             )
           })}
@@ -614,8 +614,8 @@ function ShiftLogTab({ projectId, shifts, setShifts, profile }) {
                       <p className="text-sm text-gray-700 whitespace-pre-wrap">{s.summary}</p>
                     </div>
                     {s.open_items && (
-                      <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
-                        <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <div className="p-3 rounded-lg bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)]">
+                        <p className="text-[10px] font-bold text-[#D4A64A] uppercase tracking-widest mb-1 flex items-center gap-1">
                           <AlertTriangle size={10} /> Open Items
                         </p>
                         <p className="text-sm text-gray-700 whitespace-pre-wrap">{s.open_items}</p>
@@ -858,7 +858,7 @@ export default function ProjectDetail() {
       <Layout>
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-gray-500 font-medium">Project not found</p>
-          <Link to="/projects" className="mt-3 text-sm text-[#0118A1] hover:underline">← Back to Projects</Link>
+          <Link to="/projects" className="mt-3 text-sm text-[#AACC00] hover:underline">← Back to Projects</Link>
         </div>
       </Layout>
     )

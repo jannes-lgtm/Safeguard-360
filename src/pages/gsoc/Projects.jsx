@@ -175,7 +175,7 @@ export default function Projects() {
         </div>
         <button onClick={() => setShowNewProj(true)}
           className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
-          style={{ background: '#AACC00', color: '#0118A1' }}>
+          style={{ background: '#AACC00', color: DS.bg }}>
           <Plus size={13} /> New Project
         </button>
       </div>
@@ -245,7 +245,7 @@ export default function Projects() {
                   )}
                   <button onClick={() => setShowNewTask(true)}
                     className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all"
-                    style={{ background: '#0118A1', color: '#AACC00' }}>
+                    style={{ background: DS.green, color: '#AACC00' }}>
                     <Plus size={12} /> Add Task
                   </button>
                 </div>
@@ -336,7 +336,7 @@ export default function Projects() {
             </button>
             <button onClick={createProject} disabled={saving || !projForm.name.trim()}
               className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-40"
-              style={{ background: '#AACC00', color: '#0118A1' }}>
+              style={{ background: '#AACC00', color: DS.bg }}>
               {saving ? 'Creating…' : 'Create Project'}
             </button>
           </div>
@@ -370,7 +370,7 @@ export default function Projects() {
             </button>
             <button onClick={createTask} disabled={saving || !taskForm.title.trim()}
               className="flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40"
-              style={{ background: '#AACC00', color: '#0118A1' }}>
+              style={{ background: '#AACC00', color: DS.bg }}>
               {saving ? 'Adding…' : 'Add Task'}
             </button>
           </div>

@@ -4,11 +4,11 @@ import { Shield, ExternalLink, RefreshCw, Globe, Bell, HeartPulse, ChevronRight 
 import { getCountryRisk } from '../services/intelligenceService'
 
 const SEVERITY_CONFIG = {
-  'Critical': { color: 'text-red-700 bg-red-100 border-red-200',       label: 'Do Not Travel'       },
-  'High':     { color: 'text-amber-700 bg-amber-100 border-amber-200', label: 'Reconsider Travel'   },
-  'Medium':   { color: 'text-yellow-700 bg-yellow-100 border-yellow-200', label: 'Exercise Caution' },
-  'Low':      { color: 'text-green-700 bg-green-100 border-green-200', label: 'Normal Precautions'  },
-  'Unknown':  { color: 'text-gray-600 bg-gray-100 border-gray-200',    label: 'No advisory data'    },
+  'Critical': { color: 'text-[#EF7474] bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)]', label: 'Do Not Travel'      },
+  'High':     { color: 'text-[#D4A64A] bg-[rgba(144,106,37,0.12)] border-[rgba(144,106,37,0.30)]', label: 'Reconsider Travel' },
+  'Medium':   { color: 'text-[#D4A64A] bg-[rgba(144,106,37,0.08)] border-[rgba(144,106,37,0.20)]', label: 'Exercise Caution'  },
+  'Low':      { color: 'text-[#AACC00] bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.25)]',   label: 'Normal Precautions'},
+  'Unknown':  { color: 'text-[#6E7480] bg-[rgba(255,255,255,0.04)] border-[rgba(255,255,255,0.08)]', label: 'No advisory data' },
 }
 
 function getRecipients(profile) {
@@ -64,7 +64,7 @@ export default function CountryRisk({ country, tripName, profile }) {
 
   if (error) return (
     <div className="flex items-center gap-2 mt-1">
-      <span className="text-xs text-red-600">{error}</span>
+      <span className="text-xs text-[#EF7474]">{error}</span>
       <button onClick={check} className="text-xs text-[#1B3A6B] hover:underline">Retry</button>
     </div>
   )
@@ -102,7 +102,7 @@ export default function CountryRisk({ country, tripName, profile }) {
         ))}
 
         {notified && (
-          <span className="inline-flex items-center gap-1 text-xs text-green-600">
+          <span className="inline-flex items-center gap-1 text-xs text-[#AACC00]">
             <Bell size={10} /> Contacts notified
           </span>
         )}
@@ -172,7 +172,7 @@ export default function CountryRisk({ country, tripName, profile }) {
       {/* ── Link to full report ── */}
       <button
         onClick={() => navigate(`/country-risk?country=${encodeURIComponent(country)}`)}
-        className="inline-flex items-center gap-1 text-xs text-[#0118A1] hover:underline font-medium">
+        className="inline-flex items-center gap-1 text-xs text-[#AACC00] hover:underline font-medium">
         View full risk report <ChevronRight size={10} />
       </button>
     </div>

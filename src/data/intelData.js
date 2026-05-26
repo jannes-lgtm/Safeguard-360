@@ -304,10 +304,10 @@ export function matchesCountry(text, country) {
 
 // ── Risk severity colours ─────────────────────────────────────────────────────
 export const SEVERITY_STYLE = {
-  Critical: { bg: 'bg-red-100',    border: 'border-red-300',    text: 'text-red-800',    dot: 'bg-red-500'    },
-  High:     { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-800', dot: 'bg-orange-500' },
-  Medium:   { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-800', dot: 'bg-yellow-500' },
-  Low:      { bg: 'bg-green-100',  border: 'border-green-300',  text: 'text-green-800',  dot: 'bg-green-500'  },
+  Critical: { bg: 'bg-[rgba(138,46,46,0.13)]',    border: 'border-[rgba(138,46,46,0.30)]',    text: 'text-[#EF7474]',    dot: 'bg-[#A83535]'  },
+  High:     { bg: 'bg-[rgba(144,106,37,0.14)]',   border: 'border-[rgba(144,106,37,0.30)]',   text: 'text-[#D4A64A]',    dot: 'bg-[#B08535]'  },
+  Medium:   { bg: 'bg-[rgba(122,106,26,0.12)]',   border: 'border-[rgba(122,106,26,0.28)]',   text: 'text-[#C4A83A]',    dot: 'bg-[#9A8830]'  },
+  Low:      { bg: 'bg-[rgba(58,88,112,0.10)]',    border: 'border-[rgba(58,88,112,0.28)]',    text: 'text-[#6EA8C8]',    dot: 'bg-[#4A6E8A]'  },
 }
 
 // Feeds to query for country-specific intel articles

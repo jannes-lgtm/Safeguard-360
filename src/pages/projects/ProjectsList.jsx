@@ -11,10 +11,10 @@ import { DS } from '../../lib/ds'
 
 const STATUS_STYLE = {
   planning:  { label: 'Planning',  bg: 'bg-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500'   },
-  active:    { label: 'Active',    bg: 'bg-green-100',  text: 'text-green-700',  dot: 'bg-green-500'  },
-  on_hold:   { label: 'On Hold',   bg: 'bg-amber-100',  text: 'text-amber-700',  dot: 'bg-amber-500'  },
+  active:    { label: 'Active',    bg: 'bg-green-100',  text: 'text-[#AACC00]',  dot: 'bg-green-500'  },
+  on_hold:   { label: 'On Hold',   bg: 'bg-amber-100',  text: 'text-[#D4A64A]',  dot: 'bg-amber-500'  },
   completed: { label: 'Completed', bg: 'bg-gray-100',   text: 'text-gray-500',   dot: 'bg-gray-400'   },
-  cancelled: { label: 'Cancelled', bg: 'bg-red-100',    text: 'text-red-600',    dot: 'bg-red-400'    },
+  cancelled: { label: 'Cancelled', bg: 'bg-red-100',    text: 'text-[#EF7474]',    dot: 'bg-red-400'    },
 }
 
 const PRIORITY_STYLE = {
@@ -55,14 +55,14 @@ function Field({ label, required, children }) {
   return (
     <div>
       <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wider">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+        {label}{required && <span className="text-[#EF7474] ml-0.5">*</span>}
       </label>
       {children}
     </div>
   )
 }
 
-const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1] transition-colors"
+const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00] transition-colors"
 const selectCls = inputCls + " bg-white"
 
 export default function ProjectsList() {
@@ -176,7 +176,7 @@ export default function ProjectsList() {
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"
+            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00]"
             placeholder="Search projects, clients, countries…"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -229,7 +229,7 @@ export default function ProjectsList() {
             const taskCount   = p.tasks?.[0]?.count ?? 0
             return (
               <Link key={p.id} to={`/projects/${p.id}`}
-                className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] p-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.1)] hover:border-[#0118A1]/20 transition-all group">
+                className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] p-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.1)] hover:border-[#AACC00]/20 transition-all group">
 
                 {/* Top row */}
                 <div className="flex items-start justify-between gap-2 mb-3">
@@ -237,14 +237,14 @@ export default function ProjectsList() {
                     {p.code && (
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">{p.code}</p>
                     )}
-                    <h3 className="font-bold text-gray-900 leading-tight group-hover:text-[#0118A1] transition-colors truncate">
+                    <h3 className="font-bold text-gray-900 leading-tight group-hover:text-[#AACC00] transition-colors truncate">
                       {p.name}
                     </h3>
                     {p.client_name && (
                       <p className="text-xs text-gray-500 mt-0.5 truncate">{p.client_name}</p>
                     )}
                   </div>
-                  <ChevronRight size={16} className="text-gray-300 group-hover:text-[#0118A1] shrink-0 mt-1 transition-colors" />
+                  <ChevronRight size={16} className="text-gray-300 group-hover:text-[#AACC00] shrink-0 mt-1 transition-colors" />
                 </div>
 
                 {/* Badges */}

@@ -181,7 +181,7 @@ export default function Briefing() {
           </p>
 
           {/* Meta grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-5 rounded-xl" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-5 rounded-xl" style={{ background: DS.bgAlt, border: '1px solid #E2E8F0' }}>
             {[
               { label: 'Traveller',   value: briefing.traveller_name, icon: Shield },
               { label: 'Organisation', value: briefing.org_name,       icon: FileText },
@@ -276,7 +276,7 @@ export default function Briefing() {
                 <p className="text-xs text-gray-400">Your travel administrator has been notified.</p>
               </div>
             </div>
-            <div className="rounded-xl p-4 mb-4" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+            <div className="rounded-xl p-4 mb-4" style={{ background: DS.bgAlt, border: '1px solid #E2E8F0' }}>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-0.5">Acknowledged by</p>
@@ -324,7 +324,7 @@ export default function Briefing() {
 
             {!scrolled && (
               <div className="flex items-center gap-2 text-xs font-semibold rounded-xl px-4 py-3 mb-5"
-                style={{ background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A' }}>
+                style={{ background: '#FEF3C7', color: DS.amberText, border: '1px solid #FDE68A' }}>
                 <ChevronDown size={13} />
                 Please scroll through the full document before acknowledging.
               </div>

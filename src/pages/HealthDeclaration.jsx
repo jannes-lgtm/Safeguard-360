@@ -8,7 +8,7 @@ import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { resolveCountry } from '../lib/cityToCountry'
 
-const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
+const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-white'
 const labelCls = 'block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide'
 
 const SEV_COLOR = { High: '#DC2626', Medium: '#D97706', Low: '#059669' }
@@ -164,7 +164,7 @@ export default function HealthDeclaration() {
   if (loading) return (
     <Layout>
       <div className="flex items-center justify-center py-24">
-        <Loader2 size={28} className="animate-spin text-[#0118A1]" />
+        <Loader2 size={28} className="animate-spin text-[#AACC00]" />
       </div>
     </Layout>
   )
@@ -174,7 +174,7 @@ export default function HealthDeclaration() {
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <AlertTriangle size={32} className="text-red-400 mb-3" />
         <p className="text-gray-600">{loadError}</p>
-        <button onClick={() => navigate('/itinerary')} className="mt-4 text-sm font-semibold underline" style={{ color: '#0118A1' }}>Back to itinerary</button>
+        <button onClick={() => navigate('/itinerary')} className="mt-4 text-sm font-semibold underline" style={{ color: DS.bg }}>Back to itinerary</button>
       </div>
     </Layout>
   )
@@ -182,8 +182,8 @@ export default function HealthDeclaration() {
   if (submitted) return (
     <Layout>
       <div className="max-w-lg mx-auto py-16 text-center">
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: '#F0FDF4' }}>
-          <ShieldCheck size={30} className="text-green-500" />
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: DS.greenDim }}>
+          <ShieldCheck size={30} className="text-[#AACC00]" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Health declaration submitted</h1>
         <p className="text-sm text-gray-500 mb-6">
@@ -191,7 +191,7 @@ export default function HealthDeclaration() {
         </p>
         <button onClick={() => navigate('/itinerary')}
           className="px-6 py-3 rounded-xl text-sm font-bold text-white"
-          style={{ background: '#0118A1' }}>
+          style={{ background: DS.green }}>
           Back to my itinerary →
         </button>
       </div>
@@ -217,7 +217,7 @@ export default function HealthDeclaration() {
           {trip?.trip_name}{trip?.arrival_city && trip?.arrival_city !== trip?.trip_name ? ` · ${trip.arrival_city}` : ''} · {trip?.depart_date}
         </p>
         {existing && (
-          <span className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1 rounded-full">
+          <span className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-[#AACC00] bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] px-3 py-1 rounded-full">
             <CheckCircle2 size={11} /> Previously submitted — you can update and resubmit
           </span>
         )}
@@ -236,11 +236,11 @@ export default function HealthDeclaration() {
               </span>
             )}
             {aiLoaded && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">AI · Live</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-[#6EA8C8]">AI · Live</span>
             )}
             {reqsError && !reqsLoading && (
               <button onClick={() => trip && fetchReqs(trip, existing)}
-                className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors">
+                className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[rgba(144,106,37,0.12)] text-[#D4A64A] hover:bg-amber-100 transition-colors">
                 <RefreshCw size={9} /> Retry
               </button>
             )}
@@ -253,7 +253,7 @@ export default function HealthDeclaration() {
           ) : reqsError ? (
             <div className="px-5 py-4 flex items-center gap-3">
               <AlertTriangle size={14} className="text-amber-500 shrink-0" />
-              <p className="text-xs text-amber-700">Live health data unavailable — complete vaccination status below manually if needed.</p>
+              <p className="text-xs text-[#D4A64A]">Live health data unavailable — complete vaccination status below manually if needed.</p>
             </div>
           ) : reqs?.vaccinations?.length ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-50">
@@ -282,7 +282,7 @@ export default function HealthDeclaration() {
                             : opt === 'Scheduled'
                             ? { background: '#2563EB', color: '#fff', borderColor: '#2563EB' }
                             : { background: '#6B7280', color: '#fff', borderColor: '#6B7280' }
-                          : { background: '#fff', color: '#9CA3AF', borderColor: '#E5E7EB' }}>
+                          : { background: DS.surface, color: '#9CA3AF', borderColor: '#E5E7EB' }}>
                         {opt}
                       </button>
                     ))}
@@ -305,7 +305,7 @@ export default function HealthDeclaration() {
               <h2 className="text-sm font-bold text-gray-900 flex-1 text-left">
                 Current Health Risks — {reqs.health_risks.length} identified
               </h2>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 mr-1">AI · Live</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[rgba(144,106,37,0.12)] text-[#D4A64A] mr-1">AI · Live</span>
               {showRisks ? <ChevronUp size={13} className="text-gray-400" /> : <ChevronDown size={13} className="text-gray-400" />}
             </button>
             {showRisks && (
@@ -319,7 +319,7 @@ export default function HealthDeclaration() {
                     </div>
                     <p className="text-[11px] text-gray-500 leading-snug mb-1.5">{risk.description}</p>
                     {risk.prevention && (
-                      <p className="text-[11px] text-green-700 bg-green-50 rounded-lg px-2.5 py-1.5">{risk.prevention}</p>
+                      <p className="text-[11px] text-[#AACC00] bg-[rgba(170,204,0,0.10)] rounded-lg px-2.5 py-1.5">{risk.prevention}</p>
                     )}
                   </div>
                 ))}
@@ -378,8 +378,8 @@ export default function HealthDeclaration() {
                   <button key={opt} type="button" onClick={() => setHasMedical(opt === 'Yes')}
                     className="px-4 py-1.5 rounded-xl text-sm font-semibold border transition-all"
                     style={hasMedical === (opt === 'Yes')
-                      ? { background: '#0118A1', color: '#fff', borderColor: '#0118A1' }
-                      : { background: '#fff', color: '#6B7280', borderColor: '#E5E7EB' }}>
+                      ? { background: DS.green, color: '#fff', borderColor: DS.green }
+                      : { background: DS.surface, color: '#6B7280', borderColor: '#E5E7EB' }}>
                     {opt}
                   </button>
                 ))}
@@ -399,8 +399,8 @@ export default function HealthDeclaration() {
                   <button key={opt} type="button" onClick={() => setHasMeds(opt === 'Yes')}
                     className="px-4 py-1.5 rounded-xl text-sm font-semibold border transition-all"
                     style={hasMeds === (opt === 'Yes')
-                      ? { background: '#0118A1', color: '#fff', borderColor: '#0118A1' }
-                      : { background: '#fff', color: '#6B7280', borderColor: '#E5E7EB' }}>
+                      ? { background: DS.green, color: '#fff', borderColor: DS.green }
+                      : { background: DS.surface, color: '#6B7280', borderColor: '#E5E7EB' }}>
                     {opt}
                   </button>
                 ))}
@@ -420,8 +420,8 @@ export default function HealthDeclaration() {
                   <button key={opt} type="button" onClick={() => setHasAllergies(opt === 'Yes')}
                     className="px-4 py-1.5 rounded-xl text-sm font-semibold border transition-all"
                     style={hasAllergies === (opt === 'Yes')
-                      ? { background: '#0118A1', color: '#fff', borderColor: '#0118A1' }
-                      : { background: '#fff', color: '#6B7280', borderColor: '#E5E7EB' }}>
+                      ? { background: DS.green, color: '#fff', borderColor: DS.green }
+                      : { background: DS.surface, color: '#6B7280', borderColor: '#E5E7EB' }}>
                     {opt}
                   </button>
                 ))}
@@ -479,7 +479,7 @@ export default function HealthDeclaration() {
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <div className="flex items-center gap-2 px-4 py-3 bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-xl text-sm text-[#EF7474]">
             <AlertTriangle size={14} className="shrink-0" /> {error}
           </div>
         )}
@@ -487,9 +487,9 @@ export default function HealthDeclaration() {
         <div className="flex items-center gap-3 pb-6">
           <button type="submit" disabled={submitting}
             className="flex items-center gap-2 px-8 py-3.5 rounded-xl text-sm font-bold transition-all disabled:opacity-60"
-            style={{ background: '#AACC00', color: '#0118A1' }}>
+            style={{ background: '#AACC00', color: DS.bg }}>
             {submitting
-              ? <><div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" />Submitting…</>
+              ? <><div className="w-4 h-4 border-2 border-[#AACC00] border-t-transparent rounded-full animate-spin" />Submitting…</>
               : <><ShieldCheck size={15} />{existing ? 'Update declaration' : 'Submit health declaration'}</>}
           </button>
           <button type="button" onClick={() => navigate('/itinerary')}

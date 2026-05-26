@@ -161,10 +161,10 @@ const REGIONS = ['All', 'Africa', 'Middle East', 'Europe', 'Asia', 'Americas', '
 
 // ── Severity config ───────────────────────────────────────────────────────────
 const SEV = {
-  Critical: { bg: 'bg-red-600',    light: 'bg-red-50',    border: 'border-red-200',    text: 'text-red-700',    dot: 'bg-red-500',    bar: 100, advice: 'Do Not Travel'      },
+  Critical: { bg: 'bg-red-600',    light: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-[rgba(138,46,46,0.30)]',    text: 'text-[#EF7474]',    dot: 'bg-red-500',    bar: 100, advice: 'Do Not Travel'      },
   High:     { bg: 'bg-orange-500', light: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', dot: 'bg-orange-500', bar: 75,  advice: 'Reconsider Travel'   },
   Medium:   { bg: 'bg-yellow-500', light: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700', dot: 'bg-yellow-500', bar: 50,  advice: 'Exercise Caution'    },
-  Low:      { bg: 'bg-green-500',  light: 'bg-green-50',  border: 'border-green-200',  text: 'text-green-700',  dot: 'bg-green-500',  bar: 25,  advice: 'Normal Precautions'  },
+  Low:      { bg: 'bg-green-500',  light: 'bg-[rgba(170,204,0,0.10)]',  border: 'border-[rgba(170,204,0,0.25)]',  text: 'text-[#AACC00]',  dot: 'bg-green-500',  bar: 25,  advice: 'Normal Precautions'  },
   Unknown:  { bg: 'bg-gray-400',   light: 'bg-gray-50',   border: 'border-gray-200',   text: 'text-gray-500',   dot: 'bg-gray-400',   bar: 10,  advice: 'No advisory data'    },
 }
 const sev = (s) => SEV[s] || SEV.Unknown
@@ -260,7 +260,7 @@ function Section({ title, icon: Icon, accent = 'text-gray-500', count, defaultOp
 
 // ── Risk category config for individual risk items ────────────────────────────
 const RISK_CAT = {
-  conflict:  { icon: Swords,        color: 'text-red-600',    bg: 'bg-red-50',    border: 'border-red-200'    },
+  conflict:  { icon: Swords,        color: 'text-[#EF7474]',    bg: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-[rgba(138,46,46,0.30)]'    },
   security:  { icon: Lock,          color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
   health:    { icon: HeartPulse,    color: 'text-rose-600',   bg: 'bg-rose-50',   border: 'border-rose-200'   },
   weather:   { icon: CloudRain,     color: 'text-sky-600',    bg: 'bg-sky-50',    border: 'border-sky-200'    },
@@ -273,11 +273,11 @@ const riskCat = (cat) => RISK_CAT[cat] || RISK_CAT.security
 function AiBrief({ brief, loading }) {
   if (loading) {
     return (
-      <div className="bg-white rounded-[10px] border border-[#0118A1]/20 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-        <div className="flex items-center gap-2.5 px-4 py-3 bg-[#0118A1]/5 border-b border-[#0118A1]/10">
-          <Brain size={14} className="text-[#0118A1]" />
-          <span className="text-xs font-bold text-[#0118A1] uppercase tracking-wider">AI Risk Assessment</span>
-          <span className="ml-auto flex items-center gap-1 text-[10px] text-[#0118A1]/60">
+      <div className="bg-white rounded-[10px] border border-[#AACC00]/20 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-[#0118A1]/5 border-b border-[#AACC00]/10">
+          <Brain size={14} className="text-[#AACC00]" />
+          <span className="text-xs font-bold text-[#AACC00] uppercase tracking-wider">AI Risk Assessment</span>
+          <span className="ml-auto flex items-center gap-1 text-[10px] text-[#AACC00]/60">
             <RefreshCw size={9} className="animate-spin" /> Analysing all intelligence sources…
           </span>
         </div>
@@ -303,10 +303,10 @@ function AiBrief({ brief, loading }) {
   const threatSev   = sev(threatLevel)
 
   return (
-    <div className="bg-white rounded-[10px] border border-[#0118A1]/20 shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
-      <div className="flex items-center gap-2.5 px-4 py-3 bg-[#0118A1]/5 border-b border-[#0118A1]/10">
-        <Brain size={14} className="text-[#0118A1]" />
-        <span className="text-xs font-bold text-[#0118A1] uppercase tracking-wider">AI Risk Assessment</span>
+    <div className="bg-white rounded-[10px] border border-[#AACC00]/20 shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
+      <div className="flex items-center gap-2.5 px-4 py-3 bg-[#0118A1]/5 border-b border-[#AACC00]/10">
+        <Brain size={14} className="text-[#AACC00]" />
+        <span className="text-xs font-bold text-[#AACC00] uppercase tracking-wider">AI Risk Assessment</span>
         <span className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full border ${threatSev.light} ${threatSev.border} ${threatSev.text}`}>
           {threatLevel}
         </span>
@@ -477,7 +477,7 @@ function CountryReport({ country, isDeveloper = false }) {
         <div style={{ borderBottom: '2px solid #0118A1', paddingBottom: '10px', marginBottom: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
-              <div style={{ fontSize: '18pt', fontWeight: 800, color: '#0118A1', letterSpacing: '-0.5px' }}>SafeGuard 360</div>
+              <div style={{ fontSize: '18pt', fontWeight: 800, color: DS.bg, letterSpacing: '-0.5px' }}>SafeGuard 360</div>
               <div style={{ fontSize: '9pt', color: '#555', marginTop: '2px' }}>Country Risk Intelligence Report</div>
             </div>
             <div style={{ textAlign: 'right', fontSize: '8.5pt', color: '#666' }}>
@@ -504,7 +504,7 @@ function CountryReport({ country, isDeveloper = false }) {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {isDeveloper && (
-              <button onClick={handlePrint} className="print-hide flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] border border-gray-200 text-xs text-gray-500 hover:border-[#0118A1] hover:text-[#0118A1] hover:bg-blue-50/40 transition-colors">
+              <button onClick={handlePrint} className="print-hide flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] border border-gray-200 text-xs text-gray-500 hover:border-[#AACC00] hover:text-[#AACC00] hover:bg-blue-50/40 transition-colors">
                 <Printer size={13} />
                 Export PDF
               </button>
@@ -563,28 +563,28 @@ function CountryReport({ country, isDeveloper = false }) {
 
       {/* Official Advisories */}
       {!loading && risk?.sources?.filter(s => !s.category).length > 0 && (
-        <Section title="Official Advisories" icon={Shield} accent="text-[#0118A1]"
+        <Section title="Official Advisories" icon={Shield} accent="text-[#AACC00]"
           count={risk.sources.filter(s => !s.category).length}>
           <div className="space-y-2">
             {risk.sources.filter(s => !s.category).map((src, i) => (
               <a key={i} href={src.url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-3 p-3 rounded-[8px] border border-gray-100 hover:border-[#0118A1]/30 hover:bg-blue-50/30 transition-colors group">
+                className="flex items-center gap-3 p-3 rounded-[8px] border border-gray-100 hover:border-[#AACC00]/30 hover:bg-blue-50/30 transition-colors group">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold text-gray-800 group-hover:text-[#0118A1]">{src.name}</span>
+                    <span className="text-sm font-semibold text-gray-800 group-hover:text-[#AACC00]">{src.name}</span>
                     {src.level && (
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded border
-                        ${src.level >= 4 ? 'bg-red-50 border-red-200 text-red-700' :
+                        ${src.level >= 4 ? 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)] text-[#EF7474]' :
                           src.level >= 3 ? 'bg-orange-50 border-orange-200 text-orange-700' :
                           src.level >= 2 ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
-                          'bg-green-50 border-green-200 text-green-700'}`}>
+                          'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.25)] text-[#AACC00]'}`}>
                         Level {src.level}
                       </span>
                     )}
                   </div>
                   {src.message && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{src.message}</p>}
                 </div>
-                <ExternalLink size={13} className="text-gray-300 group-hover:text-[#0118A1] shrink-0" />
+                <ExternalLink size={13} className="text-gray-300 group-hover:text-[#AACC00] shrink-0" />
               </a>
             ))}
           </div>
@@ -593,8 +593,8 @@ function CountryReport({ country, isDeveloper = false }) {
 
       {/* Active Disasters */}
       {!loading && risk?.gdacs_count > 0 && (
-        <Section title="Active Disaster Events" icon={AlertTriangle} accent="text-red-500" count={risk.gdacs_count}>
-          <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-[6px] px-3 py-2">
+        <Section title="Active Disaster Events" icon={AlertTriangle} accent="text-[#EF7474]" count={risk.gdacs_count}>
+          <p className="text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] border border-red-100 rounded-[6px] px-3 py-2">
             {risk.gdacs_count} active disaster event{risk.gdacs_count !== 1 ? 's' : ''} recorded by GDACS.{' '}
             <a href="https://gdacs.org" target="_blank" rel="noopener noreferrer" className="underline font-medium">View on GDACS →</a>
           </p>
@@ -650,7 +650,7 @@ function CountryReport({ country, isDeveloper = false }) {
                 <div className="w-1.5 h-1.5 rounded-full bg-[#AACC00] mt-2 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <a href={a.url} target="_blank" rel="noopener noreferrer"
-                    className="text-sm font-medium text-gray-900 hover:text-[#0118A1] hover:underline leading-snug block mb-1">
+                    className="text-sm font-medium text-gray-900 hover:text-[#AACC00] hover:underline leading-snug block mb-1">
                     {a.title}
                   </a>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -665,7 +665,7 @@ function CountryReport({ country, isDeveloper = false }) {
                   </div>
                 </div>
                 <a href={a.url} target="_blank" rel="noopener noreferrer"
-                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-[#0118A1] transition-all shrink-0 mt-1">
+                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-[#AACC00] transition-all shrink-0 mt-1">
                   <ExternalLink size={12} />
                 </a>
               </div>
@@ -676,7 +676,7 @@ function CountryReport({ country, isDeveloper = false }) {
 
       {loading && (
         <div className="bg-white rounded-[10px] border border-gray-200 p-6 text-center">
-          <RefreshCw size={16} className="animate-spin text-[#0118A1] mx-auto mb-2" />
+          <RefreshCw size={16} className="animate-spin text-[#AACC00] mx-auto mb-2" />
           <p className="text-xs text-gray-400">Fetching intelligence from all sources…</p>
         </div>
       )}
@@ -1007,7 +1007,7 @@ export default function CountryRiskReport() {
       {/* Page header */}
       <div className="mb-5">
         <div className="flex items-center gap-2 mb-1">
-          <Shield size={20} className="text-[#0118A1]" />
+          <Shield size={20} className="text-[#AACC00]" />
           <h1 className="text-2xl font-bold text-gray-900">Country Risk Reports</h1>
         </div>
         <p className="text-sm text-gray-500">
@@ -1040,8 +1040,8 @@ export default function CountryRiskReport() {
             onClick={() => setMobilePicker(p => !p)}
             className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
             <span className="flex items-center gap-2">
-              <Search size={13} className="text-[#0118A1]" />
-              <span className={selected ? 'text-[#0118A1] font-semibold' : 'text-gray-500'}>
+              <Search size={13} className="text-[#AACC00]" />
+              <span className={selected ? 'text-[#AACC00] font-semibold' : 'text-gray-500'}>
                 {selected || 'Select a country…'}
               </span>
             </span>
@@ -1058,7 +1058,7 @@ export default function CountryRiskReport() {
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder="Search country…"
-                    className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-xs focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"
+                    className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-xs focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00]"
                   />
                 </div>
               </div>
@@ -1074,7 +1074,7 @@ export default function CountryRiskReport() {
         {selected && (
           <button onClick={backToMap}
             className="mt-2 w-full flex items-center gap-2 justify-center px-3 py-2.5 bg-white border border-gray-200 rounded-[8px] text-xs text-gray-600 font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-            <ArrowLeft size={12} className="text-[#0118A1]" />
+            <ArrowLeft size={12} className="text-[#AACC00]" />
             Back to Risk Map
           </button>
         )}
@@ -1092,7 +1092,7 @@ export default function CountryRiskReport() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search country…"
-                  className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-xs focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"
+                  className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-xs focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00]"
                 />
               </div>
             </div>
@@ -1107,7 +1107,7 @@ export default function CountryRiskReport() {
           {selected && (
             <button onClick={backToMap}
               className="w-full flex items-center gap-2 justify-center px-3 py-2.5 bg-white border border-gray-200 rounded-[8px] text-xs text-gray-600 font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <ArrowLeft size={12} className="text-[#0118A1]" />
+              <ArrowLeft size={12} className="text-[#AACC00]" />
               Back to Risk Map
             </button>
           )}
@@ -1124,7 +1124,7 @@ export default function CountryRiskReport() {
                 <button key={r} onClick={() => setRegionFilter(r)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
                     ${regionFilter === r
-                      ? 'bg-[#0118A1] text-white border-[#0118A1]'
+                      ? 'bg-[#0118A1] text-white border-[#AACC00]'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
                   {r}
                 </button>

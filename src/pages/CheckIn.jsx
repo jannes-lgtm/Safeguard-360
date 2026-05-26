@@ -60,7 +60,7 @@ function StaffCheckinRow({ staff }) {
   const isOver = late > 0
 
   return (
-    <div className={`border rounded-[8px] overflow-hidden ${isOver ? 'border-red-200 bg-red-50/30' : 'border-gray-200 bg-white'}`}>
+    <div className={`border rounded-[8px] overflow-hidden ${isOver ? 'border-[rgba(138,46,46,0.30)] bg-[rgba(138,46,46,0.12)]/30' : 'border-gray-200 bg-white'}`}>
       <button className="w-full flex items-center gap-3 px-4 py-3" onClick={() => setOpen(p => !p)}>
         <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
           style={{ background: DS.green }}>
@@ -69,7 +69,7 @@ function StaffCheckinRow({ staff }) {
         <div className="flex-1 min-w-0 text-left">
           <p className="text-sm font-semibold text-gray-900">{staff.full_name || staff.email}</p>
           {last ? (
-            <p className={`text-xs ${isOver ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+            <p className={`text-xs ${isOver ? 'text-[#EF7474] font-medium' : 'text-gray-500'}`}>
               Last check-in: {timeAgo(last.created_at)}
               {isOver && ` · Overdue by ${late >= 60 ? `${Math.floor(late/60)}h ${late%60}m` : `${late}m`}`}
             </p>
@@ -80,9 +80,9 @@ function StaffCheckinRow({ staff }) {
         <div className="flex items-center gap-2 shrink-0">
           {last ? (
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-              isOver ? 'bg-red-100 border-red-300 text-red-700' :
-              last.status === 'distress' ? 'bg-amber-100 border-amber-300 text-amber-700' :
-              'bg-green-100 border-green-300 text-green-700'
+              isOver ? 'bg-red-100 border-red-300 text-[#EF7474]' :
+              last.status === 'distress' ? 'bg-amber-100 border-amber-300 text-[#D4A64A]' :
+              'bg-green-100 border-green-300 text-[#AACC00]'
             }`}>
               {isOver ? '⚠️ Overdue' : last.status === 'distress' ? '🟡 Distress' : '✅ Safe'}
             </span>
@@ -283,16 +283,16 @@ export default function CheckIn() {
 
           {/* Status card */}
           {lastCheckin && (
-            <div className={`rounded-[12px] border p-5 ${overdue ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+            <div className={`rounded-[12px] border p-5 ${overdue ? 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)]' : 'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.25)]'}`}>
               <div className="flex items-center gap-3">
                 {overdue
-                  ? <AlertCircle size={20} className="text-red-600 shrink-0"/>
-                  : <CheckCircle size={20} className="text-green-600 shrink-0"/>}
+                  ? <AlertCircle size={20} className="text-[#EF7474] shrink-0"/>
+                  : <CheckCircle size={20} className="text-[#AACC00] shrink-0"/>}
                 <div>
                   <p className={`text-sm font-bold ${overdue ? 'text-red-800' : 'text-green-800'}`}>
                     {overdue ? 'Check-in Overdue' : 'You\'re checked in ✓'}
                   </p>
-                  <p className={`text-xs ${overdue ? 'text-red-600' : 'text-green-600'}`}>
+                  <p className={`text-xs ${overdue ? 'text-[#EF7474]' : 'text-[#AACC00]'}`}>
                     Last: {timeAgo(lastCheckin.created_at)}
                     {nextDue && ` · Next due: ${fmtDate(nextDue)}`}
                   </p>
@@ -305,7 +305,7 @@ export default function CheckIn() {
           {scheduledCheckins.length > 0 && (
             <div className="bg-white border border-gray-200 rounded-[12px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
               <div className="flex items-center gap-2 mb-3">
-                <Bell size={14} className="text-[#0118A1]" />
+                <Bell size={14} className="text-[#AACC00]" />
                 <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Scheduled Check-ins</p>
               </div>
               <div className="space-y-2">
@@ -316,32 +316,32 @@ export default function CheckIn() {
                   return (
                     <div key={sc.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border text-xs ${
                       isOverdue
-                        ? 'bg-red-50 border-red-200'
+                        ? 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)]'
                         : isDueSoon
-                        ? 'bg-amber-50 border-amber-200'
+                        ? 'bg-[rgba(144,106,37,0.12)] border-[rgba(144,106,37,0.30)]'
                         : 'bg-gray-50 border-gray-100'
                     }`}>
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
                         isOverdue ? 'bg-red-100' : isDueSoon ? 'bg-amber-100' : 'bg-gray-100'
                       }`}>
                         {isArrival
-                          ? <MapPin size={10} className={isOverdue ? 'text-red-600' : 'text-gray-500'} />
-                          : <Bell size={10} className={isOverdue ? 'text-red-600' : isDueSoon ? 'text-amber-600' : 'text-gray-400'} />
+                          ? <MapPin size={10} className={isOverdue ? 'text-[#EF7474]' : 'text-gray-500'} />
+                          : <Bell size={10} className={isOverdue ? 'text-[#EF7474]' : isDueSoon ? 'text-[#D4A64A]' : 'text-gray-400'} />
                         }
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`font-semibold ${isOverdue ? 'text-red-700' : isDueSoon ? 'text-amber-700' : 'text-gray-700'}`}>
+                        <p className={`font-semibold ${isOverdue ? 'text-[#EF7474]' : isDueSoon ? 'text-[#D4A64A]' : 'text-gray-700'}`}>
                           {sc.label || `Check-in ${idx + 1}`}
                         </p>
                         <p className="text-gray-400">Due: {fmtDate(sc.due_at)}</p>
                       </div>
                       {isOverdue && (
-                        <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full shrink-0">
+                        <span className="text-[10px] font-bold text-[#EF7474] bg-red-100 px-2 py-0.5 rounded-full shrink-0">
                           Overdue
                         </span>
                       )}
                       {isDueSoon && !isOverdue && (
-                        <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full shrink-0">
+                        <span className="text-[10px] font-bold text-[#D4A64A] bg-amber-100 px-2 py-0.5 rounded-full shrink-0">
                           Due soon
                         </span>
                       )}
@@ -357,7 +357,7 @@ export default function CheckIn() {
 
           {/* Check-in error */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-[8px] px-4 py-3 text-sm text-red-700 flex items-center gap-2">
+            <div className="bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-[8px] px-4 py-3 text-sm text-[#EF7474] flex items-center gap-2">
               <span className="shrink-0">⚠</span>
               <span>{error}</span>
             </div>
@@ -365,10 +365,10 @@ export default function CheckIn() {
 
           {/* Check-in form */}
           {success ? (
-            <div className="bg-green-50 border-2 border-green-400 rounded-[12px] p-8 text-center">
-              <CheckCircle size={40} className="text-green-600 mx-auto mb-3"/>
+            <div className="bg-[rgba(170,204,0,0.10)] border-2 border-green-400 rounded-[12px] p-8 text-center">
+              <CheckCircle size={40} className="text-[#AACC00] mx-auto mb-3"/>
               <h2 className="text-lg font-bold text-green-800 mb-1">Check-in Confirmed ✓</h2>
-              <p className="text-sm text-green-600">
+              <p className="text-sm text-[#AACC00]">
                 Next check-in due in {interval} hours
                 {gpsPos && ' · Location shared'}
               </p>
@@ -378,8 +378,8 @@ export default function CheckIn() {
               <h2 className="text-base font-bold text-gray-900">I'm Safe — Check In</h2>
 
               {/* GPS status */}
-              <div className={`rounded-[6px] p-2.5 ${gpsPos ? 'bg-green-50' : 'bg-gray-50'}`}>
-                <div className={`flex items-center gap-2 text-xs ${gpsPos ? 'text-green-700' : 'text-gray-500'}`}>
+              <div className={`rounded-[6px] p-2.5 ${gpsPos ? 'bg-[rgba(170,204,0,0.10)]' : 'bg-gray-50'}`}>
+                <div className={`flex items-center gap-2 text-xs ${gpsPos ? 'text-[#AACC00]' : 'text-gray-500'}`}>
                   <Navigation size={11}/>
                   {gpsLoading ? 'Capturing location…' :
                    gpsPos ? `Location ready (±${Math.round(gpsPos.accuracy || 0)}m)` :
@@ -406,7 +406,7 @@ export default function CheckIn() {
                 <label className="text-xs font-medium text-gray-600 mb-1 block">Optional message</label>
                 <textarea value={message} onChange={e => setMessage(e.target.value)} rows={2}
                   placeholder="e.g. Arrived at hotel, all clear…"
-                  className="w-full border border-gray-200 rounded-[6px] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 resize-none"/>
+                  className="w-full border border-gray-200 rounded-[6px] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 resize-none"/>
               </div>
 
               {/* Next interval */}
@@ -419,7 +419,7 @@ export default function CheckIn() {
                     <button key={opt.hours} onClick={() => setInterval2(opt.hours)}
                       className={`text-xs px-3 py-1.5 rounded-full font-medium border transition-colors ${
                         interval === opt.hours
-                          ? 'bg-[#0118A1] text-white border-[#0118A1]'
+                          ? 'bg-[#0118A1] text-white border-[#AACC00]'
                           : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
                       {opt.label}
                     </button>
@@ -444,7 +444,7 @@ export default function CheckIn() {
               <div className="space-y-2">
                 {checkins.map(c => (
                   <div key={c.id} className="flex items-start gap-2.5 py-2 border-b border-gray-50 last:border-0">
-                    <CheckCircle size={13} className="text-green-500 shrink-0 mt-0.5"/>
+                    <CheckCircle size={13} className="text-[#AACC00] shrink-0 mt-0.5"/>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-medium text-gray-800">{timeAgo(c.created_at)}</span>

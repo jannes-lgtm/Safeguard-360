@@ -121,14 +121,14 @@ function AddAlertModal({ onClose, onAdded }) {
               min={new Date().toISOString().split('T')[0]}
               onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))} />
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-[#EF7474]">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
               className="flex-1 border border-gray-300 text-gray-700 font-medium py-2.5 rounded-[6px] text-sm hover:bg-gray-50 transition-colors">
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold py-2.5 rounded-[6px] text-sm transition-colors disabled:opacity-60">
+              className="flex-1 bg-[#AACC00] hover:bg-[#99bb00] text-[#AACC00] font-semibold py-2.5 rounded-[6px] text-sm transition-colors disabled:opacity-60">
               {saving ? 'Saving...' : 'Add Alert'}
             </button>
           </div>
@@ -244,7 +244,7 @@ export default function Alerts() {
         {isAdmin && (
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold px-4 py-2.5 rounded-[6px] text-sm transition-colors"
+            className="flex items-center gap-2 bg-[#AACC00] hover:bg-[#99bb00] text-[#AACC00] font-semibold px-4 py-2.5 rounded-[6px] text-sm transition-colors"
           >
             <Plus size={16} />
             Add Alert
@@ -258,22 +258,22 @@ export default function Alerts() {
           <MapPin size={13} className="text-gray-400 shrink-0"/>
           <span className="text-xs text-gray-500">
             You have no active trips — showing Critical global alerts only.
-            <button onClick={() => setMyDestsOnly(false)} className="ml-1 text-[#0118A1] font-semibold hover:underline">View all alerts</button>
+            <button onClick={() => setMyDestsOnly(false)} className="ml-1 text-[#AACC00] font-semibold hover:underline">View all alerts</button>
           </span>
         </div>
       )}
 
       {/* Destinations banner */}
       {myDestinations.length > 0 && (
-        <div className={`border rounded-[8px] px-4 py-3 mb-4 flex items-center justify-between gap-3 flex-wrap ${isTraveller ? 'bg-[#0118A1]/5 border-[#0118A1]/20' : 'bg-blue-50 border-blue-200'}`}>
+        <div className={`border rounded-[8px] px-4 py-3 mb-4 flex items-center justify-between gap-3 flex-wrap ${isTraveller ? 'bg-[#0118A1]/5 border-[#AACC00]/20' : 'bg-blue-50 border-blue-200'}`}>
           <div className="flex items-center gap-2 flex-wrap">
-            <MapPin size={13} className={isTraveller ? 'text-[#0118A1] shrink-0' : 'text-blue-500 shrink-0'}/>
-            <span className={`text-xs font-semibold ${isTraveller ? 'text-[#0118A1]' : 'text-blue-800'}`}>
+            <MapPin size={13} className={isTraveller ? 'text-[#AACC00] shrink-0' : 'text-blue-500 shrink-0'}/>
+            <span className={`text-xs font-semibold ${isTraveller ? 'text-[#AACC00]' : 'text-blue-800'}`}>
               {isTraveller ? 'Your active travel:' : 'Your travel destinations:'}
             </span>
             {myDestinations.map(c => (
               <button key={c} onClick={() => setIntelCountry(c)}
-                className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors flex items-center gap-1 ${isTraveller ? 'bg-[#0118A1]/10 hover:bg-[#0118A1]/20 text-[#0118A1]' : 'bg-blue-100 hover:bg-blue-200 text-blue-700'}`}>
+                className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors flex items-center gap-1 ${isTraveller ? 'bg-[#0118A1]/10 hover:bg-[#0118A1]/20 text-[#AACC00]' : 'bg-blue-100 hover:bg-blue-200 text-blue-700'}`}>
                 <Globe size={9}/>{c}
               </button>
             ))}
@@ -285,8 +285,8 @@ export default function Alerts() {
             onClick={() => setMyDestsOnly(p => !p)}
             className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors border ${
               myDestsOnly
-                ? 'bg-[#0118A1] text-white border-[#0118A1]'
-                : 'bg-white text-[#0118A1] border-[#0118A1]/30 hover:bg-[#0118A1]/5'
+                ? 'bg-[#0118A1] text-white border-[#AACC00]'
+                : 'bg-white text-[#AACC00] border-[#AACC00]/30 hover:bg-[#0118A1]/5'
             }`}>
             {myDestsOnly ? '✓ My Travel' : 'My Travel only'}
           </button>
@@ -348,7 +348,7 @@ export default function Alerts() {
               />
               {alert.country && (
                 <button onClick={() => setIntelCountry(alert.country)}
-                  className="ml-4 mb-1 text-[10px] text-[#0118A1] hover:underline flex items-center gap-1 font-medium">
+                  className="ml-4 mb-1 text-[10px] text-[#AACC00] hover:underline flex items-center gap-1 font-medium">
                   <Globe size={9}/>{alert.country} — view full intel brief →
                 </button>
               )}

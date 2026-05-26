@@ -18,9 +18,9 @@ import { DS } from '../lib/ds'
 import { timeAgo } from '../lib/dateUtils'
 
 function complianceColor(pct) {
-  if (pct >= 80) return { text: 'text-green-600',  bg: 'bg-green-100',  bar: '#22c55e' }
-  if (pct >= 50) return { text: 'text-amber-600',  bg: 'bg-amber-100',  bar: '#f59e0b' }
-  return             { text: 'text-red-600',    bg: 'bg-red-100',    bar: '#ef4444' }
+  if (pct >= 80) return { text: 'text-[#AACC00]',  bg: 'bg-green-100',  bar: '#22c55e' }
+  if (pct >= 50) return { text: 'text-[#D4A64A]',  bg: 'bg-amber-100',  bar: '#f59e0b' }
+  return             { text: 'text-[#EF7474]',    bg: 'bg-red-100',    bar: '#ef4444' }
 }
 
 // ── User row ──────────────────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
 
   return (
     <div className={`border rounded-xl overflow-hidden transition-all ${
-      hasOverdue ? 'border-red-200 bg-red-50/30' : 'border-gray-200 bg-white'
+      hasOverdue ? 'border-[rgba(138,46,46,0.30)] bg-[rgba(138,46,46,0.12)]/30' : 'border-gray-200 bg-white'
     }`}>
       <button className="w-full flex items-center gap-4 px-4 py-3.5" onClick={() => setOpen(p => !p)}>
         {/* Avatar */}
@@ -62,19 +62,19 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
           </p>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {activeTrip ? (
-              <span className="flex items-center gap-1 text-[10px] font-medium text-blue-600">
+              <span className="flex items-center gap-1 text-[10px] font-medium text-[#6EA8C8]">
                 <MapPin size={9} /> Travelling · {activeTrip.arrival_city}
               </span>
             ) : (
               <span className="text-[10px] text-gray-400">Not travelling</span>
             )}
             {pendingApprovals > 0 && (
-              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">
+              <span className="text-[10px] font-bold text-[#D4A64A] bg-[rgba(144,106,37,0.12)] px-1.5 py-0.5 rounded-full border border-[rgba(144,106,37,0.30)]">
                 {pendingApprovals} pending approval
               </span>
             )}
             {hasOverdue && (
-              <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-200">
+              <span className="text-[10px] font-bold text-[#EF7474] bg-[rgba(138,46,46,0.12)] px-1.5 py-0.5 rounded-full border border-[rgba(138,46,46,0.30)]">
                 ⚠ Check-in overdue
               </span>
             )}
@@ -98,7 +98,7 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-white rounded-xl p-3 border border-gray-100">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Contact</p>
-              <a href={`mailto:${user.email}`} className="flex items-center gap-1.5 text-xs text-[#0118A1] hover:underline mb-1">
+              <a href={`mailto:${user.email}`} className="flex items-center gap-1.5 text-xs text-[#AACC00] hover:underline mb-1">
                 <Mail size={11}/> {user.email}
               </a>
               {user.phone && (
@@ -111,8 +111,8 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Account</p>
               <p className="text-xs text-gray-700">
                 {user.onboarding_completed_at
-                  ? <span className="text-green-600 font-semibold">✓ Onboarding complete</span>
-                  : <span className="text-amber-600 font-semibold">⚠ Onboarding pending</span>}
+                  ? <span className="text-[#AACC00] font-semibold">✓ Onboarding complete</span>
+                  : <span className="text-[#D4A64A] font-semibold">⚠ Onboarding pending</span>}
               </p>
               {user.created_at && (
                 <p className="text-[11px] text-gray-400 mt-0.5">
@@ -179,14 +179,14 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
                 {trainingRecs.map((rec, i) => (
                   <div key={i} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-100">
                     {rec.completed
-                      ? <CheckCircle2 size={13} className="text-green-500 shrink-0" />
+                      ? <CheckCircle2 size={13} className="text-[#AACC00] shrink-0" />
                       : <AlertCircle size={13} className="text-amber-400 shrink-0" />}
                     <span className="text-xs text-gray-700 flex-1 truncate">
                       {rec.training_modules?.module_name || rec.training_modules?.module_order
                         ? `Module ${rec.training_modules.module_order}`
                         : `Module ${i + 1}`}
                     </span>
-                    <span className={`text-[10px] font-semibold ${rec.completed ? 'text-green-600' : 'text-amber-600'}`}>
+                    <span className={`text-[10px] font-semibold ${rec.completed ? 'text-[#AACC00]' : 'text-[#D4A64A]'}`}>
                       {rec.completed ? 'Complete' : 'Pending'}
                     </span>
                   </div>
@@ -197,12 +197,12 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
 
           {/* Overdue check-ins */}
           {hasOverdue && (
-            <div className="bg-red-50 rounded-xl p-3 border border-red-200">
-              <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-1.5">
+            <div className="bg-[rgba(138,46,46,0.12)] rounded-xl p-3 border border-[rgba(138,46,46,0.30)]">
+              <p className="text-[10px] font-bold text-[#EF7474] uppercase tracking-wide mb-1.5">
                 <AlertCircle size={10} className="inline mr-1" />Overdue Check-ins
               </p>
               {pendingCheckins.slice(0, 3).map((c, i) => (
-                <p key={i} className="text-xs text-red-700">
+                <p key={i} className="text-xs text-[#EF7474]">
                   {c.label || 'Check-in'} — due {new Date(c.due_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                 </p>
               ))}
@@ -442,11 +442,11 @@ export default function OrgUsers() {
             <button key={t.id} onClick={() => setActiveTab(t.id)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
               style={activeTab === t.id
-                ? { background: 'white', color: DS.green, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
+                ? { background: DS.surface, color: DS.green, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
                 : { color: '#64748B' }}>
               <Icon size={14} /> {t.label}
               {t.count > 0 && (
-                <span className="ml-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{t.count}</span>
+                <span className="ml-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-[#D4A64A]">{t.count}</span>
               )}
             </button>
           )
@@ -456,8 +456,8 @@ export default function OrgUsers() {
       {/* Quick stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
-          { label: 'Currently Travelling', value: travelling.length, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' },
-          { label: 'Check-in Overdue',     value: overdue.length,    color: 'text-red-600',  bg: 'bg-red-50 border-red-200' },
+          { label: 'Currently Travelling', value: travelling.length, color: 'text-[#6EA8C8]', bg: 'bg-blue-50 border-blue-200' },
+          { label: 'Check-in Overdue',     value: overdue.length,    color: 'text-[#EF7474]',  bg: 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)]' },
           { label: 'Total Travellers',     value: users.length,      color: 'text-gray-800', bg: 'bg-gray-50 border-gray-200' },
         ].map(s => (
           <div key={s.label} className={`rounded-xl border p-4 ${s.bg}`}>
@@ -504,7 +504,7 @@ export default function OrgUsers() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                      <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-[rgba(170,204,0,0.10)] text-[#AACC00] border border-[rgba(170,204,0,0.25)]">
                         {l.status}
                       </span>
                       <span className="text-[10px] text-gray-400">
@@ -543,7 +543,7 @@ export default function OrgUsers() {
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800 mb-3">
+            <div className="bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] rounded-xl px-4 py-3 text-xs text-amber-800 mb-3">
               <strong>{pending.length} traveller{pending.length !== 1 ? 's' : ''}</strong> {pending.length === 1 ? 'has' : 'have'} not completed onboarding.
               Use <strong>Resend Invite</strong> to send them a fresh signup link, or <strong>Remove from Org</strong> to revoke access.
             </div>
@@ -603,7 +603,7 @@ export default function OrgUsers() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-                <X size={18} className="text-red-600" />
+                <X size={18} className="text-[#EF7474]" />
               </div>
               <div>
                 <h2 className="text-base font-bold text-gray-900">Remove from Organisation</h2>
@@ -642,11 +642,11 @@ export default function OrgUsers() {
 
             {inviteResult?.ok ? (
               <div className="space-y-4">
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                <div className="bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] rounded-xl p-4 text-center">
                   <p className="font-semibold text-green-800 mb-1">
                     {inviteResult.email_sent ? '✓ Invite sent!' : '✓ Invite created'}
                   </p>
-                  <p className="text-xs text-green-700">
+                  <p className="text-xs text-[#AACC00]">
                     {inviteResult.email_sent
                       ? `An invite email has been sent to ${inviteEmail || 'the user'}.`
                       : 'Copy the link below and share it manually.'}
@@ -657,7 +657,7 @@ export default function OrgUsers() {
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Invite link</p>
                     <p className="text-xs font-mono text-gray-700 break-all">{inviteResult.invite_url}</p>
                     <button onClick={() => navigator.clipboard.writeText(inviteResult.invite_url)}
-                      className="mt-2 text-xs font-semibold text-[#0118A1] hover:underline">
+                      className="mt-2 text-xs font-semibold text-[#AACC00] hover:underline">
                       Copy link
                     </button>
                   </div>
@@ -676,19 +676,19 @@ export default function OrgUsers() {
                     type="email" required
                     value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
                     placeholder="colleague@company.com"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
                   <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20">
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20">
                     <option value="traveller">Traveller</option>
                     <option value="org_admin">Company Administrator</option>
                   </select>
                 </div>
                 {inviteResult?.error && (
-                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  <p className="text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-lg px-3 py-2">
                     {inviteResult.error}
                   </p>
                 )}
@@ -696,7 +696,7 @@ export default function OrgUsers() {
                   className="w-full py-2.5 text-sm font-bold rounded-xl disabled:opacity-60 flex items-center justify-center gap-2"
                   style={{ background: BRAND_GREEN, color: DS.green }}>
                   {inviting
-                    ? <><div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" /> Sending…</>
+                    ? <><div className="w-4 h-4 border-2 border-[#AACC00] border-t-transparent rounded-full animate-spin" /> Sending…</>
                     : 'Send Invite'}
                 </button>
               </form>
