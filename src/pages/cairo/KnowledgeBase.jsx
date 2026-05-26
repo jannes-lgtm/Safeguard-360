@@ -160,7 +160,13 @@ function AddModal({ onClose, onSuccess }) {
           outcome:           form.type === 'case' ? form.outcome || null : null,
           is_active:         true,
         })
-        if (dbErr) throw new Error(dbErr.message)
+        if (dbErr) {
+          // Translate cryptic DB errors into plain messages
+          const msg = dbErr.message || ''
+          if (msg.includes('pattern') || msg.includes('check') || msg.includes('violates'))
+            throw new Error('Database rejected this entry. Run the cairo_knowledge migration to add "report" as a valid type.')
+          throw new Error(msg)
+        }
       }
 
       onSuccess()
@@ -270,8 +276,8 @@ function AddModal({ onClose, onSuccess }) {
           {form.type === 'report' && (
             <div>
               <label className={labelCls}>Report Date</label>
-              <input type="month" value={form.report_date} onChange={e => set('report_date', e.target.value)}
-                className={inputCls} />
+              <input type="text" value={form.report_date} onChange={e => set('report_date', e.target.value)}
+                className={inputCls} placeholder="e.g. 2026-05" />
             </div>
           )}
 
@@ -331,7 +337,7 @@ function AddModal({ onClose, onSuccess }) {
               className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
               Cancel
             </button>
-            <button onClick={handleSubmit} disabled={saving}
+            <button type="button" onClick={handleSubmit} disabled={saving}
               className="px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-2 transition-opacity disabled:opacity-60"
               style={{ background: BRAND_BLUE }}>
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
