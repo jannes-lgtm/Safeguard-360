@@ -49,8 +49,6 @@
     "api/facilities.js":              { "maxDuration": 55 },
     "api/prewarm-facilities.js":      { "maxDuration": 300 },
     "api/airfields.js":               { "maxDuration": 55 },
-    "api/gate-auth.js":               { "maxDuration": 10 },
-    "api/gate-check.js":              { "maxDuration": 10 },
     "api/country-risk-summary.js":    { "maxDuration": 10 }
   },
   "crons": [
