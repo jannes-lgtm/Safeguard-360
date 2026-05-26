@@ -114,42 +114,73 @@ function AddModal({ onClose, onSuccess }) {
 
     setSaving(true)
     try {
+      // ── Auth ───────────────────────────────────────────────────────────────
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
+      if (!token) throw new Error('Not authenticated — please sign in again.')
 
       if (pdfFile) {
-        // Route through cairo-upload API for PDF extraction
+        // ── PDF path: validate file first ──────────────────────────────────
+        console.log('[cairo-upload] file:', pdfFile.name, pdfFile.type, pdfFile.size)
+        if (!['application/pdf'].includes(pdfFile.type)) {
+          throw new Error(`Unsupported file type: ${pdfFile.type || 'unknown'}. Only PDF is accepted.`)
+        }
+
         setUploadStep('Reading PDF…')
-        const pdf_base64 = await toBase64(pdfFile)
+        let pdf_base64
+        try {
+          pdf_base64 = await toBase64(pdfFile)
+          console.log('[cairo-upload] base64 length:', pdf_base64?.length)
+        } catch (b64Err) {
+          throw new Error(`Failed to read file: ${b64Err.message}`)
+        }
 
         setUploadStep('Extracting text with AI…')
         const tagsArr = parseCSV(form.tags)
         if (form.report_date) tagsArr.push(form.report_date)
 
-        const res = await fetch('/api/cairo-upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            type:              form.type,
-            title:             form.title.trim(),
-            pdf_base64,
-            source_file:       form.publisher.trim() || pdfFile.name,
-            countries:         parseCSV(form.countries),
-            regions:           parseCSV(form.regions),
-            threat_categories: parseCSV(form.threat_categories),
-            tags:              tagsArr,
-            doc_tier:          form.doc_tier || 'global',
-          }),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Upload failed')
+        const payload = {
+          type:              form.type,
+          title:             form.title.trim(),
+          pdf_base64,
+          source_file:       (form.publisher.trim() || pdfFile.name).replace(/[^a-zA-Z0-9._\-\s]/g, '').trim(),
+          countries:         parseCSV(form.countries),
+          regions:           parseCSV(form.regions),
+          threat_categories: parseCSV(form.threat_categories),
+          tags:              tagsArr,
+          doc_tier:          form.doc_tier || 'global',
+        }
+        console.log('[cairo-upload] payload keys:', Object.keys(payload), '| type:', payload.type, '| title:', payload.title)
+
+        let res, rawText
+        try {
+          res = await fetch('/api/cairo-upload', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body:    JSON.stringify(payload),
+          })
+          rawText = await res.text()
+          console.log('[cairo-upload] HTTP', res.status, rawText.slice(0, 300))
+        } catch (fetchErr) {
+          throw new Error(`Network error: ${fetchErr.message}`)
+        }
+
+        let data
+        try {
+          data = JSON.parse(rawText)
+        } catch {
+          throw new Error(`API returned non-JSON (HTTP ${res.status}): ${rawText.slice(0, 200)}`)
+        }
+
+        if (!res.ok) throw new Error(data.error || `Upload failed (HTTP ${res.status})`)
+
       } else {
-        // Direct Supabase insert for text content
+        // ── Text path: direct Supabase insert ─────────────────────────────
         setUploadStep('Saving…')
         const tagsArr = parseCSV(form.tags)
         if (form.report_date) tagsArr.push(form.report_date)
 
-        const { error: dbErr } = await supabase.from('cairo_knowledge').insert({
+        const row = {
           type:              form.type,
           title:             form.title.trim(),
           content:           form.content.trim(),
@@ -159,13 +190,13 @@ function AddModal({ onClose, onSuccess }) {
           threat_categories: parseCSV(form.threat_categories),
           tags:              tagsArr,
           doc_tier:          form.doc_tier || 'global',
-        })
+        }
+        console.log('[cairo-upload] direct insert row:', JSON.stringify({ ...row, content: row.content.slice(0, 80) }))
+
+        const { error: dbErr } = await supabase.from('cairo_knowledge').insert(row)
         if (dbErr) {
-          // Translate cryptic DB errors into plain messages
-          const msg = dbErr.message || ''
-          if (msg.includes('pattern') || msg.includes('check') || msg.includes('violates'))
-            throw new Error('Database rejected this entry. Run the cairo_knowledge migration to add "report" as a valid type.')
-          throw new Error(msg)
+          console.error('[cairo-upload] dbErr:', JSON.stringify(dbErr))
+          throw new Error(`DB ${dbErr.code}: ${dbErr.message}${dbErr.details ? ' — ' + dbErr.details : ''}`)
         }
       }
 
