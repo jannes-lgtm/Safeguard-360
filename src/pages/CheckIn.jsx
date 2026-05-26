@@ -60,7 +60,10 @@ function StaffCheckinRow({ staff }) {
   const isOver = late > 0
 
   return (
-    <div className={`border rounded-[8px] overflow-hidden ${isOver ? 'border-[rgba(138,46,46,0.30)] bg-[rgba(138,46,46,0.12)]/30' : 'border-gray-200 bg-white'}`}>
+    <div className="border rounded-[8px] overflow-hidden"
+      style={isOver
+        ? { borderColor: 'rgba(138,46,46,0.30)', background: 'rgba(138,46,46,0.10)' }
+        : { borderColor: 'rgba(255,255,255,0.08)', background: DS.surface }}>
       <button className="w-full flex items-center gap-3 px-4 py-3" onClick={() => setOpen(p => !p)}>
         <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
           style={{ background: DS.green }}>
@@ -79,22 +82,24 @@ function StaffCheckinRow({ staff }) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {last ? (
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-              isOver ? 'bg-red-100 border-red-300 text-[#EF7474]' :
-              last.status === 'distress' ? 'bg-amber-100 border-amber-300 text-[#D4A64A]' :
-              'bg-green-100 border-green-300 text-[#AACC00]'
-            }`}>
-              {isOver ? '⚠️ Overdue' : last.status === 'distress' ? '🟡 Distress' : '✅ Safe'}
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+              style={isOver
+                ? { background: 'rgba(138,46,46,0.15)', borderColor: 'rgba(138,46,46,0.35)', color: '#EF7474' }
+                : last.status === 'distress'
+                ? { background: 'rgba(144,106,37,0.15)', borderColor: 'rgba(144,106,37,0.35)', color: '#D4A64A' }
+                : { background: 'rgba(170,204,0,0.10)', borderColor: 'rgba(170,204,0,0.25)', color: '#AACC00' }}>
+              {isOver ? '⚠ Overdue' : last.status === 'distress' ? 'Distress' : '✓ Safe'}
             </span>
           ) : (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-gray-500">No data</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${DS.border}`, color: DS.textSub }}>No data</span>
           )}
           {open ? <ChevronUp size={14} className="text-gray-400"/> : <ChevronDown size={14} className="text-gray-400"/>}
         </div>
       </button>
 
       {open && last && (
-        <div className="px-4 pb-3 space-y-1.5 border-t border-gray-100 pt-3">
+        <div className="px-4 pb-3 space-y-1.5 pt-3" style={{ borderTop: `1px solid ${DS.border}` }}>
           {last.trip_name && <p className="text-xs text-gray-600"><span className="font-medium">Trip:</span> {last.trip_name} · {last.arrival_city}</p>}
           {last.latitude && last.longitude && (
             <W3WAddress lat={last.latitude} lng={last.longitude} />
@@ -289,7 +294,7 @@ export default function CheckIn() {
                   ? <AlertCircle size={20} className="text-[#EF7474] shrink-0"/>
                   : <CheckCircle size={20} className="text-[#AACC00] shrink-0"/>}
                 <div>
-                  <p className={`text-sm font-bold ${overdue ? 'text-red-800' : 'text-green-800'}`}>
+                  <p className="text-sm font-bold" style={{ color: overdue ? '#EF7474' : DS.green }}>
                     {overdue ? 'Check-in Overdue' : 'You\'re checked in ✓'}
                   </p>
                   <p className={`text-xs ${overdue ? 'text-[#EF7474]' : 'text-[#AACC00]'}`}>
@@ -303,10 +308,10 @@ export default function CheckIn() {
 
           {/* Scheduled check-ins panel */}
           {scheduledCheckins.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-[12px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+            <div className="rounded-[8px] p-5" style={{ background: DS.surface, border: `1px solid ${DS.border}` }}>
               <div className="flex items-center gap-2 mb-3">
                 <Bell size={14} className="text-[#AACC00]" />
-                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Scheduled Check-ins</p>
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: DS.textSub }}>Scheduled Check-ins</p>
               </div>
               <div className="space-y-2">
                 {scheduledCheckins.map((sc, idx) => {
@@ -314,16 +319,14 @@ export default function CheckIn() {
                   const isDueSoon = !isOverdue && (new Date(sc.due_at) - Date.now()) < 6 * 3600000
                   const isArrival = sc.checkin_type === 'arrival'
                   return (
-                    <div key={sc.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border text-xs ${
-                      isOverdue
-                        ? 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)]'
+                    <div key={sc.id} className="flex items-center gap-3 px-3 py-2.5 rounded-[6px] border text-xs"
+                      style={isOverdue
+                        ? { background: 'rgba(138,46,46,0.12)', borderColor: 'rgba(138,46,46,0.30)' }
                         : isDueSoon
-                        ? 'bg-[rgba(144,106,37,0.12)] border-[rgba(144,106,37,0.30)]'
-                        : 'bg-gray-50 border-gray-100'
-                    }`}>
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                        isOverdue ? 'bg-red-100' : isDueSoon ? 'bg-amber-100' : 'bg-gray-100'
-                      }`}>
+                        ? { background: 'rgba(144,106,37,0.12)', borderColor: 'rgba(144,106,37,0.30)' }
+                        : { background: DS.bgAlt, borderColor: 'rgba(255,255,255,0.06)' }}>
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                        style={{ background: isOverdue ? 'rgba(138,46,46,0.20)' : isDueSoon ? 'rgba(144,106,37,0.20)' : 'rgba(255,255,255,0.05)' }}>
                         {isArrival
                           ? <MapPin size={10} className={isOverdue ? 'text-[#EF7474]' : 'text-gray-500'} />
                           : <Bell size={10} className={isOverdue ? 'text-[#EF7474]' : isDueSoon ? 'text-[#D4A64A]' : 'text-gray-400'} />
@@ -336,12 +339,14 @@ export default function CheckIn() {
                         <p className="text-gray-400">Due: {fmtDate(sc.due_at)}</p>
                       </div>
                       {isOverdue && (
-                        <span className="text-[10px] font-bold text-[#EF7474] bg-red-100 px-2 py-0.5 rounded-full shrink-0">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
+                          style={{ color: '#EF7474', background: 'rgba(138,46,46,0.20)' }}>
                           Overdue
                         </span>
                       )}
                       {isDueSoon && !isOverdue && (
-                        <span className="text-[10px] font-bold text-[#D4A64A] bg-amber-100 px-2 py-0.5 rounded-full shrink-0">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
+                          style={{ color: '#D4A64A', background: 'rgba(144,106,37,0.20)' }}>
                           Due soon
                         </span>
                       )}
@@ -365,17 +370,17 @@ export default function CheckIn() {
 
           {/* Check-in form */}
           {success ? (
-            <div className="bg-[rgba(170,204,0,0.10)] border-2 border-green-400 rounded-[12px] p-8 text-center">
+            <div className="rounded-[8px] p-8 text-center" style={{ background: 'rgba(170,204,0,0.10)', border: `2px solid rgba(170,204,0,0.30)` }}>
               <CheckCircle size={40} className="text-[#AACC00] mx-auto mb-3"/>
-              <h2 className="text-lg font-bold text-green-800 mb-1">Check-in Confirmed ✓</h2>
+              <h2 className="text-lg font-bold mb-1" style={{ color: DS.green }}>Check-in Confirmed ✓</h2>
               <p className="text-sm text-[#AACC00]">
                 Next check-in due in {interval} hours
                 {gpsPos && ' · Location shared'}
               </p>
             </div>
           ) : (
-            <div className="bg-white border border-gray-200 rounded-[12px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] space-y-4">
-              <h2 className="text-base font-bold text-gray-900">I'm Safe — Check In</h2>
+            <div className="rounded-[8px] p-6 space-y-4" style={{ background: DS.surface, border: `1px solid ${DS.border}` }}>
+              <h2 className="text-base font-bold" style={{ color: DS.white }}>I'm Safe — Check In</h2>
 
               {/* GPS status */}
               <div className={`rounded-[6px] p-2.5 ${gpsPos ? 'bg-[rgba(170,204,0,0.10)]' : 'bg-gray-50'}`}>
@@ -395,32 +400,34 @@ export default function CheckIn() {
 
               {/* Active trip */}
               {activeTrip && (
-                <div className="flex items-center gap-2 text-xs text-gray-600 bg-blue-50 rounded-[6px] p-2.5 border border-blue-100">
-                  <MapPin size={11} className="text-blue-500"/>
+                <div className="flex items-center gap-2 text-xs rounded-[6px] p-2.5"
+                  style={{ background: DS.steelDim, border: `1px solid ${DS.steel}`, color: DS.steelText }}>
+                  <MapPin size={11} style={{ color: DS.steelText }}/>
                   <span className="font-medium">{activeTrip.trip_name}</span> · {activeTrip.arrival_city}
                 </div>
               )}
 
               {/* Message */}
               <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">Optional message</label>
+                <label className="text-xs font-medium mb-1 block" style={{ color: DS.textSub }}>Optional message</label>
                 <textarea value={message} onChange={e => setMessage(e.target.value)} rows={2}
                   placeholder="e.g. Arrived at hotel, all clear…"
-                  className="w-full border border-gray-200 rounded-[6px] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 resize-none"/>
+                  className="w-full rounded-[6px] px-3 py-2 text-sm focus:outline-none resize-none"
+                  style={{ background: DS.bgAlt, border: `1px solid rgba(255,255,255,0.09)`, color: DS.text }}/>
               </div>
 
               {/* Next interval */}
               <div>
-                <label className="text-xs font-medium text-gray-600 mb-1.5 block">
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: DS.textSub }}>
                   <Clock size={11} className="inline mr-1"/>Next check-in due in
                 </label>
                 <div className="flex gap-2 flex-wrap">
                   {INTERVALS.map(opt => (
                     <button key={opt.hours} onClick={() => setInterval2(opt.hours)}
-                      className={`text-xs px-3 py-1.5 rounded-full font-medium border transition-colors ${
-                        interval === opt.hours
-                          ? 'bg-[#0118A1] text-white border-[#AACC00]'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                      className="text-xs px-3 py-1.5 rounded-full font-medium border transition-colors"
+                      style={interval === opt.hours
+                        ? { background: DS.green, color: DS.bg, borderColor: DS.green }
+                        : { background: DS.surface, color: DS.textSub, borderColor: 'rgba(255,255,255,0.09)' }}>
                       {opt.label}
                     </button>
                   ))}
@@ -428,7 +435,7 @@ export default function CheckIn() {
               </div>
 
               <button onClick={doCheckIn} disabled={checking}
-                style={{ background: BRAND_GREEN, color: DS.green }}
+                style={{ background: DS.green, color: DS.bg }}
                 className="w-full flex items-center justify-center gap-2 font-bold py-3 rounded-[8px] text-sm disabled:opacity-60 hover:opacity-90 transition-all">
                 {checking
                   ? <><RefreshCw size={14} className="animate-spin"/>Checking in…</>
@@ -439,11 +446,11 @@ export default function CheckIn() {
 
           {/* My check-in history */}
           {checkins.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-[12px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">My Check-in History</p>
+            <div className="rounded-[8px] p-5" style={{ background: DS.surface, border: `1px solid ${DS.border}` }}>
+              <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: DS.textSub }}>My Check-in History</p>
               <div className="space-y-2">
                 {checkins.map(c => (
-                  <div key={c.id} className="flex items-start gap-2.5 py-2 border-b border-gray-50 last:border-0">
+                  <div key={c.id} className="flex items-start gap-2.5 py-2 last:border-0" style={{ borderBottom: `1px solid ${DS.divider}` }}>
                     <CheckCircle size={13} className="text-[#AACC00] shrink-0 mt-0.5"/>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -466,9 +473,9 @@ export default function CheckIn() {
         {/* ── Admin panel ── */}
         {isAdmin && (
           <div className="lg:col-span-2">
-            <div className="bg-white border border-gray-200 rounded-[12px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] sticky top-6">
+            <div className="rounded-[8px] p-5 sticky top-6" style={{ background: DS.surface, border: `1px solid ${DS.border}` }}>
               <div className="flex items-center justify-between mb-4">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Staff Status</p>
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: DS.textSub }}>Staff Status</p>
                 <button onClick={loadData} className="text-gray-400 hover:text-gray-600"><RefreshCw size={13}/></button>
               </div>
 
