@@ -16,7 +16,7 @@
 
 export const EMBEDDING_PROVIDER    = 'voyageai'
 export const EMBEDDING_MODEL       = 'voyage-3-lite'
-export const EMBEDDING_DIMS        = 1024            // ← the ONE place this lives
+export const EMBEDDING_DIMS        = 512             // ← voyage-3-lite outputs 512 dims (voyage-3 = 1024)
 export const VOYAGE_EMBEDDINGS_URL = 'https://api.voyageai.com/v1/embeddings'
 export const MAX_EMBEDDING_CHARS   = 16_000          // ~4k tokens — Voyage context limit
 export const EMBEDDING_TIMEOUT_MS  = 15_000
