@@ -134,10 +134,10 @@ function Spinner({ size = 14 }) {
 
 // ── Quick prompts ─────────────────────────────────────────────────────────────
 const QUICK_PROMPTS = [
-  { label: 'Nairobi next week', icon: Plane, msg: 'I need to travel to Nairobi, Kenya next Monday for a 4-day board meeting. Flying from London.' },
-  { label: 'Lagos route risk', icon: Route, msg: 'Assess the risk for road travel from Lagos to Port Harcourt. 2 travellers, business purpose.' },
-  { label: 'Abuja 3 days', icon: Target, msg: 'Business trip to Abuja, Nigeria. Departing this Friday, returning Monday. 1 traveller, staying at Transcorp Hilton.' },
-  { label: 'Dubai + Riyadh', icon: Compass, msg: 'Two-leg trip: Dubai for 2 days then Riyadh for 3 days. Business meetings. What are the key operational considerations?' },
+  { label: 'Nairobi next week',        icon: Plane,   msg: 'I need to travel to Nairobi, Kenya next Monday for a 4-day board meeting. Flying from London.' },
+  { label: 'Lagos route risk',         icon: Route,   msg: 'Assess the risk for road travel from Lagos to Port Harcourt. 2 travellers, business purpose.' },
+  { label: 'Dubai to Riyadh',         icon: Compass,  msg: 'Two-leg trip: Dubai for 2 days then Riyadh for 3 days. Business meetings. Key operational considerations?' },
+  { label: 'Kinshasa extraction route', icon: Target, msg: 'Extraction route planning from Kinshasa. What are the primary evacuation options and current access status?' },
 ]
 
 // ── Risk gauge ────────────────────────────────────────────────────────────────
@@ -1080,7 +1080,7 @@ export default function JourneyAgent() {
     const name = profile?.full_name?.split(' ')[0]
     setMessages([{
       role: 'assistant',
-      text: `${name ? `CAIRO online. Ready, ${name}.` : 'CAIRO online.'}\n\nOperational intelligence systems active. Live feeds, incident monitoring, and historical pattern database online.\n\nDescribe your journey and I'll produce a full risk advisory — live situational intelligence, threat context, historical pattern analysis, recommended mitigations, and contingency planning. Confidence levels are explicitly scored and evidence-attributed.\n\nI advise and contextualise. You and your team decide.\n\nExample: "Travelling to Nairobi next Monday for a 3-day board meeting, flying from London."`,
+      text: `${name ? `Ready, ${name}.` : 'Operational intelligence ready.'}\n\nTell me where you're going.`,
     }])
   }, [profile])
 
@@ -1201,7 +1201,7 @@ export default function JourneyAgent() {
     const name = profile?.full_name?.split(' ')[0]
     setMessages([{
       role: 'assistant',
-      text: `${name ? `CAIRO online. Ready, ${name}.` : 'CAIRO online.'}\n\nOperational intelligence systems active. Describe your journey and I'll produce a full advisory — live situational intelligence, threat context, pattern analysis, and contingency planning.\n\nI advise and contextualise. You and your team decide.`,
+      text: `${name ? `Ready, ${name}.` : 'Operational intelligence ready.'}\n\nTell me where you're going.`,
     }])
     setTimeout(() => inputRef.current?.focus(), 100)
   }
@@ -1226,21 +1226,18 @@ export default function JourneyAgent() {
               <Compass size={15} style={{ color: C.accent }} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <span className="text-sm font-black tracking-tight" style={{ color: C.text }}>
                   CAIRO
                 </span>
-                <span className="text-[10px] font-semibold tracking-wide" style={{ color: C.textDim }}>
+                <span className="text-[10px] font-medium" style={{ color: C.textDim }}>
                   Operational Travel Intelligence
                 </span>
                 <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full"
                   style={{ background: C.accentDim, color: C.accent, border: `1px solid ${C.borderHi}` }}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> ONLINE
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: C.accent }} /> ONLINE
                 </span>
               </div>
-              <p className="text-[10px]" style={{ color: C.textDim }}>
-                Contextual Adaptive Intelligence for Route Operations · SafeGuard 360
-              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1299,44 +1296,17 @@ export default function JourneyAgent() {
               <div ref={bottomRef} />
             </div>
 
-            {/* Quick prompts — show only when no journey yet */}
+            {/* Quick prompts — show only on empty state */}
             {!hasJourney && messages.length <= 1 && (
-              <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="grid grid-cols-2 gap-1.5 mb-4">
                 {QUICK_PROMPTS.map((p, i) => (
                   <button key={i} onClick={() => send(p.msg)}
-                    className="flex items-center gap-2 text-left px-3 py-2.5 rounded-xl text-[11px] font-medium transition-all hover:opacity-90"
-                    style={{ background: C.elevated, border: `1px solid ${C.border}`, color: C.textMid }}>
-                    <p.icon size={12} style={{ color: C.accent, shrink: 0 }} />
-                    {p.label}
-                    <ChevronRight size={10} className="ml-auto shrink-0" style={{ color: C.textDim }} />
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Suggestion chips — shown when input is empty */}
-            {!input.trim() && messages.length <= 1 && (
-              <div className="flex flex-wrap gap-2 mb-2">
-                {[
-                  'What are the current security risks in…',
-                  'Plan a safe route from…',
-                  'Health and entry requirements for…',
-                  'Emergency contacts and evacuation options in…',
-                  'Threat level and recent incidents in…',
-                  'What should I know before travelling to…',
-                ].map(chip => (
-                  <button
-                    key={chip}
-                    type="button"
-                    onClick={() => setInput(chip)}
-                    className="text-[11px] px-3 py-1.5 rounded-full border transition-all hover:opacity-90 active:scale-95 text-left"
-                    style={{
-                      background: 'rgba(170,204,0,0.08)',
-                      border: '1px solid rgba(170,204,0,0.25)',
-                      color: C.textDim,
-                    }}
+                    className="flex items-center gap-2 text-left px-3 py-2.5 rounded-lg text-[11px] font-medium transition-all"
+                    style={{ background: C.elevated, border: `1px solid ${C.border}`, color: C.textDim }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.11)'; e.currentTarget.style.color = C.textMid }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textDim }}
                   >
-                    {chip}
+                    {p.label}
                   </button>
                 ))}
               </div>
@@ -1352,7 +1322,7 @@ export default function JourneyAgent() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKey}
                 disabled={sending}
-                placeholder="Describe your journey — destination, dates, purpose, transport mode…"
+                placeholder="Destination, route, or operational question…"
                 className="w-full resize-none bg-transparent px-4 pt-3 pb-2 text-sm focus:outline-none placeholder:text-sm"
                 style={{ color: C.text, caretColor: C.accent }}
               />
@@ -1366,9 +1336,9 @@ export default function JourneyAgent() {
                       Get CAIRO Advisory
                     </button>
                   )}
-                  {!hasJourney && (
+                  {!hasJourney && input.trim() && (
                     <span className="text-[10px]" style={{ color: C.textDim }}>
-                      Press Enter to send
+                      ↵ Enter
                     </span>
                   )}
                 </div>
