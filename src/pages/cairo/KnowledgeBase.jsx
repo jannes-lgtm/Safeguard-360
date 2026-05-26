@@ -610,7 +610,7 @@ export default function KnowledgeBase() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">CAIRO Knowledge Base</h1>
-            <p className="text-sm text-gray-500 mt-0.5">SOPs and case studies that inform CAIRO's analysis.</p>
+            <p className="text-sm text-gray-500 mt-0.5">SOPs and case studies that inform CAIRO's analysis. <span className="text-[10px] text-gray-300">v26.05.26</span></p>
           </div>
         </div>
 
