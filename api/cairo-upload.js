@@ -84,12 +84,13 @@ export default async function handler(req, res) {
   }
 
   // ── PDF intelligence extraction via Claude ────────────────────────────────
+  let extractionWarning = null
   if (pdf_b64) {
     try {
       content = await claudeCall(ANTHROPIC_API_KEY, {
         model:       MODELS.smart,
         maxTokens:   TOKEN_LIMITS.pdf,   // 8k
-        timeout:     200_000,            // 200s hard limit, Vercel allows 300s
+        timeout:     240_000,            // 240s — under 300s Vercel limit
         betaHeaders: ['pdfs-2024-09-25'],
         system: 'You are a security intelligence analyst. Extract the key intelligence from this document into a structured digest optimised for later search and retrieval. For each event or topic covered, output: COUNTRY/REGION | DATE | CATEGORY | HEADLINE | DETAILS (2-3 sentences). Separate entries with a blank line. Keep it factual and specific.',
         messages: [{
@@ -107,12 +108,16 @@ export default async function handler(req, res) {
         }],
       })
     } catch (err) {
-      return res.status(422).json({ error: `PDF extraction failed: ${err.message}` })
+      // Graceful fallback — save the document even if extraction times out.
+      // User can manually add content later; the title/tags still make it searchable.
+      console.warn('[cairo-upload] extraction failed, saving stub:', err.message)
+      extractionWarning = `Auto-extraction timed out. Document saved — add content manually to improve CAIRO search.`
+      content = `[Extraction pending — ${title}]\n\nDocument uploaded but text extraction timed out. Re-upload or add content manually.`
     }
   }
 
   if (!content || content.trim().length < 20) {
-    return res.status(400).json({ error: 'content is required (or provide pdf_base64)' })
+    return res.status(400).json({ error: 'No content extracted. Paste text manually or try a smaller file.' })
   }
 
   // ── Auto-generate summary via Claude ─────────────────────────────────────
@@ -161,5 +166,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: `DB error: ${insertErr.message} (code: ${insertErr.code})` })
   }
 
-  return res.json({ ok: true, ...inserted })
+  return res.json({ ok: true, ...inserted, warning: extractionWarning || undefined })
 }

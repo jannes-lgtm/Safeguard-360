@@ -175,6 +175,12 @@ function AddModal({ onClose, onSuccess }) {
         }
 
         if (!res.ok) throw new Error(data.error || `Upload failed (HTTP ${res.status})`)
+        if (data.warning) {
+          // Saved successfully but extraction was partial — show warning, close after delay
+          setError(`⚠️ ${data.warning}`)
+          setTimeout(() => { setSaving(false); onSuccess() }, 3500)
+          return
+        }
 
       } else {
         // ── Text path: direct Supabase insert ─────────────────────────────
