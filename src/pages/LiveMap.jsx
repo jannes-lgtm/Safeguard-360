@@ -35,6 +35,7 @@ import {
   PROXIMITY_KM, WS_RECONNECT, LOCATION_WRITE_THROTTLE_MS, HAS_MAPTILER,
 } from '../lib/mapConfig'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 import { timeAgo } from '../lib/dateUtils'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -833,7 +834,7 @@ export default function LiveMap() {
                     )}
                     <button onClick={startSharing}
                       className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition"
-                      style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+                      style={{ background: BRAND_GREEN, color: DS.green }}>
                       <Navigation size={12} /> Share My Location
                     </button>
                     <p className={`text-[9px] text-center ${subText}`}>Shares every 30s — not continuous</p>

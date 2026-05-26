@@ -11,6 +11,7 @@ import { cityToCountry, SEVERITY_STYLE } from '../data/intelData'
 import { getCountryRisk } from '../services/intelligenceService'
 import { MAP_STYLES } from '../lib/mapConfig'
 import { BRAND_BLUE } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 function initials(name) {
   if (!name) return '?'
@@ -48,7 +49,7 @@ function SlidePanel({ staff, countryRisk, onClose, onOpenIntel }) {
           {/* Staff info */}
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm"
-              style={{ background: BRAND_BLUE }}>
+              style={{ background: DS.green }}>
               {initials(staff.full_name || staff.email)}
             </div>
             <div>
@@ -190,7 +191,7 @@ function CheckInCard({ ci }) {
         {/* Mobile layout */}
         <div className="flex sm:hidden items-center gap-3">
           <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-            style={{ background: BRAND_BLUE }}>{avatar}</div>
+            style={{ background: DS.green }}>{avatar}</div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-gray-800 truncate">{ci.full_name || '—'}</span>
@@ -207,7 +208,7 @@ function CheckInCard({ ci }) {
         {/* Desktop layout */}
         <div className="hidden sm:flex items-center gap-3">
           <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-            style={{ background: BRAND_BLUE }}>{avatar}</div>
+            style={{ background: DS.green }}>{avatar}</div>
           <span className="text-xs font-medium text-gray-800 w-32 shrink-0 truncate">{ci.full_name || '—'}</span>
           <span className="shrink-0">{badge}</span>
           <span className="flex-1 text-xs text-gray-400 truncate px-2">
@@ -444,7 +445,7 @@ export default function Tracker() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                      style={{ background: BRAND_BLUE }}>
+                      style={{ background: DS.green }}>
                       {initials(staff.full_name || staff.email)}
                     </div>
                     <div className="min-w-0">
@@ -523,7 +524,7 @@ export default function Tracker() {
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                        style={{ background: BRAND_BLUE }}>
+                        style={{ background: DS.green }}>
                         {initials(staff.full_name || staff.email)}
                       </div>
                       <div>

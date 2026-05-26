@@ -9,6 +9,7 @@ import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { getTemplate } from '../data/vettingTemplates'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 // ── Categories ────────────────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -321,7 +322,7 @@ function DocumentUpload({ providerId, onUploaded }) {
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
       <button onClick={handleUpload} disabled={uploading}
-        style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
+        style={{ background: BRAND_GREEN, color: DS.green }}
         className="flex items-center gap-2 font-semibold px-4 py-2 rounded-[6px] text-sm disabled:opacity-60 hover:opacity-90">
         {uploading ? <><RefreshCw size={13} className="animate-spin" />Uploading…</> : <><Upload size={13} />Upload Document</>}
       </button>
@@ -428,7 +429,7 @@ function AddReference({ providerId, onAdded }) {
         <input className={input} placeholder="Reference outcome or notes from call" {...f('notes')} />
       </div>
       <button onClick={handleAdd} disabled={saving || !form.name.trim()}
-        style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
+        style={{ background: BRAND_GREEN, color: DS.green }}
         className="flex items-center gap-2 font-semibold px-4 py-2 rounded-[6px] text-sm disabled:opacity-60 hover:opacity-90">
         <Plus size={13} />{saving ? 'Saving…' : 'Add Reference'}
       </button>
@@ -556,7 +557,7 @@ function VettingTab({ provider, isAdmin, onVettingComplete }) {
       {/* Start button */}
       {isAdmin && !completing && (
         <button onClick={initChecklist}
-          style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
+          style={{ background: BRAND_GREEN, color: DS.green }}
           className="flex items-center gap-2 font-semibold px-4 py-2 rounded-[6px] text-sm hover:opacity-90">
           <Shield size={13}/>Start New Vetting Assessment
         </button>
@@ -641,7 +642,7 @@ function VettingTab({ provider, isAdmin, onVettingComplete }) {
           </div>
 
           <button onClick={saveVetting} disabled={saving || !nextReview}
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
+            style={{ background: BRAND_GREEN, color: DS.green }}
             className="flex items-center gap-2 font-semibold px-4 py-2 rounded-[6px] text-sm disabled:opacity-60 hover:opacity-90">
             {saving
               ? <><RefreshCw size={13} className="animate-spin"/>Saving…</>
@@ -1107,7 +1108,7 @@ function ProviderModal({ provider, onClose, onSaved }) {
         <div className="flex items-center justify-end gap-3 p-5 border-t border-gray-100">
           <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2">Cancel</button>
           <button onClick={handleSave} disabled={saving}
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
+            style={{ background: BRAND_GREEN, color: DS.green }}
             className="font-semibold px-5 py-2 rounded-[6px] text-sm disabled:opacity-60 hover:opacity-90">
             {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Provider'}
           </button>
@@ -1240,7 +1241,7 @@ export default function Services() {
         </div>
         {isAdmin && (
           <button onClick={openAdd}
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
+            style={{ background: BRAND_GREEN, color: DS.green }}
             className="flex items-center gap-2 font-semibold px-4 py-2 rounded-[6px] text-sm hover:opacity-90">
             <Plus size={15}/>Add Provider
           </button>
@@ -1343,7 +1344,7 @@ export default function Services() {
           <p className="text-base font-semibold text-gray-500 mb-1">No service providers yet</p>
           <p className="text-sm text-gray-400 mb-5">Add your first vetted supplier to get started</p>
           {isAdmin && (
-            <button onClick={openAdd} style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
+            <button onClick={openAdd} style={{ background: BRAND_GREEN, color: DS.green }}
               className="inline-flex items-center gap-2 font-semibold px-4 py-2 rounded-[6px] text-sm hover:opacity-90">
               <Plus size={14}/>Add Provider
             </button>

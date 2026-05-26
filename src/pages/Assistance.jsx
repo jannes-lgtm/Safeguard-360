@@ -14,6 +14,7 @@ import Layout from '../components/Layout'
 import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 import { timeAgo } from '../lib/dateUtils'
 
 const REQUEST_TYPES = [
@@ -124,7 +125,7 @@ function ActiveRequestCard({ req, userId, onUpdate }) {
                       ? 'rounded-tr-none text-white'
                       : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'
                   }`}
-                  style={m.sender_role === 'traveller' ? { background: BRAND_BLUE } : {}}>
+                  style={m.sender_role === 'traveller' ? { background: DS.green } : {}}>
                     {m.sender_role === 'operator' && (
                       <p className="text-[9px] font-bold text-gray-400 mb-0.5">Control Room</p>
                     )}
@@ -150,7 +151,7 @@ function ActiveRequestCard({ req, userId, onUpdate }) {
               />
               <button onClick={sendReply} disabled={sending || !reply.trim()}
                 className="px-3 py-2 rounded-lg text-white disabled:opacity-50"
-                style={{ background: BRAND_BLUE }}>
+                style={{ background: DS.green }}>
                 <Send size={14} />
               </button>
             </div>
@@ -434,7 +435,7 @@ export default function Assistance() {
             onClick={submitRequest}
             disabled={submitting || !reqType || !description.trim()}
             className="w-full py-3 rounded-xl text-sm font-bold disabled:opacity-50 transition-all"
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
+            style={{ background: BRAND_GREEN, color: DS.green }}
           >
             {submitting ? 'Submitting…' : 'Submit Request — Operators Notified'}
           </button>

@@ -11,6 +11,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { buildRiskGeoJSON } from '../../lib/riskData'
 import { BRAND_BLUE, BRAND_GREEN } from '../../lib/colors'
+import { DS } from '../../lib/ds'
 import { timeAgo } from '../../lib/dateUtils'
 
 const STATUS_STYLE = {
@@ -200,7 +201,7 @@ function OverviewTab({ project, members, tasks, incidents, expenses }) {
             {members.map(m => (
               <div key={m.id} className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2.5">
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                  style={{ background: BRAND_BLUE, color: BRAND_GREEN }}>
+                  style={{ background: DS.green, color: BRAND_GREEN }}>
                   {(m.profiles?.full_name || '?').charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
@@ -278,14 +279,14 @@ function TasksTab({ projectId, tasks, setTasks, memberOptions, profile }) {
           {[['open','Open'], ['done','Done'], ['all','All']].map(([key, label]) => (
             <button key={key} onClick={() => setFilter(key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filter === key ? 'text-white' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}
-              style={filter === key ? { background: BRAND_BLUE } : {}}>
+              style={filter === key ? { background: DS.green } : {}}>
               {label}
             </button>
           ))}
         </div>
         <button onClick={() => setShowAdd(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
-          style={{ background: BRAND_BLUE }}>
+          style={{ background: DS.green }}>
           <Plus size={13} /> Add Task
         </button>
       </div>
@@ -358,7 +359,7 @@ function TasksTab({ projectId, tasks, setTasks, memberOptions, profile }) {
             </Field>
             <button onClick={submit} disabled={saving || !form.title.trim()}
               className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
-              style={{ background: BRAND_BLUE }}>
+              style={{ background: DS.green }}>
               {saving ? 'Saving…' : 'Add Task'}
             </button>
           </div>
@@ -409,7 +410,7 @@ function IncidentsTab({ projectId, linkedIncidents, setLinkedIncidents, profile 
       <div className="flex justify-end mb-4">
         <button onClick={() => setShowLink(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
-          style={{ background: BRAND_BLUE }}>
+          style={{ background: DS.green }}>
           <Plus size={13} /> Link Incident
         </button>
       </div>
@@ -450,7 +451,7 @@ function IncidentsTab({ projectId, linkedIncidents, setLinkedIncidents, profile 
                   </div>
                   <button disabled={alreadyLinked || linking} onClick={() => linkIncident(inc)}
                     className="text-xs px-2.5 py-1 rounded-lg font-semibold text-white disabled:opacity-40 shrink-0"
-                    style={{ background: BRAND_BLUE }}>
+                    style={{ background: DS.green }}>
                     {alreadyLinked ? 'Linked' : 'Link'}
                   </button>
                 </div>
@@ -502,7 +503,7 @@ function NotesTab({ projectId, notes, setNotes, profile }) {
           value={content} onChange={e => setContent(e.target.value)} />
         <button onClick={submit} disabled={saving || !content.trim()}
           className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40"
-          style={{ background: BRAND_BLUE }}>
+          style={{ background: DS.green }}>
           {saving ? 'Posting…' : 'Post Note'}
         </button>
       </div>
@@ -516,7 +517,7 @@ function NotesTab({ projectId, notes, setNotes, profile }) {
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
-                    style={{ background: BRAND_BLUE, color: BRAND_GREEN }}>
+                    style={{ background: DS.green, color: BRAND_GREEN }}>
                     {(n.profiles?.full_name || '?').charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -572,7 +573,7 @@ function ShiftLogTab({ projectId, shifts, setShifts, profile }) {
       <div className="flex justify-end mb-4">
         <button onClick={() => setShowForm(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
-          style={{ background: BRAND_BLUE }}>
+          style={{ background: DS.green }}>
           <Plus size={13} /> New Entry
         </button>
       </div>
@@ -590,7 +591,7 @@ function ShiftLogTab({ projectId, shifts, setShifts, profile }) {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                        style={{ background: BRAND_BLUE, color: BRAND_GREEN }}>
+                        style={{ background: DS.green, color: BRAND_GREEN }}>
                         {(s.profiles?.full_name || '?').charAt(0).toUpperCase()}
                       </div>
                       <div>
@@ -664,7 +665,7 @@ function ShiftLogTab({ projectId, shifts, setShifts, profile }) {
             </Field>
             <button onClick={submit} disabled={saving || !form.summary.trim()}
               className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
-              style={{ background: BRAND_BLUE }}>
+              style={{ background: DS.green }}>
               {saving ? 'Saving…' : 'Submit Handover'}
             </button>
           </div>
@@ -718,7 +719,7 @@ function ExpensesTab({ projectId, expenses, setExpenses, profile }) {
         )}
         <button onClick={() => setShowAdd(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white ml-auto"
-          style={{ background: BRAND_BLUE }}>
+          style={{ background: DS.green }}>
           <Plus size={13} /> Log Expense
         </button>
       </div>
@@ -769,7 +770,7 @@ function ExpensesTab({ projectId, expenses, setExpenses, profile }) {
             </Field>
             <button onClick={submit} disabled={saving || !form.amount || !form.description.trim()}
               className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40"
-              style={{ background: BRAND_BLUE }}>
+              style={{ background: DS.green }}>
               {saving ? 'Saving…' : 'Log Expense'}
             </button>
           </div>
@@ -879,7 +880,7 @@ export default function ProjectDetail() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.06)] p-5">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="flex items-start gap-4 min-w-0">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: BRAND_BLUE }}>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: DS.green }}>
                 <Layers size={22} color="white" />
               </div>
               <div className="min-w-0">
@@ -941,12 +942,12 @@ export default function ProjectDetail() {
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex-1 justify-center ${
                 tab === key ? 'text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
-              style={tab === key ? { background: BRAND_BLUE } : {}}>
+              style={tab === key ? { background: DS.green } : {}}>
               <Icon size={14} />
               <span className="hidden sm:inline">{label}</span>
               {count > 0 && (
                 <span className={`text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 ${tab === key ? 'bg-white/20 text-white' : 'text-white'}`}
-                  style={tab !== key ? { background: BRAND_BLUE } : {}}>
+                  style={tab !== key ? { background: DS.green } : {}}>
                   {count}
                 </span>
               )}

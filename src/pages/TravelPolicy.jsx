@@ -6,10 +6,11 @@ import {
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 // ── Policy document renderer ──────────────────────────────────────────────────
 function Field({ value, fallback = '________________________________' }) {
-  if (value) return <strong style={{ color: BRAND_BLUE }}>{value}</strong>
+  if (value) return <strong style={{ color: DS.green }}>{value}</strong>
   return <span className="inline-block border-b-2 border-dashed border-gray-400 px-2 text-gray-400 text-sm">{fallback}</span>
 }
 
@@ -121,7 +122,7 @@ function PolicyDocument({ config }) {
         <div className="overflow-hidden rounded-lg border border-gray-200 mt-2">
           <table className="w-full text-xs" style={{ fontFamily: 'Inter, sans-serif' }}>
             <thead>
-              <tr style={{ background: BRAND_BLUE, color: 'white' }}>
+              <tr style={{ background: DS.green, color: DS.bg }}>
                 <th className="px-3 py-2 text-left font-semibold">Risk Level</th>
                 <th className="px-3 py-2 text-left font-semibold">Approval Required</th>
                 <th className="px-3 py-2 text-left font-semibold">Additional Requirements</th>
@@ -483,7 +484,7 @@ function SigningModal({ policy, onClose, onSigned }) {
             onClick={handleSign}
             disabled={signing || !name.trim()}
             className="w-full py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            style={{ background: BRAND_BLUE, color: 'white' }}
+            style={{ background: DS.green, color: DS.bg }}
           >
             {signing ? <><Loader2 size={15} className="animate-spin" /> Saving signature…</> : <><CheckCircle2 size={15} /> I Accept & Sign This Policy</>}
           </button>
@@ -621,7 +622,7 @@ function ConfigForm({ config, onSave }) {
         onClick={handleSave}
         disabled={saving}
         className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
-        style={{ background: BRAND_BLUE, color: 'white' }}
+        style={{ background: DS.green, color: DS.bg }}
       >
         {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : <><Save size={15} /> {saved ? 'Saved ✓' : 'Save Policy'}</>}
       </button>
@@ -734,7 +735,7 @@ export default function TravelPolicy() {
             <button
               onClick={() => setShowSign(true)}
               className="shrink-0 px-4 py-2 rounded-xl text-sm font-bold"
-              style={{ background: BRAND_BLUE, color: 'white' }}
+              style={{ background: DS.green, color: DS.bg }}
             >
               Sign Now
             </button>
@@ -752,7 +753,7 @@ export default function TravelPolicy() {
           ].map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setTab(key)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all"
-              style={tab === key ? { background: BRAND_BLUE, color: 'white' } : { color: '#94A3B8' }}>
+              style={tab === key ? { background: DS.green, color: DS.bg } : { color: '#94A3B8' }}>
               <Icon size={12} />{label}
             </button>
           ))}
@@ -777,7 +778,7 @@ export default function TravelPolicy() {
               {signatures.map(sig => (
                 <div key={sig.id} className="px-6 py-4 flex items-center gap-4">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-                    style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+                    style={{ background: BRAND_GREEN, color: DS.green }}>
                     {(sig.profiles?.full_name || sig.profiles?.email || '?')[0].toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -810,7 +811,7 @@ export default function TravelPolicy() {
                 <button
                   onClick={() => setShowSign(true)}
                   className="w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2"
-                  style={{ background: BRAND_BLUE, color: 'white' }}
+                  style={{ background: DS.green, color: DS.bg }}
                 >
                   <FileText size={15} /> Sign This Policy
                 </button>
@@ -828,7 +829,7 @@ export default function TravelPolicy() {
           <p className="text-xs text-gray-400 mb-4">Go to the Configure tab to set up your organisation's travel policy.</p>
           <button onClick={() => setTab('configure')}
             className="px-5 py-2.5 rounded-xl text-sm font-bold"
-            style={{ background: BRAND_BLUE, color: 'white' }}>
+            style={{ background: DS.green, color: DS.bg }}>
             Configure Now
           </button>
         </div>

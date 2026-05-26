@@ -14,6 +14,7 @@ import {
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 import { timeAgo } from '../lib/dateUtils'
 
 function complianceColor(pct) {
@@ -50,7 +51,7 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
       <button className="w-full flex items-center gap-4 px-4 py-3.5" onClick={() => setOpen(p => !p)}>
         {/* Avatar */}
         <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 text-white"
-          style={{ background: BRAND_BLUE }}>
+          style={{ background: DS.green }}>
           {initials}
         </div>
 
@@ -212,17 +213,17 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
           <div className="flex gap-2 flex-wrap pt-1">
             <a href={`mailto:${user.email}`}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-85"
-              style={{ background: BRAND_BLUE }}>
+              style={{ background: DS.green }}>
               <Mail size={12}/> Send Email
             </a>
             <a href={`mailto:${user.email}?subject=SafeGuard360 Check-in Reminder`}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85"
-              style={{ border: `1px solid ${BRAND_BLUE}`, color: BRAND_BLUE, background: `${BRAND_BLUE}07` }}>
+              style={{ border: `1px solid ${BRAND_BLUE}`, color: DS.green, background: `${BRAND_BLUE}07` }}>
               <Clock size={12}/> Send Reminder
             </a>
             <button onClick={() => onReinvite(user)} disabled={reinviting}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
-              style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+              style={{ background: BRAND_GREEN, color: DS.green }}>
               {reinviting
                 ? <><div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" /> Sending…</>
                 : <><UserPlus size={12}/> Resend Invite</>}
@@ -423,7 +424,7 @@ export default function OrgUsers() {
           </button>
           <button onClick={() => setShowInvite(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            style={{ background: BRAND_GREEN, color: DS.green }}>
             <UserPlus size={15} /> Invite Traveller
           </button>
         </div>
@@ -441,7 +442,7 @@ export default function OrgUsers() {
             <button key={t.id} onClick={() => setActiveTab(t.id)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
               style={activeTab === t.id
-                ? { background: 'white', color: BRAND_BLUE, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
+                ? { background: 'white', color: DS.green, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
                 : { color: '#64748B' }}>
               <Icon size={14} /> {t.label}
               {t.count > 0 && (
@@ -486,8 +487,8 @@ export default function OrgUsers() {
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ background: `${BRAND_BLUE}12` }}>
-                        <Globe size={15} style={{ color: BRAND_BLUE }} />
+                        style={{ background: DS.greenDim }}>
+                        <Globe size={15} style={{ color: DS.green }} />
                       </div>
                       <div>
                         <p className="text-sm font-bold text-gray-900">
@@ -513,7 +514,7 @@ export default function OrgUsers() {
                   </div>
                   {l.letter_text && (
                     <details className="mt-3">
-                      <summary className="text-xs font-semibold cursor-pointer" style={{ color: BRAND_BLUE }}>
+                      <summary className="text-xs font-semibold cursor-pointer" style={{ color: DS.green }}>
                         View letter
                       </summary>
                       <pre className="mt-3 whitespace-pre-wrap text-xs text-gray-600 leading-relaxed font-serif bg-gray-50 rounded-lg p-4 border border-gray-100 max-h-64 overflow-y-auto">
@@ -663,7 +664,7 @@ export default function OrgUsers() {
                 )}
                 <button onClick={() => { setInviteResult(null); setInviteEmail('') }}
                   className="w-full py-2.5 text-sm font-bold rounded-xl"
-                  style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+                  style={{ background: BRAND_GREEN, color: DS.green }}>
                   Invite another
                 </button>
               </div>
@@ -693,7 +694,7 @@ export default function OrgUsers() {
                 )}
                 <button type="submit" disabled={inviting}
                   className="w-full py-2.5 text-sm font-bold rounded-xl disabled:opacity-60 flex items-center justify-center gap-2"
-                  style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+                  style={{ background: BRAND_GREEN, color: DS.green }}>
                   {inviting
                     ? <><div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" /> Sending…</>
                     : 'Send Invite'}

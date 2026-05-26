@@ -29,6 +29,7 @@ import Layout from '../components/Layout'
 import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 import { timeAgo } from '../lib/dateUtils'
 
 const INTERVALS = [
@@ -62,7 +63,7 @@ function StaffCheckinRow({ staff }) {
     <div className={`border rounded-[8px] overflow-hidden ${isOver ? 'border-red-200 bg-red-50/30' : 'border-gray-200 bg-white'}`}>
       <button className="w-full flex items-center gap-3 px-4 py-3" onClick={() => setOpen(p => !p)}>
         <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-          style={{ background: BRAND_BLUE }}>
+          style={{ background: DS.green }}>
           {(staff.full_name || staff.email || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0 text-left">
@@ -427,7 +428,7 @@ export default function CheckIn() {
               </div>
 
               <button onClick={doCheckIn} disabled={checking}
-                style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
+                style={{ background: BRAND_GREEN, color: DS.green }}
                 className="w-full flex items-center justify-center gap-2 font-bold py-3 rounded-[8px] text-sm disabled:opacity-60 hover:opacity-90 transition-all">
                 {checking
                   ? <><RefreshCw size={14} className="animate-spin"/>Checking in…</>

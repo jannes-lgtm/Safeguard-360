@@ -27,6 +27,7 @@ import {
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 // ── Category config ───────────────────────────────────────────────────────────
 const CAT_CONFIG = {
@@ -96,7 +97,7 @@ function PolicyCard({ policy, acknowledged, onAcknowledge, ackLoading }) {
         {/* Icon + title */}
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: catConf.bg || `${BRAND_BLUE}10` }}>
+            style={{ background: catConf.bg || DS.greenDim }}>
             <Icon size={18} style={{ color: catConf.color || BRAND_BLUE }} />
           </div>
           <div className="flex-1 min-w-0">
@@ -139,7 +140,7 @@ function PolicyCard({ policy, acknowledged, onAcknowledge, ackLoading }) {
               onClick={() => onAcknowledge(policy.id)}
               disabled={ackLoading === policy.id}
               className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all hover:opacity-90 disabled:opacity-60"
-              style={{ background: BRAND_BLUE, color: 'white' }}>
+              style={{ background: DS.green, color: DS.bg }}>
               {ackLoading === policy.id
                 ? <><RefreshCw size={11} className="animate-spin" />Saving...</>
                 : <><CheckCircle2 size={11} />Acknowledge</>}
@@ -211,7 +212,7 @@ function AddPolicyModal({ orgId, onClose, onSaved }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Plus size={16} style={{ color: BRAND_BLUE }} />
+            <Plus size={16} style={{ color: DS.green }} />
             <h2 className="text-base font-bold text-gray-900">Add Policy</h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
@@ -258,7 +259,7 @@ function AddPolicyModal({ orgId, onClose, onSaved }) {
           </button>
           <button onClick={handleSave} disabled={saving || !form.name.trim()}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl disabled:opacity-50"
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            style={{ background: BRAND_GREEN, color: DS.green }}>
             {saving ? <><RefreshCw size={13} className="animate-spin" /> Saving…</> : <><Upload size={13} /> Add Policy</>}
           </button>
         </div>
@@ -293,7 +294,7 @@ function RequestPolicyModal({ orgName, onClose }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Mail size={16} style={{ color: BRAND_BLUE }} />
+            <Mail size={16} style={{ color: DS.green }} />
             <h2 className="text-base font-bold text-gray-900">Request from SafeGuard360</h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
@@ -328,7 +329,7 @@ function RequestPolicyModal({ orgName, onClose }) {
           </button>
           <button onClick={handleSubmit} disabled={!form.title.trim()}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl disabled:opacity-50 transition-opacity"
-            style={{ background: BRAND_BLUE, color: 'white' }}>
+            style={{ background: DS.green, color: DS.bg }}>
             <Mail size={14} /> Send Request
           </button>
         </div>
@@ -426,12 +427,12 @@ export default function Policies() {
           <div className="flex items-center gap-2 shrink-0 mt-1">
             <button onClick={() => setShowRequestModal(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-colors hover:bg-[#0118A1]/5"
-              style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, background: 'white' }}>
+              style={{ borderColor: BRAND_BLUE, color: DS.green, background: 'white' }}>
               <Mail size={15} /> Request from SafeGuard360
             </button>
             <button onClick={() => setShowAddModal(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-              style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+              style={{ background: BRAND_GREEN, color: DS.green }}>
               <Plus size={15} /> Add Policy
             </button>
           </div>
@@ -496,7 +497,7 @@ export default function Policies() {
             onClick={() => setFilter(tab.key)}
             className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
             style={filter === tab.key
-              ? { background: BRAND_BLUE, color: 'white' }
+              ? { background: DS.green, color: DS.bg }
               : { color: '#94A3B8' }
             }>
             {tab.label}

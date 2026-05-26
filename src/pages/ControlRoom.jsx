@@ -14,6 +14,7 @@ import Layout from '../components/Layout'
 import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 import { timeAgo } from '../lib/dateUtils'
 
 const TYPE_LABELS = {
@@ -341,7 +342,7 @@ export default function ControlRoom() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: BRAND_BLUE }}>
+              style={{ background: DS.green }}>
               <Headphones size={20} color="white" />
             </div>
             <div>

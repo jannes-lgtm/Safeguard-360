@@ -14,6 +14,7 @@ import {
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtPct(n)   { return n == null ? '—' : `${Math.round(n * 100)}%` }
@@ -80,7 +81,7 @@ function StatCard({ label, value, sub, icon: Icon, color = BRAND_BLUE }) {
 function SectionHeader({ title, icon: Icon }) {
   return (
     <div className="flex items-center gap-2 mb-3">
-      {Icon && <Icon size={16} style={{ color: BRAND_BLUE }} />}
+      {Icon && <Icon size={16} style={{ color: DS.green }} />}
       <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest">{title}</h3>
     </div>
   )
@@ -211,7 +212,7 @@ export default function OperationalIntel() {
               onClick={runAnalysis}
               disabled={runningAnalysis}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition"
-              style={{ background: BRAND_BLUE }}
+              style={{ background: DS.green }}
             >
               {runningAnalysis ? <Loader2 size={14} className="animate-spin" /> : <BarChart2 size={14} />}
               Run Analysis
@@ -333,7 +334,7 @@ export default function OperationalIntel() {
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
               <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle size={16} style={{ color: BRAND_BLUE }} />
+                  <AlertTriangle size={16} style={{ color: DS.green }} />
                   <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest">Active Anomalies</h3>
                 </div>
                 <div className="flex items-center gap-2">

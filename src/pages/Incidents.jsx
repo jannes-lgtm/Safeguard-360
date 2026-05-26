@@ -16,6 +16,7 @@ import {
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -109,7 +110,7 @@ function StatusBar({ status }) {
             <div className="h-1 rounded-full transition-all duration-300"
               style={{ background: active ? cfg.dot : '#E2E8F0' }} />
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-md text-[9px] font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"
-              style={{ background: '#1E293B', color: 'white' }}>
+              style={{ background: DS.surface, color: DS.white }}>
               {s}
             </div>
           </div>
@@ -126,8 +127,8 @@ function TimelineEntry({ entry, isLast }) {
     <div className="flex gap-3">
       <div className="flex flex-col items-center">
         <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-          style={{ background: `${BRAND_BLUE}12`, border: `1.5px solid ${BRAND_BLUE}30` }}>
-          <Activity size={10} style={{ color: BRAND_BLUE }} />
+          style={{ background: DS.greenDim, border: `1.5px solid ${BRAND_GREEN}33` }}>
+          <Activity size={10} style={{ color: BRAND_GREEN }} />
         </div>
         {!isLast && <div className="w-px flex-1 bg-gray-100 mt-1" />}
       </div>
@@ -263,7 +264,7 @@ function IncidentPanel({ incident, isAdmin, profile, orgMembers, onClose, onUpda
               onClick={() => setTab(tab_.key)}
               className="py-3 px-1 mr-5 text-xs font-bold border-b-2 transition-colors"
               style={tab === tab_.key
-                ? { borderColor: BRAND_BLUE, color: BRAND_BLUE }
+                ? { borderColor: BRAND_GREEN, color: BRAND_GREEN }
                 : { borderColor: 'transparent', color: '#94A3B8' }
               }>
               {tab_.label}
@@ -340,7 +341,7 @@ function IncidentPanel({ incident, isAdmin, profile, orgMembers, onClose, onUpda
                     />
                     <button onClick={handleAddNote} disabled={!note.trim() || saving}
                       className="p-2 rounded-xl transition-colors disabled:opacity-40"
-                      style={{ background: `${BRAND_BLUE}12`, color: BRAND_BLUE }}>
+                      style={{ background: DS.greenDim, color: BRAND_GREEN }}>
                       <Send size={14} />
                     </button>
                   </div>
@@ -372,7 +373,7 @@ function IncidentPanel({ incident, isAdmin, profile, orgMembers, onClose, onUpda
                     {incident.status === 'Resolved' && (
                       <button onClick={handleClose} disabled={saving}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all hover:opacity-90 disabled:opacity-50"
-                        style={{ background: '#F8FAFC', color: '#64748B', borderColor: '#E2E8F0' }}>
+                        style={{ background: DS.surface, color: DS.textSub, borderColor: DS.border }}>
                         <CheckCheck size={12} /> Close
                       </button>
                     )}
@@ -405,7 +406,7 @@ function IncidentPanel({ incident, isAdmin, profile, orgMembers, onClose, onUpda
                     )}
                     <button onClick={handleAssign} disabled={!assignTo.trim() || saving}
                       className="px-3 py-2 rounded-xl text-xs font-bold transition-colors disabled:opacity-40"
-                      style={{ background: `${BRAND_BLUE}12`, color: BRAND_BLUE }}>
+                      style={{ background: DS.greenDim, color: BRAND_GREEN }}>
                       <User size={13} />
                     </button>
                   </div>
@@ -450,7 +451,7 @@ function IncidentPanel({ incident, isAdmin, profile, orgMembers, onClose, onUpda
                   />
                   <button onClick={handleResolve} disabled={saving}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-90 disabled:opacity-40"
-                    style={{ background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' }}>
+                    style={{ background: DS.greenDim, color: DS.green, border: `1px solid ${DS.green}33` }}>
                     <CheckCircle2 size={13} />
                     Mark Resolved
                   </button>
@@ -571,9 +572,9 @@ function ReportModal({ profile, trips, onClose, onSaved }) {
                     className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all text-xs font-semibold"
                     style={active
                       ? { background: `${t.color}10`, border: `1.5px solid ${t.color}`, color: t.color }
-                      : { background: '#F8FAFC', border: '1.5px solid #E2E8F0', color: '#64748B' }
+                      : { background: DS.surface, border: `1.5px solid ${DS.border}`, color: DS.textSub }
                     }>
-                    <Icon size={13} style={{ color: active ? t.color : '#94A3B8', flexShrink: 0 }} />
+                    <Icon size={13} style={{ color: active ? t.color : DS.textMuted, flexShrink: 0 }} />
                     {t.label}
                   </button>
                 )
@@ -592,7 +593,7 @@ function ReportModal({ profile, trips, onClose, onSaved }) {
                   className="flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold transition-all"
                   style={form.severity === s.value
                     ? { background: s.bg, border: `1.5px solid ${s.dot}`, color: s.color }
-                    : { background: '#F8FAFC', border: '1.5px solid #E2E8F0', color: '#94A3B8' }
+                    : { background: DS.surface, border: `1.5px solid ${DS.border}`, color: DS.textMuted }
                   }>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: form.severity === s.value ? s.dot : '#CBD5E1' }} />
                   {s.label}
@@ -670,7 +671,7 @@ function ReportModal({ profile, trips, onClose, onSaved }) {
             </button>
             <button type="submit" disabled={saving}
               className="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-              style={{ background: BRAND_BLUE, color: 'white' }}>
+              style={{ background: BRAND_GREEN, color: DS.bg }}>
               {saving ? <><RefreshCw size={13} className="animate-spin" />Submitting…</> : 'Submit Report'}
             </button>
           </div>
@@ -849,7 +850,7 @@ export default function Incidents() {
         </div>
         <button onClick={() => setShowModal(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90 hover:-translate-y-0.5 shadow-sm"
-          style={{ background: BRAND_BLUE, color: 'white' }}>
+          style={{ background: BRAND_GREEN, color: DS.bg }}>
           <Plus size={15} /> Report Incident
         </button>
       </div>
@@ -871,7 +872,7 @@ export default function Incidents() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-7">
         {[
-          { label: 'Total',     value: incidents.length, color: BRAND_BLUE, bg: `${BRAND_BLUE}10` },
+          { label: 'Total',     value: incidents.length, color: BRAND_GREEN, bg: DS.greenDim },
           { label: 'Active',    value: counts.open,      color: '#F97316',  bg: '#FFF7ED' },
           { label: 'Escalated', value: counts.escalated, color: '#7E22CE',  bg: '#FDF4FF' },
           { label: 'Resolved',  value: counts.resolved,  color: '#059669',  bg: '#ECFDF5' },
@@ -897,7 +898,7 @@ export default function Incidents() {
         ].map(t => (
           <button key={t.key} onClick={() => setFilter(t.key)}
             className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
-            style={filter === t.key ? { background: BRAND_BLUE, color: 'white' } : { color: '#94A3B8' }}>
+            style={filter === t.key ? { background: BRAND_GREEN, color: DS.bg } : { color: '#94A3B8' }}>
             {t.label}
           </button>
         ))}

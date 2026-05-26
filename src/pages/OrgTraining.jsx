@@ -13,6 +13,7 @@ import {
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 const CONTENT_TYPES = [
   { key: 'document', label: 'Document',    icon: FileText },
@@ -37,7 +38,7 @@ function ModuleCard({ mod, completionCount, totalTravellers, onEdit, onDelete })
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: `${BRAND_BLUE}10`, color: BRAND_BLUE }}>
+            style={{ background: DS.greenDim, color: DS.green }}>
             <TypeIcon size={16} />
           </div>
           <div className="flex-1 min-w-0">
@@ -217,7 +218,7 @@ function ModuleModal({ mod, maxOrder, onClose, onSaved, orgId, userId }) {
           </button>
           <button onClick={save} disabled={saving || !form.title.trim()}
             className="flex-1 px-4 py-2.5 text-sm font-bold rounded-xl disabled:opacity-50"
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            style={{ background: BRAND_GREEN, color: DS.green }}>
             {saving ? 'Saving…' : isNew ? 'Add Module' : 'Save Changes'}
           </button>
         </div>
@@ -261,7 +262,7 @@ function RequestTrainingModal({ orgName, onClose }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Mail size={16} style={{ color: BRAND_BLUE }} />
+            <Mail size={16} style={{ color: DS.green }} />
             <h2 className="text-base font-bold text-gray-900">Request from SafeGuard360</h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
@@ -295,7 +296,7 @@ function RequestTrainingModal({ orgName, onClose }) {
           </button>
           <button onClick={handleSubmit} disabled={!form.title.trim()}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl disabled:opacity-50 transition-opacity"
-            style={{ background: BRAND_BLUE, color: 'white' }}>
+            style={{ background: DS.green, color: DS.bg }}>
             <Mail size={14} /> Send Request
           </button>
         </div>
@@ -375,12 +376,12 @@ export default function OrgTraining() {
           </button>
           <button onClick={() => setShowRequestModal(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-colors hover:bg-[#0118A1]/5"
-            style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, background: 'white' }}>
+            style={{ borderColor: BRAND_BLUE, color: DS.green, background: 'white' }}>
             <Mail size={15} /> Request from SafeGuard360
           </button>
           <button onClick={() => setModal('new')}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            style={{ background: BRAND_GREEN, color: DS.green }}>
             <Plus size={15} /> Add Module
           </button>
         </div>
@@ -394,7 +395,7 @@ export default function OrgTraining() {
               <BarChart2 size={15} className="text-gray-400" />
               <span className="text-sm font-semibold text-gray-700">Overall completion across {travellers.length} travellers</span>
             </div>
-            <span className="text-xl font-bold" style={{ color: BRAND_BLUE }}>{overallPct}%</span>
+            <span className="text-xl font-bold" style={{ color: DS.green }}>{overallPct}%</span>
           </div>
           <div className="w-full bg-gray-100 rounded-full h-2">
             <div className="h-2 rounded-full transition-all"
@@ -415,7 +416,7 @@ export default function OrgTraining() {
           <p className="text-gray-300 text-xs mt-1">Add your company's travel policies and training materials</p>
           <button onClick={() => setModal('new')}
             className="mt-4 px-4 py-2 rounded-xl text-sm font-bold"
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            style={{ background: BRAND_GREEN, color: DS.green }}>
             Add First Module
           </button>
         </div>

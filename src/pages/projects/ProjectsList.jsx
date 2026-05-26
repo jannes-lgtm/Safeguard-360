@@ -7,6 +7,7 @@ import {
 import { supabase } from '../../lib/supabase'
 import Layout from '../../components/Layout'
 import { BRAND_BLUE, BRAND_GREEN } from '../../lib/colors'
+import { DS } from '../../lib/ds'
 
 const STATUS_STYLE = {
   planning:  { label: 'Planning',  bg: 'bg-blue-100',   text: 'text-blue-700',   dot: 'bg-blue-500'   },
@@ -153,7 +154,7 @@ export default function ProjectsList() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-            style={{ background: BRAND_BLUE }}>
+            style={{ background: DS.green }}>
             <Layers size={20} color="white" />
           </div>
           <div>
@@ -164,7 +165,7 @@ export default function ProjectsList() {
         {canCreate && (
           <button onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-            style={{ background: BRAND_BLUE }}>
+            style={{ background: DS.green }}>
             <Plus size={16} /> New Project
           </button>
         )}
@@ -195,7 +196,7 @@ export default function ProjectsList() {
                   ? 'text-white shadow-sm'
                   : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'
               }`}
-              style={filter === key ? { background: BRAND_BLUE } : {}}>
+              style={filter === key ? { background: DS.green } : {}}>
               {label}
             </button>
           ))}
@@ -215,7 +216,7 @@ export default function ProjectsList() {
           {canCreate && (
             <button onClick={() => setShowCreate(true)}
               className="mt-4 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
-              style={{ background: BRAND_BLUE }}>
+              style={{ background: DS.green }}>
               <Plus size={14} /> New Project
             </button>
           )}
@@ -289,7 +290,7 @@ export default function ProjectsList() {
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: BRAND_BLUE }}>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: DS.green }}>
                   <Layers size={15} color="white" />
                 </div>
                 <h2 className="font-bold text-gray-900">New Project Workspace</h2>
@@ -373,7 +374,7 @@ export default function ProjectsList() {
               </button>
               <button onClick={submit} disabled={saving || !form.name.trim()}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 transition-all hover:opacity-90"
-                style={{ background: BRAND_BLUE }}>
+                style={{ background: DS.green }}>
                 {saving ? 'Creating…' : 'Create Project'}
               </button>
             </div>

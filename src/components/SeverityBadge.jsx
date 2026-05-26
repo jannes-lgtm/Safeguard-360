@@ -1,19 +1,37 @@
-export default function SeverityBadge({ severity }) {
-  const styles = {
-    Critical: { bg: '#FEF2F2', color: '#B91C1C', dot: '#EF4444', border: '#FECACA' },
-    High:     { bg: '#FFF7ED', color: '#C2410C', dot: '#F97316', border: '#FED7AA' },
-    Medium:   { bg: '#FEFCE8', color: '#A16207', dot: '#EAB308', border: '#FEF08A' },
-    Low:      { bg: '#F0FDF4', color: '#15803D', dot: '#22C55E', border: '#BBF7D0' },
-  }
+import { sev } from '../lib/ds'
 
-  const s = styles[severity] || styles.Low
+/**
+ * Operational severity badge — dark background, muted tones.
+ * No white or light backgrounds.
+ */
+export default function SeverityBadge({ severity, size = 'sm' }) {
+  const s = sev(severity)
+  const small = size === 'sm'
 
   return (
     <span
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide"
-      style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}
+      style={{
+        display:       'inline-flex',
+        alignItems:    'center',
+        gap:           5,
+        padding:       small ? '2px 8px' : '3px 10px',
+        borderRadius:  3,
+        fontSize:      small ? 9 : 10,
+        fontWeight:    700,
+        letterSpacing: '0.10em',
+        textTransform: 'uppercase',
+        background:    s.bg,
+        color:         s.text,
+        border:        `1px solid ${s.border}`,
+        whiteSpace:    'nowrap',
+      }}
     >
-      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: s.dot }} />
+      <span style={{
+        width: 5, height: 5,
+        borderRadius: '50%',
+        background: s.dot,
+        flexShrink: 0,
+      }} />
       {severity}
     </span>
   )

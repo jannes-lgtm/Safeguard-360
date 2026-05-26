@@ -18,6 +18,7 @@ import { supabase } from '../lib/supabase'
 import { cityToCountry, SEVERITY_STYLE, COUNTRY_META } from '../data/intelData'
 import { MAP_STYLES } from '../lib/mapConfig'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS, SEVERITY as SEV_DS } from '../lib/ds'
 import { timeAgo } from '../lib/dateUtils'
 import { getCountryRisk, getFeedById } from '../services/intelligenceService'
 import { sendAssistantMessage } from '../services/cairoService'
@@ -27,21 +28,16 @@ const ALERT_TYPE_ICON = {
   disaster: '🌋', earthquake: '🔴', flight: '✈️',
   weather: '⛈️', security: '🛡️', health: '🏥', political: '🏛️',
 }
-const SEVERITY_PILL = {
-  Critical: { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA', bar: '#EF4444' },
-  High:     { bg: '#FFF7ED', color: '#C2410C', border: '#FED7AA', bar: '#F97316' },
-  Medium:   { bg: '#FEFCE8', color: '#A16207', border: '#FEF08A', bar: '#EAB308' },
-  Low:      { bg: '#F8FAFC', color: '#475569', border: '#E2E8F0', bar: '#94A3B8' },
-  Info:     { bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE', bar: '#3B82F6' },
+// Operational severity tokens — sourced from design system
+const SEVERITY_PILL = SEV_DS  // single source of truth
+const SEVERITY_PILL_DARK = SEV_DS
+const severityDot = {
+  Critical: SEV_DS.Critical.dot,
+  High:     SEV_DS.High.dot,
+  Medium:   SEV_DS.Medium.dot,
+  Low:      SEV_DS.Low.dot,
+  Info:     SEV_DS.Info.dot,
 }
-const SEVERITY_PILL_DARK = {
-  Critical: { bg: 'rgba(168,53,53,0.15)',  color: '#FCA5A5', border: 'rgba(168,53,53,0.30)', bar: '#EF4444' },
-  High:     { bg: 'rgba(249,115,22,0.12)', color: '#FDBA74', border: 'rgba(249,115,22,0.25)', bar: '#F97316' },
-  Medium:   { bg: 'rgba(234,179,8,0.12)',  color: '#FDE68A', border: 'rgba(234,179,8,0.25)',  bar: '#EAB308' },
-  Low:      { bg: 'rgba(148,163,184,0.08)', color: '#94A3B8', border: 'rgba(148,163,184,0.18)', bar: '#94A3B8' },
-  Info:     { bg: 'rgba(59,130,246,0.12)', color: '#93C5FD', border: 'rgba(59,130,246,0.25)',  bar: '#3B82F6' },
-}
-const severityDot = { Critical: '#EF4444', High: '#F97316', Medium: '#EAB308', Low: '#94A3B8' }
 
 function fmtEventDate(d) {
   if (!d) return null
@@ -276,80 +272,24 @@ function OrgCompliancePanel({ orgStats, loading }) {
 // ── Quick Actions ─────────────────────────────────────────────────────────────
 function QuickActions({ role, hasActiveTrip, dark = false }) {
   const travellerActions = [
-    {
-      icon: Plane,
-      label: 'Book Travel',
-      desc: 'Add a new trip to your itinerary',
-      to: '/itinerary',
-      color: BRAND_BLUE,
-      bg: `${BRAND_BLUE}0F`,
-    },
-    {
-      icon: GraduationCap,
-      label: 'Start Training',
-      desc: 'Complete your ISO safety modules',
-      to: '/training',
-      color: '#7C3AED',
-      bg: '#F5F3FF',
-    },
-    {
-      icon: Shield,
-      label: 'Country Risk Report',
-      desc: 'Get destination safety intelligence',
-      to: '/country-risk',
-      color: '#059669',
-      bg: '#ECFDF5',
-    },
-    {
-      icon: Pencil,
-      label: hasActiveTrip ? 'Update My Trip' : 'My Trips',
-      desc: hasActiveTrip ? 'Edit your current travel plans' : 'View and manage your upcoming trips',
-      to: '/itinerary',
-      color: '#D97706',
-      bg: '#FFF7ED',
-    },
+    { icon: Plane,        label: 'Book Travel',          desc: 'Add a new trip to your itinerary',             to: '/itinerary',    color: BRAND_GREEN,   bg: DS.greenDim },
+    { icon: GraduationCap,label: 'Start Training',        desc: 'Complete your ISO safety modules',             to: '/training',     color: '#A78BFA',     bg: 'rgba(80,60,120,0.12)' },
+    { icon: Shield,       label: 'Country Risk Report',   desc: 'Get destination safety intelligence',          to: '/country-risk', color: DS.steelText,  bg: DS.steelDim },
+    { icon: Pencil,       label: hasActiveTrip ? 'Update My Trip' : 'My Trips', desc: hasActiveTrip ? 'Edit your current travel plans' : 'View and manage your upcoming trips', to: '/itinerary', color: DS.amberText, bg: DS.amberDim },
   ]
 
   const adminActions = [
-    {
-      icon: ClipboardList,
-      label: 'Travel Approvals',
-      desc: 'Review and approve pending trips',
-      to: '/approvals',
-      color: '#D97706',
-      bg: '#FFF7ED',
-    },
-    {
-      icon: Navigation,
-      label: 'Staff Tracker',
-      desc: 'See where your travellers are now',
-      to: '/tracker',
-      color: BRAND_BLUE,
-      bg: `${BRAND_BLUE}0F`,
-    },
-    {
-      icon: GraduationCap,
-      label: 'Company Training',
-      desc: 'Manage team training & compliance',
-      to: '/org/training',
-      color: '#7C3AED',
-      bg: '#F5F3FF',
-    },
-    {
-      icon: Shield,
-      label: 'Country Risk Report',
-      desc: 'Check destination risk levels',
-      to: '/country-risk',
-      color: '#059669',
-      bg: '#ECFDF5',
-    },
+    { icon: ClipboardList, label: 'Travel Approvals',    desc: 'Review and approve pending trips',             to: '/approvals',    color: DS.amberText,  bg: DS.amberDim },
+    { icon: Navigation,    label: 'Staff Tracker',        desc: 'See where your travellers are now',            to: '/tracker',      color: BRAND_GREEN,   bg: DS.greenDim },
+    { icon: GraduationCap, label: 'Company Training',     desc: 'Manage team training & compliance',            to: '/org/training', color: '#A78BFA',     bg: 'rgba(80,60,120,0.12)' },
+    { icon: Shield,        label: 'Country Risk Report',  desc: 'Check destination risk levels',                to: '/country-risk', color: DS.steelText,  bg: DS.steelDim },
   ]
 
   const soloActions = [
-    { icon: Plane,       label: 'Plan a Trip',     desc: 'Add a new trip to your planner',       to: '/itinerary',    color: BRAND_BLUE, bg: `${BRAND_BLUE}0F` },
-    { icon: Globe,       label: 'Country Intel',   desc: 'Check safety at your destination',     to: '/country-risk', color: '#059669',  bg: '#ECFDF5' },
-    { icon: Brain,       label: 'AI Analyst',      desc: 'Ask about risk, safety, destinations', to: '/dashboard',    color: '#7C3AED',  bg: '#F5F3FF' },
-    { icon: Headphones,  label: '24/7 Support',    desc: 'Reach emergency support anytime',      to: '/assistance',   color: '#D97706',  bg: '#FFF7ED' },
+    { icon: Plane,       label: 'Plan a Trip',     desc: 'Add a new trip to your planner',       to: '/itinerary',    color: BRAND_GREEN, bg: DS.greenDim },
+    { icon: Globe,       label: 'Country Intel',   desc: 'Check safety at your destination',     to: '/country-risk', color: DS.steelText, bg: DS.steelDim },
+    { icon: Brain,       label: 'AI Analyst',      desc: 'Ask about risk, safety, destinations', to: '/dashboard',    color: '#A78BFA',   bg: 'rgba(80,60,120,0.12)' },
+    { icon: Headphones,  label: '24/7 Support',    desc: 'Reach emergency support anytime',      to: '/assistance',   color: DS.amberText, bg: DS.amberDim },
   ]
 
   const actions = role === 'solo' ? soloActions : role === 'admin' ? adminActions : travellerActions
@@ -357,38 +297,45 @@ function QuickActions({ role, hasActiveTrip, dark = false }) {
   return (
     <div className="mb-7">
       <div className="flex items-center gap-2.5 mb-3">
-        <h2 className="text-sm font-bold" style={{ color: dark ? '#F9FAFB' : '#111827' }}>Quick Actions</h2>
+        <h2 className="text-sm font-bold" style={{ color: DS.white }}>Quick Actions</h2>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {actions.map(action => {
           const Icon = action.icon
-          const darkBg = `${action.color}18`
           return (
             <Link
               key={action.label}
               to={action.to}
-              className="rounded-2xl p-4 flex flex-col gap-3 transition-all duration-200 hover:-translate-y-0.5 group"
+              className="rounded-[6px] p-4 flex flex-col gap-3 transition-all duration-150 group"
               style={{
-                background: dark ? '#11131A' : '#FFFFFF',
-                boxShadow: dark ? '0 2px 16px rgba(0,0,0,0.4)' : '0 1px 3px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.03)',
-                border: dark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.06)',
+                background:  DS.surface,
+                border:      `1px solid ${DS.border}`,
+                textDecoration: 'none',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background   = DS.surfaceHi
+                e.currentTarget.style.borderColor  = DS.borderHi
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background   = DS.surface
+                e.currentTarget.style.borderColor  = DS.border
               }}
             >
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: dark ? darkBg : action.bg }}
+                className="w-9 h-9 rounded-[5px] flex items-center justify-center shrink-0"
+                style={{ background: action.bg }}
               >
-                <Icon size={17} style={{ color: action.color }} />
+                <Icon size={16} style={{ color: action.color }} />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-bold leading-tight mb-0.5 transition-colors" style={{ color: dark ? '#F9FAFB' : '#111827' }}>
+                <p className="text-sm font-bold leading-tight mb-0.5" style={{ color: DS.white }}>
                   {action.label}
                 </p>
-                <p className="text-[11px] leading-snug" style={{ color: dark ? 'rgba(255,255,255,0.35)' : '#9CA3AF' }}>{action.desc}</p>
+                <p className="text-[11px] leading-snug" style={{ color: DS.textMuted }}>{action.desc}</p>
               </div>
-              <div className="flex items-center gap-1 text-[11px] font-semibold transition-all"
-                style={{ color: action.color }}>
-                Go <ChevronRight size={11} className="transition-transform group-hover:translate-x-0.5" />
+              <div className="flex items-center gap-1 text-[11px] font-semibold"
+                style={{ color: DS.textMuted }}>
+                View <ChevronRight size={10} />
               </div>
             </Link>
           )
@@ -672,7 +619,7 @@ function TripMapSection({ trips, destRisk, onCountryClick }) {
         const el = document.createElement('div')
         el.style.cssText = 'font-family:system-ui,sans-serif;min-width:160px'
         el.innerHTML = `
-          <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#111827">${p.tripName}</div>
+          <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#EAEEF5">${p.tripName}</div>
           <div style="font-size:11px;color:#6b7280;margin-bottom:6px">
             ${p.arrivalCity}${p.country !== p.arrivalCity ? ` · ${p.country}` : ''}
           </div>
@@ -847,7 +794,7 @@ function SoloWorldMap({ trips, onCountryClick, T = {} }) {
           const el = document.createElement('div')
           el.style.cssText = 'font-family:system-ui,sans-serif;min-width:150px'
           el.innerHTML = `
-            <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#111827">${p.tripName}</div>
+            <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#EAEEF5">${p.tripName}</div>
             <div style="font-size:11px;color:#9ca3af;margin-bottom:6px">${p.arrivalCity}</div>
             ${p.isActive
               ? '<div style="font-size:10px;font-weight:700;color:#AACC00;margin-bottom:8px">✈️ Active now</div>'
@@ -873,10 +820,10 @@ function SoloWorldMap({ trips, onCountryClick, T = {} }) {
     <div className="mb-7">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: T.iconBg || `${BRAND_BLUE}12` }}>
-            <Globe size={13} style={{ color: T.textPrimary ? BRAND_GREEN : BRAND_BLUE }} />
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: DS.greenDim }}>
+            <Globe size={13} style={{ color: BRAND_GREEN }} />
           </div>
-          <h2 className="text-sm font-bold" style={{ color: T.textPrimary || '#111827' }}>World Explorer</h2>
+          <h2 className="text-sm font-bold" style={{ color: DS.white }}>World Explorer</h2>
         </div>
         <span className="text-[10px] font-medium" style={{ color: T.textMuted || '#9CA3AF' }}>Click a destination for a full intel brief</span>
       </div>
@@ -1168,20 +1115,20 @@ function LiveNewsFeed({ compact = false }) {
 
 // ── Solo News Widget ───────────────────────────────────────────────────────────
 function SoloNewsWidget({ alerts, hasTrips = false, loading, onCountryClick, T = {} }) {
-  const isDark = !!T.card && T.card !== '#FFFFFF'
+  const isDark = true // always dark operational theme
 
   if (loading) return (
     <div className="mb-7">
       <div className="flex items-center gap-2.5 mb-3">
-        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2' }}>
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: DS.redDim }}>
           <Radio size={13} style={{ color: '#EF4444' }} />
         </div>
-        <h2 className="text-sm font-bold" style={{ color: T.textPrimary || '#111827' }}>
+        <h2 className="text-sm font-bold" style={{ color: DS.white }}>
           {hasTrips ? 'Destination Intelligence' : 'Global Intel Feed'}
         </h2>
       </div>
       <div className="space-y-2">
-        {[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: T.card || '#fff', border: `1px solid ${T.cardBorder || '#F3F4F6'}` }} />)}
+        {[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl animate-pulse" style={{ background: DS.surface, border: `1px solid ${DS.border}` }} />)}
       </div>
     </div>
   )
@@ -1194,12 +1141,12 @@ function SoloNewsWidget({ alerts, hasTrips = false, loading, onCountryClick, T =
   if (!alerts?.length) return (
     <div className="mb-7">
       <div className="flex items-center gap-2.5 mb-3">
-        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2' }}>
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: DS.redDim }}>
           <Radio size={13} style={{ color: '#EF4444' }} />
         </div>
-        <h2 className="text-sm font-bold" style={{ color: T.textPrimary || '#111827' }}>{title}</h2>
+        <h2 className="text-sm font-bold" style={{ color: DS.white }}>{title}</h2>
       </div>
-      <div className="rounded-2xl px-5 py-8 text-center" style={{ background: T.card || '#fff', border: `1px solid ${T.cardBorder || '#F3F4F6'}` }}>
+      <div className="rounded-2xl px-5 py-8 text-center" style={{ background: DS.surface, border: `1px solid ${DS.border}` }}>
         {hasTrips ? (
           <>
             <CheckCircle2 size={20} className="text-emerald-400 mx-auto mb-2" />
@@ -1211,7 +1158,7 @@ function SoloNewsWidget({ alerts, hasTrips = false, loading, onCountryClick, T =
             <Globe size={20} className="text-gray-300 mx-auto mb-2" />
             <p className="text-sm font-semibold text-gray-500 mb-0.5">No critical global alerts right now</p>
             <p className="text-xs text-gray-400">
-              <Link to="/itinerary" className="underline" style={{ color: BRAND_BLUE }}>Add a trip</Link> to see destination-specific intelligence.
+              <Link to="/itinerary" className="underline" style={{ color: BRAND_GREEN }}>Add a trip</Link> to see destination-specific intelligence.
             </p>
           </>
         )}
@@ -1223,48 +1170,44 @@ function SoloNewsWidget({ alerts, hasTrips = false, loading, onCountryClick, T =
     <div className="mb-7">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2' }}>
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: DS.redDim }}>
             <Radio size={13} style={{ color: '#EF4444' }} />
           </div>
-          <h2 className="text-sm font-bold" style={{ color: T.textPrimary || '#111827' }}>{title}</h2>
+          <h2 className="text-sm font-bold" style={{ color: DS.white }}>{title}</h2>
           {isLive && (
             <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full"
-              style={{ background: isDark ? 'rgba(239,68,68,0.15)' : '#FEF2F2', color: isDark ? '#FCA5A5' : '#B91C1C', border: `1px solid ${isDark ? 'rgba(239,68,68,0.25)' : '#FECACA'}` }}>
+              style={{ background: DS.redDim, color: DS.redText, border: `1px solid ${'rgba(138,46,46,0.35)'}` }}>
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" /> LIVE
             </span>
           )}
         </div>
-        <Link to="/alerts" className="text-xs font-semibold hover:underline flex items-center gap-1" style={{ color: isDark ? BRAND_GREEN : BRAND_BLUE }}>
+        <Link to="/alerts" className="text-xs font-semibold hover:underline flex items-center gap-1" style={{ color: BRAND_GREEN }}>
           View all <ChevronRight size={11} />
         </Link>
       </div>
       <div className="space-y-2">
         {alerts.map(alert => {
           const pill = SEVERITY_PILL[alert.severity] || SEVERITY_PILL.Low
-          const cardBg = isDark
-            ? `${pill.bar}18`
-            : pill.bg
-          const cardBorder = isDark
-            ? `${pill.bar}35`
-            : pill.border
+          const cardBg     = pill.bg
+          const cardBorder = pill.border
           return (
             <div key={alert.id} className="rounded-2xl flex items-start gap-3 px-4 py-3.5 transition-all hover:opacity-90 cursor-default"
-              style={{ background: cardBg, border: `1px solid ${cardBorder}`, boxShadow: isDark ? '0 2px 12px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.04)' }}>
+              style={{ background: cardBg, border: `1px solid ${cardBorder}`, boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}>
               <div className="w-1 self-stretch rounded-full shrink-0" style={{ background: pill.bar }} />
               <span className="text-base shrink-0 leading-none mt-0.5">{ALERT_TYPE_ICON[alert.alert_type] || '⚠️'}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2 mb-0.5">
-                  <p className="text-sm font-semibold leading-snug" style={{ color: isDark ? '#F9FAFB' : '#111827' }}>{alert.title}</p>
+                  <p className="text-sm font-semibold leading-snug" style={{ color: DS.white }}>{alert.title}</p>
                   <span className="text-[10px] font-bold uppercase shrink-0 px-2 py-0.5 rounded-full"
-                    style={{ background: pill.bar + '30', color: isDark ? pill.bar : pill.color }}>{alert.severity}</span>
+                    style={{ background: pill.bg, color: pill.text }}>{alert.severity}</span>
                 </div>
                 {alert.description && (
-                  <p className="text-xs leading-relaxed line-clamp-2 mb-1.5" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#6B7280' }}>{alert.description}</p>
+                  <p className="text-xs leading-relaxed line-clamp-2 mb-1.5" style={{ color: DS.textSub }}>{alert.description}</p>
                 )}
                 <div className="flex items-center gap-3 flex-wrap">
                   {alert.country && (
                     <button onClick={() => onCountryClick(alert.country)}
-                      className="text-[11px] font-semibold flex items-center gap-1 hover:underline" style={{ color: isDark ? BRAND_GREEN : BRAND_BLUE }}>
+                      className="text-[11px] font-semibold flex items-center gap-1 hover:underline" style={{ color: BRAND_GREEN }}>
                       <Globe size={9} /> {alert.country} intel →
                     </button>
                   )}
@@ -1291,35 +1234,35 @@ const RISK_CONFIG = {
 }
 
 function SoloTripRiskReport({ trips, destRisk, destAlerts, loading, onCountryClick, T }) {
-  const isDark = !!T?.card && T.card !== '#FFFFFF'
+  const isDark = true // always dark operational theme
   const todayISO = new Date().toISOString().split('T')[0]
 
   if (loading) return (
     <div className="mb-7">
       <div className="flex items-center gap-2.5 mb-3">
-        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: isDark ? 'rgba(170,204,0,0.12)' : `${BRAND_BLUE}12` }}>
-          <Shield size={13} style={{ color: isDark ? BRAND_GREEN : BRAND_BLUE }} />
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: DS.greenDim }}>
+          <Shield size={13} style={{ color: BRAND_GREEN }} />
         </div>
-        <h2 className="text-sm font-bold" style={{ color: T?.textPrimary || '#111827' }}>Trip Risk Report</h2>
+        <h2 className="text-sm font-bold" style={{ color: DS.white }}>Trip Risk Report</h2>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {[1,2].map(i => <div key={i} className="h-36 rounded-2xl animate-pulse" style={{ background: T?.card || '#fff', border: `1px solid ${T?.cardBorder || '#F3F4F6'}` }} />)}
+        {[1,2].map(i => <div key={i} className="h-36 rounded-2xl animate-pulse" style={{ background: DS.surface, border: `1px solid ${DS.border}` }} />)}
       </div>
     </div>
   )
 
   if (!trips.length) return (
     <div className="mb-7 rounded-2xl p-6 flex items-center gap-4"
-      style={{ background: T?.card || '#fff', border: `1px solid ${T?.cardBorder || 'rgba(0,0,0,0.06)'}`, boxShadow: T?.cardShadow }}>
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: isDark ? 'rgba(170,204,0,0.12)' : `${BRAND_BLUE}10` }}>
-        <Plane size={18} style={{ color: isDark ? BRAND_GREEN : BRAND_BLUE }} />
+      style={{ background: DS.surface, border: `1px solid ${DS.border}`, boxShadow: T?.cardShadow }}>
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: DS.greenDim }}>
+        <Plane size={18} style={{ color: BRAND_GREEN }} />
       </div>
       <div>
-        <p className="text-sm font-bold mb-0.5" style={{ color: T?.textPrimary || '#111827' }}>No trips booked yet</p>
-        <p className="text-xs" style={{ color: T?.textSub || '#6B7280' }}>Add a trip to see a real-time risk report for your destination.</p>
+        <p className="text-sm font-bold mb-0.5" style={{ color: DS.white }}>No trips booked yet</p>
+        <p className="text-xs" style={{ color: DS.textSub }}>Add a trip to see a real-time risk report for your destination.</p>
       </div>
       <Link to="/itinerary" className="ml-auto text-xs font-bold px-3 py-2 rounded-xl shrink-0 transition-opacity hover:opacity-80"
-        style={{ background: isDark ? BRAND_GREEN : BRAND_BLUE, color: isDark ? '#090D1A' : '#fff' }}>
+        style={{ background: BRAND_GREEN, color: DS.bg }}>
         Plan a Trip →
       </Link>
     </div>
@@ -1329,10 +1272,10 @@ function SoloTripRiskReport({ trips, destRisk, destAlerts, loading, onCountryCli
     <div className="mb-7">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: isDark ? 'rgba(170,204,0,0.12)' : `${BRAND_BLUE}12` }}>
-            <Shield size={13} style={{ color: isDark ? BRAND_GREEN : BRAND_BLUE }} />
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: DS.greenDim }}>
+            <Shield size={13} style={{ color: BRAND_GREEN }} />
           </div>
-          <h2 className="text-sm font-bold" style={{ color: T?.textPrimary || '#111827' }}>Trip Risk Report</h2>
+          <h2 className="text-sm font-bold" style={{ color: DS.white }}>Trip Risk Report</h2>
         </div>
         <span className="text-[10px] font-medium" style={{ color: T?.textMuted || '#9CA3AF' }}>
           {trips.length} trip{trips.length !== 1 ? 's' : ''} · live risk data
@@ -1345,7 +1288,7 @@ function SoloTripRiskReport({ trips, destRisk, destAlerts, loading, onCountryCli
           const risk     = destRisk[country]
           const alertCnt = destAlerts[country] ?? 0
           const sev      = risk?.severity || null
-          const cfg      = RISK_CONFIG[sev] || { bar: isDark ? 'rgba(255,255,255,0.15)' : '#E5E7EB', label: 'Scanning…', pct: 0, dot: '#9CA3AF' }
+          const cfg      = RISK_CONFIG[sev] || { bar: 'rgba(255,255,255,0.12)', label: 'Scanning…', pct: 0, dot: '#9CA3AF' }
           const isActive = trip.depart_date <= todayISO && trip.return_date >= todayISO
           const departs  = new Date(trip.depart_date)
           const daysOut  = Math.max(0, Math.ceil((departs - new Date()) / 86400000))
@@ -1354,13 +1297,13 @@ function SoloTripRiskReport({ trips, destRisk, destAlerts, loading, onCountryCli
           return (
             <button key={trip.id} onClick={() => onCountryClick(country)}
               className="rounded-2xl p-5 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg flex flex-col gap-3 w-full"
-              style={{ background: T?.card || '#fff', border: `1px solid ${T?.cardBorder || 'rgba(0,0,0,0.06)'}`, boxShadow: T?.cardShadow || '0 1px 3px rgba(0,0,0,0.06)' }}>
+              style={{ background: DS.surface, border: `1px solid ${DS.border}`, boxShadow: T?.cardShadow || '0 1px 3px rgba(0,0,0,0.06)' }}>
 
               {/* Top row */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: T?.textPrimary || '#111827' }}>{trip.trip_name}</p>
-                  <p className="text-xs mt-0.5 truncate" style={{ color: T?.textSub || '#6B7280' }}>{trip.arrival_city} · {country}</p>
+                  <p className="text-sm font-bold truncate" style={{ color: DS.white }}>{trip.trip_name}</p>
+                  <p className="text-xs mt-0.5 truncate" style={{ color: DS.textSub }}>{trip.arrival_city} · {country}</p>
                 </div>
                 {isActive ? (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: `${BRAND_GREEN}20`, color: BRAND_GREEN }}>LIVE</span>
@@ -1377,19 +1320,19 @@ function SoloTripRiskReport({ trips, destRisk, destAlerts, loading, onCountryCli
                     <span className="text-xs font-bold" style={{ color: cfg.dot }}>{cfg.label} Risk</span>
                   </div>
                   {alertCnt > 0 && (
-                    <span className="text-[10px] font-semibold" style={{ color: isDark ? '#FCA5A5' : '#DC2626' }}>
+                    <span className="text-[10px] font-semibold" style={{ color: DS.redText }}>
                       {alertCnt} active alert{alertCnt !== 1 ? 's' : ''}
                     </span>
                   )}
                 </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: isDark ? 'rgba(255,255,255,0.08)' : '#F3F4F6' }}>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
                   <div className="h-full rounded-full transition-all duration-700" style={{ width: `${cfg.pct}%`, background: cfg.bar }} />
                 </div>
               </div>
 
               {/* Summary */}
               {risk?.summary ? (
-                <p className="text-[11px] leading-relaxed line-clamp-2" style={{ color: T?.textSub || '#6B7280' }}>
+                <p className="text-[11px] leading-relaxed line-clamp-2" style={{ color: DS.textSub }}>
                   {risk.summary}
                 </p>
               ) : (
@@ -1399,11 +1342,11 @@ function SoloTripRiskReport({ trips, destRisk, destAlerts, loading, onCountryCli
               )}
 
               {/* Footer */}
-              <div className="flex items-center justify-between pt-1" style={{ borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#F3F4F6'}` }}>
+              <div className="flex items-center justify-between pt-1" style={{ borderTop: `1px solid ${DS.border}` }}>
                 <span className="text-[10px]" style={{ color: T?.textMuted || '#9CA3AF' }}>
                   {trip.depart_date} → {trip.return_date}
                 </span>
-                <span className="text-[10px] font-semibold" style={{ color: isDark ? BRAND_GREEN : BRAND_BLUE }}>
+                <span className="text-[10px] font-semibold" style={{ color: BRAND_GREEN }}>
                   Full Intel →
                 </span>
               </div>
@@ -1480,23 +1423,23 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
     setSending(false)
   }
 
-  const accentColor = dark ? BRAND_GREEN : BRAND_BLUE
-  const msgBg       = dark ? '#0C0E12' : '#F8FAFC'
-  const divider     = dark ? 'rgba(255,255,255,0.06)' : '#F1F5F9'
+  const accentColor = BRAND_GREEN
+  const msgBg       = DS.bgAlt
+  const divider     = DS.divider
 
   return (
-    <div style={{ overflow: 'hidden', background: dark ? '#11131A' : '#FFFFFF', border: `1px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(1,24,161,0.10)'}`, boxShadow: dark ? '0 4px 32px rgba(0,0,0,0.5)' : '0 4px 24px rgba(1,24,161,0.08)' }}>
+    <div style={{ overflow: 'hidden', background: DS.surface, border: `1px solid ${DS.borderHi}`, boxShadow: '0 4px 32px rgba(0,0,0,0.5)' }}>
 
       {/* Header */}
       <div className="relative px-5 py-4 overflow-hidden"
-        style={{ background: dark ? 'linear-gradient(135deg,#0C0E12 0%,#11131A 100%)' : 'linear-gradient(135deg,#0118A1 0%,#0A3D6B 100%)', borderBottom: `1px solid ${dark ? 'rgba(170,204,0,0.15)' : 'transparent'}` }}>
+        style={{ background: 'linear-gradient(135deg,#0C0E12 0%,#11131A 100%)', borderBottom: `1px solid ${'rgba(170,204,0,0.15)'}` }}>
         {/* Subtle background glow */}
         <div className="absolute inset-0 opacity-20"
-          style={{ background: `radial-gradient(ellipse at 80% 50%, ${dark ? BRAND_GREEN : '#60A5FA'} 0%, transparent 70%)` }} />
+          style={{ background: `radial-gradient(ellipse at 80% 50%, ${BRAND_GREEN} 0%, transparent 70%)` }} />
         <div className="relative flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: dark ? `${BRAND_GREEN}25` : 'rgba(255,255,255,0.15)', border: `1px solid ${dark ? `${BRAND_GREEN}40` : 'rgba(255,255,255,0.25)'}` }}>
-            <Sparkles size={17} color={dark ? BRAND_GREEN : '#AACC00'} />
+            style={{ background: `${BRAND_GREEN}25`, border: `1px solid ${BRAND_GREEN}40` }}>
+            <Sparkles size={17} color={BRAND_GREEN} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -1522,14 +1465,14 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {m.role === 'assistant' && (
               <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mr-2 mt-0.5 flex-shrink-0"
-                style={{ background: dark ? `${BRAND_GREEN}20` : `${BRAND_BLUE}12` }}>
-                <Sparkles size={10} style={{ color: dark ? BRAND_GREEN : BRAND_BLUE }} />
+                style={{ background: DS.greenDim }}>
+                <Sparkles size={10} style={{ color: BRAND_GREEN }} />
               </div>
             )}
             <div
               style={m.role === 'user'
                 ? { maxWidth: '82%', padding: '8px 14px', fontSize: 12, lineHeight: 1.6, background: BRAND_GREEN, color: '#090A0C', fontWeight: 600 }
-                : { maxWidth: '82%', padding: '8px 14px', fontSize: 12, lineHeight: 1.6, background: dark ? '#0C0E12' : '#FFFFFF', border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : '#EFF2F8'}`, color: dark ? '#EAEEF5' : '#1F2937' }}
+                : { maxWidth: '82%', padding: '8px 14px', fontSize: 12, lineHeight: 1.6, background: DS.bgAlt, border: `1px solid ${DS.border}`, color: DS.white }}
               dangerouslySetInnerHTML={m.role === 'assistant'
                 ? { __html: `<p style="margin:0">${mdToHtml(m.text)}</p>` }
                 : undefined}
@@ -1541,14 +1484,14 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
         {sending && (
           <div className="flex justify-start">
             <div className="w-6 h-6 flex items-center justify-center shrink-0 mr-2 mt-0.5"
-              style={{ background: dark ? `${BRAND_GREEN}20` : `${BRAND_BLUE}12` }}>
-              <Sparkles size={10} style={{ color: dark ? BRAND_GREEN : BRAND_BLUE }} />
+              style={{ background: DS.greenDim }}>
+              <Sparkles size={10} style={{ color: BRAND_GREEN }} />
             </div>
-            <div style={{ padding: '10px 14px', background: dark ? '#11131A' : '#FFFFFF', border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : '#EFF2F8'}` }}>
+            <div style={{ padding: '10px 14px', background: DS.surface, border: `1px solid ${DS.border}` }}>
               <div className="flex gap-1 items-center">
                 {[0, 150, 300].map(d => (
                   <span key={d} className="w-1.5 h-1.5 rounded-full animate-bounce"
-                    style={{ background: dark ? BRAND_GREEN : BRAND_BLUE, animationDelay: `${d}ms`, opacity: 0.6 }} />
+                    style={{ background: BRAND_GREEN, animationDelay: `${d}ms`, opacity: 0.6 }} />
                 ))}
               </div>
             </div>
@@ -1559,11 +1502,11 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
 
       {/* Quick suggestions */}
       {messages.length <= 1 && (
-        <div className="px-4 py-3 flex flex-wrap gap-1.5" style={{ borderTop: `1px solid ${divider}`, background: dark ? '#111827' : '#FFFFFF' }}>
+        <div className="px-4 py-3 flex flex-wrap gap-1.5" style={{ borderTop: `1px solid ${divider}`, background: DS.surface }}>
           {QUICK.map((q, i) => (
             <button key={i} onClick={() => send(q)}
               className="text-[11px] font-medium px-3 py-1.5 rounded-full border transition-all hover:scale-[1.02]"
-              style={{ color: dark ? 'rgba(255,255,255,0.5)' : BRAND_BLUE, borderColor: dark ? 'rgba(255,255,255,0.10)' : `${BRAND_BLUE}25`, background: dark ? 'transparent' : `${BRAND_BLUE}05` }}>
+              style={{ color: DS.textSub, borderColor: DS.borderHi, background: 'transparent' }}>
               {q}
             </button>
           ))}
@@ -1571,10 +1514,10 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
       )}
 
       {/* Input */}
-      <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: `1px solid ${divider}`, background: dark ? '#111827' : '#FFFFFF' }}>
+      <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: `1px solid ${divider}`, background: DS.surface }}>
         <input
           className="flex-1 text-xs outline-none bg-transparent"
-          style={{ color: dark ? '#F9FAFB' : '#1F2937' }}
+          style={{ color: DS.white }}
           placeholder="Ask about risk, safety, destinations…"
           value={input}
           onChange={e => setInput(e.target.value)}
@@ -1597,7 +1540,7 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
         </span>
         <Link to="/journey-agent"
           className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-1 rounded-full transition-all hover:opacity-80"
-          style={{ background: dark ? 'rgba(170,204,0,0.15)' : `${BRAND_BLUE}12`, color: dark ? '#AACC00' : BRAND_BLUE, border: `1px solid ${dark ? 'rgba(170,204,0,0.25)' : `${BRAND_BLUE}20`}` }}>
+          style={{ background: DS.greenDim, color: BRAND_GREEN, border: `1px solid rgba(170,204,0,0.25)` }}>
           <Navigation size={9} />
           Ask CAIRO →
         </Link>
@@ -2059,9 +2002,7 @@ export default function Dashboard() {
           {(role === 'traveller' || role === 'solo') && nextTrip && daysToTrip !== null && (
             <Link to="/itinerary"
               className="flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors hover:opacity-80"
-              style={dark
-                ? { background: 'rgba(170,204,0,0.12)', color: BRAND_GREEN, border: `1px solid rgba(170,204,0,0.25)` }
-                : { background: daysToTrip === 0 ? `${BRAND_BLUE}15` : '#F1F5F9', color: daysToTrip === 0 ? BRAND_BLUE : '#64748B', border: `1px solid ${daysToTrip === 0 ? BRAND_BLUE + '30' : '#E2E8F0'}` }}>
+              style={{ background: DS.greenDim, color: BRAND_GREEN, border: `1px solid rgba(170,204,0,0.25)` }}>
               <Plane size={9} />
               {daysToTrip === 0
                 ? `✈️ Travelling today · ${nextTrip.trip_name}`
@@ -2093,7 +2034,7 @@ export default function Dashboard() {
               {b.destination} · Departs {b.depart_date} · Ref: {b.document_ref} — Please read and acknowledge before departure
             </p>
           </div>
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '6px 12px', flexShrink: 0, background: '#D97706', color: '#fff' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: '6px 12px', flexShrink: 0, background: DS.amberDim, color: DS.amberText, border: `1px solid ${DS.amber}44` }}>
             Review →
           </span>
         </Link>
@@ -2106,11 +2047,11 @@ export default function Dashboard() {
         if (days > 180) return null
         const expired  = days < 0
         const critical = days <= 30
-        const bg       = expired || critical ? '#FEF2F2' : '#FFF7ED'
-        const border   = expired || critical ? '#FECACA' : '#FED7AA'
-        const iconBg   = expired || critical ? '#DC2626' : '#D97706'
-        const titleCol = expired || critical ? '#991B1B' : '#92400E'
-        const textCol  = expired || critical ? '#B91C1C' : '#B45309'
+        const bg       = expired || critical ? DS.redDim    : DS.amberDim
+        const border   = expired || critical ? 'rgba(138,46,46,0.35)' : 'rgba(144,106,37,0.35)'
+        const iconBg   = expired || critical ? DS.red       : DS.amber
+        const titleCol = expired || critical ? DS.redText   : DS.amberText
+        const textCol  = expired || critical ? DS.redText   : DS.amberText
         const emoji    = expired ? '🚨' : critical ? '⚠️' : '📋'
         const title    = expired
           ? 'Passport Expired — Travel Blocked'
@@ -2127,10 +2068,10 @@ export default function Dashboard() {
               <span style={{ fontSize: 16, lineHeight: 1 }}>{emoji}</span>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: expired || critical ? '#FCA5A5' : '#FDE68A' }}>{title}</p>
-              <p style={{ fontSize: 11, marginTop: 2, color: expired || critical ? 'rgba(252,165,165,0.7)' : 'rgba(253,230,138,0.7)' }}>{sub}</p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: titleCol }}>{title}</p>
+              <p style={{ fontSize: 11, marginTop: 2, color: DS.textSub }}>{sub}</p>
             </div>
-            <span style={{ fontSize: 11, fontWeight: 700, padding: '6px 12px', flexShrink: 0, background: iconBg, color: '#fff' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '6px 12px', flexShrink: 0, background: bg, color: titleCol, border: `1px solid ${border}` }}>
               Update →
             </span>
           </Link>

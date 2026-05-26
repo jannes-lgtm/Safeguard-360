@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../../lib/colors'
+import { DS } from '../../lib/ds'
 import Layout from '../../components/Layout'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -232,7 +233,7 @@ function AddModal({ onClose, onSuccess }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <Brain size={18} style={{ color: BRAND_BLUE }} />
+            <Brain size={18} style={{ color: DS.green }} />
             <h2 className="text-base font-bold text-gray-900">Add to Knowledge Base</h2>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
@@ -399,7 +400,7 @@ function AddModal({ onClose, onSuccess }) {
             </button>
             <button type="button" onClick={handleSubmit} disabled={saving}
               className="px-4 py-2 rounded-lg text-sm font-semibold text-white flex items-center gap-2 transition-opacity disabled:opacity-60"
-              style={{ background: BRAND_BLUE }}>
+              style={{ background: DS.green }}>
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
               {saving ? 'Processing…' : 'Add to CAIRO'}
             </button>
@@ -621,7 +622,7 @@ export default function KnowledgeBase() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm"
-            style={{ background: BRAND_BLUE }}>
+            style={{ background: DS.green }}>
             <Brain size={20} color="white" />
           </div>
           <div>
@@ -633,7 +634,7 @@ export default function KnowledgeBase() {
         <button
           onClick={() => setShowModal(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-opacity shrink-0"
-          style={{ background: BRAND_BLUE }}
+          style={{ background: DS.green }}
         >
           <Plus size={16} />
           Add Knowledge
@@ -694,7 +695,7 @@ export default function KnowledgeBase() {
       {/* Content */}
       {loading ? (
         <div className="flex items-center justify-center h-48">
-          <Loader2 size={28} className="animate-spin" style={{ color: BRAND_BLUE }} />
+          <Loader2 size={28} className="animate-spin" style={{ color: DS.green }} />
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 gap-3 text-center">
@@ -706,7 +707,7 @@ export default function KnowledgeBase() {
             <button
               onClick={() => setShowModal(true)}
               className="px-4 py-2 rounded-lg text-sm font-semibold text-white"
-              style={{ background: BRAND_BLUE }}
+              style={{ background: DS.green }}
             >
               Add your first item
             </button>

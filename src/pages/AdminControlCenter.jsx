@@ -19,6 +19,7 @@ import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 const TABS = [
   { id: 'overview',    label: 'Overview',       icon: LayoutGrid },
@@ -185,7 +186,7 @@ function SaveBtn({ saving, label = 'Save', onClick }) {
   return (
     <button onClick={onClick} disabled={saving}
       className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60 transition-all"
-      style={{ background: BRAND_BLUE }}>
+      style={{ background: DS.green }}>
       {saving && <Loader2 size={14} className="animate-spin" />}
       {saving ? 'Saving…' : label}
     </button>
@@ -2187,7 +2188,7 @@ export default function AdminControlCenter() {
             </div>
             <a href="https://risk360.co" target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white shrink-0"
-              style={{ background: BRAND_BLUE }}>
+              style={{ background: DS.green }}>
               <ExternalLink size={13}/> Open in new tab
             </a>
           </div>
@@ -2254,7 +2255,7 @@ export default function AdminControlCenter() {
                 <div key={m.label}
                   className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 opacity-70">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: `${BRAND_BLUE}12` }}>
+                    style={{ background: DS.greenDim }}>
                     <Icon size={18} color={BRAND_BLUE}/>
                   </div>
                   <div>

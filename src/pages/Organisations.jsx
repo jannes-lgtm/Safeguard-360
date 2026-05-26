@@ -11,6 +11,7 @@ import {
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 const PLAN_STYLE = {
   solo:         { label: 'SOLO',         bg: 'bg-gray-100',   text: 'text-gray-600' },
@@ -45,7 +46,7 @@ function OrgCard({ org, stats, onClick }) {
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold"
-            style={{ background: `${BRAND_BLUE}12`, color: BRAND_BLUE }}>
+            style={{ background: DS.greenDim, color: DS.green }}>
             {org.name[0]?.toUpperCase()}
           </div>
           <div>
@@ -218,7 +219,7 @@ function OrgModal({ org, onClose, onSaved }) {
                 {members.map(m => (
                   <div key={m.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
                     <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-white"
-                      style={{ background: BRAND_BLUE }}>
+                      style={{ background: DS.green }}>
                       {(m.full_name || m.email || '?')[0].toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -240,7 +241,7 @@ function OrgModal({ org, onClose, onSaved }) {
           </button>
           <button onClick={save} disabled={saving || !form.name.trim()}
             className="flex-1 px-4 py-2.5 text-sm font-bold rounded-xl disabled:opacity-50"
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            style={{ background: BRAND_GREEN, color: DS.green }}>
             {saving ? 'Saving…' : isNew ? 'Add Organisation' : 'Save Changes'}
           </button>
         </div>
@@ -328,7 +329,7 @@ export default function Organisations() {
           </button>
           <button onClick={() => setModal('new')}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            style={{ background: BRAND_GREEN, color: DS.green }}>
             <Plus size={15} /> Add Organisation
           </button>
         </div>

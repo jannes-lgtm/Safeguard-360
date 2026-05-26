@@ -6,6 +6,7 @@ import {
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE } from '../lib/colors'
+import { DS } from '../lib/ds'
 const BRAND_LIME = '#AACC00'
 
 const RISK_COLOR  = { Critical: '#DC2626', High: '#EA580C', Medium: '#D97706', Low: '#059669' }
@@ -241,7 +242,7 @@ export default function OrgAnalytics() {
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Avg Safety Rating</p>
             <TrendingUp size={14} className="text-gray-300" />
           </div>
-          <p className="text-3xl font-bold mb-1" style={{ color: BRAND_BLUE }}>
+          <p className="text-3xl font-bold mb-1" style={{ color: DS.green }}>
             {s.avgSafetyRating ?? '—'}
             {s.avgSafetyRating && <span className="text-sm font-normal text-gray-400"> / 5</span>}
           </p>

@@ -8,6 +8,7 @@ import Layout from '../components/Layout'
 import ProgressBar from '../components/ProgressBar'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 // ── ISO 31030 module metadata ─────────────────────────────────────────────────
 const MODULE_META = {
@@ -106,7 +107,7 @@ function ModuleModal({ mod, tripAssignments, onClose, onComplete }) {
             <X size={16} />
           </button>
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl font-black"
-            style={{ background: BRAND_BLUE, color: 'white' }}>
+            style={{ background: DS.green, color: DS.bg }}>
             {mod.module_order}
           </div>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
@@ -148,7 +149,7 @@ function ModuleModal({ mod, tripAssignments, onClose, onComplete }) {
                 {meta.topics.map((t, i) => (
                   <li key={i} className="flex items-center gap-2 text-xs text-gray-600">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ background: BRAND_BLUE, opacity: 0.5 }} />
+                      style={{ background: DS.green, opacity: 0.5 }} />
                     {t}
                   </li>
                 ))}
@@ -185,7 +186,7 @@ function ModuleModal({ mod, tripAssignments, onClose, onComplete }) {
               onClick={markComplete}
               disabled={completing}
               className="w-full py-3 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+              style={{ background: BRAND_GREEN, color: DS.green }}>
               {completing
                 ? <><RefreshCw size={14} className="animate-spin" /> Saving…</>
                 : <><CheckCircle2 size={14} /> Mark as Complete</>
@@ -499,7 +500,7 @@ export default function Training() {
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-black text-base"
                         style={isComplete
                           ? { background: `${BRAND_GREEN}20`, color: '#3F6212' }
-                          : { background: `${BRAND_BLUE}10`, color: BRAND_BLUE }
+                          : { background: DS.greenDim, color: DS.green }
                         }>
                         {mod.module_order}
                       </div>
@@ -575,7 +576,7 @@ export default function Training() {
       {/* ISO note */}
       <div className="mt-6 rounded-2xl p-4 flex items-start gap-3"
         style={{ background: `${BRAND_BLUE}06`, border: `1px solid ${BRAND_BLUE}12` }}>
-        <BookOpen size={14} style={{ color: BRAND_BLUE, opacity: 0.5 }} className="shrink-0 mt-0.5" />
+        <BookOpen size={14} style={{ color: DS.green, opacity: 0.5 }} className="shrink-0 mt-0.5" />
         <p className="text-xs leading-relaxed" style={{ color: `${BRAND_BLUE}99` }}>
           This training follows <strong>ISO 31000:2018</strong> and <strong>ISO 31030:2021</strong>.
           Completing a module here automatically updates any pre-travel requirements for your approved trips.

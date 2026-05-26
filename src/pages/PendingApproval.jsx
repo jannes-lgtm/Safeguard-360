@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Clock, CheckCircle2, XCircle, LogOut, Mail } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 export default function PendingApproval() {
   const navigate = useNavigate()
@@ -90,7 +91,7 @@ export default function PendingApproval() {
                 </div>
                 <a href="mailto:support@risk360.co"
                   className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold"
-                  style={{ background: BRAND_BLUE, color: 'white' }}>
+                  style={{ background: DS.green, color: DS.bg }}>
                   <Mail size={15} /> Contact Support
                 </a>
               </>

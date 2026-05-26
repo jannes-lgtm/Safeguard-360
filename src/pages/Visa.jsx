@@ -9,6 +9,7 @@ import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { cityToCountry } from '../data/intelData'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 const inputClass  = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
 const labelClass  = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
@@ -141,7 +142,7 @@ function VisaCheckTab({ profile, trips }) {
                 onClick={() => setTravelPurpose(p.value)}
                 className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all"
                 style={travelPurpose === p.value
-                  ? { background: `${BRAND_BLUE}10`, border: `1.5px solid ${BRAND_BLUE}`, color: BRAND_BLUE }
+                  ? { background: DS.greenDim, border: `1.5px solid ${BRAND_BLUE}`, color: DS.green }
                   : { background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#64748B' }}>
                 <span>{p.icon}</span> {p.label}
               </button>
@@ -173,7 +174,7 @@ function VisaCheckTab({ profile, trips }) {
 
         <button onClick={handleCheck} disabled={loading || !passportCountry || !destinationCountry}
           className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
-          style={{ background: BRAND_BLUE, color: 'white' }}>
+          style={{ background: DS.green, color: DS.bg }}>
           {loading
             ? <><Loader2 size={15} className="animate-spin" /> Checking…</>
             : <><Search size={15} /> Check Visa Requirements</>}
@@ -183,7 +184,7 @@ function VisaCheckTab({ profile, trips }) {
       {/* Result */}
       {loading && (
         <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm flex flex-col items-center gap-3">
-          <Loader2 size={28} className="animate-spin" style={{ color: BRAND_BLUE }} />
+          <Loader2 size={28} className="animate-spin" style={{ color: DS.green }} />
           <p className="text-sm text-gray-500">Checking visa requirements…</p>
         </div>
       )}
@@ -227,7 +228,7 @@ function VisaCheckTab({ profile, trips }) {
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="bg-white p-4">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <Icon size={11} style={{ color: BRAND_BLUE }} />
+                  <Icon size={11} style={{ color: DS.green }} />
                   <span className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{label}</span>
                 </div>
                 <p className="text-sm font-semibold text-gray-800">{value || '—'}</p>
@@ -446,7 +447,7 @@ function VisaLetterTab({ profile, trips, orgProfile }) {
                   onClick={() => setTravelPurpose(p.value)}
                   className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all"
                   style={travelPurpose === p.value
-                    ? { background: `${BRAND_BLUE}10`, border: `1.5px solid ${BRAND_BLUE}`, color: BRAND_BLUE }
+                    ? { background: DS.greenDim, border: `1.5px solid ${BRAND_BLUE}`, color: DS.green }
                     : { background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#64748B' }}>
                   <span>{p.icon}</span> {p.label}
                 </button>
@@ -494,7 +495,7 @@ function VisaLetterTab({ profile, trips, orgProfile }) {
         {isOrg && (
           <div className="mt-2 pt-5 border-t border-gray-100">
             <div className="flex items-center gap-2 mb-4">
-              <Briefcase size={14} style={{ color: BRAND_BLUE }} />
+              <Briefcase size={14} style={{ color: DS.green }} />
               <h3 className="text-sm font-bold text-gray-800">Line Manager / Signatory</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -530,7 +531,7 @@ function VisaLetterTab({ profile, trips, orgProfile }) {
 
         <button onClick={handleGenerate} disabled={loading}
           className="mt-5 flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
-          style={{ background: BRAND_BLUE, color: 'white' }}>
+          style={{ background: DS.green, color: DS.bg }}>
           {loading
             ? <><Loader2 size={15} className="animate-spin" /> Generating letter…</>
             : <><FileText size={15} /> Generate Letter</>}
@@ -548,7 +549,7 @@ function VisaLetterTab({ profile, trips, orgProfile }) {
             </div>
             <button onClick={handlePrint}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all"
-              style={{ background: BRAND_BLUE, color: 'white' }}>
+              style={{ background: DS.green, color: DS.bg }}>
               <Printer size={14} /> Print / Save PDF
             </button>
           </div>
@@ -614,8 +615,8 @@ export default function Visa() {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${BRAND_BLUE}12` }}>
-            <Globe size={18} style={{ color: BRAND_BLUE }} />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: DS.greenDim }}>
+            <Globe size={18} style={{ color: DS.green }} />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Visa Assistant</h1>
@@ -639,7 +640,7 @@ export default function Visa() {
             <button key={t.id} onClick={() => setTab(t.id)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
               style={tab === t.id
-                ? { background: BRAND_BLUE, color: '#fff', boxShadow: '0 2px 8px rgba(1,24,161,0.2)' }
+                ? { background: DS.green, color: '#fff', boxShadow: '0 2px 8px rgba(1,24,161,0.2)' }
                 : { color: '#374151' }}>
               <Icon size={14} /> {t.label}
             </button>
@@ -649,7 +650,7 @@ export default function Visa() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 size={24} className="animate-spin" style={{ color: BRAND_BLUE }} />
+          <Loader2 size={24} className="animate-spin" style={{ color: DS.green }} />
         </div>
       ) : (
         <>
