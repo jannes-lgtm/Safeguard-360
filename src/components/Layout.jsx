@@ -1,43 +1,93 @@
+/**
+ * Layout — role-aware application shell.
+ *
+ * Navigation is fully data-driven from src/lib/permissions.js.
+ * Adding a new module or changing role access requires only a permissions.js
+ * edit — no component changes needed.
+ *
+ * Structure:
+ *   Desktop: fixed 230px sidebar + main content area
+ *   Mobile:  top bar + slide-in sidebar + optional bottom nav
+ *
+ * Sidebar sections:
+ *   [Logo]
+ *   [Role pill + org name]
+ *   [DomainNav — renders domains/modules filtered by role]
+ *   [User footer — initials, name, sign out]
+ *
+ * UX density:
+ *   minimal     — solo traveler: standard spacing, calm
+ *   standard    — corporate traveler / org admin
+ *   operational — admin / developer: tighter but legible
+ *   tactical    — GSOC: compact, high-density, map-first
+ */
+
 import { useEffect, useState } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
-  LayoutGrid, MapPin, Bell, FileText, CheckCircle,
-  Users, LogOut, UserCircle, Radio, Newspaper, Briefcase,
-  AlertOctagon, Navigation, Shield, Siren, ClipboardList,
-  Building2, GraduationCap, BookOpen, Globe, Settings,
-  BarChart2, Code2, Headphones, Menu, X, Megaphone, Activity,
-  CreditCard, Compass, MonitorCheck, FolderOpen, Clock, Radar,
-  Layers, HardHat, Brain, Car, Flame, Hexagon,
+  // Navigation & layout
+  LayoutGrid, MapPin, Navigation, Globe, Menu, X, LogOut,
+  // Intelligence
+  Compass, Radio, Shield, Newspaper, Brain, Activity,
+  // Operations
+  MonitorCheck, Clock, Radar, Headphones, Flame, Hexagon, Car, Layers, FolderOpen,
+  // Response
+  AlertOctagon, Megaphone, Siren, Briefcase,
+  // Compliance
+  FileText, BookOpen, GraduationCap,
+  // Admin / Account
+  ClipboardList, CheckCircle, Users, BarChart2, Building2, Code2, CreditCard, UserCircle,
+  // Role icons
+  HardHat,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import usePassiveLocation from '../hooks/usePassiveLocation'
-import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { BRAND_GREEN } from '../lib/colors'
+import { getVisibleDomains, ROLE_META, UX_PROFILE } from '../lib/permissions'
+import { useRole } from '../contexts/RoleContext'
+
+// ── Icon registry ─────────────────────────────────────────────────────────────
+// Maps the icon string keys in permissions.js to Lucide components.
+const ICON_MAP = {
+  LayoutGrid,  MapPin,       Navigation,  Globe,
+  Compass,     Radio,        Shield,      Newspaper,   Brain,      Activity,
+  MonitorCheck, Clock,       Radar,       Headphones,  Flame,      Hexagon,
+  Car,         Layers,       FolderOpen,
+  AlertOctagon, Megaphone,   Siren,       Briefcase,
+  FileText,    BookOpen,     GraduationCap,
+  ClipboardList, CheckCircle, Users,      BarChart2,   Building2,  Code2,
+  CreditCard,  UserCircle,   HardHat,
+}
 
 // ── Nav primitives ────────────────────────────────────────────────────────────
-function NavSection({ label }) {
+
+function NavSection({ label, compact }) {
   return (
-    <div className="px-4 pt-6 pb-1.5">
-      <span className="text-[9px] font-bold tracking-[0.18em] uppercase"
-        style={{ color: 'rgba(170,204,0,0.45)' }}>
+    <div className={compact ? 'px-4 pt-4 pb-1' : 'px-4 pt-6 pb-1.5'}>
+      <span
+        className="text-[9px] font-bold tracking-[0.18em] uppercase"
+        style={{ color: 'rgba(170,204,0,0.45)' }}
+      >
         {label}
       </span>
     </div>
   )
 }
 
-function NavItem({ to, icon: Icon, label, badge, red }) {
+function NavItem({ to, icon: Icon, label, badge, red, compact }) {
+  const py = compact ? 'py-1.5' : 'py-2.5'
   return (
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `relative flex items-center gap-3 px-4 py-2.5 mx-2 text-sm font-medium transition-all duration-150
+        `relative flex items-center gap-3 px-4 ${py} mx-2 text-sm font-medium transition-all duration-150
         ${red
           ? isActive
             ? 'bg-red-500/15 text-red-400'
             : 'text-red-400/70 hover:bg-red-500/10 hover:text-red-400'
           : isActive
-          ? 'text-white'
-          : 'text-white/40 hover:bg-white/5 hover:text-white/70'
+            ? 'text-white'
+            : 'text-white/40 hover:bg-white/5 hover:text-white/70'
         }`
       }
     >
@@ -50,12 +100,14 @@ function NavItem({ to, icon: Icon, label, badge, red }) {
             />
           )}
           <span className={`shrink-0 transition-all ${isActive && !red ? 'drop-shadow-[0_0_6px_rgba(170,204,0,0.5)]' : ''}`}>
-            <Icon size={16} />
+            {Icon && <Icon size={compact ? 14 : 16} />}
           </span>
           <span className="flex-1 leading-none">{label}</span>
           {badge > 0 && (
-            <span className="ml-auto text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"
-              style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            <span
+              className="ml-auto text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"
+              style={{ background: BRAND_GREEN, color: '#090A0C' }}
+            >
               {badge}
             </span>
           )}
@@ -65,297 +117,35 @@ function NavItem({ to, icon: Icon, label, badge, red }) {
   )
 }
 
-// ── Role pill shown in the user footer ───────────────────────────────────────
-const ROLE_LABELS = {
-  developer:     { label: 'Developer',        color: '#a78bfa' },
-  admin:         { label: 'Corporate Admin',  color: BRAND_GREEN },
-  org_admin:     { label: 'Company Admin',    color: BRAND_GREEN },
-  traveller:     { label: 'Traveller',        color: '#60a5fa' },
-  solo:          { label: 'Solo Traveller',   color: '#f472b6' },
-  gsoc_operator:     { label: 'GSOC Operator',    color: '#f97316' },
-  gsoc_admin:        { label: 'GSOC Admin',       color: '#ef4444' },
-  project_manager:   { label: 'Project Manager',  color: '#34d399' },
-  project_operator:  { label: 'Project Operator', color: '#22d3ee' },
+// ── Domain nav — data-driven ──────────────────────────────────────────────────
+// Renders all domains + modules visible to `role`.
+// Replaces the 7 hardcoded per-role nav functions.
+
+function DomainNav({ role, badges, compact }) {
+  const domains = getVisibleDomains(role)
+  return domains.map(domain => (
+    <div key={domain.id}>
+      <NavSection label={domain.label} compact={compact} />
+      {domain.modules.map(mod => {
+        const Icon = ICON_MAP[mod.icon] || null
+        return (
+          <NavItem
+            key={mod.id}
+            to={mod.route}
+            icon={Icon}
+            label={mod.label}
+            badge={mod.badge ? (badges[mod.badge] ?? 0) : 0}
+            red={mod.red}
+            compact={compact}
+          />
+        )
+      })}
+    </div>
+  ))
 }
 
-// ── Nav configs per role ──────────────────────────────────────────────────────
-
-function DeveloperNav({ alertCount }) {
-  return (
-    <>
-      <NavSection label="Platform" />
-      <NavItem to="/dashboard"      icon={LayoutGrid}   label="Dashboard" />
-      <NavItem to="/admin"          icon={BarChart2}    label="Developer Control Center" />
-      <NavItem to="/organisations"  icon={Building2}    label="Organisations" />
-      <NavItem to="/tracker"        icon={Users}        label="All Users" />
-
-      <NavSection label="Intelligence" />
-      <NavItem to="/journey-agent"  icon={Compass}      label="CAIRO" />
-
-      <NavItem to="/cairo/knowledge" icon={Brain}       label="Knowledge Base" />
-      <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
-      <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
-      
-      <NavItem to="/live-risk-feed"  icon={Radio}        label="Live Risk Feed" />
-      <NavItem to="/intel-feeds"    icon={Radio}        label="Intel Feeds" />
-
-      <NavSection label="Operations" />
-      <NavItem to="/movement"       icon={Radar}        label="GSOC" />
-      <NavItem to="/heat-map"       icon={Flame}        label="Risk Heat Map" />
-      <NavItem to="/geofences"      icon={Hexagon}      label="Alert Zones" />
-      <NavItem to="/live-traffic"   icon={Car}          label="Live Traffic" />
-      <NavItem to="/projects"       icon={Layers}       label="Projects" />
-      <NavItem to="/control-room"   icon={Headphones}   label="Live Control Room" />
-      <NavItem to="/approvals"      icon={ClipboardList} label="Travel Approvals" />
-      <NavItem to="/ops-intel"      icon={Activity}     label="Operational Intelligence" />
-
-      <NavSection label="Compliance" />
-      <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
-      <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
-      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
-      <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
-
-      <NavSection label="24/7 Support" />
-      <NavItem to="/assistance"     icon={Headphones}   label="Assistance Requests" />
-      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
-      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
-
-      <NavSection label="Account" />
-      <NavItem to="/billing"        icon={CreditCard}   label="Billing & Plan" />
-      <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
-    </>
-  )
-}
-
-function CorporateAdminNav({ alertCount, pendingApprovals }) {
-  return (
-    <>
-      <NavSection label="Platform" />
-      <NavItem to="/dashboard"      icon={LayoutGrid}   label="Dashboard" />
-      <NavItem to="/admin"          icon={BarChart2}    label="Developer Control Center" />
-      <NavItem to="/organisations"  icon={Building2}    label="All Organisations" />
-
-      <NavSection label="My Company" />
-      <NavItem to="/org/users"      icon={Users}        label="Our Travellers" />
-      <NavItem to="/approvals"      icon={ClipboardList} label="Travel Approvals" badge={pendingApprovals} />
-      <NavItem to="/tracker"        icon={Navigation}   label="Staff Tracker" />
-
-      <NavSection label="Intelligence" />
-      <NavItem to="/journey-agent"  icon={Compass}      label="CAIRO" />
-      <NavItem to="/cairo/knowledge" icon={Brain}       label="Knowledge Base" />
-      <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
-      <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
-      
-      <NavItem to="/live-risk-feed"  icon={Radio}        label="Live Risk Feed" />
-
-      <NavSection label="Compliance" />
-      <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
-      <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
-      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
-      <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
-      <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
-      <NavItem to="/movement"       icon={Radar}        label="GSOC" />
-      <NavItem to="/heat-map"       icon={Flame}        label="Risk Heat Map" />
-      <NavItem to="/geofences"      icon={Hexagon}      label="Alert Zones" />
-      <NavItem to="/live-traffic"   icon={Car}          label="Live Traffic" />
-
-      <NavSection label="24/7 Support" />
-      <NavItem to="/crisis-broadcast" icon={Megaphone}   label="Crisis Broadcast" />
-      <NavItem to="/control-room"   icon={Headphones}   label="Assistance Requests" />
-      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
-      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
-
-      <NavSection label="Account" />
-      <NavItem to="/billing"        icon={CreditCard}   label="Billing & Plan" />
-      <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
-    </>
-  )
-}
-
-function OrgAdminNav({ alertCount, pendingApprovals }) {
-  return (
-    <>
-      <NavSection label="Overview" />
-      <NavItem to="/dashboard"      icon={LayoutGrid}   label="Dashboard" />
-
-      <NavSection label="My Company" />
-      <NavItem to="/org/analytics"  icon={BarChart2}    label="Analytics" />
-      <NavItem to="/org/users"      icon={Users}        label="Our Travellers" />
-      <NavItem to="/approvals"      icon={ClipboardList} label="Travel Approvals" badge={pendingApprovals} />
-      <NavItem to="/tracker"        icon={Navigation}   label="Staff Tracker" />
-
-      <NavSection label="Intelligence" />
-      <NavItem to="/journey-agent"  icon={Compass}      label="CAIRO" />
-      <NavItem to="/cairo/knowledge" icon={Brain}       label="Knowledge Base" />
-      <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
-      <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
-      
-      <NavItem to="/live-risk-feed"  icon={Radio}        label="Live Risk Feed" />
-
-      <NavSection label="Compliance" />
-      <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
-      <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
-      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
-      <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
-      <NavItem to="/org/training"   icon={BookOpen}     label="Company Training" />
-      <NavItem to="/movement"       icon={Radar}        label="GSOC" />
-      <NavItem to="/heat-map"       icon={Flame}        label="Risk Heat Map" />
-      <NavItem to="/geofences"      icon={Hexagon}      label="Alert Zones" />
-      <NavItem to="/live-traffic"   icon={Car}          label="Live Traffic" />
-
-      <NavSection label="24/7 Support" />
-      <NavItem to="/crisis-broadcast" icon={Megaphone}   label="Crisis Broadcast" />
-      <NavItem to="/control-room"   icon={Headphones}   label="Assistance Requests" />
-      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
-      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
-
-      <NavSection label="Account" />
-      <NavItem to="/billing"        icon={CreditCard}   label="Billing & Plan" />
-      <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
-    </>
-  )
-}
-
-function TravellerNav({ alertCount, tripAlertCount }) {
-  return (
-    <>
-      <NavSection label="Overview" />
-      <NavItem to="/dashboard"      icon={LayoutGrid}   label="Dashboard" />
-
-      <NavSection label="My Travel" />
-      <NavItem to="/journey-agent"  icon={Compass}      label="CAIRO" />
-      <NavItem to="/itinerary"      icon={MapPin}       label="My Itinerary" />
-      
-      <NavItem to="/live-risk-feed"  icon={Radio}        label="Live Risk Feed" />
-      <NavItem to="/checkin"        icon={CheckCircle}  label="Check In" />
-      <NavItem to="/live-map"       icon={Navigation}   label="Live Location" />
-      <NavItem to="/sos"            icon={AlertOctagon} label="SOS Emergency" red />
-
-      <NavSection label="Intelligence" />
-      <NavItem to="/movement"       icon={Radar}        label="GSOC" />
-      <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
-      <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
-
-      <NavSection label="Compliance" />
-      <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
-      <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
-      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
-      <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
-
-      <NavSection label="24/7 Support" />
-      <NavItem to="/assistance"     icon={Headphones}   label="Assistance Requests" />
-      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
-      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
-
-      <NavSection label="Account" />
-      <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
-    </>
-  )
-}
-
-function GSOCNav({ alertCount, isAdmin }) {
-  return (
-    <>
-      <NavSection label="GSOC" />
-      <NavItem to="/gsoc"              icon={MonitorCheck} label="Watch Board" />
-      <NavItem to="/gsoc/projects"     icon={FolderOpen}   label="Projects" />
-      <NavItem to="/gsoc/shift-log"    icon={Clock}        label="Shift Log" />
-
-      <NavSection label="Intelligence" />
-      <NavItem to="/journey-agent"     icon={Compass}      label="CAIRO" />
-      <NavItem to="/country-risk"      icon={Shield}       label="Country Risk" />
-      <NavItem to="/news"              icon={Newspaper}    label="Threat News" />
-      
-      <NavItem to="/live-risk-feed"     icon={Radio}        label="Live Risk Feed" />
-
-      <NavSection label="Operations" />
-      <NavItem to="/projects"          icon={Layers}       label="Projects" />
-      <NavItem to="/incidents"         icon={Siren}        label="Incident Reports" />
-      <NavItem to="/tracker"           icon={Navigation}   label="Asset Tracker" />
-
-      {isAdmin && (
-        <>
-          <NavSection label="Admin" />
-          <NavItem to="/admin"         icon={BarChart2}    label="Control Center" />
-          <NavItem to="/organisations" icon={Building2}    label="Organisations" />
-        </>
-      )}
-
-      <NavSection label="Account" />
-      <NavItem to="/profile"           icon={UserCircle}   label="My Profile" />
-    </>
-  )
-}
-
-function ProjectNav({ alertCount, isManager }) {
-  return (
-    <>
-      <NavSection label="Projects" />
-      <NavItem to="/projects"       icon={Layers}        label="My Projects" />
-
-      <NavSection label="Intelligence" />
-      <NavItem to="/journey-agent"  icon={Compass}       label="CAIRO" />
-      <NavItem to="/country-risk"   icon={Shield}        label="Country Risk" />
-      <NavItem to="/news"           icon={Newspaper}     label="News Updates" />
-      
-      <NavItem to="/live-risk-feed"  icon={Radio}         label="Live Risk Feed" />
-
-      <NavSection label="Operations" />
-      <NavItem to="/incidents"      icon={Siren}         label="Incident Reports" />
-      <NavItem to="/tracker"        icon={Navigation}    label="Asset Tracker" />
-
-      {isManager && (
-        <>
-          <NavSection label="Admin" />
-          <NavItem to="/org/users"  icon={Users}         label="Personnel" />
-        </>
-      )}
-
-      <NavSection label="Account" />
-      <NavItem to="/profile"        icon={UserCircle}    label="My Profile" />
-    </>
-  )
-}
-
-function SoloTravellerNav({ alertCount, tripAlertCount }) {
-  return (
-    <>
-      <NavSection label="Overview" />
-      <NavItem to="/dashboard"      icon={LayoutGrid}   label="Dashboard" />
-
-      <NavSection label="My Travel" />
-      <NavItem to="/journey-agent"  icon={Compass}      label="CAIRO" />
-      <NavItem to="/itinerary"      icon={MapPin}       label="My Trips" />
-      
-      <NavItem to="/live-risk-feed"  icon={Radio}        label="Live Risk Feed" />
-      <NavItem to="/checkin"        icon={CheckCircle}  label="Check In" />
-      <NavItem to="/live-map"       icon={Navigation}   label="Live Location" />
-      <NavItem to="/sos"            icon={AlertOctagon} label="SOS Emergency" red />
-
-      <NavSection label="Intelligence" />
-      <NavItem to="/movement"       icon={Radar}        label="GSOC" />
-      <NavItem to="/country-risk"   icon={Shield}       label="Country Risk Reports" />
-      <NavItem to="/news"           icon={Newspaper}    label="News Updates" />
-
-      <NavSection label="Compliance" />
-      <NavItem to="/travel-policy"  icon={FileText}     label="Travel Policy" />
-      <NavItem to="/policies"       icon={BookOpen}     label="Policy Library" />
-      <NavItem to="/training"       icon={GraduationCap} label="ISO Training" />
-      <NavItem to="/visa"           icon={Globe}         label="Visa Assistant" />
-
-      <NavSection label="24/7 Support" />
-      <NavItem to="/assistance"     icon={Headphones}   label="Assistance Requests" />
-      <NavItem to="/incidents"      icon={Siren}        label="Incident Reports" />
-      <NavItem to="/services"       icon={Briefcase}    label="Service Providers" />
-
-      <NavSection label="Account" />
-      <NavItem to="/profile"        icon={UserCircle}   label="My Profile" />
-    </>
-  )
-}
-
-// ── Mobile bottom navigation bar ─────────────────────────────────────────────
-function MobileBottomNav({ role, alertCount }) {
+// ── Mobile bottom navigation ──────────────────────────────────────────────────
+function MobileBottomNav({ alertCount }) {
   const location = useLocation()
   const isActive = (path) => location.pathname === path
 
@@ -380,8 +170,10 @@ function MobileBottomNav({ role, alertCount }) {
     const active = isActive('/sos')
     return (
       <NavLink to="/sos" className="flex flex-col items-center justify-center flex-1 min-w-0 py-1.5 relative">
-        <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${active ? 'bg-red-700' : 'bg-red-600'}`}
-          style={{ boxShadow: '0 0 0 3px rgba(220,38,38,0.15)' }}>
+        <div
+          className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 ${active ? 'bg-red-700' : 'bg-red-600'}`}
+          style={{ boxShadow: '0 0 0 3px rgba(220,38,38,0.15)' }}
+        >
           <AlertOctagon size={22} color="white" strokeWidth={2.5} />
         </div>
         <span className="text-[9px] font-semibold tracking-wide text-[#EF7474] mt-0.5">SOS</span>
@@ -390,26 +182,43 @@ function MobileBottomNav({ role, alertCount }) {
   }
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex items-stretch"
-      style={{ background: 'rgba(12,14,18,0.97)', backdropFilter: 'blur(16px)', borderTop: '1px solid rgba(255,255,255,0.07)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <Item to="/dashboard" icon={LayoutGrid} label="Home" />
+    <div
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex items-stretch"
+      style={{
+        background: 'rgba(12,14,18,0.97)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.07)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
+    >
+      <Item to="/dashboard" icon={LayoutGrid}  label="Home" />
       <Item to="/checkin"   icon={CheckCircle} label="Check-in" />
       <SOSButton />
-      <Item to="/alerts"    icon={Bell} label={alertCount > 0 ? `Alerts` : 'Alerts'} />
-      <Item to="/profile"   icon={UserCircle} label="Profile" />
+      <Item to="/live-risk-feed" icon={Radio}  label="Alerts" />
+      <Item to="/profile"   icon={UserCircle}  label="Profile" />
     </div>
   )
 }
 
+// ── Role icon resolver ────────────────────────────────────────────────────────
+function RoleIcon({ role, color, size = 11 }) {
+  const meta = ROLE_META[role]
+  const Icon = meta ? (ICON_MAP[meta.icon] || UserCircle) : UserCircle
+  return <Icon size={size} style={{ color }} />
+}
+
 // ── Main layout ───────────────────────────────────────────────────────────────
 export default function Layout({ children, dark = false }) {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [profile, setProfile]                   = useState(null)
-  const [activeAlertCount, setActiveAlertCount] = useState(0)
-  const [tripAlertCount, setTripAlertCount]     = useState(0)
-  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0)
-  const [sidebarOpen, setSidebarOpen]           = useState(false)
+  const navigate  = useNavigate()
+  const location  = useLocation()
+
+  // ── Consume centralized role context ─────────────────────────────────────
+  const { profile, role, isLoading: roleLoading } = useRole()
+
+  // ── Badge counts (display only — not security decisions) ──────────────────
+  const [activeAlertCount,       setActiveAlertCount]       = useState(0)
+  const [pendingApprovalsCount,  setPendingApprovalsCount]  = useState(0)
+  const [sidebarOpen,            setSidebarOpen]            = useState(false)
 
   // Close sidebar on route change
   useEffect(() => { setSidebarOpen(false) }, [location.pathname])
@@ -417,40 +226,17 @@ export default function Layout({ children, dark = false }) {
   // Passive location tracking — fires silently on every page, once per 15 min
   usePassiveLocation(profile)
 
+  // Fetch badge counts once profile is loaded
   useEffect(() => {
-    const loadData = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: prof } = await supabase
-        .from('profiles')
-        .select('*, organisations(name)')
-        .eq('id', user.id)
-        .single()
-
-      const finalRole =
-        prof?.role ||
-        'traveller'
-
-      setProfile({
-        id: user.id,
-        email: user.email,
-        ...(prof || {}),
-        role: finalRole,
-        org_name: prof?.organisations?.name || null,
-      })
-
+    if (!profile?.id) return
+    const load = async () => {
       const queries = [
         supabase.from('alerts')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'Active'),
-        supabase.from('trip_alerts')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('is_read', false),
       ]
 
-      if (['admin', 'developer', 'org_admin'].includes(finalRole)) {
+      if (['admin', 'developer', 'org_admin'].includes(role)) {
         queries.push(
           supabase.from('itineraries')
             .select('*', { count: 'exact', head: true })
@@ -460,13 +246,12 @@ export default function Layout({ children, dark = false }) {
 
       const results = await Promise.all(queries)
       setActiveAlertCount(results[0].count || 0)
-      setTripAlertCount(results[1].count || 0)
-      if (['admin', 'developer', 'org_admin'].includes(finalRole)) {
-        setPendingApprovalsCount(results[2]?.count || 0)
+      if (['admin', 'developer', 'org_admin'].includes(role)) {
+        setPendingApprovalsCount(results[1]?.count || 0)
       }
     }
-    loadData()
-  }, [])
+    load()
+  }, [profile?.id, role])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -477,9 +262,17 @@ export default function Layout({ children, dark = false }) {
     ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : profile?.email?.[0]?.toUpperCase() || '?'
 
-  const role = profile?.role || 'traveller'
-  const roleInfo = ROLE_LABELS[role] || ROLE_LABELS.traveller
+  const roleInfo = ROLE_META[role] || ROLE_META.traveller
+  const uxProfile = UX_PROFILE[role] || UX_PROFILE.traveller
+  const compact   = uxProfile.density === 'tactical'
 
+  // Badges object — keys match `badge` field in permissions.js module definitions
+  const badges = {
+    pendingApprovals: pendingApprovalsCount,
+    alerts:           activeAlertCount,
+  }
+
+  // ── Sidebar content (shared by desktop + mobile) ──────────────────────────
   const sidebarContent = (
     <>
       {/* Logo */}
@@ -490,19 +283,13 @@ export default function Layout({ children, dark = false }) {
       {/* Divider */}
       <div className="mx-4 mb-1" style={{ height: '1px', background: 'rgba(255,255,255,0.07)' }} />
 
-      {/* Role indicator strip */}
+      {/* Role pill */}
       {profile && (
-        <div className="mx-3 mb-2 px-3 py-1.5 flex items-center gap-2"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-          {role === 'developer'     && <Code2 size={11} style={{ color: roleInfo.color }} />}
-          {role === 'admin'         && <Building2 size={11} style={{ color: roleInfo.color }} />}
-          {role === 'org_admin'     && <Building2 size={11} style={{ color: roleInfo.color }} />}
-          {role === 'traveller'     && <UserCircle size={11} style={{ color: roleInfo.color }} />}
-          {role === 'solo'          && <UserCircle size={11} style={{ color: roleInfo.color }} />}
-          {role === 'gsoc_operator'    && <Radar    size={11} style={{ color: roleInfo.color }} />}
-          {role === 'gsoc_admin'       && <Radar    size={11} style={{ color: roleInfo.color }} />}
-          {role === 'project_manager'  && <HardHat  size={11} style={{ color: roleInfo.color }} />}
-          {role === 'project_operator' && <HardHat  size={11} style={{ color: roleInfo.color }} />}
+        <div
+          className="mx-3 mb-2 px-3 py-1.5 flex items-center gap-2"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          <RoleIcon role={role} color={roleInfo.color} />
           <span className="text-[10px] font-bold" style={{ color: roleInfo.color }}>
             {roleInfo.label}
           </span>
@@ -512,36 +299,37 @@ export default function Layout({ children, dark = false }) {
         </div>
       )}
 
-      {/* Nav — role-based */}
+      {/* Domain nav — fully data-driven from permissions.js */}
       <nav className="flex-1 py-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-        {role === 'developer'     && <DeveloperNav alertCount={activeAlertCount} />}
-        {role === 'admin'         && <CorporateAdminNav alertCount={activeAlertCount} pendingApprovals={pendingApprovalsCount} />}
-        {role === 'org_admin'     && <OrgAdminNav alertCount={activeAlertCount} pendingApprovals={pendingApprovalsCount} />}
-        {role === 'traveller'     && <TravellerNav alertCount={activeAlertCount} tripAlertCount={tripAlertCount} />}
-        {role === 'solo'          && <SoloTravellerNav alertCount={activeAlertCount} tripAlertCount={tripAlertCount} />}
-        {role === 'gsoc_operator'    && <GSOCNav    alertCount={activeAlertCount} isAdmin={false} />}
-        {role === 'gsoc_admin'       && <GSOCNav    alertCount={activeAlertCount} isAdmin={true} />}
-        {role === 'project_manager'  && <ProjectNav alertCount={activeAlertCount} isManager={true} />}
-        {role === 'project_operator' && <ProjectNav alertCount={activeAlertCount} isManager={false} />}
+        <DomainNav role={role} badges={badges} compact={compact} />
       </nav>
 
       {/* User footer */}
-      <div className="mx-3 mb-3 p-3"
-        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <div
+        className="mx-3 mb-3 p-3"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+      >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 flex items-center justify-center text-xs font-bold shrink-0"
-            style={{ background: BRAND_GREEN, color: '#090A0C' }}>
+          <div
+            className="w-8 h-8 flex items-center justify-center text-xs font-bold shrink-0"
+            style={{ background: BRAND_GREEN, color: '#090A0C' }}
+          >
             {initials}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-white text-xs font-semibold truncate leading-tight">
               {profile?.full_name || profile?.email || 'User'}
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: roleInfo.color }}>{roleInfo.label}</p>
+            <p className="text-[10px] mt-0.5" style={{ color: roleInfo.color }}>
+              {roleInfo.label}
+            </p>
           </div>
-          <button onClick={handleSignOut} title="Sign out"
+          <button
+            onClick={handleSignOut}
+            title="Sign out"
             className="p-1.5 rounded-lg transition-all hover:bg-white/10"
-            style={{ color: 'rgba(255,255,255,0.4)' }}>
+            style={{ color: 'rgba(255,255,255,0.4)' }}
+          >
             <LogOut size={14} />
           </button>
         </div>
@@ -550,15 +338,18 @@ export default function Layout({ children, dark = false }) {
   )
 
   const sidebarStyle = {
-    background: '#0C0E12',
-    borderRight: '1px solid rgba(255,255,255,0.06)',
+    background:   '#0C0E12',
+    borderRight:  '1px solid rgba(255,255,255,0.06)',
   }
 
   return (
     <div className="flex min-h-screen" style={{ background: dark ? '#090A0C' : '#0F1117' }}>
 
-      {/* ── Desktop sidebar (hidden on mobile) ── */}
-      <aside className="hidden lg:flex w-[230px] shrink-0 flex-col fixed top-0 left-0 h-full z-30" style={sidebarStyle}>
+      {/* ── Desktop sidebar ── */}
+      <aside
+        className="hidden lg:flex w-[230px] shrink-0 flex-col fixed top-0 left-0 h-full z-30"
+        style={sidebarStyle}
+      >
         {sidebarContent}
       </aside>
 
@@ -577,7 +368,6 @@ export default function Layout({ children, dark = false }) {
         }`}
         style={sidebarStyle}
       >
-        {/* Close button */}
         <button
           onClick={() => setSidebarOpen(false)}
           className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/10"
@@ -589,28 +379,36 @@ export default function Layout({ children, dark = false }) {
       </aside>
 
       {/* ── Mobile top bar ── */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 h-14"
-        style={{ background: '#0C0E12', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-        <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-white/10" style={{ color: 'rgba(255,255,255,0.6)' }}>
+      <div
+        className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 h-14"
+        style={{ background: '#0C0E12', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+      >
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-2 hover:bg-white/10"
+          style={{ color: 'rgba(255,255,255,0.6)' }}
+        >
           <Menu size={22} />
         </button>
         <img src="/logo-transparent.png" alt="SafeGuard360" className="h-11 object-contain" />
-        <div className="w-8 h-8 flex items-center justify-center text-xs font-bold"
-          style={{ background: BRAND_GREEN, color: '#090A0C' }}>
+        <div
+          className="w-8 h-8 flex items-center justify-center text-xs font-bold"
+          style={{ background: BRAND_GREEN, color: '#090A0C' }}
+        >
           {initials}
         </div>
       </div>
 
       {/* ── Main content ── */}
       <main className="flex-1 lg:ml-[230px] min-h-screen pt-14 lg:pt-0">
-        <div className={`p-4 lg:p-7 max-w-6xl mx-auto ${['traveller','solo','org_admin','admin'].includes(profile?.role) ? 'pb-24 lg:pb-7' : ''}`}>
+        <div className={`p-4 lg:p-7 max-w-6xl mx-auto ${uxProfile.bottomNav ? 'pb-24 lg:pb-7' : ''}`}>
           {children}
         </div>
       </main>
 
-      {/* ── Mobile bottom nav (traveller / org_admin / admin) ── */}
-      {profile && ['traveller','solo','org_admin','admin'].includes(profile.role) && (
-        <MobileBottomNav role={profile.role} alertCount={activeAlertCount} />
+      {/* ── Mobile bottom nav (traveler / org_admin roles only) ── */}
+      {profile && uxProfile.bottomNav && (
+        <MobileBottomNav alertCount={activeAlertCount} />
       )}
     </div>
   )
