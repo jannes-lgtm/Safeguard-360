@@ -16,6 +16,7 @@ import SeverityBadge from '../components/SeverityBadge'
 import IntelBrief from '../components/IntelBrief'
 import { supabase } from '../lib/supabase'
 import { cityToCountry, SEVERITY_STYLE, COUNTRY_META } from '../data/intelData'
+import { getCityCoords } from '../lib/cityCoords'
 import { MAP_STYLES } from '../lib/mapConfig'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 import { DS, SEVERITY as SEV_DS } from '../lib/ds'
@@ -763,12 +764,12 @@ function SoloWorldMap({ trips, onCountryClick, T = {} }) {
       const todayISO = new Date().toISOString().split('T')[0]
       const features = trips.map(trip => {
         const country  = cityToCountry(trip.arrival_city) || trip.arrival_city
-        const coords   = COUNTRY_META[country]
+        const coords   = getCityCoords(trip.arrival_city) || COUNTRY_META[country]
         if (!coords) return null
         const isActive = trip.depart_date <= todayISO && trip.return_date >= todayISO
         return {
           type: 'Feature',
-          geometry: { type: 'Point', coordinates: [coords.lon, coords.lat] },
+          geometry: { type: 'Point', coordinates: [coords.lng ?? coords.lon, coords.lat] },
           properties: {
             tripName: trip.trip_name, arrivalCity: trip.arrival_city, country,
             isActive, departDate: trip.depart_date, returnDate: trip.return_date,
