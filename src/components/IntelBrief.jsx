@@ -508,7 +508,7 @@ function AiChatSection({ country, travelerName, tripName }) {
       <SectionHeader label="Ask AI Analyst" icon={Brain}/>
       <div className="border border-gray-200 rounded-[8px] overflow-hidden">
         {/* Message history */}
-        <div className="bg-gray-50 p-3 space-y-2.5 max-h-64 overflow-y-auto">
+        <div className="bg-gray-50 p-3 space-y-2.5 h-64 overflow-y-auto">
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[85%] rounded-[8px] px-3 py-2 text-xs leading-relaxed ${

@@ -1461,7 +1461,7 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
       </div>
 
       {/* Messages */}
-      <div className="p-4 space-y-3 overflow-y-auto" style={{ background: msgBg, minHeight: 160, maxHeight: 340 }}>
+      <div className="p-4 space-y-3 overflow-y-auto" style={{ background: msgBg, height: 340 }}>
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {m.role === 'assistant' && (
