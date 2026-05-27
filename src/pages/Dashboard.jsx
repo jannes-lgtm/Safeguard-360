@@ -1501,18 +1501,16 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Quick suggestions */}
-      {messages.length <= 1 && (
-        <div className="px-4 py-3 flex flex-wrap gap-1.5" style={{ borderTop: `1px solid ${divider}`, background: DS.surface }}>
-          {QUICK.map((q, i) => (
-            <button key={i} onClick={() => send(q)}
-              className="text-[11px] font-medium px-3 py-1.5 rounded-full border transition-all hover:scale-[1.02]"
-              style={{ color: DS.textSub, borderColor: DS.borderHi, background: 'transparent' }}>
-              {q}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Quick suggestions — always rendered to prevent layout shift */}
+      <div className="px-4 py-3 flex flex-wrap gap-1.5" style={{ borderTop: `1px solid ${divider}`, background: DS.surface }}>
+        {QUICK.map((q, i) => (
+          <button key={i} onClick={() => send(q)}
+            className="text-[11px] font-medium px-3 py-1.5 rounded-full border transition-all hover:scale-[1.02]"
+            style={{ color: DS.textSub, borderColor: DS.borderHi, background: 'transparent' }}>
+            {q}
+          </button>
+        ))}
+      </div>
 
       {/* Input */}
       <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: `1px solid ${divider}`, background: DS.surface }}>
