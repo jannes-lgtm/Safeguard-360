@@ -509,7 +509,6 @@ function ReportModal({ profile, trips, onClose, onSaved }) {
       org_id:        profile?.org_id || null,
       reported_by:   profile?.full_name || profile?.email || 'Unknown',
       type:          form.type,
-      incident_type: form.type,
       severity:      form.severity,
       title:         form.title,
       description:   form.description || null,
