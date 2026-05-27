@@ -103,7 +103,7 @@ export const DOMAINS = [
         label: 'Travel Approvals',
         route: '/approvals',
         icon: 'ClipboardList',
-        roles: [...TRAVELERS, ...ALL_ADMIN],
+        roles: [T, ...ALL_ADMIN],
         badge: 'pendingApprovals',
       },
       {
