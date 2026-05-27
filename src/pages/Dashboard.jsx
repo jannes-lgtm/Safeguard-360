@@ -782,10 +782,10 @@ function SoloWorldMap({ trips, onCountryClick, T = {} }) {
           id: 'solo-circles', type: 'circle', source: 'solo-trips',
           paint: {
             'circle-radius':         ['case', ['get', 'isActive'], 12, 8],
-            'circle-color':          ['case', ['get', 'isActive'], '#AACC00', '#1E40AF'],
-            'circle-opacity':        ['case', ['get', 'isActive'], 0.85, 0.65],
-            'circle-stroke-width':   2.5,
-            'circle-stroke-color':   ['case', ['get', 'isActive'], '#AACC00', '#4F83F4'],
+            'circle-color':          ['case', ['get', 'isActive'], '#AACC00', '#3A5870'],
+            'circle-opacity':        ['case', ['get', 'isActive'], 0.85, 0.70],
+            'circle-stroke-width':   2,
+            'circle-stroke-color':   ['case', ['get', 'isActive'], '#AACC00', '#6EA8C8'],
           },
         })
 
@@ -802,7 +802,7 @@ function SoloWorldMap({ trips, onCountryClick, T = {} }) {
           `
           const btn = document.createElement('button')
           btn.textContent = 'View Intel →'
-          btn.style.cssText = 'display:block;width:100%;background:#0118A1;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer'
+          btn.style.cssText = 'display:block;width:100%;background:#AACC00;color:#090A0C;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer'
           btn.onclick = () => { clickRef.current(p.country); popup.remove() }
           el.appendChild(btn)
           const popup = new maplibregl.Popup({ offset: 10 }).setLngLat(e.lngLat).setDOMContent(el).addTo(map)
@@ -828,7 +828,7 @@ function SoloWorldMap({ trips, onCountryClick, T = {} }) {
         <span className="text-[10px] font-medium" style={{ color: T.textMuted || '#9CA3AF' }}>Click a destination for a full intel brief</span>
       </div>
       <div className="rounded-2xl overflow-hidden relative"
-        style={{ boxShadow: '0 2px 24px rgba(0,0,0,0.5)', border: `1px solid ${T.cardBorder || 'rgba(1,24,161,0.15)'}`, isolation: 'isolate' }}>
+        style={{ boxShadow: '0 2px 24px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.06)', isolation: 'isolate' }}>
         <div ref={containerRef} style={{ height: 400 }} />
         <div className="absolute bottom-3 left-3 flex items-center gap-3 px-3 py-2 rounded-xl"
           style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -841,7 +841,7 @@ function SoloWorldMap({ trips, onCountryClick, T = {} }) {
             <span className="text-[10px] text-gray-300 font-medium">Active trip</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#4F83F4' }} />
+            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#6EA8C8' }} />
             <span className="text-[10px] text-gray-300 font-medium">Upcoming</span>
           </div>
         </div>
