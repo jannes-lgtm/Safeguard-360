@@ -152,13 +152,14 @@ export default function LiveMap() {
   const mapRef           = useRef(null)
   const markersRef       = useRef({})        // { user_id: maplibregl.Marker }
   const myMarkerRef      = useRef(null)
-  const channelRef       = useRef(null)
-  const watchRef         = useRef(null)
-  const lastWriteRef     = useRef(0)
-  const reconnectTimer   = useRef(null)
-  const styleChanging    = useRef(false)
-  const locationsRef     = useRef([])        // keep ref in sync for closure access
-  const mountedRef       = useRef(true)      // cancels waitForMap / waitForStyle polls on unmount
+  const channelRef         = useRef(null)
+  const watchRef           = useRef(null)
+  const lastWriteRef       = useRef(0)
+  const reconnectTimer     = useRef(null)
+  const styleChanging      = useRef(false)
+  const locationsRef       = useRef([])        // keep ref in sync for closure access
+  const mountedRef         = useRef(true)      // cancels waitForMap / waitForStyle polls on unmount
+  const intentionalClose   = useRef(false)     // prevents CLOSED event from triggering reconnect during intentional cleanup
 
   // ── Initial data load ───────────────────────────────────────────────────────
   const loadInitialData = useCallback(async () => {
@@ -238,6 +239,10 @@ export default function LiveMap() {
     // receiving all-user location events during the brief pre-load window.
     if (!profile?.id) return
 
+    // Reset the intentional-close guard so this new subscription's CLOSED events
+    // are treated as unexpected failures that warrant reconnect.
+    intentionalClose.current = false
+
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
       channelRef.current = null
@@ -273,6 +278,12 @@ export default function LiveMap() {
           setReconnectAttempts(0)
           log.realtime.connected({ channel: 'staff_locations', userId: profile?.id })
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          // If we intentionally closed this channel (cleanup or re-subscribe), don't
+          // treat the resulting CLOSED event as a connection failure. Without this
+          // guard, every useEffect cleanup would kick off a spurious reconnect loop
+          // that competed with the new channel being created at the same time.
+          if (intentionalClose.current) return
+
           setWsStatus('reconnecting')
           supabase.removeChannel(channel)
           channelRef.current = null
@@ -299,8 +310,15 @@ export default function LiveMap() {
   useEffect(() => {
     subscribeRealtime()
     return () => {
+      // Mark as intentional BEFORE calling removeChannel so the async CLOSED
+      // event that fires inside the subscribe callback is ignored and does not
+      // trigger a reconnect that races with the new channel being spun up.
+      intentionalClose.current = true
       clearTimeout(reconnectTimer.current)
-      if (channelRef.current) supabase.removeChannel(channelRef.current)
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
     }
   }, [subscribeRealtime])
 
@@ -852,7 +870,7 @@ export default function LiveMap() {
                     )}
                     <button onClick={startSharing}
                       className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition"
-                      style={{ background: BRAND_GREEN, color: DS.bg }}>
+                      style={{ background: BRAND_GREEN, color: '#090A0C' }}>
                       <Navigation size={12} /> Share My Location
                     </button>
                     <p className={`text-[9px] text-center ${subText}`}>Shares every 30s — not continuous</p>
