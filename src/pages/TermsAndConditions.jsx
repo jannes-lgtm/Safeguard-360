@@ -26,7 +26,7 @@ export default function TermsAndConditions() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { navigate('/login'); return }
       const { data: prof } = await supabase
-        .from('profiles').select('*').eq('id', user.id).single()
+        .from('profiles').select('*').eq('id', user.id).maybeSingle()
       setProfile({ ...prof, id: user.id, email: user.email })
 
       // If already accepted this version, skip straight to dashboard
@@ -59,17 +59,20 @@ export default function TermsAndConditions() {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) throw new Error('Session expired — please refresh and try again.')
 
-      // UPDATE only — never overwrite org_id, role, or other profile fields
-      const { error: updateError, count } = await supabase
+      // UPDATE only — never overwrite org_id, role, or other profile fields.
+      // Add .select('id') so Supabase v2 returns the actual updated rows (not count: null).
+      const { data: updated, error: updateError } = await supabase
         .from('profiles')
         .update({ terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() })
         .eq('id', user.id)
+        .select('id')
 
       if (updateError) throw new Error(`Could not save your acceptance: ${updateError.message}`)
 
-      // If profile didn't exist yet (edge case), create a minimal one from auth metadata.
+      // If profile didn't exist yet (edge case: Supabase trigger failed at signup),
+      // create a minimal one from auth metadata.
       // Use role from user_metadata so solo users keep role:'solo', not 'traveller'.
-      if (count === 0) {
+      if (!updated?.length) {
         const { error: insertError } = await supabase
           .from('profiles')
           .insert({

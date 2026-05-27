@@ -404,17 +404,226 @@ function buildFallbackContext(geoContexts, memoryContext) {
   return lines.join('\n')
 }
 
+// ── Optional layer fetchers (additive — called only when flags are true) ───────
+
+/**
+ * fetchOperationalState(orgId)
+ *
+ * Fetches live operational picture for the org: active SOS events, open incidents,
+ * and in-progress escalations. Used by operational briefings and crisis support.
+ * Returns null when orgId is absent or queries fail.
+ */
+async function fetchOperationalState(orgId) {
+  if (!orgId) return null
+  try {
+    const [sosRows, incidentRows, escalationRows] = await Promise.all([
+      sbQuery('sos_events', {
+        status: 'eq.active',
+        order:  'created_at.desc',
+        limit:  '5',
+        select: 'id,status,created_at,message,latitude,longitude',
+      }),
+      sbQuery('incidents', {
+        status: 'in.(Open,Under Review)',
+        order:  'created_at.desc',
+        limit:  '10',
+        select: 'id,status,severity,title,created_at,country',
+      }),
+      sbQuery('gsoc_escalations', {
+        status: 'in.(open,in_progress)',
+        order:  'created_at.desc',
+        limit:  '5',
+        select: 'id,status,priority,created_at',
+      }),
+    ])
+
+    const hasSOS        = Array.isArray(sosRows)        && sosRows.length > 0
+    const hasIncidents  = Array.isArray(incidentRows)   && incidentRows.length > 0
+    const hasEscalations = Array.isArray(escalationRows) && escalationRows.length > 0
+
+    if (!hasSOS && !hasIncidents && !hasEscalations) return null
+
+    const lines = ['═══════════════════════════════════════════════════════════',
+      'LIVE OPERATIONAL STATE',
+      '═══════════════════════════════════════════════════════════']
+
+    if (hasSOS) {
+      lines.push(`Active SOS Events: ${sosRows.length}`)
+      sosRows.forEach(s => {
+        const age = Math.round((Date.now() - new Date(s.created_at)) / 60000)
+        lines.push(`  • SOS ${s.id?.slice(0, 8)} — ${age}min ago${s.message ? ` — "${s.message.slice(0, 80)}"` : ''}`)
+      })
+    }
+
+    if (hasIncidents) {
+      lines.push(`Open Incidents: ${incidentRows.length}`)
+      incidentRows.forEach(i => {
+        lines.push(`  • [${i.severity ?? '?'}] ${i.title ?? i.id?.slice(0, 8)} — ${i.country ?? 'Unknown'} — ${i.status}`)
+      })
+    }
+
+    if (hasEscalations) {
+      lines.push(`Active Escalations: ${escalationRows.length}`)
+      escalationRows.forEach(e => {
+        lines.push(`  • Escalation ${e.id?.slice(0, 8)} — priority ${e.priority ?? '?'} — ${e.status}`)
+      })
+    }
+
+    return {
+      sos:         sosRows,
+      incidents:   incidentRows,
+      escalations: escalationRows,
+      formatted:   lines.join('\n'),
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * fetchTravelerContext(userId)
+ *
+ * Fetches the traveler's active trip, last known location, and most recent
+ * check-in. Used by personalized advisories and operational briefings.
+ * Returns null when userId is absent or queries fail.
+ */
+async function fetchTravelerContext(userId) {
+  if (!userId) return null
+  try {
+    const [itinRows, locationRows, checkinRows] = await Promise.all([
+      sbQuery('itineraries', {
+        user_id: `eq.${userId}`,
+        status:  'eq.active',
+        order:   'created_at.desc',
+        limit:   '1',
+        select:  'id,destination,origin,depart_date,return_date,status,trip_name',
+      }),
+      sbQuery('staff_locations', {
+        user_id: `eq.${userId}`,
+        order:   'created_at.desc',
+        limit:   '1',
+        select:  'id,latitude,longitude,accuracy,created_at',
+      }),
+      sbQuery('check_ins', {
+        user_id: `eq.${userId}`,
+        order:   'created_at.desc',
+        limit:   '1',
+        select:  'id,status,created_at,note',
+      }),
+    ])
+
+    const activeTrip    = itinRows?.[0]        ?? null
+    const lastLocation  = locationRows?.[0]    ?? null
+    const lastCheckin   = checkinRows?.[0]     ?? null
+
+    if (!activeTrip && !lastLocation && !lastCheckin) return null
+
+    const lines = ['═══════════════════════════════════════════════════════════',
+      'TRAVELER CONTEXT',
+      '═══════════════════════════════════════════════════════════']
+
+    if (activeTrip) {
+      lines.push(`Active Trip: ${activeTrip.trip_name ?? activeTrip.id?.slice(0, 8)}`)
+      lines.push(`  Route: ${activeTrip.origin ?? '?'} → ${activeTrip.destination ?? '?'}`)
+      lines.push(`  Dates: ${activeTrip.depart_date ?? '?'} → ${activeTrip.return_date ?? '?'}`)
+    }
+
+    if (lastLocation) {
+      const age = Math.round((Date.now() - new Date(lastLocation.created_at)) / 60000)
+      lines.push(`Last Known Location: ${lastLocation.latitude?.toFixed(4)}, ${lastLocation.longitude?.toFixed(4)} — ${age}min ago`)
+    }
+
+    if (lastCheckin) {
+      const age = Math.round((Date.now() - new Date(lastCheckin.created_at)) / 60000)
+      lines.push(`Last Check-in: ${lastCheckin.status ?? 'completed'} — ${age}min ago${lastCheckin.note ? ` — "${lastCheckin.note.slice(0, 80)}"` : ''}`)
+    }
+
+    return {
+      activeTrip,
+      lastLocation,
+      lastCheckin,
+      formatted: lines.join('\n'),
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * fetchOrgContext(orgId)
+ *
+ * Fetches organisation name, subscription tier, and travel policy.
+ * Used to inject org-level constraints into advisories and briefings.
+ * Returns null when orgId is absent or queries fail.
+ */
+async function fetchOrgContext(orgId) {
+  if (!orgId) return null
+  try {
+    const [orgRows, policyRows] = await Promise.all([
+      sbQuery('organisations', {
+        id:     `eq.${orgId}`,
+        limit:  '1',
+        select: 'id,name,subscription_tier',
+      }),
+      sbQuery('travel_policies', {
+        org_id: `eq.${orgId}`,
+        limit:  '1',
+        select: 'risk_tolerance,restricted_countries,required_approvals,special_instructions',
+      }),
+    ])
+
+    const org    = orgRows?.[0]    ?? null
+    const policy = policyRows?.[0] ?? null
+
+    if (!org && !policy) return null
+
+    const lines = ['═══════════════════════════════════════════════════════════',
+      'ORGANISATIONAL CONTEXT',
+      '═══════════════════════════════════════════════════════════']
+
+    if (org) {
+      lines.push(`Organisation: ${org.name ?? orgId}`)
+      if (org.subscription_tier) lines.push(`Tier: ${org.subscription_tier}`)
+    }
+
+    if (policy) {
+      if (policy.risk_tolerance)        lines.push(`Risk Tolerance: ${policy.risk_tolerance}`)
+      if (policy.restricted_countries?.length) lines.push(`Restricted Countries: ${policy.restricted_countries.join(', ')}`)
+      if (policy.required_approvals)    lines.push(`Approval Requirements: ${policy.required_approvals}`)
+      if (policy.special_instructions)  lines.push(`Special Instructions: ${policy.special_instructions.slice(0, 200)}`)
+    }
+
+    return { org, policy, formatted: lines.join('\n') }
+  } catch {
+    return null
+  }
+}
+
 // ── MAIN: Context Assembly Engine ─────────────────────────────────────────────
 /**
- * assembleContext(journey)
+ * assembleContext(journey, options)
  *
  * Orchestrates the full intelligence retrieval and packaging pipeline.
  * Single function replacing gatherIntel() + buildMemoryContext() in journey-agent.js.
  *
  * @param {object} journey  { destination, transitPoints, transportModes, purpose, ... }
+ * @param {object} [options={}]  Optional layer flags — all default false (backward-compatible)
+ * @param {boolean} [options.includeOperationalState=false]  Fetch live SOS/incident state
+ * @param {boolean} [options.includeTravelerContext=false]   Fetch traveler trip/location
+ * @param {boolean} [options.includeOrgContext=false]        Fetch org policies
+ * @param {string}  [options.userId]    Required for traveler context
+ * @param {string}  [options.orgId]     Required for org + operational context
  * @returns {Promise<object>} Complete context package for injection into Claude
  */
-export async function assembleContext(journey) {
+export async function assembleContext(journey, options = {}) {
+  const {
+    includeOperationalState = false,
+    includeTravelerContext  = false,
+    includeOrgContext       = false,
+    userId = null,
+    orgId  = null,
+  } = options
+
   if (!journey?.destination) {
     return {
       formatted: 'No destination specified. Awaiting journey details.',
@@ -425,6 +634,9 @@ export async function assembleContext(journey) {
       dataAvailable: false,
       feedsFailed: false,
       totalArticles: 0,
+      operationalState: null,
+      travelerContext:  null,
+      orgContext:       null,
       stats: { live_signals: 0, corroboration_clusters: 0, memory_incidents: 0, memory_patterns: 0, confidence_score: 0, confidence_band: 'minimal' },
     }
   }
@@ -470,6 +682,9 @@ export async function assembleContext(journey) {
       feedsFailed: true,
       totalArticles: 0,
       live_intel_available: false,
+      operationalState: null,
+      travelerContext:  null,
+      orgContext:       null,
       stats: {
         live_signals: 0, corroboration_clusters: storedCorr.length,
         memory_incidents: memory.incidents?.length || 0,
@@ -519,6 +734,20 @@ export async function assembleContext(journey) {
     formatted += '\n\n' + traffic.formatted
   }
 
+  // ── Optional layers (additive — all default OFF) ────────────────────────────
+  const [opsStateResult, travelerCtxResult, orgCtxResult] = await Promise.allSettled([
+    includeOperationalState ? fetchOperationalState(orgId)  : Promise.resolve(null),
+    includeTravelerContext  ? fetchTravelerContext(userId)   : Promise.resolve(null),
+    includeOrgContext       ? fetchOrgContext(orgId)         : Promise.resolve(null),
+  ])
+  const operationalState = opsStateResult.status   === 'fulfilled' ? opsStateResult.value   : null
+  const travelerCtx      = travelerCtxResult.status === 'fulfilled' ? travelerCtxResult.value : null
+  const orgCtx           = orgCtxResult.status      === 'fulfilled' ? orgCtxResult.value      : null
+
+  if (operationalState?.formatted) formatted += '\n\n' + operationalState.formatted
+  if (travelerCtx?.formatted)      formatted += '\n\n' + travelerCtx.formatted
+  if (orgCtx?.formatted)           formatted += '\n\n' + orgCtx.formatted
+
   const totalArticles = live.totalFetched + storedIntel.length
 
   emit({
@@ -546,6 +775,9 @@ export async function assembleContext(journey) {
     escalation,
     trafficContext:     traffic,
     countryRiskContext: countryRisk,
+    operationalState,
+    travelerContext:    travelerCtx,
+    orgContext:         orgCtx,
     dataAvailable:      memory.dataAvailable || prioritized.length > 0,
     feedsFailed:        live.feedsFailed,
     live_intel_available: !live.feedsFailed || storedIntel.length > 0,

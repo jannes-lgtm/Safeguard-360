@@ -17,7 +17,7 @@ import { comprehensiveRiskScan, synthesiseBrief, fetchGDACS, fetchUSGS, fetchHea
 import { checkRateLimit } from './_rateLimit.js'
 import { dbCacheGet, dbCacheSet } from './_dbCache.js'
 import { parseRssXml } from './_rssParser.js'
-import { cache } from './_cacheManager.js'
+import { sharedCache } from './_sharedCache.js'
 
 const CACHE_TTL      = 60 * 60 * 1000       // 1 hour
 const ISS_CACHE_TTL  = 4  * 60 * 60 * 1000  // 4 hours
@@ -111,7 +111,7 @@ async function fetchWithTimeout(url, options = {}, ms = 7000) {
 // ── FCDO ─────────────────────────────────────────────────────────────────────
 async function fetchFcdo(country) {
   const slug = fcdoSlug(country)
-  const hit = cache.get('fcdo:' + slug)
+  const hit = await sharedCache.get('fcdo:' + slug)
   if (hit !== null) return hit
 
   try {
@@ -120,14 +120,14 @@ async function fetchFcdo(country) {
       { headers: { Accept: 'application/json' } }
     )
     if (!r?.ok) {
-      cache.set('fcdo:' + slug, null, 60 * 60 * 1000)
+      await sharedCache.set('fcdo:' + slug, null, 60 * 60 * 1000)
       return null
     }
 
     const data = await r.json()
     const warnings = data.details?.parts?.find(p => p.slug === 'warnings-and-insurance')
     if (!warnings?.body) {
-      cache.set('fcdo:' + slug, null, 60 * 60 * 1000)
+      await sharedCache.set('fcdo:' + slug, null, 60 * 60 * 1000)
       return null
     }
 
@@ -148,7 +148,7 @@ async function fetchFcdo(country) {
       message: fcdoLevelText(level),
       url: `https://www.gov.uk/foreign-travel-advice/${slug}`,
     }
-    cache.set('fcdo:' + slug, result, 60 * 60 * 1000)
+    await sharedCache.set('fcdo:' + slug, result, 60 * 60 * 1000)
     return result
   } catch (e) {
     console.error('FCDO fetch error for', country, ':', e.message)
@@ -165,13 +165,13 @@ function fcdoLevelText(level) {
 
 // ── ISS Africa RSS ────────────────────────────────────────────────────────────
 async function fetchIssAlerts(country) {
-  let issItems = cache.get('iss:feed')
+  let issItems = await sharedCache.get('iss:feed')
   if (!issItems) {
     const r = await fetchWithTimeout('https://issafrica.org/rss/iss-today', {}, 6000)
     if (r?.ok) {
       try {
         issItems = parseRssXml(await r.text())
-        cache.set('iss:feed', issItems, ISS_CACHE_TTL)
+        await sharedCache.set('iss:feed', issItems, ISS_CACHE_TTL)
       } catch { /* keep stale */ }
     }
   }
@@ -212,8 +212,8 @@ async function getCountryRisk(country) {
     const cacheKey = country.toLowerCase()
     const dbKey    = `country-risk:ai:${cacheKey}`
 
-    // L1 — in-memory (fastest, resets on cold start)
-    const l1Hit = cache.get('risk-ai:' + cacheKey)
+    // L1 — shared cache (Redis when available, in-memory fallback)
+    const l1Hit = await sharedCache.get('risk-ai:' + cacheKey)
     if (l1Hit) {
       ai_brief = l1Hit
     } else {
@@ -221,7 +221,7 @@ async function getCountryRisk(country) {
       const persisted = await dbCacheGet(dbKey)
       if (persisted) {
         ai_brief = persisted
-        cache.set('risk-ai:' + cacheKey, ai_brief, 60 * 60 * 1000)
+        await sharedCache.set('risk-ai:' + cacheKey, ai_brief, 60 * 60 * 1000)
       } else {
         // Cache miss — run AI synthesis
         ai_brief = await comprehensiveRiskScan(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
@@ -229,7 +229,7 @@ async function getCountryRisk(country) {
           ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
         }
         if (ai_brief) {
-          cache.set('risk-ai:' + cacheKey, ai_brief, 60 * 60 * 1000)
+          await sharedCache.set('risk-ai:' + cacheKey, ai_brief, 60 * 60 * 1000)
           dbCacheSet(dbKey, ai_brief, CACHE_TTL)  // fire-and-forget
         }
       }

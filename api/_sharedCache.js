@@ -223,6 +223,21 @@ export const sharedCache = {
   },
 }
 
+// ── Test seam (never called in production) ────────────────────────────────────
+// Allows tests to inject a mock Redis client without relying on dynamic-import
+// interception (which is unreliable for imports inside async functions).
+// Usage: import { __setRedisForTest, __resetRedisForTest } from './_sharedCache.js'
+
+export function __setRedisForTest(mockClient) {
+  _redis   = mockClient
+  _checked = true
+}
+
+export function __resetRedisForTest() {
+  _redis   = null
+  _checked = false
+}
+
 // ── Cache TTL constants ───────────────────────────────────────────────────────
 // Centralised TTL values prevent drift across files.
 // Reference these instead of hardcoding magic numbers.

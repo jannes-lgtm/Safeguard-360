@@ -158,7 +158,7 @@ export default function Onboarding() {
       const { data: prof } = await supabase
         .from('profiles')
         .select('full_name, phone, org_id, role, onboarding_completed_at')
-        .eq('id', user.id).single()
+        .eq('id', user.id).maybeSingle()
 
       if (prof?.onboarding_completed_at) { navigate('/dashboard'); return }
       if (prof?.full_name) setPersonal(p => ({ ...p, full_name: prof.full_name }))
@@ -338,7 +338,7 @@ export default function Onboarding() {
     return map[id] || id
   }
 
-  const pct = Math.round((step / totalSteps) * 100)
+  const pct = Math.round(((step + 1) / totalSteps) * 100)
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#090A0C' }}>

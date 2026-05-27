@@ -90,12 +90,12 @@ export default function HealthDeclaration() {
         if (!user) { navigate('/login'); return }
 
         const { data: tripData } = await supabase
-          .from('itineraries').select('*').eq('id', tripId).eq('user_id', user.id).single()
+          .from('itineraries').select('*').eq('id', tripId).eq('user_id', user.id).maybeSingle()
         if (!tripData) { setLoadError('Trip not found.'); setLoading(false); return }
         setTrip(tripData)
 
         const { data: dec } = await supabase
-          .from('pre_travel_health').select('*').eq('trip_id', tripId).eq('user_id', user.id).single()
+          .from('pre_travel_health').select('*').eq('trip_id', tripId).eq('user_id', user.id).maybeSingle()
         if (dec) {
           setExisting(dec)
           setFitToTravel(dec.fit_to_travel || false)
@@ -130,7 +130,7 @@ export default function HealthDeclaration() {
     setSubmitting(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      const { data: prof } = await supabase.from('profiles').select('org_id').eq('id', user.id).single()
+      const { data: prof } = await supabase.from('profiles').select('org_id').eq('id', user.id).maybeSingle()
       const payload = {
         trip_id: tripId,
         user_id: user.id,

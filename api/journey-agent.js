@@ -45,18 +45,30 @@
 import { resolveModel } from './_claudeSynth.js'
 import { assembleContext } from './_contextAssembly.js'
 import { checkRateLimit } from './_rateLimit.js'
-import { createClient } from '@supabase/supabase-js'
-
-let _sb = null
-const getSB = () => _sb || (_sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY))
+import { claudeCall as _claudeCall } from './_claudeClient.js'
+import { TIMEOUTS } from './_config.js'
+import { buildKnowledgeContext, formatKBSection } from './_cairoSOP.js'
 
 const ANON_KEY_ENV = () =>
   process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
 const SUPABASE_URL_ENV = () =>
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 
-// ── Claude call helper ────────────────────────────────────────────────────────
-async function claudeCall(apiKey, system, messages, maxTokens = 1200, jsonMode = false, model = 'claude-haiku-4-5-20251001') {
+// ── CAIRO Claude wrapper ───────────────────────────────────────────────────────
+// Delegates HTTP to the shared _claudeClient.js and adds CAIRO-specific
+// telemetry: prompt size guard, per-call emit, and error classification.
+//
+// Preserves the positional-arg interface used by the four call sites below.
+//
+// jsonMode is intentionally NOT forwarded to _claudeClient.js — all CAIRO
+// system prompts already contain explicit "Return only valid JSON" instructions.
+// Forwarding would append a duplicate instruction, violating the no-prompt-
+// modification constraint for this step.
+//
+// NOTE: input_tokens / output_tokens are not available via the shared client
+// (it returns text only). Duration, success/failure, and error classification
+// are fully preserved.
+async function cairoClaude(apiKey, system, messages, maxTokens = 1200, _jsonMode = false, model) {
   const t0 = Date.now()
 
   // Prompt size guard — warn when approaching token limits
@@ -66,64 +78,39 @@ async function claudeCall(apiKey, system, messages, maxTokens = 1200, jsonMode =
     console.warn(`[cairo] large prompt: ~${Math.ceil(promptChars / 4)} tokens for model ${model}`)
   }
 
-  const body = { model, max_tokens: maxTokens, system, messages }
-
-  let res
   try {
-    res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(28000),
+    const text = await _claudeCall(apiKey, {
+      system,
+      messages,
+      maxTokens,
+      timeout: TIMEOUTS.long,  // 28 000 ms — matches original AbortSignal.timeout(28000)
+      ...(model ? { model } : {}),
+      // jsonMode not forwarded — see note above
     })
-  } catch (fetchErr) {
-    const isTimeout = fetchErr.name === 'TimeoutError' || fetchErr.name === 'AbortError'
+
     emit({
-      type:      isTimeout ? 'claude_timeout' : 'claude_fetch_error',
+      type:      'claude_call',
       endpoint:  'claude_call',
       durationMs: Date.now() - t0,
-      success:   false,
-      errorCode: isTimeout ? 'TIMEOUT_28S' : 'FETCH_ERROR',
-      errorMsg:  fetchErr.message,
-      metadata:  { model },
+      success:   true,
+      metadata:  { model: model ?? 'default' },
     })
-    throw fetchErr
+
+    return text || null
+  } catch (err) {
+    const durationMs = Date.now() - t0
+    const isTimeout  = err.name === 'TimeoutError' || err.name === 'AbortError'
+    const httpMatch  = err.message?.match(/^Claude API (\d+):/)
+
+    if (isTimeout) {
+      emit({ type: 'claude_timeout',    endpoint: 'claude_call', durationMs, success: false, errorCode: 'TIMEOUT_28S',           errorMsg: err.message,            metadata: { model } })
+    } else if (httpMatch) {
+      emit({ type: 'claude_http_error', endpoint: 'claude_call', durationMs, success: false, errorCode: `HTTP_${httpMatch[1]}`,  errorMsg: err.message.slice(0, 300), metadata: { model } })
+    } else {
+      emit({ type: 'claude_fetch_error', endpoint: 'claude_call', durationMs, success: false, errorCode: 'FETCH_ERROR',          errorMsg: err.message,            metadata: { model } })
+    }
+    throw err
   }
-
-  const durationMs = Date.now() - t0
-
-  if (!res.ok) {
-    const errText = await res.text()
-    emit({
-      type:      'claude_http_error',
-      endpoint:  'claude_call',
-      durationMs,
-      success:   false,
-      errorCode: `HTTP_${res.status}`,
-      errorMsg:  errText.slice(0, 300),
-      metadata:  { model },
-    })
-    throw new Error(`Claude API error ${res.status}: ${errText}`)
-  }
-
-  const data = await res.json()
-  emit({
-    type:      'claude_call',
-    endpoint:  'claude_call',
-    durationMs,
-    success:   true,
-    metadata:  {
-      model,
-      input_tokens:  data?.usage?.input_tokens  ?? null,
-      output_tokens: data?.usage?.output_tokens ?? null,
-    },
-  })
-
-  return data?.content?.[0]?.text?.trim() || null
 }
 
 // ── Phase 1: Extract structured journey data from natural language ─────────────
@@ -160,7 +147,7 @@ Set "complete":true only when you have at minimum: origin, destination, departDa
   ]
 
   try {
-    const raw = await claudeCall(apiKey, system, apiMessages, 400, true)
+    const raw = await cairoClaude(apiKey, system, apiMessages, 400, true)
     const cleaned = raw?.replace(/```json\n?|\n?```/g, '').trim()
     if (!cleaned) {
       emit({ type: 'extract_journey_failure', endpoint: 'journey-agent', success: false, errorCode: 'EMPTY_RESPONSE' })
@@ -184,139 +171,6 @@ Set "complete":true only when you have at minimum: origin, destination, departDa
 // deduplication, correlation, relevance scoring, and context formatting.
 async function gatherContext(journey) {
   return await assembleContext(journey)
-}
-
-// ── Knowledge base fetch — retrieves relevant SOPs and case studies ────────────
-// ── RAG Pipeline ──────────────────────────────────────────────────────────────
-// Tier priority: 1=country-specific  2=regional  3=global  4=general doctrine
-// Scoring: tier weight + keyword match against tags/threat_categories
-// Compression: full content for tiers 1-2; summary for tiers 3-4 unless keyword hit
-
-const DESTINATION_REGION_MAP = {
-  // Africa
-  'South Africa': 'Southern Africa', 'Namibia': 'Southern Africa', 'Botswana': 'Southern Africa',
-  'Zambia': 'Southern Africa', 'Zimbabwe': 'Southern Africa', 'Mozambique': 'Southern Africa',
-  'Angola': 'Southern Africa', 'Malawi': 'Southern Africa', 'Tanzania': 'East Africa',
-  'Kenya': 'East Africa', 'Uganda': 'East Africa', 'Ethiopia': 'East Africa',
-  'Rwanda': 'East Africa', 'Burundi': 'East Africa', 'Somalia': 'Horn of Africa',
-  'Eritrea': 'Horn of Africa', 'Djibouti': 'Horn of Africa',
-  'Democratic Republic of Congo': 'Central Africa', 'Cameroon': 'Central Africa',
-  'Gabon': 'Central Africa', 'Chad': 'Central Africa',
-  'Nigeria': 'West Africa', 'Ghana': 'West Africa', 'Senegal': 'West Africa',
-  'Mali': 'Sahel', 'Niger': 'Sahel', 'Burkina Faso': 'Sahel',
-  'Egypt': 'North Africa', 'Libya': 'North Africa', 'Tunisia': 'North Africa',
-  'Algeria': 'North Africa', 'Morocco': 'North Africa',
-  'Madagascar': 'East Africa',
-  // Middle East
-  'Iraq': 'Middle East', 'Iran': 'Middle East', 'Syria': 'Middle East',
-  'Lebanon': 'Middle East', 'Yemen': 'Middle East', 'UAE': 'Middle East',
-  'Saudi Arabia': 'Middle East', 'Jordan': 'Middle East', 'Israel': 'Middle East',
-  // Americas
-  'Haiti': 'Caribbean', 'Mexico': 'Latin America', 'Colombia': 'Latin America',
-  'Venezuela': 'Latin America', 'Brazil': 'Latin America', 'Guyana': 'Latin America',
-  // Asia
-  'Taiwan': 'East Asia', 'Russia': 'Europe',
-}
-
-function scoreDoc(doc, destination, region, queryTokens) {
-  // Tier from doc_tier field: country=1, regional=2, global=3, doctrine=4
-  const tierMap = { country: 1, regional: 2, global: 3, doctrine: 4 }
-  let tier = tierMap[doc.doc_tier] ?? 3
-
-  // Without a destination, country and regional docs are irrelevant — demote to global
-  if (!destination) {
-    if (tier === 1) tier = 3
-    if (tier === 2) tier = 3
-  } else {
-    // Demote country docs that don't match current destination
-    if (tier === 1 && !doc.countries?.includes(destination)) tier = 2
-    // Demote regional docs that don't match current region
-    if (tier === 2 && region && !doc.regions?.includes(region) && !doc.countries?.some(c => DESTINATION_REGION_MAP[c] === region)) tier = 3
-  }
-
-  const tierWeight = { 1: 40, 2: 30, 3: 20, 4: 10 }[tier]
-
-  // Keyword match against tags and threat_categories
-  const docTokens = [
-    ...(doc.tags || []),
-    ...(doc.threat_categories || []),
-    ...(doc.countries || []),
-    ...(doc.regions || []),
-    doc.title || '',
-  ].join(' ').toLowerCase()
-
-  const keywordScore = queryTokens.reduce((acc, t) => acc + (docTokens.includes(t) ? 5 : 0), 0)
-
-  return { doc, tier, score: tierWeight + Math.min(keywordScore, 20) }
-}
-
-function compressDoc(scored) {
-  const { doc, tier, score } = scored
-  const highKeywordHit = score - [0, 40, 30, 20, 10][tier] >= 10
-  // Use full content for tier 1-2, or if strong keyword match
-  const body = (tier <= 2 || highKeywordHit) ? doc.content : doc.summary
-  return `### ${doc.title}\n${body}`
-}
-
-async function buildKnowledgeContext(destination, message = '') {
-  try {
-    const sb     = getSB()
-    const region = destination ? DESTINATION_REGION_MAP[destination] : null
-
-    // Use unified intel retrieval core
-    const { retrieveIntelligence } = await import('./_intel.js')
-    const intel = await retrieveIntelligence(sb, {
-      query:   message || destination || '',
-      country: destination || null,
-      region:  region || null,
-      limit:   13,
-    })
-
-    if (intel.docs.length) return intel.docs
-
-    // Legacy fallback: keyword scoring via scoreDoc
-    const { data: allDocs } = await sb
-      .from('cairo_knowledge')
-      .select('type, title, content, summary, countries, regions, threat_categories, tags, doc_tier')
-      .eq('retrieval_ready', true)
-      .eq('intelligence_enabled', true)
-      .order('doc_tier', { ascending: true })
-      .limit(60)
-
-    if (!allDocs?.length) return []
-
-    const queryTokens = message.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).filter(t => t.length > 3)
-    return allDocs
-      .map(doc => scoreDoc(doc, destination, region, queryTokens))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 13)
-  } catch {
-    return []
-  }
-}
-
-function formatKBSection(scored) {
-  if (!scored.length) return ''
-  const byTier = {
-    1: scored.filter(s => s.tier === 1),
-    2: scored.filter(s => s.tier === 2),
-    3: scored.filter(s => s.tier === 3),
-    4: scored.filter(s => s.tier === 4),
-  }
-  const tierLabels = {
-    1: 'COUNTRY-SPECIFIC INTELLIGENCE',
-    2: 'REGIONAL INTELLIGENCE',
-    3: 'GLOBAL STANDARD OPERATING PROCEDURES',
-    4: 'GENERAL DOCTRINE (REFERENCE)',
-  }
-  let out = '\n\n' + '═'.repeat(59) + '\nORGANISATIONAL KNOWLEDGE BASE — TREAT AS AUTHORITATIVE\n' + '═'.repeat(59)
-  for (const tier of [1, 2, 3, 4]) {
-    if (!byTier[tier].length) continue
-    out += `\n\n${tierLabels[tier]}:\n`
-    byTier[tier].forEach(s => { out += '\n' + compressDoc(s) + '\n' })
-  }
-  out += '\n\nApply the above in priority order. Country-specific intelligence takes precedence over regional, which takes precedence over global SOPs, which take precedence over general doctrine. Where SOPs exist for a situation being discussed, reference them explicitly.\n'
-  return out
 }
 
 // ── Phase 3: Operational reasoning — full risk analysis with assembled context ──
@@ -675,7 +529,7 @@ Analyse the journey using ALL three intelligence layers. Use the ACS score above
   const systemWithKB = system + kbSection
 
   try {
-    const raw     = await claudeCall(apiKey, systemWithKB, [{ role: 'user', content: userMsg }], 4000, true, 'claude-sonnet-4-5-20251022')
+    const raw     = await cairoClaude(apiKey, systemWithKB, [{ role: 'user', content: userMsg }], 4000, true, 'claude-sonnet-4-5-20251022')
     const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim()
     return JSON.parse(cleaned)
   } catch (e) {
@@ -703,7 +557,7 @@ Return up to 4 hospitals and 5 embassies (UK, US, Germany, France, South Africa 
 Return only confirmed, commonly known information. If uncertain, omit.`
 
   try {
-    const raw = await claudeCall(
+    const raw = await cairoClaude(
       apiKey,
       system,
       [{ role: 'user', content: `Destination: ${destination}` }],
@@ -1059,7 +913,7 @@ ${contextBlock}${analysisBlock}`
     { role: 'user', content: message },
   ]
 
-  return await claudeCall(apiKey, system + kbSection, apiMessages, 2000)
+  return await cairoClaude(apiKey, system + kbSection, apiMessages, 2000)
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────

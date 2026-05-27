@@ -163,60 +163,65 @@ export default function LiveMap() {
   // ── Initial data load ───────────────────────────────────────────────────────
   const loadInitialData = useCallback(async () => {
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
-
-    const today = new Date().toISOString().split('T')[0]
-    const [{ data: prof }, { data: trip }, { data: locs }] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
-      supabase.from('itineraries').select('*')
-        .eq('user_id', user.id).lte('depart_date', today).gte('return_date', today)
-        .limit(1).maybeSingle(),
-      supabase.from('staff_locations').select('*')
-        .eq('is_sharing', true)
-        .gte('recorded_at', new Date(Date.now() - 86_400_000).toISOString())
-        .order('recorded_at', { ascending: false }),
-    ])
-
-    const role = prof?.role || 'traveller'
-    const isSoloRole = role === 'solo' || (!prof?.org_id && !['admin','developer','org_admin'].includes(role))
-    setIsAdmin(role === 'admin' || role === 'developer')
-    setIsSolo(isSoloRole)
-    setProfile({ ...prof, id: user.id, email: user.email })
-    setActiveTrip(trip || null)
-
-    // Clear any stale is_sharing=true rows left by a previous session that
-    // closed without calling stopSharing (e.g. browser tab closed).
-    // Rows older than 2 hours with is_sharing=true are considered abandoned.
-    const staleThreshold = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-    supabase.from('staff_locations')
-      .update({ is_sharing: false })
-      .eq('user_id', user.id)
-      .eq('is_sharing', true)
-      .lt('recorded_at', staleThreshold)
-      .then(() => {})  // fire-and-forget
-
-    // Deduplicate to latest position per user
-    const seen = new Set()
-    const dedup = (locs || []).filter(l => { if (seen.has(l.user_id)) return false; seen.add(l.user_id); return true })
-    locationsRef.current = dedup
-    setLocations(dedup)
-    setLoading(false)
-
-    // Background: fetch trip alerts for risk zone overlay
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.access_token) {
-        fetch('/api/trip-alert-scan', { headers: { Authorization: `Bearer ${session.access_token}` } })
-          .then(r => r.ok ? r.json() : null)
-          .then(data => {
-            if (data?.alerts) {
-              setTripAlerts(data.alerts.filter(a => ['Critical', 'High'].includes(a.severity) && a.country))
-            }
-          })
-          .catch(() => {})
-      }
-    } catch {}
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setLoading(false); return }
+
+      const today = new Date().toISOString().split('T')[0]
+      const [{ data: prof }, { data: trip }, { data: locs }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+        supabase.from('itineraries').select('*')
+          .eq('user_id', user.id).lte('depart_date', today).gte('return_date', today)
+          .limit(1).maybeSingle(),
+        supabase.from('staff_locations').select('*')
+          .eq('is_sharing', true)
+          .gte('recorded_at', new Date(Date.now() - 86_400_000).toISOString())
+          .order('recorded_at', { ascending: false }),
+      ])
+
+      const role = prof?.role || 'traveller'
+      const isSoloRole = role === 'solo' || (!prof?.org_id && !['admin','developer','org_admin'].includes(role))
+      setIsAdmin(role === 'admin' || role === 'developer')
+      setIsSolo(isSoloRole)
+      setProfile({ ...prof, id: user.id, email: user.email })
+      setActiveTrip(trip || null)
+
+      // Clear any stale is_sharing=true rows left by a previous session that
+      // closed without calling stopSharing (e.g. browser tab closed).
+      // Rows older than 2 hours with is_sharing=true are considered abandoned.
+      const staleThreshold = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+      supabase.from('staff_locations')
+        .update({ is_sharing: false })
+        .eq('user_id', user.id)
+        .eq('is_sharing', true)
+        .lt('recorded_at', staleThreshold)
+        .then(() => {})  // fire-and-forget
+
+      // Deduplicate to latest position per user
+      const seen = new Set()
+      const dedup = (locs || []).filter(l => { if (seen.has(l.user_id)) return false; seen.add(l.user_id); return true })
+      locationsRef.current = dedup
+      setLocations(dedup)
+
+      // Background: fetch trip alerts for risk zone overlay
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.access_token) {
+          fetch('/api/trip-alert-scan', { headers: { Authorization: `Bearer ${session.access_token}` } })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (data?.alerts) {
+                setTripAlerts(data.alerts.filter(a => ['Critical', 'High'].includes(a.severity) && a.country))
+              }
+            })
+            .catch(() => {})
+        }
+      } catch {}
+    } catch (err) {
+      console.error('[LiveMap] loadInitialData error:', err)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { loadInitialData() }, [loadInitialData])
