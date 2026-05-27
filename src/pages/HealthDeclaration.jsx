@@ -266,7 +266,7 @@ export default function HealthDeclaration() {
       <div className="mb-5">
         {/* Vaccination Requirements */}
         <div className="rounded-2xl overflow-hidden" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <div className="flex items-center gap-2 px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(1,24,161,0.08)' }}>
+          <div className="flex items-center gap-2 px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
             <Syringe size={15} color="#60A5FA" />
             <h2 className="text-sm font-bold flex-1" style={{ color: '#F1F5F9' }}>Vaccination Requirements</h2>
             {reqsLoading && (
@@ -339,8 +339,7 @@ export default function HealthDeclaration() {
           <div className="rounded-2xl overflow-hidden mt-3" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
             <button
               onClick={() => setShowRisks(p => !p)}
-              className="w-full flex items-center gap-2 px-5 py-4 transition-colors"
-              style={{ background: 'rgba(217,119,6,0.06)' }}>
+              className="w-full flex items-center gap-2 px-5 py-4 transition-colors">
               <ActivitySquare size={15} color="#FBBF24" />
               <h2 className="text-sm font-bold flex-1 text-left" style={{ color: '#F1F5F9' }}>
                 Current Health Risks — {reqs.health_risks.length} identified
