@@ -75,7 +75,6 @@ import HeatMap          from './pages/HeatMap'
 import Geofences        from './pages/Geofences'
 import Landing          from './pages/Landing'
 import ProtectedRoute   from './components/ProtectedRoute'
-import PasswordGate     from './components/PasswordGate'
 import ErrorBoundary    from './components/ErrorBoundary'
 
 // ── Auth state watcher ────────────────────────────────────────────────────────
@@ -101,8 +100,7 @@ function AuthStateWatcher() {
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    <PasswordGate>
-      <BrowserRouter>
+    <BrowserRouter>
         <AuthStateWatcher />
 
         {/* RoleProvider — centralized profile/role state for Layout and components.
@@ -190,6 +188,5 @@ export default function App() {
           </Routes>
         </RoleProvider>
       </BrowserRouter>
-    </PasswordGate>
   )
 }
