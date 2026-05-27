@@ -1215,11 +1215,11 @@ export default function JourneyAgent() {
 
   return (
     <Layout>
-      <div className="min-h-screen" style={{ background: C.bg }}>
+      <div className="flex flex-col" style={{ height: 'calc(100vh - 56px)', background: C.bg }}>
 
         {/* ── Header ─────────────────────────────────────────────────────────── */}
-        <div className="sticky top-0 z-20 px-4 py-3 flex items-center justify-between"
-          style={{ background: C.bg, borderBottom: `1px solid ${C.border}`, backdropFilter: 'blur(12px)' }}>
+        <div className="shrink-0 px-4 py-3 flex items-center justify-between"
+          style={{ background: C.bg, borderBottom: `1px solid ${C.border}` }}>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center"
               style={{ background: C.accentDim, border: `1px solid ${C.borderHi}` }}>
@@ -1265,10 +1265,10 @@ export default function JourneyAgent() {
         </div>
 
         {/* ── Main layout ─────────────────────────────────────────────────────── */}
-        <div className={`flex gap-0 ${showAnalysis && hasAnalysis ? 'lg:gap-5 lg:p-5' : 'p-4 max-w-2xl mx-auto'}`}>
+        <div className={`flex-1 min-h-0 flex overflow-hidden ${showAnalysis && hasAnalysis ? 'lg:gap-5 lg:p-5' : 'p-4'}`}>
 
           {/* ── Left: Chat panel ────────────────────────────────────────────── */}
-          <div className={`flex-1 flex flex-col ${showAnalysis && hasAnalysis ? 'lg:min-w-0' : ''}`}>
+          <div className={`flex-1 min-h-0 flex flex-col ${showAnalysis && hasAnalysis ? '' : 'max-w-2xl mx-auto w-full'}`}>
 
             {/* Journey summary card */}
             {hasJourney && (
@@ -1277,8 +1277,9 @@ export default function JourneyAgent() {
               </div>
             )}
 
-            {/* Messages */}
-            <div className="flex-1 space-y-3 mb-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 320px)' }}>
+            {/* Messages — flex-1 min-h-0 lets this grow to fill remaining space and
+                scroll internally instead of pushing the input box down the page */}
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-3 mb-4">
               {messages.map((m, i) => <MessageBubble key={i} msg={m} />)}
               {sending && (
                 <div className="flex items-center gap-2">
@@ -1298,7 +1299,7 @@ export default function JourneyAgent() {
 
             {/* Quick prompts — show only on empty state */}
             {!hasJourney && messages.length <= 1 && (
-              <div className="grid grid-cols-2 gap-1.5 mb-4">
+              <div className="shrink-0 grid grid-cols-2 gap-1.5 mb-4">
                 {QUICK_PROMPTS.map((p, i) => (
                   <button key={i} onClick={() => send(p.msg)}
                     className="flex items-center gap-2 text-left px-3 py-2.5 rounded-lg text-[11px] font-medium transition-all"
@@ -1312,8 +1313,8 @@ export default function JourneyAgent() {
               </div>
             )}
 
-            {/* Input */}
-            <div className="rounded-2xl overflow-hidden"
+            {/* Input — shrink-0 keeps it pinned to the bottom of the flex column */}
+            <div className="shrink-0 rounded-2xl overflow-hidden"
               style={{ background: C.elevated, border: `1px solid ${C.border}`, boxShadow: '0 0 0 1px rgba(170,204,0,0.06)' }}>
               <textarea
                 ref={inputRef}
@@ -1365,9 +1366,9 @@ export default function JourneyAgent() {
           )}
         </div>
 
-        {/* ── Mobile analysis panel (below chat) ─────────────────────────────── */}
+        {/* ── Mobile analysis panel (below chat on small screens) ─────────────── */}
         {showAnalysis && hasAnalysis && (
-          <div className="lg:hidden px-4 pb-6 space-y-3">
+          <div className="lg:hidden shrink-0 overflow-y-auto px-4 pb-6 space-y-3" style={{ maxHeight: '50vh' }}>
             <div className="h-px my-4" style={{ background: C.border }} />
             <AnalysisPanel analysis={analysis} assets={assets} />
           </div>
