@@ -1385,9 +1385,16 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
   const [messages, setMessages] = useState([{ role: 'assistant', text: initialMsg }])
   const [input, setInput]       = useState('')
   const [sending, setSending]   = useState(false)
-  const bottomRef               = useRef(null)
+  const msgContainerRef         = useRef(null)
 
-  useEffect(() => { if (messages.length > 1) bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  // Scroll the messages container directly — never the page.
+  // scrollIntoView() in Safari scrolls the nearest scroll ancestor which can
+  // be the page itself, causing the whole dashboard to jump.
+  useEffect(() => {
+    if (messages.length > 1 && msgContainerRef.current) {
+      msgContainerRef.current.scrollTop = msgContainerRef.current.scrollHeight
+    }
+  }, [messages])
 
   const QUICK = role === 'admin' || role === 'org_admin'
     ? ['What are the highest risk destinations my staff may travel to?', 'What is our duty of care?', 'Summarise current global threat landscape']
@@ -1461,7 +1468,7 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
       </div>
 
       {/* Messages */}
-      <div className="p-4 space-y-3 overflow-y-auto" style={{ background: msgBg, height: 340 }}>
+      <div ref={msgContainerRef} className="p-4 space-y-3 overflow-y-auto" style={{ background: msgBg, height: 340 }}>
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {m.role === 'assistant' && (
@@ -1498,7 +1505,6 @@ function DashboardAiChat({ profile, trips, orgName, role, dark = false }) {
             </div>
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/* Quick suggestions — always rendered to prevent layout shift */}

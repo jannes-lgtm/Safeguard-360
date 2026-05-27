@@ -475,10 +475,12 @@ function AiChatSection({ country, travelerName, tripName }) {
   ])
   const [input, setInput]       = useState('')
   const [sending, setSending]   = useState(false)
-  const bottomRef               = useRef(null)
+  const msgContainerRef         = useRef(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (msgContainerRef.current) {
+      msgContainerRef.current.scrollTop = msgContainerRef.current.scrollHeight
+    }
   }, [messages])
 
   const send = async () => {
@@ -508,7 +510,7 @@ function AiChatSection({ country, travelerName, tripName }) {
       <SectionHeader label="Ask AI Analyst" icon={Brain}/>
       <div className="border border-gray-200 rounded-[8px] overflow-hidden">
         {/* Message history */}
-        <div className="bg-gray-50 p-3 space-y-2.5 h-64 overflow-y-auto">
+        <div ref={msgContainerRef} className="bg-gray-50 p-3 space-y-2.5 h-64 overflow-y-auto">
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[85%] rounded-[8px] px-3 py-2 text-xs leading-relaxed ${
@@ -531,7 +533,6 @@ function AiChatSection({ country, travelerName, tripName }) {
               </div>
             </div>
           )}
-          <div ref={bottomRef}/>
         </div>
 
         {/* Input */}
