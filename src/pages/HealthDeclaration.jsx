@@ -9,12 +9,12 @@ import { supabase } from '../lib/supabase'
 import { resolveCountry } from '../lib/cityToCountry'
 import { DS } from '../lib/ds'
 
-const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-white'
-const labelCls = 'block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide'
+const inputCls = 'w-full rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-[#0A0F1C] border border-[rgba(255,255,255,0.1)] text-[#F1F5F9] placeholder-[#475569]'
+const labelCls = 'block text-xs font-semibold mb-1.5 uppercase tracking-wide text-[#64748B]'
 
-const SEV_COLOR = { High: '#DC2626', Medium: '#D97706', Low: '#059669' }
-const CAT_COLOR = { required: '#DC2626', recommended: '#2563EB', consider: '#6B7280' }
-const CAT_BG    = { required: '#FEF2F2', recommended: '#EFF6FF', consider: '#F9FAFB' }
+const SEV_COLOR = { High: '#F87171', Medium: '#FBBF24', Low: '#34D399' }
+const CAT_COLOR = { required: '#F87171', recommended: '#60A5FA', consider: '#94A3B8' }
+const CAT_BG    = { required: 'rgba(239,68,68,0.12)', recommended: 'rgba(59,130,246,0.12)', consider: 'rgba(148,163,184,0.1)' }
 const VAX_STATUS_OPTIONS = ['Completed', 'Scheduled', 'Not applicable']
 
 export default function HealthDeclaration() {
@@ -152,13 +152,27 @@ export default function HealthDeclaration() {
         submitted_at: new Date().toISOString(),
       }
       if (existing) {
-        await supabase.from('pre_travel_health').update(payload).eq('id', existing.id)
+        const { error: updateErr } = await supabase
+          .from('pre_travel_health').update(payload).eq('id', existing.id)
+        if (updateErr) throw new Error(updateErr.message)
       } else {
-        await supabase.from('pre_travel_health').insert(payload)
+        // Use upsert on (trip_id, user_id) so a duplicate submit doesn't create a
+        // second row — handles the edge-case where the user double-taps the button.
+        const { error: upsertErr } = await supabase
+          .from('pre_travel_health')
+          .upsert(payload, { onConflict: 'trip_id,user_id' })
+        if (upsertErr) {
+          // Fallback: upsert may fail if the unique constraint doesn't exist yet —
+          // try a plain insert so at least new records are created correctly.
+          const { error: insertErr } = await supabase
+            .from('pre_travel_health').insert(payload)
+          if (insertErr) throw new Error(insertErr.message)
+        }
       }
       setSubmitted(true)
-    } catch {
-      setError('Submission failed. Please try again.')
+      setEditing(false)
+    } catch (err) {
+      setError(err.message || 'Submission failed. Please try again.')
     }
     setSubmitting(false)
   }
@@ -176,7 +190,7 @@ export default function HealthDeclaration() {
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <AlertTriangle size={32} className="text-red-400 mb-3" />
         <p className="text-gray-600">{loadError}</p>
-        <button onClick={() => navigate('/itinerary')} className="mt-4 text-sm font-semibold underline" style={{ color: DS.bg }}>Back to itinerary</button>
+        <button onClick={() => navigate('/itinerary')} className="mt-4 text-sm font-semibold underline" style={{ color: '#AACC00' }}>Back to itinerary</button>
       </div>
     </Layout>
   )
@@ -221,15 +235,15 @@ export default function HealthDeclaration() {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
-          <button onClick={() => navigate('/itinerary')} className="text-xs text-gray-400 hover:underline">My Itinerary</button>
-          <span className="text-gray-300">›</span>
-          <span className="text-xs text-gray-500">Health Declaration</span>
+          <button onClick={() => navigate('/itinerary')} className="text-xs hover:underline" style={{ color: '#64748B' }}>My Itinerary</button>
+          <span style={{ color: '#475569' }}>›</span>
+          <span className="text-xs" style={{ color: '#475569' }}>Health Declaration</span>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Heart size={20} color="#DC2626" />
+        <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: '#F1F5F9' }}>
+          <Heart size={20} color="#F87171" />
           Pre-Travel Health Declaration
         </h1>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <p className="text-sm mt-0.5" style={{ color: '#64748B' }}>
           {trip?.trip_name}{trip?.arrival_city && trip?.arrival_city !== trip?.trip_name ? ` · ${trip.arrival_city}` : ''} · {trip?.depart_date}
         </p>
         {existing && (
@@ -242,17 +256,17 @@ export default function HealthDeclaration() {
       {/* AI Intel strip — full width, above the form */}
       <div className="mb-5">
         {/* Vaccination Requirements */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
-            <Syringe size={15} color="#0118A1" />
-            <h2 className="text-sm font-bold text-gray-900 flex-1">Vaccination Requirements</h2>
+        <div className="rounded-2xl overflow-hidden" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="flex items-center gap-2 px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(1,24,161,0.08)' }}>
+            <Syringe size={15} color="#60A5FA" />
+            <h2 className="text-sm font-bold flex-1" style={{ color: '#F1F5F9' }}>Vaccination Requirements</h2>
             {reqsLoading && (
-              <span className="flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-500">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,0.12)', color: '#60A5FA' }}>
                 <Loader2 size={9} className="animate-spin" /> Loading…
               </span>
             )}
             {aiLoaded && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-[#6EA8C8]">AI · Live</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,0.12)', color: '#60A5FA' }}>AI · Live</span>
             )}
             {reqsError && !reqsLoading && (
               <button onClick={() => trip && fetchReqs(trip, existing)}
@@ -263,28 +277,28 @@ export default function HealthDeclaration() {
           </div>
 
           {reqsLoading ? (
-            <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-400">
+            <div className="flex items-center justify-center gap-2 py-8 text-sm" style={{ color: '#64748B' }}>
               <Loader2 size={16} className="animate-spin" /> Fetching live requirements from WHO / Africa CDC…
             </div>
           ) : reqsError ? (
             <div className="px-5 py-4 flex items-center gap-3">
-              <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+              <AlertTriangle size={14} className="shrink-0" style={{ color: '#FBBF24' }} />
               <p className="text-xs text-[#D4A64A]">Live health data unavailable — complete vaccination status below manually if needed.</p>
             </div>
           ) : reqs?.vaccinations?.length ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-50">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
               {reqs.vaccinations.map(vax => (
-                <div key={vax.name} className="px-5 py-4">
+                <div key={vax.name} className="px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                   <div className="flex items-start gap-2 mb-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                        <span className="text-xs font-bold text-gray-900">{vax.name}</span>
+                        <span className="text-xs font-bold" style={{ color: '#F1F5F9' }}>{vax.name}</span>
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase"
                           style={{ background: CAT_BG[vax.category], color: CAT_COLOR[vax.category] }}>
                           {vax.category}
                         </span>
                       </div>
-                      {vax.notes && <p className="text-[11px] text-gray-400 leading-snug">{vax.notes}</p>}
+                      {vax.notes && <p className="text-[11px] leading-snug" style={{ color: '#64748B' }}>{vax.notes}</p>}
                     </div>
                   </div>
                   <div className="flex gap-1 flex-wrap">
@@ -298,7 +312,7 @@ export default function HealthDeclaration() {
                             : opt === 'Scheduled'
                             ? { background: '#2563EB', color: '#fff', borderColor: '#2563EB' }
                             : { background: '#6B7280', color: '#fff', borderColor: '#6B7280' }
-                          : { background: DS.surface, color: '#9CA3AF', borderColor: '#E5E7EB' }}>
+                          : { background: 'rgba(255,255,255,0.04)', color: '#64748B', borderColor: 'rgba(255,255,255,0.1)' }}>
                         {opt}
                       </button>
                     ))}
@@ -307,33 +321,34 @@ export default function HealthDeclaration() {
               ))}
             </div>
           ) : (
-            <p className="px-5 py-4 text-xs text-gray-400">No specific vaccination requirements found for this destination.</p>
+            <p className="px-5 py-4 text-xs" style={{ color: '#64748B' }}>No specific vaccination requirements found for this destination.</p>
           )}
         </div>
 
         {/* Health Risks — collapsible, only when AI data loaded */}
         {aiLoaded && reqs?.health_risks?.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-3">
+          <div className="rounded-2xl overflow-hidden mt-3" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
             <button
               onClick={() => setShowRisks(p => !p)}
-              className="w-full flex items-center gap-2 px-5 py-4 hover:bg-gray-50 transition-colors">
-              <ActivitySquare size={15} color="#D97706" />
-              <h2 className="text-sm font-bold text-gray-900 flex-1 text-left">
+              className="w-full flex items-center gap-2 px-5 py-4 transition-colors"
+              style={{ background: 'rgba(217,119,6,0.06)' }}>
+              <ActivitySquare size={15} color="#FBBF24" />
+              <h2 className="text-sm font-bold flex-1 text-left" style={{ color: '#F1F5F9' }}>
                 Current Health Risks — {reqs.health_risks.length} identified
               </h2>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[rgba(144,106,37,0.12)] text-[#D4A64A] mr-1">AI · Live</span>
-              {showRisks ? <ChevronUp size={13} className="text-gray-400" /> : <ChevronDown size={13} className="text-gray-400" />}
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full mr-1" style={{ background: 'rgba(144,106,37,0.15)', color: '#D4A64A' }}>AI · Live</span>
+              {showRisks ? <ChevronUp size={13} style={{ color: '#64748B' }} /> : <ChevronDown size={13} style={{ color: '#64748B' }} />}
             </button>
             {showRisks && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-t border-gray-100 divide-y sm:divide-y-0 sm:divide-x divide-gray-50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                 {reqs.health_risks.map((risk, i) => (
-                  <div key={i} className="px-5 py-4">
+                  <div key={i} className="px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: SEV_COLOR[risk.severity] }} />
-                      <span className="text-xs font-bold text-gray-900 flex-1">{risk.name}</span>
+                      <span className="text-xs font-bold flex-1" style={{ color: '#F1F5F9' }}>{risk.name}</span>
                       <span className="text-[10px] font-semibold" style={{ color: SEV_COLOR[risk.severity] }}>{risk.severity}</span>
                     </div>
-                    <p className="text-[11px] text-gray-500 leading-snug mb-1.5">{risk.description}</p>
+                    <p className="text-[11px] leading-snug mb-1.5" style={{ color: '#94A3B8' }}>{risk.description}</p>
                     {risk.prevention && (
                       <p className="text-[11px] text-[#AACC00] bg-[rgba(170,204,0,0.10)] rounded-lg px-2.5 py-1.5">{risk.prevention}</p>
                     )}
@@ -346,13 +361,13 @@ export default function HealthDeclaration() {
 
         {/* General advice */}
         {aiLoaded && reqs?.general_advice && (
-          <div className="mt-3 bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 flex gap-3">
-            <Info size={14} color="#2563EB" className="shrink-0 mt-0.5" />
+          <div className="mt-3 rounded-2xl px-5 py-4 flex gap-3" style={{ background: 'rgba(1,24,161,0.12)', border: '1px solid rgba(1,24,161,0.3)' }}>
+            <Info size={14} color="#60A5FA" className="shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-bold text-blue-700 mb-1">General Health Advice</p>
-              <p className="text-xs text-blue-800 leading-relaxed">{reqs.general_advice}</p>
+              <p className="text-xs font-bold mb-1" style={{ color: '#93C5FD' }}>General Health Advice</p>
+              <p className="text-xs leading-relaxed" style={{ color: '#94A3B8' }}>{reqs.general_advice}</p>
               {reqs.sources?.length > 0 && (
-                <p className="text-[10px] text-blue-400 mt-1.5">Sources: {reqs.sources.join(', ')}</p>
+                <p className="text-[10px] mt-1.5" style={{ color: '#475569' }}>Sources: {reqs.sources.join(', ')}</p>
               )}
             </div>
           </div>
@@ -363,16 +378,16 @@ export default function HealthDeclaration() {
       <form onSubmit={handleSubmit} className="space-y-4">
 
         {/* Fitness to travel */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <h2 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <ShieldCheck size={15} color="#0118A1" /> Medical Fitness to Travel
+        <div className="rounded-2xl p-5" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <h2 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ color: '#F1F5F9' }}>
+            <ShieldCheck size={15} color="#AACC00" /> Medical Fitness to Travel
           </h2>
           <label className="flex items-start gap-3 cursor-pointer">
             <input type="checkbox" checked={fitToTravel} onChange={e => setFitToTravel(e.target.checked)}
-              className="w-4 h-4 mt-0.5 accent-[#0118A1]" />
+              className="w-4 h-4 mt-0.5 accent-[#AACC00]" />
             <div>
-              <p className="text-sm font-semibold text-gray-900">I confirm I am medically fit to travel</p>
-              <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+              <p className="text-sm font-semibold" style={{ color: '#F1F5F9' }}>I confirm I am medically fit to travel</p>
+              <p className="text-xs mt-0.5 leading-relaxed" style={{ color: '#64748B' }}>
                 I have no known medical condition that would prevent or significantly impair safe travel to {trip?.arrival_city}.
                 I accept responsibility to disclose any condition that may require emergency medical assistance.
               </p>
@@ -381,21 +396,21 @@ export default function HealthDeclaration() {
         </div>
 
         {/* Medical history */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <h2 className="text-sm font-bold text-gray-900 mb-5 flex items-center gap-2">
-            <ActivitySquare size={15} color="#0118A1" /> Medical History
+        <div className="rounded-2xl p-5" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <h2 className="text-sm font-bold mb-5 flex items-center gap-2" style={{ color: '#F1F5F9' }}>
+            <ActivitySquare size={15} color="#60A5FA" /> Medical History
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Chronic conditions */}
             <div>
-              <p className="text-sm font-semibold text-gray-800 mb-2">Chronic or ongoing medical conditions?</p>
+              <p className="text-sm font-semibold mb-2" style={{ color: '#94A3B8' }}>Chronic or ongoing medical conditions?</p>
               <div className="flex gap-2 mb-2">
                 {['Yes', 'No'].map(opt => (
                   <button key={opt} type="button" onClick={() => setHasMedical(opt === 'Yes')}
                     className="px-4 py-1.5 rounded-xl text-sm font-semibold border transition-all"
                     style={hasMedical === (opt === 'Yes')
-                      ? { background: DS.green, color: '#fff', borderColor: DS.green }
-                      : { background: DS.surface, color: '#6B7280', borderColor: '#E5E7EB' }}>
+                      ? { background: '#AACC00', color: '#090A0C', borderColor: '#AACC00' }
+                      : { background: 'rgba(255,255,255,0.04)', color: '#64748B', borderColor: 'rgba(255,255,255,0.1)' }}>
                     {opt}
                   </button>
                 ))}
@@ -409,14 +424,14 @@ export default function HealthDeclaration() {
 
             {/* Medications */}
             <div>
-              <p className="text-sm font-semibold text-gray-800 mb-2">Currently taking prescription medications?</p>
+              <p className="text-sm font-semibold mb-2" style={{ color: '#94A3B8' }}>Currently taking prescription medications?</p>
               <div className="flex gap-2 mb-2">
                 {['Yes', 'No'].map(opt => (
                   <button key={opt} type="button" onClick={() => setHasMeds(opt === 'Yes')}
                     className="px-4 py-1.5 rounded-xl text-sm font-semibold border transition-all"
                     style={hasMeds === (opt === 'Yes')
-                      ? { background: DS.green, color: '#fff', borderColor: DS.green }
-                      : { background: DS.surface, color: '#6B7280', borderColor: '#E5E7EB' }}>
+                      ? { background: '#AACC00', color: '#090A0C', borderColor: '#AACC00' }
+                      : { background: 'rgba(255,255,255,0.04)', color: '#64748B', borderColor: 'rgba(255,255,255,0.1)' }}>
                     {opt}
                   </button>
                 ))}
@@ -430,14 +445,14 @@ export default function HealthDeclaration() {
 
             {/* Allergies */}
             <div>
-              <p className="text-sm font-semibold text-gray-800 mb-2">Any known allergies?</p>
+              <p className="text-sm font-semibold mb-2" style={{ color: '#94A3B8' }}>Any known allergies?</p>
               <div className="flex gap-2 mb-2">
                 {['Yes', 'No'].map(opt => (
                   <button key={opt} type="button" onClick={() => setHasAllergies(opt === 'Yes')}
                     className="px-4 py-1.5 rounded-xl text-sm font-semibold border transition-all"
                     style={hasAllergies === (opt === 'Yes')
-                      ? { background: DS.green, color: '#fff', borderColor: DS.green }
-                      : { background: DS.surface, color: '#6B7280', borderColor: '#E5E7EB' }}>
+                      ? { background: '#AACC00', color: '#090A0C', borderColor: '#AACC00' }
+                      : { background: 'rgba(255,255,255,0.04)', color: '#64748B', borderColor: 'rgba(255,255,255,0.1)' }}>
                     {opt}
                   </button>
                 ))}
@@ -452,11 +467,11 @@ export default function HealthDeclaration() {
         </div>
 
         {/* Emergency medical contact */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <h2 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2">
-            <Phone size={15} color="#0118A1" /> In-Country Emergency Medical Contact
+        <div className="rounded-2xl p-5" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <h2 className="text-sm font-bold mb-1 flex items-center gap-2" style={{ color: '#F1F5F9' }}>
+            <Phone size={15} color="#60A5FA" /> In-Country Emergency Medical Contact
           </h2>
-          <p className="text-xs text-gray-400 mb-4">A local contact who can assist in a medical emergency (doctor, local host, colleague).</p>
+          <p className="text-xs mb-4" style={{ color: '#64748B' }}>A local contact who can assist in a medical emergency (doctor, local host, colleague).</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className={labelCls}>Full name</label>
@@ -474,16 +489,16 @@ export default function HealthDeclaration() {
         </div>
 
         {/* Final declarations */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-            <FileText size={15} color="#0118A1" /> Final Declarations
+        <div className="rounded-2xl p-5 space-y-4" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <h2 className="text-sm font-bold flex items-center gap-2" style={{ color: '#F1F5F9' }}>
+            <FileText size={15} color="#60A5FA" /> Final Declarations
           </h2>
           <label className="flex items-start gap-3 cursor-pointer">
             <input type="checkbox" checked={insuranceConfirmed} onChange={e => setInsuranceConfirmed(e.target.checked)}
-              className="w-4 h-4 mt-0.5 accent-[#0118A1]" />
+              className="w-4 h-4 mt-0.5 accent-[#AACC00]" />
             <div>
-              <p className="text-sm font-semibold text-gray-900">I have valid travel insurance for this trip</p>
-              <p className="text-xs text-gray-400 mt-0.5">Including medical evacuation and emergency hospitalisation cover.</p>
+              <p className="text-sm font-semibold" style={{ color: '#F1F5F9' }}>I have valid travel insurance for this trip</p>
+              <p className="text-xs mt-0.5" style={{ color: '#64748B' }}>Including medical evacuation and emergency hospitalisation cover.</p>
             </div>
           </label>
           <div>
@@ -509,7 +524,7 @@ export default function HealthDeclaration() {
               : <><ShieldCheck size={15} />{existing ? 'Update declaration' : 'Submit health declaration'}</>}
           </button>
           <button type="button" onClick={() => navigate('/itinerary')}
-            className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+            className="text-sm transition-colors" style={{ color: '#64748B' }}>
             Cancel
           </button>
         </div>
