@@ -164,7 +164,7 @@ export default function Itinerary() {
         setHealthSet(new Set((healthDecs || []).map(d => d.trip_id)))
       }
 
-      const { data: prof } = await supabase.from('profiles').select('*').eq('id', uid).single()
+      const { data: prof } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle()
       setProfile(prof || null)
     } catch {
       setLoadError('Something went wrong loading your trips.')

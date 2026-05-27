@@ -48,6 +48,7 @@ export default function HealthDeclaration() {
   const [notes, setNotes]               = useState('')
   const [submitting, setSubmitting]     = useState(false)
   const [submitted, setSubmitted]       = useState(false)
+  const [editing, setEditing]           = useState(false)  // true = show edit form when existing
   const [error, setError]               = useState('')
 
   const fetchReqs = useCallback(async (tripData, existingDec) => {
@@ -180,21 +181,35 @@ export default function HealthDeclaration() {
     </Layout>
   )
 
-  if (submitted) return (
+  // Completed view — shown when navigating back to an already-submitted declaration
+  // (without clicking Edit), OR immediately after a fresh submission this session.
+  if (submitted || (existing && !editing)) return (
     <Layout>
       <div className="max-w-lg mx-auto py-16 text-center">
         <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: DS.greenDim }}>
           <ShieldCheck size={30} className="text-[#AACC00]" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Health declaration submitted</h1>
-        <p className="text-sm text-gray-500 mb-6">
-          Your pre-travel health declaration for <strong>{trip?.trip_name}</strong> has been recorded. Travel safely.
+        <h1 className="text-xl font-bold mb-2" style={{ color: DS.text || '#F1F5F9' }}>Health declaration submitted</h1>
+        {existing?.submitted_at && (
+          <p className="text-xs mb-1" style={{ color: '#64748B' }}>
+            Submitted {new Date(existing.submitted_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+          </p>
+        )}
+        <p className="text-sm mb-8" style={{ color: '#94A3B8' }}>
+          Your pre-travel health declaration for <strong style={{ color: '#F1F5F9' }}>{trip?.trip_name}</strong> has been recorded. Travel safely.
         </p>
-        <button onClick={() => navigate('/itinerary')}
-          className="px-6 py-3 rounded-xl text-sm font-bold text-white"
-          style={{ background: DS.green }}>
-          Back to my itinerary →
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button onClick={() => navigate('/itinerary')}
+            className="px-6 py-3 rounded-xl text-sm font-bold"
+            style={{ background: DS.green, color: '#090A0C' }}>
+            Back to my itinerary →
+          </button>
+          <button onClick={() => setEditing(true)}
+            className="px-6 py-3 rounded-xl text-sm font-semibold"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#94A3B8' }}>
+            Update declaration
+          </button>
+        </div>
       </div>
     </Layout>
   )
