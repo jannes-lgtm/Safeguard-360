@@ -156,17 +156,26 @@ export default function HealthDeclaration() {
           .from('pre_travel_health').update(payload).eq('id', existing.id)
         if (updateErr) throw new Error(updateErr.message)
       } else {
-        // Use upsert on (trip_id, user_id) so a duplicate submit doesn't create a
-        // second row — handles the edge-case where the user double-taps the button.
+        // Try upsert first (handles both insert + update on duplicate)
         const { error: upsertErr } = await supabase
           .from('pre_travel_health')
           .upsert(payload, { onConflict: 'trip_id,user_id' })
         if (upsertErr) {
-          // Fallback: upsert may fail if the unique constraint doesn't exist yet —
-          // try a plain insert so at least new records are created correctly.
-          const { error: insertErr } = await supabase
-            .from('pre_travel_health').insert(payload)
-          if (insertErr) throw new Error(insertErr.message)
+          // Upsert failed (e.g. RLS blocks the implicit UPDATE path).
+          // Look up the existing row directly and UPDATE it — this handles the
+          // case where RLS prevented the initial SELECT so existing===null.
+          const { data: existingRow } = await supabase
+            .from('pre_travel_health')
+            .select('id').eq('trip_id', tripId).eq('user_id', user.id).maybeSingle()
+          if (existingRow) {
+            const { error: updateErr } = await supabase
+              .from('pre_travel_health').update(payload).eq('id', existingRow.id)
+            if (updateErr) throw new Error(updateErr.message)
+          } else {
+            const { error: insertErr } = await supabase
+              .from('pre_travel_health').insert(payload)
+            if (insertErr) throw new Error(insertErr.message)
+          }
         }
       }
       setSubmitted(true)
