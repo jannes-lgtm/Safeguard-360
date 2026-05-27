@@ -10,6 +10,8 @@
     "api/trip-alert-scan.js":         { "maxDuration": 120 },
     "api/ai-assistant.js":            { "maxDuration": 45 },
     "api/notify.js":                  { "maxDuration": 30 },
+    "api/sos-trigger.js":             { "maxDuration": 30 },
+    "api/sos-escalation-check.js":    { "maxDuration": 30 },
     "api/rss-ingest.js":              { "maxDuration": 30 },
     "api/acled.js":                   { "maxDuration": 30 },
     "api/flight-status.js":           { "maxDuration": 20 },
@@ -53,6 +55,7 @@
     "api/intel-health.js":            { "maxDuration": 30 }
   },
   "crons": [
+    { "path": "/api/sos-escalation-check",  "schedule": "*/5 * * * *"  },
     { "path": "/api/scan-all",              "schedule": "0 */4 * * *"  },
     { "path": "/api/missed-checkins",       "schedule": "0 * * * *"    },
     { "path": "/api/passport-expiry",       "schedule": "0 7 * * *"    },

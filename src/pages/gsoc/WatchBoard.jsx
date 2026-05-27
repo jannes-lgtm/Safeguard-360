@@ -374,6 +374,13 @@ export default function WatchBoard() {
   const [loading,      setLoading]      = useState(true)
   const [rtStatus,     setRtStatus]     = useState('connecting') // connecting | live | error
 
+  // Realtime debounce + reconnect refs
+  const rtDebounceRef    = useRef(null)     // debounce timer for realtime-triggered fetchAll
+  const rtChannelRef     = useRef(null)     // current Supabase channel ref
+  const rtReconnectRef   = useRef(null)     // reconnect timer ref
+  const mountedRef       = useRef(true)     // prevents state updates after unmount
+  const rtAttempts       = useRef(0)        // reconnect attempt counter
+
   const [threatFeed,   setThreatFeed]   = useState([])
   const [newsFeed,     setNewsFeed]     = useState([])
   const [feedsLoading, setFeedsLoading] = useState(true)
@@ -457,36 +464,84 @@ export default function WatchBoard() {
     setFeedsLoading(false)
   }, [])
 
+  // ── Debounced fetchAll for realtime callbacks ─────────────────────────────
+  // Rapid changes on multiple tables (e.g. SOS creation triggers incidents +
+  // escalations simultaneously) would otherwise fire 5× fetchAll in rapid
+  // succession (= 30 Supabase queries in <1s). The 400ms debounce collapses
+  // bursts into a single refresh.
+  const debouncedFetchAll = useCallback(() => {
+    clearTimeout(rtDebounceRef.current)
+    rtDebounceRef.current = setTimeout(() => {
+      if (mountedRef.current) fetchAll()
+    }, 400)
+  }, [fetchAll])
+
+  // ── Realtime subscription (with reconnect) ────────────────────────────────
+  const subscribeRealtime = useCallback(() => {
+    if (!mountedRef.current) return
+
+    // Clean up any existing channel before creating a new one
+    if (rtChannelRef.current) {
+      supabase.removeChannel(rtChannelRef.current)
+      rtChannelRef.current = null
+    }
+    clearTimeout(rtReconnectRef.current)
+    if (mountedRef.current) setRtStatus('connecting')
+
+    const channel = supabase
+      .channel(`gsoc-realtime-v2-${Date.now()}`)  // unique name prevents ghost channels
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sos_events'       }, debouncedFetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents'        }, debouncedFetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gsoc_escalations' }, debouncedFetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gsoc_tasks'       }, debouncedFetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_locations'  }, debouncedFetchAll)
+      .subscribe((status) => {
+        if (!mountedRef.current) return
+        if (status === 'SUBSCRIBED') {
+          setRtStatus('live')
+          rtAttempts.current = 0
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setRtStatus('error')
+          supabase.removeChannel(channel)
+          rtChannelRef.current = null
+
+          // Exponential backoff reconnect (max 4 attempts, then rely on polling)
+          const attempt = rtAttempts.current + 1
+          rtAttempts.current = attempt
+          if (attempt <= 4) {
+            const delay = Math.min(2000 * Math.pow(2, attempt - 1), 30_000)
+            console.warn(`[WatchBoard] Realtime ${status} — reconnecting in ${delay}ms (attempt ${attempt})`)
+            rtReconnectRef.current = setTimeout(subscribeRealtime, delay)
+          } else {
+            console.warn('[WatchBoard] Realtime: max reconnect attempts reached — polling fallback active')
+          }
+        }
+      })
+
+    rtChannelRef.current = channel
+  }, [debouncedFetchAll])
+
   useEffect(() => {
+    mountedRef.current = true
     fetchAll()
     fetchFeeds()
 
-    // ── Polling fallback (keeps data fresh if Realtime connection drops) ──────
+    // ── Polling fallback (30s belt-and-suspenders; also covers Realtime outages) ─
     const interval     = setInterval(fetchAll, REFRESH_MS)
     const feedInterval = setInterval(fetchFeeds, 5 * 60 * 1000)
 
-    // ── Supabase Realtime — instant push on any operational change ─────────────
-    // Fires fetchAll immediately when rows change in any watched table.
-    // Keeps 30s poll as belt-and-suspenders fallback.
-    const channel = supabase
-      .channel('gsoc-realtime-v1')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sos_events' },        fetchAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' },          fetchAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'gsoc_escalations' },   fetchAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'gsoc_tasks' },         fetchAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_locations' },    fetchAll)
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') setRtStatus('live')
-        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setRtStatus('error')
-        else setRtStatus('connecting')
-      })
+    // ── Realtime (debounced, auto-reconnecting) ───────────────────────────────
+    subscribeRealtime()
 
     return () => {
+      mountedRef.current = false
       clearInterval(interval)
       clearInterval(feedInterval)
-      supabase.removeChannel(channel)
+      clearTimeout(rtDebounceRef.current)
+      clearTimeout(rtReconnectRef.current)
+      if (rtChannelRef.current) supabase.removeChannel(rtChannelRef.current)
     }
-  }, [fetchAll, fetchFeeds])
+  }, [fetchAll, fetchFeeds, subscribeRealtime])
 
   const ackEscalation = async (id) => {
     await supabase.from('gsoc_escalations')

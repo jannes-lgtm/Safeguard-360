@@ -28,7 +28,6 @@ import {
 import Layout from '../components/Layout'
 import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
-import { resolveCountry } from '../lib/cityToCountry'
 import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 
 const fmtDate = d => d ? new Date(d).toLocaleString('en-GB', {
@@ -161,69 +160,62 @@ export default function SOS() {
     capture()
   }
 
+  const [deliveryResult, setDeliveryResult] = useState(null) // { delivered, total, message, status }
+
   const sendSOS = async () => {
     setStep('sending')
-    // Use server-verified getUser() — getSession() only reads local JWT without verification
-    const { data: { user }, error: userErr } = await supabase.auth.getUser()
-    if (userErr || !user) { setError('Session expired — please log in again'); setStep('confirm'); return }
+    setError('')
 
-    // Retrieve access token for API call (getSession is fine here — we already verified the user above)
+    // Retrieve access token — session is fine here since we only use it to
+    // call our own backend (which re-verifies via getUser() server-side).
     const { data: { session } } = await supabase.auth.getSession()
-
-    const payload = {
-      user_id: user.id,
-      full_name: profile?.full_name || profile?.email || 'Unknown',
-      latitude: pos?.latitude || null,
-      longitude: pos?.longitude || null,
-      accuracy: pos?.accuracy || null,
-      location_label: pos ? `${pos.latitude.toFixed(5)}, ${pos.longitude.toFixed(5)}` : null,
-      message: message.trim() || null,
-      trip_name: activeTrip?.trip_name || null,
-      arrival_city: activeTrip?.arrival_city || null,
-      status: 'active',
+    if (!session?.access_token) {
+      setError('Session expired — please log in again')
+      setStep('confirm')
+      return
     }
 
-    const { error: sosErr } = await supabase.from('sos_events').insert(payload)
+    // Single server-side call: creates SOS event + fires notifications atomically.
+    // The server verifies the JWT independently and returns verified delivery status.
+    // No client-side DB insert — server is authoritative source of the SOS record.
+    try {
+      const r = await fetch('/api/sos-trigger', {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          latitude:     pos?.latitude     || null,
+          longitude:    pos?.longitude    || null,
+          accuracy:     pos?.accuracy     || null,
+          message:      message.trim()    || null,
+          trip_name:    activeTrip?.trip_name    || null,
+          arrival_city: activeTrip?.arrival_city || null,
+        }),
+      })
 
-    if (sosErr) { setError(sosErr.message); setStep('confirm'); return }
-
-    // Also create a Critical alert so it appears in the alerts feed
-    await supabase.from('alerts').insert({
-      title: `🆘 SOS — ${payload.full_name}`,
-      description: message.trim() || `SOS triggered by ${payload.full_name}${activeTrip ? ` in ${activeTrip.arrival_city}` : ''}. Immediate response required.`,
-      country: resolveCountry(activeTrip?.arrival_city) || activeTrip?.arrival_city || 'Unknown',
-      location: payload.location_label || activeTrip?.arrival_city || null,
-      severity: 'Critical',
-      status: 'Active',
-      date_issued: new Date().toISOString().split('T')[0],
-    })
-
-    // Send SOS notifications with retry — critical path, must not silently fail
-    if (session?.access_token) {
-      const notifyWithRetry = async (attempt = 1) => {
-        try {
-          const r = await fetch('/api/notify', {
-            method: 'POST',
-            headers: {
-              'Content-Type':  'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ type: 'sos', ...payload }),
-          })
-          if (!r.ok && attempt < 3) {
-            await new Promise(res => setTimeout(res, attempt * 2000))
-            return notifyWithRetry(attempt + 1)
-          }
-          if (!r.ok) console.error('[SOS] notify failed after 3 attempts:', r.status)
-        } catch (e) {
-          if (attempt < 3) {
-            await new Promise(res => setTimeout(res, attempt * 2000))
-            return notifyWithRetry(attempt + 1)
-          }
-          console.error('[SOS] notify network failure after 3 attempts:', e.message)
-        }
+      // 500 = SOS was NOT stored — hard error
+      if (r.status === 500) {
+        const body = await r.json().catch(() => ({}))
+        setError(body.error || 'Failed to record SOS. Please call emergency services directly.')
+        setStep('confirm')
+        return
       }
-      notifyWithRetry()
+
+      const body = await r.json().catch(() => ({}))
+      setDeliveryResult({
+        delivered: body.delivered ?? 0,
+        total:     body.total     ?? 0,
+        message:   body.message   || '',
+        status:    body.status    || 'unknown',
+        sosId:     body.sosId     || null,
+      })
+    } catch (e) {
+      // Network failure after SOS intent — give clear recovery guidance
+      setError('Network error. If this is a real emergency, call your emergency contacts directly or use local emergency services.')
+      setStep('confirm')
+      return
     }
 
     setStep('sent')
@@ -268,18 +260,34 @@ export default function SOS() {
           </div>
         </div>
 
-        {/* Sent confirmation */}
+        {/* Sent confirmation — shows verified delivery status */}
         {step === 'sent' ? (
-          <div className="bg-[rgba(138,46,46,0.12)] border-2 border-red-400 rounded-[12px] p-8 text-center mb-6">
-            <AlertOctagon size={40} className="text-[#EF7474] mx-auto mb-3"/>
-            <h2 className="text-xl font-bold text-red-800 mb-2">SOS Alert Sent</h2>
-            <p className="text-sm text-[#EF7474] mb-1">Your emergency team has been notified.</p>
+          <div className={`border-2 rounded-[12px] p-8 text-center mb-6 ${
+            deliveryResult?.delivered > 0
+              ? 'bg-[rgba(138,46,46,0.12)] border-red-400'
+              : 'bg-[rgba(144,106,37,0.12)] border-amber-400'
+          }`}>
+            <AlertOctagon size={40} className={`mx-auto mb-3 ${deliveryResult?.delivered > 0 ? 'text-[#EF7474]' : 'text-amber-500'}`}/>
+            <h2 className={`text-xl font-bold mb-2 ${deliveryResult?.delivered > 0 ? 'text-red-800' : 'text-amber-800'}`}>
+              {deliveryResult?.delivered > 0 ? 'SOS Alert Sent' : 'SOS Recorded'}
+            </h2>
+            {deliveryResult?.message && (
+              <p className={`text-sm mb-1 ${deliveryResult.delivered > 0 ? 'text-[#EF7474]' : 'text-amber-700'}`}>
+                {deliveryResult.message}
+              </p>
+            )}
+            {deliveryResult?.delivered === 0 && (
+              <p className="text-xs text-amber-600 mt-2 font-semibold">
+                ⚠ If this is an active emergency, contact your emergency team directly.
+                The system will automatically retry notification within 5 minutes.
+              </p>
+            )}
             {pos && (
               <div className="mt-3 flex justify-center">
                 <W3WAddress lat={pos.latitude} lng={pos.longitude} />
               </div>
             )}
-            <button onClick={() => setStep('idle')} className="mt-5 text-sm text-[#EF7474] underline">
+            <button onClick={() => { setStep('idle'); setDeliveryResult(null) }} className="mt-5 text-sm text-[#EF7474] underline">
               Back
             </button>
           </div>
