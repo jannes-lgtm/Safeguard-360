@@ -76,6 +76,7 @@ import Geofences        from './pages/Geofences'
 import Landing          from './pages/Landing'
 import ProtectedRoute   from './components/ProtectedRoute'
 import PasswordGate     from './components/PasswordGate'
+import ErrorBoundary    from './components/ErrorBoundary'
 
 // ── Auth state watcher ────────────────────────────────────────────────────────
 // Handles session expiry and token refresh events.
@@ -124,11 +125,11 @@ export default function App() {
             <Route path="/org-onboarding" element={<ProtectedRoute noGates><OrgOnboarding /></ProtectedRoute>} />
 
             {/* ── TRAVEL domain ─────────────────────────────────────────────── */}
-            <Route path="/dashboard"      element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/dashboard"      element={<ErrorBoundary context="Dashboard"><ProtectedRoute><Dashboard /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/itinerary"      element={<ProtectedRoute module="my_trips"><Itinerary /></ProtectedRoute>} />
             <Route path="/approvals"      element={<ProtectedRoute module="travel_approvals"><TravelApprovals /></ProtectedRoute>} />
             <Route path="/checkin"        element={<ProtectedRoute module="check_in"><CheckIn /></ProtectedRoute>} />
-            <Route path="/live-map"       element={<ProtectedRoute module="live_location"><LiveMap /></ProtectedRoute>} />
+            <Route path="/live-map"       element={<ErrorBoundary context="LiveMap"><ProtectedRoute module="live_location"><LiveMap /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/visa"           element={<ProtectedRoute module="visa"><Visa /></ProtectedRoute>} />
 
             {/* Briefing / debrief are travel-adjacent, session-gated only */}
@@ -146,18 +147,18 @@ export default function App() {
             <Route path="/intel-feeds"    element={<ProtectedRoute module="intel_feeds"><IntelFeeds /></ProtectedRoute>} />
 
             {/* ── OPERATIONS domain ─────────────────────────────────────────── */}
-            <Route path="/gsoc"           element={<ProtectedRoute module="watch_board"><WatchBoard /></ProtectedRoute>} />
+            <Route path="/gsoc"           element={<ErrorBoundary context="WatchBoard"><ProtectedRoute module="watch_board"><WatchBoard /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/gsoc/projects"  element={<ProtectedRoute module="gsoc_projects"><Projects /></ProtectedRoute>} />
             <Route path="/gsoc/shift-log" element={<ProtectedRoute module="shift_log"><ShiftLog /></ProtectedRoute>} />
-            <Route path="/movement"       element={<ProtectedRoute module="movement_intel"><MovementIntel /></ProtectedRoute>} />
-            <Route path="/control-room"   element={<ProtectedRoute module="control_room"><ControlRoom /></ProtectedRoute>} />
-            <Route path="/heat-map"       element={<ProtectedRoute module="heat_map"><HeatMap /></ProtectedRoute>} />
-            <Route path="/geofences"      element={<ProtectedRoute module="alert_zones"><Geofences /></ProtectedRoute>} />
-            <Route path="/live-traffic"   element={<ProtectedRoute module="live_traffic"><LiveTraffic /></ProtectedRoute>} />
+            <Route path="/movement"       element={<ErrorBoundary context="MovementIntel"><ProtectedRoute module="movement_intel"><MovementIntel /></ProtectedRoute></ErrorBoundary>} />
+            <Route path="/control-room"   element={<ErrorBoundary context="ControlRoom"><ProtectedRoute module="control_room"><ControlRoom /></ProtectedRoute></ErrorBoundary>} />
+            <Route path="/heat-map"       element={<ErrorBoundary context="HeatMap"><ProtectedRoute module="heat_map"><HeatMap /></ProtectedRoute></ErrorBoundary>} />
+            <Route path="/geofences"      element={<ErrorBoundary context="Geofences"><ProtectedRoute module="alert_zones"><Geofences /></ProtectedRoute></ErrorBoundary>} />
+            <Route path="/live-traffic"   element={<ErrorBoundary context="LiveTraffic"><ProtectedRoute module="live_traffic"><LiveTraffic /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/ops-intel"      element={<ProtectedRoute module="route_intel"><OperationalIntel /></ProtectedRoute>} />
             <Route path="/projects"       element={<ProtectedRoute module="projects"><ProjectsList /></ProtectedRoute>} />
             <Route path="/projects/:id"   element={<ProtectedRoute module="projects"><ProjectDetail /></ProtectedRoute>} />
-            <Route path="/tracker"        element={<ProtectedRoute module="asset_tracker"><Tracker /></ProtectedRoute>} />
+            <Route path="/tracker"        element={<ErrorBoundary context="Tracker"><ProtectedRoute module="asset_tracker"><Tracker /></ProtectedRoute></ErrorBoundary>} />
 
             {/* ── RESPONSE domain ───────────────────────────────────────────── */}
             <Route path="/sos"            element={<ProtectedRoute module="sos"><SOS /></ProtectedRoute>} />

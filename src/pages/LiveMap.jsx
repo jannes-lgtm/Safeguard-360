@@ -158,6 +158,7 @@ export default function LiveMap() {
   const reconnectTimer   = useRef(null)
   const styleChanging    = useRef(false)
   const locationsRef     = useRef([])        // keep ref in sync for closure access
+  const mountedRef       = useRef(true)      // cancels waitForMap / waitForStyle polls on unmount
 
   // ── Initial data load ───────────────────────────────────────────────────────
   const loadInitialData = useCallback(async () => {
@@ -220,8 +221,18 @@ export default function LiveMap() {
 
   useEffect(() => { loadInitialData() }, [loadInitialData])
 
+  // ── Mounted guard — prevents recursive setTimeout polls from firing after unmount ──
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
+
   // ── Supabase Realtime subscription ─────────────────────────────────────────
   const subscribeRealtime = useCallback(() => {
+    // Don't subscribe until we know the user's role — prevents solo users from
+    // receiving all-user location events during the brief pre-load window.
+    if (!profile?.id) return
+
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
       channelRef.current = null
@@ -496,6 +507,7 @@ export default function LiveMap() {
     if (!map) return
 
     const waitForMap = () => {
+      if (!mountedRef.current) return   // component unmounted — stop polling
       if (!map.isStyleLoaded()) { setTimeout(waitForMap, 100); return }
 
       const currentIds = new Set(locations.map(l => l.user_id))
@@ -576,6 +588,7 @@ export default function LiveMap() {
     const pos = [myPos.longitude, myPos.latitude]
 
     const waitForStyle = () => {
+      if (!mountedRef.current) return   // component unmounted — stop polling
       if (!map.isStyleLoaded()) { setTimeout(waitForStyle, 100); return }
       if (myMarkerRef.current) {
         myMarkerRef.current.setLngLat(pos)
@@ -789,7 +802,7 @@ export default function LiveMap() {
               {/* Stats strip */}
               <div className={`grid grid-cols-3 gap-1.5 rounded-xl p-2.5 border backdrop-blur-md ${panelBg}`}>
                 {[
-                  { label: 'Sharing',  value: locations.length,    color: DS.bg },
+                  { label: 'Sharing',  value: locations.length,    color: BRAND_GREEN },
                   { label: 'Alerts',   value: tripAlerts.length,   color: tripAlerts.some(a => a.severity === 'Critical') ? '#ef4444' : '#f59e0b' },
                   { label: 'Nearby',   value: proximityWarnings.length, color: proximityWarnings.length ? '#ef4444' : '#6b7280' },
                 ].map(s => (
@@ -834,7 +847,7 @@ export default function LiveMap() {
                     )}
                     <button onClick={startSharing}
                       className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition"
-                      style={{ background: BRAND_GREEN, color: DS.green }}>
+                      style={{ background: BRAND_GREEN, color: DS.bg }}>
                       <Navigation size={12} /> Share My Location
                     </button>
                     <p className={`text-[9px] text-center ${subText}`}>Shares every 30s — not continuous</p>

@@ -163,8 +163,12 @@ export default function SOS() {
 
   const sendSOS = async () => {
     setStep('sending')
+    // Use server-verified getUser() — getSession() only reads local JWT without verification
+    const { data: { user }, error: userErr } = await supabase.auth.getUser()
+    if (userErr || !user) { setError('Session expired — please log in again'); setStep('confirm'); return }
+
+    // Retrieve access token for API call (getSession is fine here — we already verified the user above)
     const { data: { session } } = await supabase.auth.getSession()
-    const user = session?.user
 
     const payload = {
       user_id: user.id,
