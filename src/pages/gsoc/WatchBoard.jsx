@@ -126,7 +126,7 @@ function IncidentsPanel({ incidents }) {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-white truncate">{i.title}</p>
-                <p className="text-[11px] text-white/40">{i.country}{i.location ? ` · ${i.location}` : ''} · {timeAgo(i.created_at)}</p>
+                <p className="text-[11px] text-white/40">{[i.city, i.country].filter(Boolean).join(', ')} · {timeAgo(i.created_at)}</p>
               </div>
             </div>
           </div>
@@ -396,7 +396,7 @@ export default function WatchBoard() {
         .order('created_at', { ascending: false }).limit(20),
 
       supabase.from('incidents')
-        .select('id,title,severity,status,country,location,created_at,incident_type')
+        .select('id,title,severity,status,country,city,type,created_at')
         .in('status', ['Open', 'Under Review'])
         .gte('created_at', cutoff)
         .order('created_at', { ascending: false }).limit(20),
