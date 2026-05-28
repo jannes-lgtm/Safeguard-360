@@ -93,7 +93,7 @@ export const RISK_MAP = {
 
   // ── Low ─────────────────────────────────────────────────────────────────────
   'South Africa':                  { lat: -25.7461, lon: 28.1881,  risk: 'Low',      region: 'Africa'       },
-  'Ghana':                         { lat: 5.6037,   lon: -0.1870,  risk: 'Low',      region: 'Africa'       },
+  'Ghana':                         { lat: 5.6037,   lon: -0.1870,  risk: 'High',     region: 'Africa'       },
   'Rwanda':                        { lat: -1.9441,  lon: 30.0619,  risk: 'Low',      region: 'Africa'       },
   'Senegal':                       { lat: 14.7167,  lon: -17.4677, risk: 'Low',      region: 'Africa'       },
   'Morocco':                       { lat: 33.9716,  lon: -6.8498,  risk: 'Low',      region: 'Africa'       },

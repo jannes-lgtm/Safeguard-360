@@ -229,8 +229,17 @@ async function getCountryRisk(country) {
           ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
         }
         if (ai_brief) {
-          await sharedCache.set('risk-ai:' + cacheKey, ai_brief, 60 * 60 * 1000)
-          dbCacheSet(dbKey, ai_brief, CACHE_TTL)  // fire-and-forget
+          // Merge FCDO-derived severity so country-risk-summary always has a
+          // map-ready overall_severity even if the AI brief omits it.
+          const SEVER_ORDER = ['Low', 'Medium', 'High', 'Critical']
+          const aiSev   = ai_brief.overall_severity
+          const fcdoSev = severity   // levelToSeverity(fcdo.level)
+          const effectiveSev = (aiSev && fcdoSev)
+            ? SEVER_ORDER.indexOf(fcdoSev) > SEVER_ORDER.indexOf(aiSev) ? fcdoSev : aiSev
+            : aiSev || fcdoSev || null
+          const briefToCache = { ...ai_brief, overall_severity: effectiveSev }
+          await sharedCache.set('risk-ai:' + cacheKey, briefToCache, 60 * 60 * 1000)
+          dbCacheSet(dbKey, briefToCache, CACHE_TTL)  // fire-and-forget
         }
       }
     }
