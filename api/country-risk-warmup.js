@@ -17,27 +17,49 @@ import { getCountryRisk } from './country-risk.js'
 import { adapt }          from './_adapter.js'
 
 // ── Countries to keep warm ────────────────────────────────────────────────────
-// Tier A — highest operational activity, always warm
+// Tier A — critical/high risk, highest operational activity, always warm
 const TIER_A = [
-  'Nigeria', 'Kenya', 'South Africa', 'Ethiopia',
-  'Democratic Republic of Congo', 'Sudan', 'Somalia',
-  'Mali', 'Burkina Faso', 'Mozambique',
-  'Lebanon', 'Yemen', 'Iraq', 'Syria',
-  'Egypt', 'Libya',
-]
-
-// Tier B — warm if time permits
-const TIER_B = [
-  'Tanzania', 'Uganda', 'Ghana', 'Senegal', 'Rwanda',
-  'Zimbabwe', 'Cameroon', 'Chad', "Côte d'Ivoire", 'Niger',
-  'Tunisia', 'Algeria',
-  'Iran', 'UAE', 'Saudi Arabia',
+  // Africa — Critical/High
+  'Nigeria', 'Ethiopia', 'Democratic Republic of Congo', 'Sudan', 'Somalia',
+  'Mali', 'Burkina Faso', 'Niger', 'Chad', 'Mozambique', 'Libya',
+  'Central African Republic', 'Burundi', 'Guinea-Bissau', 'Guinea',
+  'Cameroon', 'Togo', 'Benin', 'Gabon', 'Eritrea',
+  // Middle East — Critical/High
+  'Lebanon', 'Yemen', 'Iraq', 'Syria', 'Iran',
+  'Israel', 'West Bank', 'United Arab Emirates',
+  // Asia — Critical/High
   'Afghanistan', 'Pakistan', 'Myanmar',
+  // Americas — Critical/High
+  'Haiti', 'Honduras', 'Guatemala', 'Ecuador', 'Nicaragua',
+  'Jamaica', 'Venezuela', 'Colombia', 'Mexico',
+  // Europe — Critical
+  'Ukraine', 'Russia',
 ]
 
-const BATCH_SIZE     = 3    // Countries processed concurrently per wave
-const WAVE_DELAY_MS  = 800  // Pause between waves (avoids API bursts)
-const COUNTRY_TIMEOUT_MS = 25000  // Per-country timeout
+// Tier B — medium risk, monitored destinations
+const TIER_B = [
+  // Africa — Medium
+  'Kenya', 'South Africa', 'Egypt', 'Tanzania', 'Uganda', 'Ghana',
+  'Senegal', 'Rwanda', 'Zimbabwe', 'Zambia', 'Angola', 'Algeria',
+  'Tunisia', 'Morocco', 'Sierra Leone', 'Liberia', 'Ivory Coast',
+  'Mauritania', 'Madagascar', 'Djibouti', 'Equatorial Guinea',
+  'Republic of Congo', 'Eswatini', 'Lesotho', 'Comoros',
+  'Malawi', 'Gambia',
+  // Middle East — Medium
+  'Jordan', 'Saudi Arabia',
+  // Americas — Medium
+  'Brazil', 'Colombia', 'Peru', 'Bolivia', 'El Salvador',
+  'Paraguay', 'Cuba', 'Dominican Republic', 'Trinidad and Tobago',
+  'Belize', 'Suriname', 'Guyana',
+  // Europe — Medium
+  'Turkey',
+  // Asia — Medium
+  'India', 'Indonesia', 'Philippines',
+]
+
+const BATCH_SIZE     = 5    // Countries processed concurrently per wave
+const WAVE_DELAY_MS  = 600  // Pause between waves (avoids API bursts)
+const COUNTRY_TIMEOUT_MS = 15000  // Per-country timeout
 
 async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
