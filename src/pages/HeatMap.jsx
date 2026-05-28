@@ -305,6 +305,10 @@ export default function HeatMap() {
         generateId: true,   // assigns sequential .id for feature-state
       })
 
+      // Insert fill layers BEFORE the first symbol layer so country name
+      // labels from the base style always render on top of our fills.
+      const firstSymbolId = map.getStyle().layers.find(l => l.type === 'symbol')?.id
+
       // Dark translucent fill for ALL unrated countries (base layer)
       map.addLayer({
         id: 'country-base',
@@ -314,7 +318,7 @@ export default function HeatMap() {
           'fill-color':   '#0f111a',
           'fill-opacity': 0.60,
         },
-      })
+      }, firstSymbolId)
 
       // Risk-coloured fill — only rated countries get colour
       map.addLayer({
@@ -330,7 +334,7 @@ export default function HeatMap() {
             0.65,
           ],
         },
-      })
+      }, firstSymbolId)
 
       // Subtle country border lines
       map.addLayer({
@@ -346,7 +350,7 @@ export default function HeatMap() {
           ],
           'line-opacity': 0.45,
         },
-      })
+      }, firstSymbolId)
 
       // ── 2. Point source for bubble mode ────────────────────────────────────
       map.addSource('country-points', {
