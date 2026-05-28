@@ -46,7 +46,8 @@ async function sleep(ms) {
 async function warmCountry(country) {
   try {
     await Promise.race([
-      getCountryRisk(country),
+      // forceRefresh=true: always fetch fresh FCDO, invalidate AI cache if level changed
+      getCountryRisk(country, { forceRefresh: true }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), COUNTRY_TIMEOUT_MS)),
     ])
     return { country, ok: true }

@@ -15,7 +15,7 @@
 
 import { comprehensiveRiskScan, synthesiseBrief, fetchGDACS, fetchUSGS, fetchHealthOutbreaks } from './_claudeSynth.js'
 import { checkRateLimit } from './_rateLimit.js'
-import { dbCacheGet, dbCacheSet } from './_dbCache.js'
+import { dbCacheGet, dbCacheSet, dbCacheDel } from './_dbCache.js'
 import { parseRssXml } from './_rssParser.js'
 import { sharedCache } from './_sharedCache.js'
 
@@ -191,7 +191,16 @@ async function fetchIssAlerts(country) {
 
 
 // ── Combined risk + AI synthesis ──────────────────────────────────────────────
-async function getCountryRisk(country) {
+// forceRefresh=true: bypass AI cache, always fetch fresh FCDO, re-synthesise
+// if FCDO level has changed. Used by the warmup cron to ensure map colours
+// reflect live advisory changes within one warmup cycle (~1 hour).
+async function getCountryRisk(country, { forceRefresh = false } = {}) {
+  // Always fetch FCDO fresh when forceRefresh — bypass sharedCache for FCDO
+  if (forceRefresh) {
+    const slug = fcdoSlug(country)
+    await sharedCache.delete('fcdo:' + slug)
+  }
+
   // Fetch all live sources in parallel for speed
   const [fcdo, iss, gdacs, usgs, health] = await Promise.all([
     fetchFcdo(country),
@@ -211,6 +220,17 @@ async function getCountryRisk(country) {
   if (apiKey) {
     const cacheKey = country.toLowerCase()
     const dbKey    = `country-risk:ai:${cacheKey}`
+
+    // On forceRefresh: check if FCDO level changed vs cached brief.
+    // If changed, invalidate the AI cache so we re-synthesise with current advisory.
+    if (forceRefresh && severity) {
+      const cached = await dbCacheGet(dbKey)
+      if (cached?.overall_severity && cached.overall_severity !== severity) {
+        await sharedCache.del('risk-ai:' + cacheKey)
+        await dbCacheDel(dbKey)   // invalidate — forces re-synthesis on next pass
+        console.log(`[country-risk] FCDO level changed for ${country}: ${cached.overall_severity} → ${severity} — forcing re-synthesis`)
+      }
+    }
 
     // L1 — shared cache (Redis when available, in-memory fallback)
     const l1Hit = await sharedCache.get('risk-ai:' + cacheKey)

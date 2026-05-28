@@ -64,6 +64,19 @@ export async function dbCacheSet(key, value, ttlMs = 3_600_000) {
 }
 
 /**
+ * Delete a specific cache entry immediately.
+ * @param {string} key
+ */
+export async function dbCacheDel(key) {
+  try {
+    const sb = getSupabaseAdmin()
+    await sb.from('api_cache').delete().eq('key', key)
+  } catch (e) {
+    console.warn('[dbCache] del failed (non-fatal):', e.message)
+  }
+}
+
+/**
  * Evict expired entries (call occasionally from a cron to keep the table tidy).
  * Non-blocking fire-and-forget — safe to call without awaiting.
  */
