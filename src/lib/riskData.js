@@ -132,7 +132,7 @@ export const RISK_MAP = {
   'Australia':                     { lat: -35.2809, lon: 149.1300, risk: 'Low',      region: 'Oceania'      },
   'Singapore':                     { lat: 1.3521,   lon: 103.8198, risk: 'Low',      region: 'Asia'         },
   'Japan':                         { lat: 35.6762,  lon: 139.6503, risk: 'Low',      region: 'Asia'         },
-  'United Arab Emirates':          { lat: 24.4539,  lon: 54.3773,  risk: 'Low',      region: 'Middle East'  },
+  'United Arab Emirates':          { lat: 24.4539,  lon: 54.3773,  risk: 'High',     region: 'Middle East'  },  // FCDO Level 3 — regional escalation (Iran/US/Israel)
 }
 
 export const RISK_CIRCLE_STYLE = {
