@@ -15,31 +15,41 @@ export const RISK_MAP = {
   'Iraq':                          { lat: 33.3152,  lon: 44.3661,  risk: 'Critical', region: 'Middle East'  },
   'Afghanistan':                   { lat: 34.5553,  lon: 69.2075,  risk: 'Critical', region: 'Asia'         },
   'Democratic Republic of Congo':  { lat: -4.3217,  lon: 15.3222,  risk: 'Critical', region: 'Africa'       },
+  'Mali':                          { lat: 12.3714,  lon: -8.0000,  risk: 'Critical', region: 'Africa'       },  // FCDO: advise against all travel
+  'Niger':                         { lat: 13.5137,  lon: 2.1098,   risk: 'Critical', region: 'Africa'       },  // FCDO: advise against all travel
+  'Burkina Faso':                  { lat: 12.3647,  lon: -1.5354,  risk: 'Critical', region: 'Africa'       },  // FCDO: advise against all travel
+  'Central African Republic':      { lat: 4.3947,   lon: 18.5582,  risk: 'Critical', region: 'Africa'       },  // FCDO: advise against all travel
+  'Myanmar':                       { lat: 19.7633,  lon: 96.0785,  risk: 'Critical', region: 'Asia'         },  // FCDO: advise against all travel — active civil war
+  'Haiti':                         { lat: 18.5944,  lon: -72.3074, risk: 'Critical', region: 'Americas'     },  // FCDO: advise against all travel — gang state collapse
+  'Ukraine':                       { lat: 50.4501,  lon: 30.5234,  risk: 'Critical', region: 'Europe'       },  // FCDO: advise against all travel — active war
+  'Russia':                        { lat: 55.7558,  lon: 37.6173,  risk: 'Critical', region: 'Europe'       },  // FCDO: advise against all travel
+  'Iran':                          { lat: 35.6892,  lon: 51.3890,  risk: 'Critical', region: 'Middle East'  },  // FCDO: advise against all travel
 
   // ── High ────────────────────────────────────────────────────────────────────
   'Nigeria':                       { lat: 9.0765,   lon: 7.3986,   risk: 'High',     region: 'Africa'       },
-  'Mali':                          { lat: 12.3714,  lon: -8.0000,  risk: 'High',     region: 'Africa'       },
-  'Niger':                         { lat: 13.5137,  lon: 2.1098,   risk: 'High',     region: 'Africa'       },
   'Chad':                          { lat: 12.1348,  lon: 15.0557,  risk: 'High',     region: 'Africa'       },
   'Ethiopia':                      { lat: 9.0320,   lon: 38.7469,  risk: 'High',     region: 'Africa'       },
   'Mozambique':                    { lat: -25.9692, lon: 32.5732,  risk: 'High',     region: 'Africa'       },
   'Eritrea':                       { lat: 15.3228,  lon: 38.9251,  risk: 'High',     region: 'Africa'       },
   'Burundi':                       { lat: -3.3869,  lon: 29.9102,  risk: 'High',     region: 'Africa'       },
   'Guinea-Bissau':                 { lat: 11.8037,  lon: -15.1804, risk: 'High',     region: 'Africa'       },
+  'Guinea':                        { lat: 9.6412,   lon: -13.5784, risk: 'High',     region: 'Africa'       },  // military junta, protest violence
+  'Cameroon':                      { lat: 3.8480,   lon: 11.5021,  risk: 'High',     region: 'Africa'       },  // Anglophone crisis + Boko Haram north
+  'Togo':                          { lat: 6.1375,   lon: 1.2124,   risk: 'High',     region: 'Africa'       },  // Sahel insurgency spreading south
+  'Benin':                         { lat: 6.3676,   lon: 2.4252,   risk: 'High',     region: 'Africa'       },  // Sahel insurgency spreading south
+  'Gabon':                         { lat: -0.8037,  lon: 11.6094,  risk: 'High',     region: 'Africa'       },  // post-coup instability
   'Lebanon':                       { lat: 33.8886,  lon: 35.4955,  risk: 'High',     region: 'Middle East'  },
   'Israel':                        { lat: 31.7683,  lon: 35.2137,  risk: 'High',     region: 'Middle East'  },
   'West Bank':                     { lat: 31.9522,  lon: 35.2332,  risk: 'High',     region: 'Middle East'  },
   'Pakistan':                      { lat: 33.6844,  lon: 73.0479,  risk: 'High',     region: 'Asia'         },
-  'Myanmar':                       { lat: 19.7633,  lon: 96.0785,  risk: 'High',     region: 'Asia'         },
-  'Haiti':                         { lat: 18.5944,  lon: -72.3074, risk: 'High',     region: 'Americas'     },
   'Honduras':                      { lat: 14.0723,  lon: -87.2062, risk: 'High',     region: 'Americas'     },
   'Guatemala':                     { lat: 14.6349,  lon: -90.5069, risk: 'High',     region: 'Americas'     },
   'Ecuador':                       { lat: -0.1807,  lon: -78.4678, risk: 'High',     region: 'Americas'     },
   'Nicaragua':                     { lat: 12.1328,  lon: -86.2976, risk: 'High',     region: 'Americas'     },
   'Jamaica':                       { lat: 17.9927,  lon: -76.7936, risk: 'High',     region: 'Americas'     },
-  'Ukraine':                       { lat: 50.4501,  lon: 30.5234,  risk: 'High',     region: 'Europe'       },
-  'Burkina Faso':                  { lat: 12.3647,  lon: -1.5354,  risk: 'High',     region: 'Africa'       },
-  'Central African Republic':      { lat: 4.3947,   lon: 18.5582,  risk: 'High',     region: 'Africa'       },
+  'Venezuela':                     { lat: 10.4806,  lon: -66.9036, risk: 'High',     region: 'Americas'     },  // FCDO Level 3+, state collapse indicators
+  'Colombia':                      { lat: 4.7110,   lon: -74.0721, risk: 'High',     region: 'Americas'     },  // FCDO Level 3 for significant areas
+  'Mexico':                        { lat: 19.4326,  lon: -99.1332, risk: 'High',     region: 'Americas'     },  // FCDO Level 3/4 for multiple states
 
   // ── Medium ──────────────────────────────────────────────────────────────────
   'Kenya':                         { lat: -1.2921,  lon: 36.8219,  risk: 'Medium',   region: 'Africa'       },
@@ -47,33 +57,26 @@ export const RISK_MAP = {
   'Tanzania':                      { lat: -6.1722,  lon: 35.7395,  risk: 'Medium',   region: 'Africa'       },
   'Zimbabwe':                      { lat: -17.8292, lon: 31.0522,  risk: 'Medium',   region: 'Africa'       },
   'Zambia':                        { lat: -15.4167, lon: 28.2833,  risk: 'Medium',   region: 'Africa'       },
-  'Cameroon':                      { lat: 3.8480,   lon: 11.5021,  risk: 'Medium',   region: 'Africa'       },
   'Egypt':                         { lat: 30.0444,  lon: 31.2357,  risk: 'Medium',   region: 'Africa'       },
   'Algeria':                       { lat: 36.7372,  lon: 3.0865,   risk: 'Medium',   region: 'Africa'       },
   'Tunisia':                       { lat: 36.8190,  lon: 10.1658,  risk: 'Medium',   region: 'Africa'       },
   'Angola':                        { lat: -8.8383,  lon: 13.2344,  risk: 'Medium',   region: 'Africa'       },
   'Sierra Leone':                  { lat: 8.4897,   lon: -13.2344, risk: 'Medium',   region: 'Africa'       },
   'Mauritania':                    { lat: 18.0735,  lon: -15.9582, risk: 'Medium',   region: 'Africa'       },
-  'Guinea':                        { lat: 9.6412,   lon: -13.5784, risk: 'Medium',   region: 'Africa'       },
   'Ivory Coast':                   { lat: 5.3600,   lon: -4.0083,  risk: 'Medium',   region: 'Africa'       },
-  'Benin':                         { lat: 6.3676,   lon: 2.4252,   risk: 'Medium',   region: 'Africa'       },
-  'Togo':                          { lat: 6.1375,   lon: 1.2124,   risk: 'Medium',   region: 'Africa'       },
   'Liberia':                       { lat: 6.2907,   lon: -10.7605, risk: 'Medium',   region: 'Africa'       },
   'Madagascar':                    { lat: -18.7669, lon: 46.8691,  risk: 'Medium',   region: 'Africa'       },
   'Djibouti':                      { lat: 11.5720,  lon: 43.1456,  risk: 'Medium',   region: 'Africa'       },
   'Equatorial Guinea':             { lat: 3.7523,   lon: 8.7742,   risk: 'Medium',   region: 'Africa'       },
-  'Gabon':                         { lat: -0.8037,  lon: 11.6094,  risk: 'Medium',   region: 'Africa'       },
   'Republic of Congo':             { lat: -4.2662,  lon: 15.2832,  risk: 'Medium',   region: 'Africa'       },
   'Eswatini':                      { lat: -26.3054, lon: 31.1367,  risk: 'Medium',   region: 'Africa'       },
   'Lesotho':                       { lat: -29.3142, lon: 27.4869,  risk: 'Medium',   region: 'Africa'       },
   'Comoros':                       { lat: -11.7022, lon: 43.2551,  risk: 'Medium',   region: 'Africa'       },
+  'South Africa':                  { lat: -25.7461, lon: 28.1881,  risk: 'Medium',   region: 'Africa'       },  // FCDO Level 2 — high crime, carjacking, gang violence
   'Jordan':                        { lat: 31.9539,  lon: 35.9106,  risk: 'Medium',   region: 'Middle East'  },
-  'Iran':                          { lat: 35.6892,  lon: 51.3890,  risk: 'Medium',   region: 'Middle East'  },
   'Saudi Arabia':                  { lat: 24.7136,  lon: 46.6753,  risk: 'Medium',   region: 'Middle East'  },
-  'Venezuela':                     { lat: 10.4806,  lon: -66.9036, risk: 'Medium',   region: 'Americas'     },
-  'Colombia':                      { lat: 4.7110,   lon: -74.0721, risk: 'Medium',   region: 'Americas'     },
+  'Turkey':                        { lat: 39.9334,  lon: 32.8597,  risk: 'Medium',   region: 'Europe'       },
   'Brazil':                        { lat: -15.7801, lon: -47.9292, risk: 'Medium',   region: 'Americas'     },
-  'Mexico':                        { lat: 19.4326,  lon: -99.1332, risk: 'Medium',   region: 'Americas'     },
   'El Salvador':                   { lat: 13.6929,  lon: -89.2182, risk: 'Medium',   region: 'Americas'     },
   'Bolivia':                       { lat: -16.5000, lon: -68.1500, risk: 'Medium',   region: 'Americas'     },
   'Peru':                          { lat: -12.0464, lon: -77.0428, risk: 'Medium',   region: 'Americas'     },
@@ -83,16 +86,11 @@ export const RISK_MAP = {
   'Trinidad and Tobago':           { lat: 10.6549,  lon: -61.5019, risk: 'Medium',   region: 'Americas'     },
   'Belize':                        { lat: 17.2510,  lon: -88.7590, risk: 'Medium',   region: 'Americas'     },
   'Suriname':                      { lat: 5.8520,   lon: -55.2038, risk: 'Medium',   region: 'Americas'     },
-  'Russia':                        { lat: 55.7558,  lon: 37.6173,  risk: 'Medium',   region: 'Europe'       },
-  'Romania':                       { lat: 44.4268,  lon: 26.1025,  risk: 'Medium',   region: 'Europe'       },
-  'Serbia':                        { lat: 44.8176,  lon: 20.4633,  risk: 'Medium',   region: 'Europe'       },
-  'Turkey':                        { lat: 39.9334,  lon: 32.8597,  risk: 'Medium',   region: 'Europe'       },
   'Indonesia':                     { lat: -6.2088,  lon: 106.8456, risk: 'Medium',   region: 'Asia'         },
   'Philippines':                   { lat: 14.5995,  lon: 120.9842, risk: 'Medium',   region: 'Asia'         },
   'India':                         { lat: 28.6139,  lon: 77.2090,  risk: 'Medium',   region: 'Asia'         },
 
   // ── Low ─────────────────────────────────────────────────────────────────────
-  'South Africa':                  { lat: -25.7461, lon: 28.1881,  risk: 'Low',      region: 'Africa'       },
   'Ghana':                         { lat: 5.6037,   lon: -0.1870,  risk: 'High',     region: 'Africa'       },
   'Rwanda':                        { lat: -1.9441,  lon: 30.0619,  risk: 'Low',      region: 'Africa'       },
   'Senegal':                       { lat: 14.7167,  lon: -17.4677, risk: 'Low',      region: 'Africa'       },
@@ -117,6 +115,8 @@ export const RISK_MAP = {
   'Guyana':                        { lat: 6.8013,   lon: -58.1551, risk: 'Low',      region: 'Americas'     },
   'Bahamas':                       { lat: 25.0343,  lon: -77.3963, risk: 'Low',      region: 'Americas'     },
   'Barbados':                      { lat: 13.1939,  lon: -59.5432, risk: 'Low',      region: 'Americas'     },
+  'Romania':                       { lat: 44.4268,  lon: 26.1025,  risk: 'Low',      region: 'Europe'       },
+  'Serbia':                        { lat: 44.8176,  lon: 20.4633,  risk: 'Low',      region: 'Europe'       },
   'United Kingdom':                { lat: 51.5074,  lon: -0.1278,  risk: 'Low',      region: 'Europe'       },
   'France':                        { lat: 48.8566,  lon: 2.3522,   risk: 'Low',      region: 'Europe'       },
   'Germany':                       { lat: 52.5200,  lon: 13.4050,  risk: 'Low',      region: 'Europe'       },
