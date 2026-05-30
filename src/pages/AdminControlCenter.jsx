@@ -1223,6 +1223,7 @@ export default function AdminControlCenter() {
   const [customFeeds, setCustomFeeds] = useState([])
   const [policies, setPolicies] = useState([])
   const [modules, setModules]   = useState([])
+  const [userActivity, setUserActivity] = useState({}) // { [user_id]: { last_sign_in_at, email_confirmed } }
   const [auditLogs, setAuditLogs]   = useState([])
   const [auditLoading, setAuditLoading] = useState(false)
   const [auditSearch, setAuditSearch]   = useState('')
@@ -1264,6 +1265,21 @@ export default function AdminControlCenter() {
     setCustomFeeds(f.data||[])
     setPolicies(pol.data||[])
     setModules(mod.data||[])
+
+    // Fetch last login data from auth.users (admin only, read-only)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        const actRes = await fetch('/api/admin-user-activity', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        if (actRes.ok) {
+          const { activity } = await actRes.json()
+          setUserActivity(activity || {})
+        }
+      }
+    } catch { /* non-fatal — activity column just won't show */ }
+
     setLoading(false); setRefreshing(false)
   }
 
@@ -1524,6 +1540,7 @@ export default function AdminControlCenter() {
                     <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Role</th>
                     <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Onboarding</th>
                     <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden xl:table-cell">Last Login</th>
                     <th className="text-right px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Actions</th>
                   </tr>
                 </thead>
@@ -1560,6 +1577,29 @@ export default function AdminControlCenter() {
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>Travelling
                               </div>
                             : <span className="text-gray-400 text-xs">At home</span>}
+                        </td>
+                        <td className="px-4 py-3 hidden xl:table-cell">
+                          {(() => {
+                            const act = userActivity[p.id]
+                            if (!act?.last_sign_in_at) return <span className="text-gray-400 text-xs">Never</span>
+                            const d = new Date(act.last_sign_in_at)
+                            const now = new Date()
+                            const diffMs = now - d
+                            const diffMins = Math.floor(diffMs / 60000)
+                            const diffHrs  = Math.floor(diffMs / 3600000)
+                            const diffDays = Math.floor(diffMs / 86400000)
+                            let label, color
+                            if (diffMins < 60)       { label = `${diffMins}m ago`;    color = '#22c55e' }
+                            else if (diffHrs < 24)   { label = `${diffHrs}h ago`;     color = '#22c55e' }
+                            else if (diffDays < 7)   { label = `${diffDays}d ago`;    color = '#AACC00' }
+                            else if (diffDays < 30)  { label = `${diffDays}d ago`;    color = '#94A3B8' }
+                            else                     { label = d.toLocaleDateString(); color = '#64748B' }
+                            return (
+                              <span className="text-xs font-medium" style={{ color }}>
+                                {label}
+                              </span>
+                            )
+                          })()}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1.5 flex-wrap">
