@@ -68,7 +68,7 @@ export const RISK_MAP = {
   'Angola':                        { lat: -8.8383,  lon: 13.2344,  risk: 'Medium',   region: 'Africa'       },
   'Sierra Leone':                  { lat: 8.4897,   lon: -13.2344, risk: 'Medium',   region: 'Africa'       },
   'Mauritania':                    { lat: 18.0735,  lon: -15.9582, risk: 'Medium',   region: 'Africa'       },
-  'Guinea':                        { lat: 9.6412,   lon: -13.5784, risk: 'Medium',   region: 'Africa'       },  // FCDO Level 1 — CAIRO assesses live
+  'Guinea':                        { lat: 9.6412,   lon: -13.5784, risk: 'Low',      region: 'Africa'       },  // FCDO Level 1
   'Guinea-Bissau':                 { lat: 11.8037,  lon: -15.1804, risk: 'Medium',   region: 'Africa'       },  // FCDO Level 1 — political instability
   'Gabon':                         { lat: -0.8037,  lon: 11.6094,  risk: 'Medium',   region: 'Africa'       },  // FCDO Level 1 — post-coup stabilising
   'Liberia':                       { lat: 6.2907,   lon: -10.7605, risk: 'Medium',   region: 'Africa'       },
