@@ -36,9 +36,6 @@ function UpgradePlanCard({ plan, current, onUpgrade, loading }) {
             </span>
           )}
         </div>
-        <span className="text-xs font-bold text-gray-500">
-          {plan.price != null ? `$${plan.price}/mo` : 'Custom'}
-        </span>
       </div>
 
       <p className="text-xs text-gray-500 leading-relaxed">{plan.tagline}</p>
@@ -269,12 +266,6 @@ export default function Billing() {
                   </p>
                 )}
               </div>
-              {planData?.price != null && (
-                <div className="text-right">
-                  <p className="text-2xl font-black text-gray-900">${planData.price}</p>
-                  <p className="text-xs text-gray-400">per month</p>
-                </div>
-              )}
             </div>
           </div>
 
