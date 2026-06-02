@@ -24,46 +24,53 @@ export const RISK_MAP = {
   'Ukraine':                       { lat: 50.4501,  lon: 30.5234,  risk: 'Critical', region: 'Europe'       },  // FCDO: advise against all travel — active war
   'Russia':                        { lat: 55.7558,  lon: 37.6173,  risk: 'Critical', region: 'Europe'       },  // FCDO: advise against all travel
   'Iran':                          { lat: 35.6892,  lon: 51.3890,  risk: 'Critical', region: 'Middle East'  },  // FCDO: advise against all travel
+  'Eritrea':                       { lat: 15.3229,  lon: 38.9251,  risk: 'Critical', region: 'Africa'       },  // FCDO Level 4 — advise against all travel
+  'Burundi':                       { lat: -3.3731,  lon: 29.9189,  risk: 'Critical', region: 'Africa'       },  // FCDO Level 4 — advise against all travel
+  'Israel':                        { lat: 31.7683,  lon: 35.2137,  risk: 'Critical', region: 'Middle East'  },  // FCDO Level 4 — advises against all travel to Israel and Palestine
+  'West Bank':                     { lat: 31.9522,  lon: 35.2332,  risk: 'Critical', region: 'Middle East'  },  // FCDO Level 4 — covered under Israel advisory
+  'Turkey':                        { lat: 39.9334,  lon: 32.8597,  risk: 'Critical', region: 'Europe'       },  // FCDO Level 4 — advises against all travel to SE Turkey
 
   // ── High ────────────────────────────────────────────────────────────────────
+  // Africa — FCDO Level 3 confirmed
   'Nigeria':                       { lat: 9.0765,   lon: 7.3986,   risk: 'High',     region: 'Africa'       },
   'Chad':                          { lat: 12.1348,  lon: 15.0557,  risk: 'High',     region: 'Africa'       },
   'Ethiopia':                      { lat: 9.0320,   lon: 38.7469,  risk: 'High',     region: 'Africa'       },
   'Mozambique':                    { lat: -25.9692, lon: 32.5732,  risk: 'High',     region: 'Africa'       },
-  'Eritrea':                       { lat: 15.3228,  lon: 38.9251,  risk: 'High',     region: 'Africa'       },
-  'Burundi':                       { lat: -3.3869,  lon: 29.9102,  risk: 'High',     region: 'Africa'       },
-  'Guinea-Bissau':                 { lat: 11.8037,  lon: -15.1804, risk: 'High',     region: 'Africa'       },
-  'Guinea':                        { lat: 9.6412,   lon: -13.5784, risk: 'Medium',   region: 'Africa'       },  // military junta but FCDO Level 1 — CAIRO assesses live
-  'Cameroon':                      { lat: 3.8480,   lon: 11.5021,  risk: 'High',     region: 'Africa'       },  // Anglophone crisis + Boko Haram north
-  'Togo':                          { lat: 6.1375,   lon: 1.2124,   risk: 'High',     region: 'Africa'       },  // Sahel insurgency spreading south
-  'Benin':                         { lat: 6.3676,   lon: 2.4252,   risk: 'High',     region: 'Africa'       },  // Sahel insurgency spreading south
-  'Gabon':                         { lat: -0.8037,  lon: 11.6094,  risk: 'High',     region: 'Africa'       },  // post-coup instability
+  'Cameroon':                      { lat: 3.8480,   lon: 11.5021,  risk: 'High',     region: 'Africa'       },
+  'Togo':                          { lat: 6.1375,   lon: 1.2124,   risk: 'High',     region: 'Africa'       },
+  'Benin':                         { lat: 6.3676,   lon: 2.4252,   risk: 'High',     region: 'Africa'       },
+  'Ivory Coast':                   { lat: 5.3600,   lon: -4.0083,  risk: 'High',     region: 'Africa'       },  // FCDO Level 3
+  'Kenya':                         { lat: -1.2921,  lon: 36.8219,  risk: 'High',     region: 'Africa'       },  // FCDO Level 3
+  'Tanzania':                      { lat: -6.1722,  lon: 35.7395,  risk: 'High',     region: 'Africa'       },  // FCDO Level 3
+  'Egypt':                         { lat: 30.0444,  lon: 31.2357,  risk: 'High',     region: 'Africa'       },  // FCDO Level 3
+  'Algeria':                       { lat: 36.7372,  lon: 3.0865,   risk: 'High',     region: 'Africa'       },  // FCDO Level 3
+  'Tunisia':                       { lat: 36.8190,  lon: 10.1658,  risk: 'High',     region: 'Africa'       },  // FCDO Level 3
+  // Middle East — FCDO Level 3 confirmed
   'Lebanon':                       { lat: 33.8886,  lon: 35.4955,  risk: 'High',     region: 'Middle East'  },
-  'Israel':                        { lat: 31.7683,  lon: 35.2137,  risk: 'High',     region: 'Middle East'  },
-  'West Bank':                     { lat: 31.9522,  lon: 35.2332,  risk: 'High',     region: 'Middle East'  },
   'Pakistan':                      { lat: 33.6844,  lon: 73.0479,  risk: 'High',     region: 'Asia'         },
-  'Honduras':                      { lat: 14.0723,  lon: -87.2062, risk: 'High',     region: 'Americas'     },
+  'Jordan':                        { lat: 31.9539,  lon: 35.9106,  risk: 'High',     region: 'Middle East'  },  // FCDO Level 3
+  'Saudi Arabia':                  { lat: 24.7136,  lon: 46.6753,  risk: 'High',     region: 'Middle East'  },  // FCDO Level 3
+  'United Arab Emirates':          { lat: 24.4539,  lon: 54.3773,  risk: 'High',     region: 'Middle East'  },  // FCDO Level 3 — regional escalation
+  // Americas — FCDO Level 3 confirmed
   'Guatemala':                     { lat: 14.6349,  lon: -90.5069, risk: 'High',     region: 'Americas'     },
   'Ecuador':                       { lat: -0.1807,  lon: -78.4678, risk: 'High',     region: 'Americas'     },
-  'Nicaragua':                     { lat: 12.1328,  lon: -86.2976, risk: 'High',     region: 'Americas'     },
-  'Jamaica':                       { lat: 17.9927,  lon: -76.7936, risk: 'High',     region: 'Americas'     },
-  'Venezuela':                     { lat: 10.4806,  lon: -66.9036, risk: 'High',     region: 'Americas'     },  // FCDO Level 3+, state collapse indicators
-  'Colombia':                      { lat: 4.7110,   lon: -74.0721, risk: 'High',     region: 'Americas'     },  // FCDO Level 3 for significant areas
-  'Mexico':                        { lat: 19.4326,  lon: -99.1332, risk: 'High',     region: 'Americas'     },  // FCDO Level 3/4 for multiple states
+  'Venezuela':                     { lat: 10.4806,  lon: -66.9036, risk: 'High',     region: 'Americas'     },
+  'Colombia':                      { lat: 4.7110,   lon: -74.0721, risk: 'High',     region: 'Americas'     },
+  'Mexico':                        { lat: 19.4326,  lon: -99.1332, risk: 'High',     region: 'Americas'     },
+  // Asia — FCDO Level 3 confirmed
+  'India':                         { lat: 28.6139,  lon: 77.2090,  risk: 'High',     region: 'Asia'         },  // FCDO Level 3
 
   // ── Medium ──────────────────────────────────────────────────────────────────
-  'Kenya':                         { lat: -1.2921,  lon: 36.8219,  risk: 'Medium',   region: 'Africa'       },
+  // Africa
   'Uganda':                        { lat: 0.3476,   lon: 32.5825,  risk: 'Medium',   region: 'Africa'       },
-  'Tanzania':                      { lat: -6.1722,  lon: 35.7395,  risk: 'Medium',   region: 'Africa'       },
   'Zimbabwe':                      { lat: -17.8292, lon: 31.0522,  risk: 'Medium',   region: 'Africa'       },
   'Zambia':                        { lat: -15.4167, lon: 28.2833,  risk: 'Medium',   region: 'Africa'       },
-  'Egypt':                         { lat: 30.0444,  lon: 31.2357,  risk: 'Medium',   region: 'Africa'       },
-  'Algeria':                       { lat: 36.7372,  lon: 3.0865,   risk: 'Medium',   region: 'Africa'       },
-  'Tunisia':                       { lat: 36.8190,  lon: 10.1658,  risk: 'Medium',   region: 'Africa'       },
   'Angola':                        { lat: -8.8383,  lon: 13.2344,  risk: 'Medium',   region: 'Africa'       },
   'Sierra Leone':                  { lat: 8.4897,   lon: -13.2344, risk: 'Medium',   region: 'Africa'       },
   'Mauritania':                    { lat: 18.0735,  lon: -15.9582, risk: 'Medium',   region: 'Africa'       },
-  'Ivory Coast':                   { lat: 5.3600,   lon: -4.0083,  risk: 'Medium',   region: 'Africa'       },
+  'Guinea':                        { lat: 9.6412,   lon: -13.5784, risk: 'Medium',   region: 'Africa'       },  // FCDO Level 1 — CAIRO assesses live
+  'Guinea-Bissau':                 { lat: 11.8037,  lon: -15.1804, risk: 'Medium',   region: 'Africa'       },  // FCDO Level 1 — political instability
+  'Gabon':                         { lat: -0.8037,  lon: 11.6094,  risk: 'Medium',   region: 'Africa'       },  // FCDO Level 1 — post-coup stabilising
   'Liberia':                       { lat: 6.2907,   lon: -10.7605, risk: 'Medium',   region: 'Africa'       },
   'Madagascar':                    { lat: -18.7669, lon: 46.8691,  risk: 'Medium',   region: 'Africa'       },
   'Djibouti':                      { lat: 11.5720,  lon: 43.1456,  risk: 'Medium',   region: 'Africa'       },
@@ -72,10 +79,11 @@ export const RISK_MAP = {
   'Eswatini':                      { lat: -26.3054, lon: 31.1367,  risk: 'Medium',   region: 'Africa'       },
   'Lesotho':                       { lat: -29.3142, lon: 27.4869,  risk: 'Medium',   region: 'Africa'       },
   'Comoros':                       { lat: -11.7022, lon: 43.2551,  risk: 'Medium',   region: 'Africa'       },
-  'South Africa':                  { lat: -25.7461, lon: 28.1881,  risk: 'Medium',   region: 'Africa'       },  // FCDO Level 2 — high crime, carjacking, gang violence
-  'Jordan':                        { lat: 31.9539,  lon: 35.9106,  risk: 'Medium',   region: 'Middle East'  },
-  'Saudi Arabia':                  { lat: 24.7136,  lon: 46.6753,  risk: 'Medium',   region: 'Middle East'  },
-  'Turkey':                        { lat: 39.9334,  lon: 32.8597,  risk: 'Medium',   region: 'Europe'       },
+  'South Africa':                  { lat: -25.7461, lon: 28.1881,  risk: 'Medium',   region: 'Africa'       },  // FCDO Level 1 — operational override: high crime/carjacking
+  // Americas
+  'Honduras':                      { lat: 14.0723,  lon: -87.2062, risk: 'Medium',   region: 'Americas'     },  // FCDO Level 1 — operational override: high homicide rate
+  'Nicaragua':                     { lat: 12.1328,  lon: -86.2976, risk: 'Medium',   region: 'Americas'     },  // FCDO Level 1 — political risk
+  'Jamaica':                       { lat: 17.9927,  lon: -76.7936, risk: 'Medium',   region: 'Americas'     },  // FCDO Level 1 — operational override: high gang violence
   'Brazil':                        { lat: -15.7801, lon: -47.9292, risk: 'Medium',   region: 'Americas'     },
   'El Salvador':                   { lat: 13.6929,  lon: -89.2182, risk: 'Medium',   region: 'Americas'     },
   'Bolivia':                       { lat: -16.5000, lon: -68.1500, risk: 'Medium',   region: 'Americas'     },
@@ -86,9 +94,9 @@ export const RISK_MAP = {
   'Trinidad and Tobago':           { lat: 10.6549,  lon: -61.5019, risk: 'Medium',   region: 'Americas'     },
   'Belize':                        { lat: 17.2510,  lon: -88.7590, risk: 'Medium',   region: 'Americas'     },
   'Suriname':                      { lat: 5.8520,   lon: -55.2038, risk: 'Medium',   region: 'Americas'     },
+  // Asia/Europe
   'Indonesia':                     { lat: -6.2088,  lon: 106.8456, risk: 'Medium',   region: 'Asia'         },
   'Philippines':                   { lat: 14.5995,  lon: 120.9842, risk: 'Medium',   region: 'Asia'         },
-  'India':                         { lat: 28.6139,  lon: 77.2090,  risk: 'Medium',   region: 'Asia'         },
 
   // ── Low ─────────────────────────────────────────────────────────────────────
   'Ghana':                         { lat: 5.6037,   lon: -0.1870,  risk: 'High',     region: 'Africa'       },
