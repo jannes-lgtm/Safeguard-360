@@ -33,7 +33,7 @@ export const RISK_MAP = {
   'Eritrea':                       { lat: 15.3228,  lon: 38.9251,  risk: 'High',     region: 'Africa'       },
   'Burundi':                       { lat: -3.3869,  lon: 29.9102,  risk: 'High',     region: 'Africa'       },
   'Guinea-Bissau':                 { lat: 11.8037,  lon: -15.1804, risk: 'High',     region: 'Africa'       },
-  'Guinea':                        { lat: 9.6412,   lon: -13.5784, risk: 'High',     region: 'Africa'       },  // military junta, protest violence
+  'Guinea':                        { lat: 9.6412,   lon: -13.5784, risk: 'Medium',   region: 'Africa'       },  // military junta but FCDO Level 1 — CAIRO assesses live
   'Cameroon':                      { lat: 3.8480,   lon: 11.5021,  risk: 'High',     region: 'Africa'       },  // Anglophone crisis + Boko Haram north
   'Togo':                          { lat: 6.1375,   lon: 1.2124,   risk: 'High',     region: 'Africa'       },  // Sahel insurgency spreading south
   'Benin':                         { lat: 6.3676,   lon: 2.4252,   risk: 'High',     region: 'Africa'       },  // Sahel insurgency spreading south
