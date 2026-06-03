@@ -14,8 +14,9 @@
  *   4. De-escalates countries that have returned to normal tempo AND
  *      whose FCDO level is below 3 (no advisory reason to stay elevated).
  *
- * Processes countries in small batches to avoid hammering the GDELT API.
- * GDELT is free and has no documented rate limit, but we stay polite.
+ * Processes countries sequentially to respect GDELT's 1-req/5s rate limit.
+ * getEscalatedCountries() is fetched ONCE before the loop — not per-country.
+ * All escalated-set writes are batched into a SINGLE Supabase upsert at the end.
  */
 
 import { fetchGdeltSignals }      from './_gdelt.js'
@@ -55,47 +56,57 @@ const DEESCALATE_READINGS   = 2     // consecutive low readings before de-escala
 // Per-country fetch is capped at 8s so slow GDELT responses don't blow the budget.
 // 20 countries x (8s cap + 5.5s delay) = 270s — comfortably within 300s maxDuration.
 const BATCH_SIZE        = 1
-const BATCH_DELAY       = 5500   // 5.5s between countries — respects GDELT rate limit
+const BATCH_DELAY       = 5500  // 5.5s between countries — respects GDELT rate limit
 const PER_COUNTRY_CAP   = 8000  // 8s cap per GDELT fetch — prevents budget overrun
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
-// ── Escalated-set helpers (mirrors _fcdoAlert.js logic) ──────────────────────
+// ── Escalated-set helpers ─────────────────────────────────────────────────────
 const ESCALATED_KEY = 'fcdo-escalated'
 
 async function getAdmin() {
   return createClient(SUPABASE_URL, SERVICE_KEY)
 }
 
-async function updateEscalatedSet(country, shouldEscalate) {
+// Single batch write to escalated set — called ONCE at end of handler run.
+// toAdd / toRemove are arrays of country names that changed this run.
+async function batchUpdateEscalatedSet(currentList, toAdd, toRemove) {
   if (!SUPABASE_URL || !SERVICE_KEY) return
+  if (!toAdd.length && !toRemove.length) return
   try {
-    const sb       = await getAdmin()
-    const existing = await getEscalatedCountries()
-    const name     = country.toLowerCase()
-    const inSet    = existing.map(c => c.toLowerCase()).includes(name)
+    const sb = await getAdmin()
 
-    if (shouldEscalate && !inSet) {
-      const updated = [...existing, country]
-      await sb.from('api_cache').upsert(
-        { key: ESCALATED_KEY, value: { countries: updated }, expires_at: null },
-        { onConflict: 'key' }
-      )
-      console.log(`[gdelt-ingest] TEMPO SPIKE — ${country} added to fast-check set`)
-    } else if (!shouldEscalate && inSet) {
-      // Only de-escalate if no FCDO reason to stay elevated
+    // For de-escalation candidates: check FCDO level before removing
+    const safeToRemove = []
+    for (const country of toRemove) {
       const fcdoCached = await sharedCache.get(`fcdo:${country.toLowerCase().replace(/\s+/g, '-')}`)
-      if (fcdoCached?.level && fcdoCached.level >= 3) return  // FCDO keeps it elevated
-
-      const updated = existing.filter(c => c.toLowerCase() !== name)
-      await sb.from('api_cache').upsert(
-        { key: ESCALATED_KEY, value: { countries: updated }, expires_at: null },
-        { onConflict: 'key' }
-      )
-      console.log(`[gdelt-ingest] Tempo normalised — ${country} removed from fast-check set`)
+      if (fcdoCached?.level && fcdoCached.level >= 3) {
+        console.log(`[gdelt-ingest] Tempo low but FCDO level ${fcdoCached.level} — keeping ${country} elevated`)
+        continue
+      }
+      safeToRemove.push(country)
     }
+
+    const currentLower = currentList.map(c => c.toLowerCase())
+    // Add new spikes that aren't already in the set
+    const additions = toAdd.filter(c => !currentLower.includes(c.toLowerCase()))
+    // Remove countries that are safe to de-escalate
+    const removeLower = safeToRemove.map(c => c.toLowerCase())
+    const updated = [
+      ...currentList.filter(c => !removeLower.includes(c.toLowerCase())),
+      ...additions,
+    ]
+
+    if (updated.length === currentList.length && !additions.length && !safeToRemove.length) return
+
+    await sb.from('api_cache').upsert(
+      { key: ESCALATED_KEY, value: { countries: updated }, expires_at: null },
+      { onConflict: 'key' }
+    )
+    if (additions.length)  console.log(`[gdelt-ingest] TEMPO SPIKE — added to fast-check: ${additions.join(', ')}`)
+    if (safeToRemove.length) console.log(`[gdelt-ingest] Tempo normalised — removed from fast-check: ${safeToRemove.join(', ')}`)
   } catch (e) {
-    console.warn('[gdelt-ingest] escalated set update failed:', e.message)
+    console.warn('[gdelt-ingest] escalated set batch update failed:', e.message)
   }
 }
 
@@ -103,8 +114,7 @@ async function updateEscalatedSet(country, shouldEscalate) {
 const LOW_READINGS_KEY = (c) => `gdelt-low-readings:${c.toLowerCase()}`
 
 async function getConsecutiveLowReadings(country) {
-  const key = LOW_READINGS_KEY(country)
-  const v   = await sharedCache.get(key)
+  const v = await sharedCache.get(LOW_READINGS_KEY(country))
   return v || 0
 }
 
@@ -113,7 +123,8 @@ async function setConsecutiveLowReadings(country, count) {
 }
 
 // ── Process single country ────────────────────────────────────────────────────
-async function processCountry(country) {
+// escalatedList pre-fetched by handler — no Supabase reads in this function.
+async function processCountry(country, escalatedList) {
   try {
     // Cap each GDELT fetch so a slow response can't blow the 300s maxDuration budget
     const signals = await Promise.race([
@@ -125,24 +136,22 @@ async function processCountry(country) {
     }
 
     const { tempoScore, trend, themes, recentCount, totalCount, capped } = signals
-    const escalated = await getEscalatedCountries()
-    const inEscalated = escalated.map(c => c.toLowerCase()).includes(country.toLowerCase())
+    const inEscalated = escalatedList.map(c => c.toLowerCase()).includes(country.toLowerCase())
 
-    // ── Spike detection — add to fast tier ───────────────────────────────────
+    // ── Spike detection — flag for escalation ────────────────────────────────
     if (tempoScore >= SPIKE_THRESHOLD || capped) {
-      await updateEscalatedSet(country, true)
       await setConsecutiveLowReadings(country, 0)
       console.log(
         `[gdelt-ingest] SPIKE: ${country} tempo=${tempoScore} ` +
         `recent=${recentCount}/${totalCount} themes=[${themes.join(',')}] capped=${capped}`
       )
-      return { country, ok: true, tempoScore, trend, escalated: true, themes }
+      return { country, ok: true, tempoScore, trend, shouldEscalate: true, themes }
     }
 
     // ── Elevated — log but don't change tier yet ──────────────────────────────
     if (tempoScore >= ELEVATED_THRESHOLD) {
       await setConsecutiveLowReadings(country, 0)
-      return { country, ok: true, tempoScore, trend, escalated: false, elevated: true, themes }
+      return { country, ok: true, tempoScore, trend, elevated: true, themes }
     }
 
     // ── Low / normal — track consecutive low readings ─────────────────────────
@@ -152,14 +161,14 @@ async function processCountry(country) {
       await setConsecutiveLowReadings(country, next)
 
       if (next >= DEESCALATE_READINGS) {
-        await updateEscalatedSet(country, false)
         await setConsecutiveLowReadings(country, 0)
+        return { country, ok: true, tempoScore, trend, shouldDeescalate: true, themes }
       }
     } else {
       await setConsecutiveLowReadings(country, 0)
     }
 
-    return { country, ok: true, tempoScore, trend, escalated: false, themes }
+    return { country, ok: true, tempoScore, trend, themes }
   } catch (err) {
     return { country, ok: false, error: err.message }
   }
@@ -170,9 +179,15 @@ async function _handler(req, res) {
   const start   = Date.now()
   const results = { processed: 0, spikes: [], elevated: [], failed: [] }
 
+  // Fetch escalated list ONCE — passed to every processCountry call
+  const escalatedList = await getEscalatedCountries()
+
+  const toEscalate   = []
+  const toDeescalate = []
+
   for (let i = 0; i < COUNTRIES.length; i += BATCH_SIZE) {
-    const batch    = COUNTRIES.slice(i, i + BATCH_SIZE)
-    const settled  = await Promise.allSettled(batch.map(processCountry))
+    const batch   = COUNTRIES.slice(i, i + BATCH_SIZE)
+    const settled = await Promise.allSettled(batch.map(c => processCountry(c, escalatedList)))
 
     for (const r of settled) {
       const v = r.status === 'fulfilled' ? r.value : { ok: false, error: r.reason?.message }
@@ -180,13 +195,17 @@ async function _handler(req, res) {
         results.failed.push(v.country || '?')
       } else if (!v.skipped) {
         results.processed++
-        if (v.escalated) results.spikes.push({ country: v.country, score: v.tempoScore, themes: v.themes })
-        else if (v.elevated) results.elevated.push({ country: v.country, score: v.tempoScore })
+        if (v.shouldEscalate)   { toEscalate.push(v.country); results.spikes.push({ country: v.country, score: v.tempoScore, themes: v.themes }) }
+        else if (v.shouldDeescalate) toDeescalate.push(v.country)
+        else if (v.elevated)    results.elevated.push({ country: v.country, score: v.tempoScore })
       }
     }
 
     if (i + BATCH_SIZE < COUNTRIES.length) await sleep(BATCH_DELAY)
   }
+
+  // Single Supabase write for all escalation changes this run
+  await batchUpdateEscalatedSet(escalatedList, toEscalate, toDeescalate)
 
   const elapsed = Date.now() - start
   console.log(
