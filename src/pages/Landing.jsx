@@ -570,6 +570,46 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── PARTNER PROTECTION SOLUTIONS ──────────────────────────────────── */}
+      <section className="landing-section-wide" style={{ background: C.surface, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '80px 48px' }}>
+        <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+          <div className="landing-intel-lang-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'start' }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.15em', color: C.textMuted, textTransform: 'uppercase', marginBottom: 14 }}>Protection Solutions</div>
+              <h2 style={{ fontSize: 30, fontWeight: 700, color: C.white, lineHeight: 1.25, marginBottom: 18, letterSpacing: '-0.02em' }}>
+                Risk management beyond<br />the platform.
+              </h2>
+              <p style={{ fontSize: 13, color: C.textSub, lineHeight: 1.8, marginBottom: 20 }}>
+                Through carefully selected partners, Safeguard can facilitate access to specialist travel protection solutions for personnel operating in elevated-risk environments.
+              </p>
+              <p style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.8 }}>
+                As part of a broader duty-of-care framework, these services are designed to complement Safeguard's travel risk management, monitoring, and incident response capabilities — providing organisations with additional support when operating in complex or challenging environments.
+              </p>
+              <p style={{ fontSize: 10, color: C.textMuted, lineHeight: 1.7, marginTop: 20, borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
+                Subject to eligibility, policy terms, and underwriting requirements.
+              </p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, background: C.border }}>
+              {[
+                { label: 'Emergency Medical Assistance',  body: 'Coordinated medical support for personnel requiring urgent care in remote or high-risk locations.' },
+                { label: 'Medical Evacuation',            body: 'Air and ground medevac facilitation to move personnel to appropriate medical facilities.' },
+                { label: 'Repatriation Support',          body: 'Return of personnel — including mortal remains — to their home country following a critical incident.' },
+                { label: 'Crisis Response Services',      body: 'Specialist response capability for kidnap, extortion, civil unrest, and complex security incidents.' },
+                { label: 'Risk Transfer & Management',    body: 'Additional risk-transfer solutions aligned to the operational environments your people work in.' },
+              ].map((item, i) => (
+                <div key={i} style={{ background: C.bgAlt, padding: '20px 24px', display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                  <div style={{ width: 3, height: 3, borderRadius: '50%', background: C.greenAlt, flexShrink: 0, marginTop: 7 }} />
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 5 }}>{item.label}</div>
+                    <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.65 }}>{item.body}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── METRICS ───────────────────────────────────────────────────────── */}
       <section className="landing-section-wide" style={{ background: C.surface, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: '64px 48px' }}>
         <div style={{ maxWidth: 1400, margin: '0 auto' }}>
