@@ -29,19 +29,16 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL |
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 // ── Countries to monitor via GDELT ────────────────────────────────────────────
-// Tier A only — Critical + top High risk countries.
-// GDELT rate limit: 1 request per 5 seconds. Sequential processing required.
-// At ~11s per country (fetch + delay), 25 countries fits within 300s maxDuration.
+// Critical + top High only. GDELT is sequential (1 req/5s rate limit).
+// Budget: 20 countries x (8s cap + 5.5s delay) = 270s — safe within 300s maxDuration.
 // Lower-risk countries get GDELT on-demand when a user opens their risk report.
 const MONITORED = [
-  // Critical (FCDO Level 4 / active conflict)
+  // Critical (FCDO Level 4 / active conflict) — 17 countries
   'Somalia', 'South Sudan', 'Sudan', 'Libya', 'Mali', 'Niger', 'Burkina Faso',
   'Central African Republic', 'Democratic Republic of Congo',
-  'Syria', 'Yemen', 'Iraq', 'Afghanistan', 'Myanmar', 'Ukraine', 'Russia',
-  'Iran', 'Haiti',
-  // High — largest populations / most-queried by users
-  'Nigeria', 'Ethiopia', 'Kenya', 'Egypt', 'Pakistan',
-  'Colombia', 'Mexico', 'Venezuela', 'India',
+  'Syria', 'Yemen', 'Iraq', 'Afghanistan', 'Myanmar', 'Ukraine', 'Russia', 'Iran',
+  // High — highest-traffic user queries — 3 countries
+  'Nigeria', 'Pakistan', 'Mexico',
 ]
 
 // De-duplicate
@@ -54,10 +51,12 @@ const DEESCALATE_THRESHOLD  = 0.8   // tempoScore — consider removing from esc
 const DEESCALATE_READINGS   = 2     // consecutive low readings before de-escalating
 
 // GDELT rate limit: 1 request per 5 seconds.
-// Process sequentially — one country at a time, 5.5s gap after each completes.
-// 27 countries x ~11s avg = ~297s — within 300s maxDuration.
-const BATCH_SIZE    = 1
-const BATCH_DELAY   = 5500  // 5.5s between countries — respects GDELT rate limit
+// Sequential processing — one country at a time with 5.5s gap between each.
+// Per-country fetch is capped at 8s so slow GDELT responses don't blow the budget.
+// 20 countries x (8s cap + 5.5s delay) = 270s — comfortably within 300s maxDuration.
+const BATCH_SIZE        = 1
+const BATCH_DELAY       = 5500   // 5.5s between countries — respects GDELT rate limit
+const PER_COUNTRY_CAP   = 8000  // 8s cap per GDELT fetch — prevents budget overrun
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
@@ -116,7 +115,11 @@ async function setConsecutiveLowReadings(country, count) {
 // ── Process single country ────────────────────────────────────────────────────
 async function processCountry(country) {
   try {
-    const signals = await fetchGdeltSignals(country)
+    // Cap each GDELT fetch so a slow response can't blow the 300s maxDuration budget
+    const signals = await Promise.race([
+      fetchGdeltSignals(country),
+      new Promise(resolve => setTimeout(() => resolve(null), PER_COUNTRY_CAP)),
+    ])
     if (!signals || signals.tempoScore === null) {
       return { country, ok: true, skipped: true }
     }
