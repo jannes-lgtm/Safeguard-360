@@ -414,6 +414,40 @@ const TREND_COLORS = {
 }
 const trendColor = (d) => TREND_COLORS[d] || TREND_COLORS.stable
 
+// GDELT theme → operational plain-English signal phrase
+const GDELT_THEME_PHRASES = {
+  CONFLICT:   'Armed conflict on the increase',
+  TERRORISM:  'Terrorism threats elevated',
+  PROTEST:    'Civil unrest signals detected',
+  MILITARY:   'Military activity increasing',
+  COUP:       'Political instability indicators present',
+  EVACUATION: 'Displacement and evacuation activity reported',
+  EMERGENCY:  'State of emergency indicators',
+  SECURITY:   'Security force activity elevated',
+  KIDNAP:     'Kidnap and hostage risk signals',
+}
+
+// Priority order — show the highest-priority theme phrase first
+const THEME_PRIORITY = ['COUP','TERRORISM','KIDNAP','CONFLICT','MILITARY','EMERGENCY','EVACUATION','PROTEST','SECURITY']
+
+function getGdeltSignalPhrases(themes = []) {
+  if (!themes?.length) return []
+  const sorted = [...themes].sort((a, b) => {
+    const ai = THEME_PRIORITY.indexOf(a)
+    const bi = THEME_PRIORITY.indexOf(b)
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+  })
+  return sorted.slice(0, 2).map(t => GDELT_THEME_PHRASES[t]).filter(Boolean)
+}
+
+function gdeltTempoLabel(tempo) {
+  if (tempo === null || tempo === undefined) return null
+  if (tempo >= 2.5) return 'significant spike'
+  if (tempo >= 1.5) return 'elevated'
+  if (tempo >= 0.8) return 'normal'
+  return 'quiet'
+}
+
 // ── Full country report ───────────────────────────────────────────────────────
 function CountryReport({ country, isDeveloper = false }) {
   const meta = COUNTRY_META[country]
@@ -497,6 +531,10 @@ function CountryReport({ country, isDeveloper = false }) {
   const trendLabel     = risk?.trend_label      ?? null
   const trendReason    = risk?.trend_reason     ?? null
   const tc             = trendColor(trendDir)
+  const gdeltThemes    = risk?.gdelt_themes     ?? []
+  const gdeltTempo     = risk?.gdelt_tempo      ?? null
+  const gdeltSignals   = getGdeltSignalPhrases(gdeltThemes)
+  const gdeltTempoStr  = gdeltTempo !== null ? `${gdeltTempoLabel(gdeltTempo)} · ${gdeltTempo}×` : null
 
   // FCDO level label
   const FCDO_LABEL = { 1: 'Normal Precautions', 2: 'Exercise Caution', 3: 'Reconsider Travel', 4: 'Do Not Travel' }
@@ -608,15 +646,16 @@ function CountryReport({ country, isDeveloper = false }) {
         </div>
 
         {/* Trend */}
-        <div className="bg-white rounded-[10px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-2">
+        <div className={`bg-white rounded-[10px] border shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-2 ${trendDir ? tc.border : 'border-gray-200'}`}>
           <div className="flex items-center gap-2">
-            <Activity size={12} className="text-gray-400" />
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trend</span>
+            <TrendIcon direction={trendDir || 'stable'} size={12} />
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${trendDir ? tc.text : 'text-gray-400'}`}>Trend</span>
           </div>
           {loading ? (
             <div className="space-y-1.5">
               <div className="h-6 w-24 bg-gray-100 rounded animate-pulse" />
               <div className="h-3 w-40 bg-gray-100 rounded animate-pulse" />
+              <div className="h-3 w-32 bg-gray-100 rounded animate-pulse" />
             </div>
           ) : trendDir ? (
             <>
@@ -627,7 +666,23 @@ function CountryReport({ country, isDeveloper = false }) {
               {trendReason && (
                 <p className="text-xs text-gray-500 leading-relaxed">{trendReason}</p>
               )}
-              <span className="mt-auto text-[10px] text-gray-400">Based on CAIRO assessment history</span>
+              {gdeltSignals.length > 0 && (
+                <div className="flex flex-col gap-0.5">
+                  {gdeltSignals.map((phrase, i) => (
+                    <p key={i} className={`text-xs font-semibold ${tc.text} leading-relaxed`}>
+                      · {phrase}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <div className="mt-auto flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[10px] text-gray-400">CAIRO assessment history</span>
+                {gdeltTempoStr && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${tc.bg} ${tc.text}`}>
+                    GDELT: {gdeltTempoStr}
+                  </span>
+                )}
+              </div>
             </>
           ) : (
             <div className="flex flex-col gap-1.5">
