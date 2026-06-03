@@ -241,7 +241,7 @@ function OrgModal({ org, onClose, onSaved }) {
           </button>
           <button onClick={save} disabled={saving || !form.name.trim()}
             className="flex-1 px-4 py-2.5 text-sm font-bold rounded-xl disabled:opacity-50"
-            style={{ background: BRAND_GREEN, color: DS.green }}>
+            style={{ background: BRAND_GREEN, color: DS.bg }}>
             {saving ? 'Saving…' : isNew ? 'Add Organisation' : 'Save Changes'}
           </button>
         </div>
@@ -329,7 +329,7 @@ export default function Organisations() {
           </button>
           <button onClick={() => setModal('new')}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-            style={{ background: BRAND_GREEN, color: DS.green }}>
+            style={{ background: BRAND_GREEN, color: DS.bg }}>
             <Plus size={15} /> Add Organisation
           </button>
         </div>
