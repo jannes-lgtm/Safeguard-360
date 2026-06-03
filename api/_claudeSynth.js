@@ -303,7 +303,7 @@ export async function comprehensiveRiskScan(country, city, liveData = {}, apiKey
   const cached   = COMPREHENSIVE_CACHE[cacheKey]
   if (cached && Date.now() - cached.ts < COMPREHENSIVE_TTL) return cached.data
 
-  const { fcdo, gdacs = [], usgs = [], iss, health } = liveData
+  const { fcdo, gdacs = [], usgs = [], iss, health, gdelt } = liveData
   const location = city ? `${city}, ${country}` : country
 
   // Fetch all RSS articles + proprietary knowledge reports in parallel
@@ -358,6 +358,34 @@ ${knowledgeReports.map(r =>
 `
     : ''
 
+  // ── GDELT live event signals ────────────────────────────────────────────────
+  const gdeltSection = gdelt
+    ? (() => {
+        const tempoLabel = !gdelt.tempoScore        ? 'Insufficient data'
+          : gdelt.tempoScore >= 2.5 || gdelt.capped ? `SPIKE — ${gdelt.tempoScore}× above baseline`
+          : gdelt.tempoScore >= 1.5                  ? `ELEVATED — ${gdelt.tempoScore}× above baseline`
+          : gdelt.tempoScore < 0.7                   ? `QUIET — ${gdelt.tempoScore}× baseline`
+          :                                            `Normal — ${gdelt.tempoScore}×`
+
+        const articlesText = gdelt.topArticles?.length
+          ? gdelt.topArticles.map(a => `  • [${a.source}] ${a.title}`).join('\n')
+          : '  None in last 6 hours'
+
+        const themesText = gdelt.themes?.length
+          ? gdelt.themes.join(', ')
+          : 'None detected'
+
+        return `== GDELT LIVE EVENT INTELLIGENCE (last 6h) ==
+Activity tempo: ${tempoLabel}
+Trend: ${gdelt.trend || 'stable'}
+Active themes: ${themesText}
+Breaking articles:
+${articlesText}
+
+`
+      })()
+    : ''
+
   const prompt = `You are a senior corporate travel security analyst. Analyse ALL available intelligence for ${location} and produce a structured risk assessment for a client travelling to this destination.
 
 == OFFICIAL ADVISORIES ==
@@ -365,7 +393,7 @@ ${fcdoLine}
 Active disasters (GDACS): ${gdacsText}
 Earthquakes M5+ / 7d (USGS): ${usgsText}
 
-${knowledgeSection}== LIVE INTELLIGENCE FEEDS ==
+${gdeltSection}${knowledgeSection}== LIVE INTELLIGENCE FEEDS ==
 ${catText('conflict', 'Conflict & War news')}
 
 ${catText('security', 'Security analysis')}

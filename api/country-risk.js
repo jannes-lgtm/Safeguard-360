@@ -19,6 +19,7 @@ import { dbCacheGet, dbCacheSet, dbCacheDel } from './_dbCache.js'
 import { parseRssXml } from './_rssParser.js'
 import { sharedCache } from './_sharedCache.js'
 import { logFcdoChange } from './_fcdoAlert.js'
+import { fetchGdeltSignals } from './_gdelt.js'
 
 const CACHE_TTL      = 60 * 60 * 1000       // 1 hour
 const ISS_CACHE_TTL  = 4  * 60 * 60 * 1000  // 4 hours
@@ -230,12 +231,13 @@ async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = 
   }
 
   // Fetch all live sources in parallel for speed
-  const [fcdo, iss, gdacs, usgs, health] = await Promise.all([
+  const [fcdo, iss, gdacs, usgs, health, gdelt] = await Promise.all([
     fetchFcdo(country, { checkTimestamp: forceRefresh || checkTimestamp }),
     fetchIssAlerts(country),
     fetchGDACS(country),
     fetchUSGS(country),
     fetchHealthOutbreaks(country),
+    fetchGdeltSignals(country),   // GDELT: tempo score + live event signals
   ])
 
   const level    = fcdo?.level ?? null
@@ -282,9 +284,9 @@ async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = 
         await sharedCache.set('risk-ai:' + cacheKey, ai_brief, 60 * 60 * 1000)
       } else {
         // Cache miss — run AI synthesis
-        ai_brief = await comprehensiveRiskScan(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
+        ai_brief = await comprehensiveRiskScan(country, null, { fcdo, gdacs, usgs, iss, health, gdelt }, apiKey)
         if (!ai_brief) {
-          ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
+          ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health, gdelt }, apiKey)
         }
         if (ai_brief) {
           // Merge FCDO-derived severity so country-risk-summary always has a
@@ -337,6 +339,9 @@ async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = 
     level,
     severity,
     ai_brief,
+    gdelt_tempo:        gdelt?.tempoScore   ?? null,
+    gdelt_trend:        gdelt?.trend        ?? null,
+    gdelt_themes:       gdelt?.themes       ?? [],
     gdacs_count:        gdacs.length,
     usgs_count:         usgs.length,
     health_alerts:      health?.matches?.length || 0,
