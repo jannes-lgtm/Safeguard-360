@@ -6,6 +6,9 @@ import {
   Navigation, AlertTriangle, Activity,
   Users, Layers, Clock, Compass, TrendingUp, Radio,
   Crosshair, BarChart2, Menu, X,
+  Eye, Zap, Bell, CheckSquare, FileText, MonitorDot,
+  Building2, Briefcase, HeartHandshake, Truck, Flame,
+  Rss, Map, ShieldCheck, Route,
 } from 'lucide-react'
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -134,9 +137,138 @@ function accent(key) {
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
+// ── Nav dropdown data ──────────────────────────────────────────────────────────
+const NAV_MENUS = {
+  Platform: {
+    cols: 2,
+    items: [
+      { icon: Eye,         title: 'Operational Picture',    desc: 'One live view of every person, route, and threat — updated continuously.' },
+      { icon: Navigation,  title: 'Movement Intelligence',  desc: 'Route viability and corridor status before the wheels turn.' },
+      { icon: Crosshair,   title: 'CAIRO™ AI Engine',       desc: 'Operational intelligence framed for decisions, not headlines.' },
+      { icon: Bell,        title: 'Incident Response',      desc: 'From alert to coordinated response in under 90 seconds.' },
+      { icon: CheckSquare, title: 'Travel Approvals',       desc: 'Policy-aligned approvals built directly into the movement workflow.' },
+      { icon: Users,       title: 'Personnel Accountability', desc: 'Check-ins, SOS, and real-time status for every deployed traveller.' },
+    ],
+    cta: { label: 'See the full platform', href: '/signup' },
+  },
+  Solutions: {
+    cols: 1,
+    items: [
+      { icon: Building2,     title: 'Corporate Travel Teams',   desc: 'Duty of care compliance and full traveller accountability at scale.' },
+      { icon: Shield,        title: 'Executive Protection',     desc: 'Advance intelligence and live tracking for principal movement.' },
+      { icon: HeartHandshake,title: 'NGO & Field Operations',   desc: 'Movement coordination in complex, denied, and high-risk environments.' },
+      { icon: MonitorDot,    title: 'GSOC Operations',          desc: 'A platform built for 24/7 operational tempo and multi-region oversight.' },
+      { icon: Flame,         title: 'Energy & Extractives',     desc: 'Site access control and contractor movement management.' },
+      { icon: Truck,         title: 'Logistics & Convoys',      desc: 'Corridor assessment and cargo movement intelligence.' },
+    ],
+    cta: { label: 'Find your use case', href: '/signup' },
+  },
+  Intelligence: {
+    cols: 1,
+    items: [
+      { icon: Rss,        title: 'Live Threat Feed',         desc: 'Curated, operational intelligence — filtered for what actually affects movement.' },
+      { icon: Map,        title: 'Country Risk Assessments', desc: 'Continuously updated risk profiles across 195 countries.' },
+      { icon: Route,      title: 'Corridor Monitoring',      desc: 'Route and access status updated in real time, not at end of shift.' },
+      { icon: ShieldCheck,title: 'Advisory Integration',     desc: 'Government travel advisories synthesised into actionable operational posture.' },
+    ],
+    cta: { label: 'See intelligence in action', href: '/signup' },
+  },
+}
+
+function NavDropdown({ menu, onClose }) {
+  const navigate = useNavigate()
+  const data = NAV_MENUS[menu]
+  if (!data) return null
+
+  return (
+    <div
+      onMouseLeave={onClose}
+      style={{
+        position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
+        marginTop: 8,
+        background: 'rgba(13,15,20,0.98)',
+        border: `1px solid ${C.border}`,
+        backdropFilter: 'blur(24px)',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.55)',
+        minWidth: data.cols === 2 ? 560 : 320,
+        zIndex: 200,
+        padding: '6px 0',
+      }}
+    >
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: data.cols === 2 ? '1fr 1fr' : '1fr',
+        gap: 0,
+      }}>
+        {data.items.map((item, i) => {
+          const Icon = item.icon
+          return (
+            <button key={i}
+              onClick={() => { navigate('/signup'); onClose() }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'flex-start', gap: 12,
+                padding: '14px 20px',
+                textAlign: 'left',
+                borderBottom: data.cols === 2 && i < data.items.length - 2
+                  ? `1px solid ${C.border}`
+                  : data.cols === 1 && i < data.items.length - 1
+                  ? `1px solid ${C.border}`
+                  : 'none',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(170,204,0,0.04)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            >
+              <div style={{
+                width: 30, height: 30, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(170,204,0,0.07)',
+                border: `1px solid rgba(170,204,0,0.12)`,
+                marginTop: 1,
+              }}>
+                <Icon size={13} color={C.greenAlt} />
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 3 }}>{item.title}</div>
+                <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.55 }}>{item.desc}</div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* CTA strip */}
+      <div style={{
+        borderTop: `1px solid ${C.border}`,
+        padding: '11px 20px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'rgba(170,204,0,0.03)',
+      }}>
+        <span style={{ fontSize: 11, color: C.textMuted }}>{
+          menu === 'Platform' ? 'Purpose-built for high-risk operational environments.'
+          : menu === 'Solutions' ? 'Deployed across corporate, security, and humanitarian sectors.'
+          : 'Live intelligence across 195 countries, 24/7.'
+        }</span>
+        <button
+          onClick={() => { navigate('/signup'); onClose() }}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 5,
+            fontSize: 11, fontWeight: 700, color: C.greenAlt, letterSpacing: '0.04em',
+            whiteSpace: 'nowrap',
+          }}>
+          {data.cta.label} <ArrowRight size={10} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function Nav({ scrolled }) {
   const navigate = useNavigate()
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuOpen, setMenuOpen]       = useState(false)
+  const [activeDropdown, setDropdown] = useState(null)
 
   return (
     <>
@@ -152,13 +284,23 @@ function Nav({ scrolled }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
           <img src="/logo-transparent.png" alt="Safeguard" style={{ height: 60, width: 'auto' }} />
-          <div className="landing-nav-links" style={{ display: 'flex', gap: 28 }}>
+          <div className="landing-nav-links" style={{ display: 'flex', gap: 4, position: 'relative' }}>
             {['Platform', 'Solutions', 'Intelligence'].map(item => (
-              <button key={item}
-                style={{ background: 'none', border: 'none', color: C.textSub, cursor: 'pointer', fontSize: 13, padding: 0, letterSpacing: '0.01em' }}
-                onMouseEnter={e => e.currentTarget.style.color = C.text}
-                onMouseLeave={e => e.currentTarget.style.color = C.textSub}
-              >{item}</button>
+              <div key={item} style={{ position: 'relative' }}>
+                <button
+                  onMouseEnter={() => setDropdown(item)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer', fontSize: 13,
+                    padding: '6px 14px', letterSpacing: '0.01em',
+                    color: activeDropdown === item ? C.text : C.textSub,
+                    transition: 'color 0.15s',
+                  }}
+                  onMouseLeave={() => {}}
+                >{item}</button>
+                {activeDropdown === item && (
+                  <NavDropdown menu={item} onClose={() => setDropdown(null)} />
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -189,15 +331,31 @@ function Nav({ scrolled }) {
           backdropFilter: 'blur(20px)',
           borderBottom: `1px solid ${C.border}`,
           padding: '20px 24px 28px',
-          display: 'flex', flexDirection: 'column', gap: 16,
+          display: 'flex', flexDirection: 'column', gap: 0,
+          overflowY: 'auto', maxHeight: 'calc(100vh - 60px)',
         }}>
-          {['Platform', 'Solutions', 'Intelligence'].map(item => (
-            <button key={item} onClick={() => setMenuOpen(false)}
-              style={{ background: 'none', border: 'none', color: C.text, cursor: 'pointer', fontSize: 15, textAlign: 'left', padding: '4px 0' }}>
-              {item}
-            </button>
+          {Object.entries(NAV_MENUS).map(([label, data]) => (
+            <div key={label}>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: C.textMuted, textTransform: 'uppercase', padding: '16px 0 8px' }}>{label}</div>
+              {data.items.map((item, i) => {
+                const Icon = item.icon
+                return (
+                  <button key={i}
+                    onClick={() => { setMenuOpen(false); navigate('/signup') }}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      width: '100%', padding: '10px 0',
+                      borderBottom: `1px solid ${C.border}`,
+                    }}>
+                    <Icon size={13} color={C.textMuted} />
+                    <span style={{ fontSize: 13, color: C.text }}>{item.title}</span>
+                  </button>
+                )
+              })}
+            </div>
           ))}
-          <div style={{ height: 1, background: C.border, margin: '4px 0' }} />
+          <div style={{ height: 1, background: C.border, margin: '16px 0 12px' }} />
           <button onClick={() => { setMenuOpen(false); navigate('/login') }}
             style={{ background: 'none', border: 'none', color: C.textSub, cursor: 'pointer', fontSize: 14, textAlign: 'left', padding: '4px 0' }}>
             Log in
@@ -206,7 +364,7 @@ function Nav({ scrolled }) {
             background: C.green, border: 'none', color: '#fff',
             padding: '12px 20px', fontSize: 12, fontWeight: 700,
             letterSpacing: '0.08em', cursor: 'pointer', textTransform: 'uppercase',
-            textAlign: 'center',
+            textAlign: 'center', marginTop: 12,
           }}>Request Access</button>
         </div>
       )}
