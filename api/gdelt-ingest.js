@@ -29,28 +29,19 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL |
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 // ── Countries to monitor via GDELT ────────────────────────────────────────────
-// Tier A+B only — highest risk, most likely to have meaningful GDELT signals.
-// Tier C/D are lower traffic and change rarely; gdelt-ingest focuses effort here.
+// Tier A only — Critical + top High risk countries.
+// GDELT rate limit: 1 request per 5 seconds. Sequential processing required.
+// At ~11s per country (fetch + delay), 25 countries fits within 300s maxDuration.
+// Lower-risk countries get GDELT on-demand when a user opens their risk report.
 const MONITORED = [
-  // Critical
+  // Critical (FCDO Level 4 / active conflict)
   'Somalia', 'South Sudan', 'Sudan', 'Libya', 'Mali', 'Niger', 'Burkina Faso',
-  'Central African Republic', 'Democratic Republic of Congo', 'Eritrea', 'Burundi',
-  'Syria', 'Yemen', 'Iraq', 'Iran', 'Israel', 'West Bank',
-  'Afghanistan', 'Myanmar', 'Haiti', 'Ukraine', 'Russia',
-  // High
-  'Nigeria', 'Ethiopia', 'Chad', 'Mozambique', 'Cameroon', 'Togo', 'Benin',
-  'Ivory Coast', 'Kenya', 'Tanzania', 'Egypt', 'Algeria', 'Tunisia',
-  'Guinea-Bissau', 'Guinea', 'Gabon',
-  'Lebanon', 'Pakistan', 'Jordan', 'Saudi Arabia', 'United Arab Emirates',
-  'Guatemala', 'Ecuador', 'Venezuela', 'Colombia', 'Mexico',
-  'Honduras', 'Nicaragua', 'Jamaica', 'India', 'Turkey',
-  // Medium — included because they are high-volume travel destinations
-  // where sudden spikes matter operationally
-  'South Africa', 'Ghana', 'Kenya', 'Indonesia', 'Philippines',
-  'Brazil', 'Thailand', 'China', 'Bangladesh',
-  // Europe/stable — included so we catch unexpected escalations early
-  'France', 'Germany', 'United Kingdom', 'Spain', 'Italy', 'Greece',
-  'Georgia', 'Armenia', 'Azerbaijan', 'Serbia', 'Kosovo',
+  'Central African Republic', 'Democratic Republic of Congo',
+  'Syria', 'Yemen', 'Iraq', 'Afghanistan', 'Myanmar', 'Ukraine', 'Russia',
+  'Iran', 'Haiti',
+  // High — largest populations / most-queried by users
+  'Nigeria', 'Ethiopia', 'Kenya', 'Egypt', 'Pakistan',
+  'Colombia', 'Mexico', 'Venezuela', 'India',
 ]
 
 // De-duplicate
@@ -62,8 +53,11 @@ const ELEVATED_THRESHOLD    = 1.5   // tempoScore — log as elevated
 const DEESCALATE_THRESHOLD  = 0.8   // tempoScore — consider removing from escalated
 const DEESCALATE_READINGS   = 2     // consecutive low readings before de-escalating
 
-const BATCH_SIZE    = 5
-const BATCH_DELAY   = 1500   // 1.5s between GDELT batches — stay polite
+// GDELT rate limit: 1 request per 5 seconds.
+// Process sequentially — one country at a time, 5.5s gap after each completes.
+// 27 countries x ~11s avg = ~297s — within 300s maxDuration.
+const BATCH_SIZE    = 1
+const BATCH_DELAY   = 5500  // 5.5s between countries — respects GDELT rate limit
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
