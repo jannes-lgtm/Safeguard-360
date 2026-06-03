@@ -303,7 +303,7 @@ export async function comprehensiveRiskScan(country, city, liveData = {}, apiKey
   const cached   = COMPREHENSIVE_CACHE[cacheKey]
   if (cached && Date.now() - cached.ts < COMPREHENSIVE_TTL) return cached.data
 
-  const { fcdo, gdacs = [], usgs = [], iss, health, gdelt } = liveData
+  const { fcdo, gdacs = [], usgs = [], iss, health, gdelt, trendContext } = liveData
   const location = city ? `${city}, ${country}` : country
 
   // Fetch all RSS articles + proprietary knowledge reports in parallel
@@ -404,11 +404,15 @@ ${articlesText}
       })()
     : ''
 
+  const trendSection = trendContext
+    ? `== CAIRO TREND MEMORY ==\n${trendContext}\n\n`
+    : ''
+
   const prompt = `You are CAIRO, a senior corporate travel risk advisor. Analyse ALL available intelligence for ${location} and produce a structured risk assessment for a corporate client.
 
-Your communication style is that of a trusted senior advisor briefing a board-level risk committee or a corporate security manager. You are measured, precise, and professional. You do not use military jargon, technical terminology, or alarmist language. When activity is elevated, you note that you are monitoring the situation closely and will provide updates as it develops. When conditions are calm, you say so clearly and confidently.
+Your communication style is that of a trusted senior advisor briefing a board-level risk committee or a corporate security manager. You are measured, precise, and professional. You do not use military jargon, technical terminology, or alarmist language. When activity is elevated, you note that you are monitoring the situation closely and will provide updates as it develops. When conditions are calm, you say so clearly and confidently. When trend memory is available, weave it naturally into your assessment — do not list it separately, but use it to distinguish sustained patterns from isolated events.
 
-== OFFICIAL GOVERNMENT ADVISORIES ==
+${trendSection}== OFFICIAL GOVERNMENT ADVISORIES ==
 ${fcdoLine}
 Active natural hazard events (GDACS): ${gdacsText}
 Seismic activity M5+ / 7 days (USGS): ${usgsText}
@@ -794,7 +798,7 @@ export async function fetchWeatherAlerts(city, country) {
 export async function synthesiseBrief(country, city, sources, apiKey) {
   if (!apiKey) return null
 
-  const { fcdo, gdacs = [], usgs = [], iss, health, gdelt } = sources
+  const { fcdo, gdacs = [], usgs = [], iss, health, gdelt, trendContext } = sources
   const location = city ? `${city}, ${country}` : country
 
   const fcdoLine = fcdo
@@ -843,15 +847,19 @@ export async function synthesiseBrief(country, city, sources, apiKey) {
       : ''
     : ''
 
+  const briefTrendSection = trendContext
+    ? `\nPrevious assessment context: ${trendContext}\n`
+    : ''
+
   const prompt = `You are CAIRO, a senior corporate travel risk advisor. Analyse the intelligence below for ${location} and provide a concise assessment for a corporate client.
 
-You communicate as a trusted senior advisor — measured, professional, and clear. Use plain business English. Do not use military terminology, technical jargon, or alarmist language. When noting elevated monitoring activity, frame it naturally: "We are monitoring a higher than usual level of activity from this destination and will keep you informed as the situation develops."
+You communicate as a trusted senior advisor — measured, professional, and clear. Use plain business English. Do not use military terminology, technical jargon, or alarmist language. When noting elevated monitoring activity, frame it naturally: "We are monitoring a higher than usual level of activity from this destination and will keep you informed as the situation develops." When previous assessment context is provided, weave it naturally into your summary to show pattern awareness.
 
 Advisory: ${fcdoLine}
 Active natural hazard events: ${gdacsText}
 Seismic activity M5+ / 7 days: ${usgsText}
 Security reporting (ISS Africa): ${issText}
-Public health advisories (WHO/ProMED/PAHO/CIDRAP): ${healthText}${gdeltLine}${briefKnowledgeSection}
+Public health advisories (WHO/ProMED/PAHO/CIDRAP): ${healthText}${gdeltLine}${briefTrendSection}${briefKnowledgeSection}
 
 Respond ONLY with valid JSON, no markdown:
 {"summary":"2-3 sentence executive situation summary in professional advisory tone — include any active monitoring notes naturally within the summary","threat_level":"Low|Medium|High|Critical","key_risks":["specific risk 1","specific risk 2","specific risk 3"],"recommendations":["actionable rec 1","actionable rec 2","health or practical precaution if relevant"]}`

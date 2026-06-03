@@ -20,6 +20,7 @@ import { parseRssXml } from './_rssParser.js'
 import { sharedCache } from './_sharedCache.js'
 import { logFcdoChange } from './_fcdoAlert.js'
 import { fetchGdeltSignals } from './_gdelt.js'
+import { storeBriefHistory, buildTrendContext } from './_cairoMemory.js'
 
 const CACHE_TTL      = 60 * 60 * 1000       // 1 hour
 const ISS_CACHE_TTL  = 4  * 60 * 60 * 1000  // 4 hours
@@ -283,12 +284,18 @@ async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = 
         ai_brief = persisted
         await sharedCache.set('risk-ai:' + cacheKey, ai_brief, 60 * 60 * 1000)
       } else {
-        // Cache miss — run AI synthesis
-        ai_brief = await comprehensiveRiskScan(country, null, { fcdo, gdacs, usgs, iss, health, gdelt }, apiKey)
+        // Cache miss — build trend context then run AI synthesis
+        const trendContext = await buildTrendContext(country)
+        ai_brief = await comprehensiveRiskScan(country, null, { fcdo, gdacs, usgs, iss, health, gdelt, trendContext }, apiKey)
         if (!ai_brief) {
-          ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health, gdelt }, apiKey)
+          ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health, gdelt, trendContext }, apiKey)
         }
         if (ai_brief) {
+          // Store this brief in CAIRO's history for future trend analysis
+          storeBriefHistory(country, ai_brief, {
+            gdelt_tempo: gdelt?.tempoScore ?? null,
+            gdelt_trend: gdelt?.trend      ?? null,
+          }).catch(() => {})
           // Merge FCDO-derived severity so country-risk-summary always has a
           // map-ready overall_severity even if the AI brief omits it.
           const SEVER_ORDER = ['Low', 'Medium', 'High', 'Critical']

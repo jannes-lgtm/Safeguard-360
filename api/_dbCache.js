@@ -47,14 +47,17 @@ export async function dbCacheGet(key) {
 
 /**
  * Store a value in the cache.
- * @param {string} key
- * @param {any}    value      — must be JSON-serialisable
- * @param {number} ttlMs      — TTL in milliseconds
+ * @param {string}      key
+ * @param {any}         value  — must be JSON-serialisable
+ * @param {number|null} ttlMs  — TTL in milliseconds. Pass null for permanent storage.
  */
 export async function dbCacheSet(key, value, ttlMs = 3_600_000) {
   try {
     const sb = getSupabaseAdmin()
-    const expires_at = new Date(Date.now() + ttlMs).toISOString()
+    // null TTL = permanent — use far-future date (year 2099) since column is NOT NULL
+    const expires_at = ttlMs == null
+      ? '2099-12-31T23:59:59Z'
+      : new Date(Date.now() + ttlMs).toISOString()
     await sb
       .from('api_cache')
       .upsert({ key, value, expires_at, created_at: new Date().toISOString() }, { onConflict: 'key' })
