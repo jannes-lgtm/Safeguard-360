@@ -5,8 +5,7 @@
  *
  * Returns 200 if healthy, 503 if degraded.
  */
-import { adapt }        from './_adapter.js'
-import { sharedCache } from './_sharedCache.js'
+import { adapt } from './_adapter.js'
 
 async function _handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
@@ -99,26 +98,64 @@ async function _handler(req, res) {
     checks.feeds = { ok: false, error: e.message }
   }
 
-  // ── 5. Cache backend ─────────────────────────────────────────────────────
-  // Confirms whether the shared cache is using Redis (cross-instance, pre-warming
-  // effective) or in-memory fallback (per-instance only, pre-warming ineffective).
-  // If this shows 'memory', UPSTASH env vars are missing from Vercel production.
-  try {
-    const backend = await sharedCache.backend()
-    checks.cache = {
-      ok:      backend === 'redis',
-      backend,
-      note:    backend === 'redis'
-        ? 'Cross-instance Redis cache active — GDELT pre-warming is effective'
-        : 'In-memory fallback — UPSTASH_REDIS_REST_URL/TOKEN not set. GDELT pre-warming will not cross function instances.',
+  // ── 5. Redis diagnostic — step-by-step to isolate exact failure point ───────
+  // Tests each stage independently so we know whether the issue is:
+  //   missing env vars → Vercel configuration
+  //   package load failure → build/dependency
+  //   connection/auth failure → Upstash credentials or network
+  {
+    const redisUrl   = process.env.UPSTASH_REDIS_REST_URL
+    const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN
+
+    const diag = {
+      env_url_present:    !!redisUrl,
+      env_token_present:  !!redisToken,
+      // Show first 30 chars of URL so we can confirm it's the right endpoint
+      // without exposing credentials (token is never shown)
+      env_url_prefix:     redisUrl   ? redisUrl.slice(0, 30) + '...' : null,
+      package_load:       null,
+      connection:         null,
+      ping:               null,
+      backend:            'memory',
+      ok:                 false,
     }
-    // Cache fallback is not a hard failure (platform degrades gracefully)
-    // but it does make pre-warming useless — flag in logs
-    if (backend !== 'redis') {
-      console.warn('[health] Cache is in-memory only — GDELT pre-warming ineffective across instances')
+
+    if (!redisUrl || !redisToken) {
+      diag.failure = 'env_vars_missing'
+      console.warn('[health] Redis env vars not present in process.env')
+    } else {
+      // Step 2: can we load the package?
+      let Redis
+      try {
+        const mod = await import('@upstash/redis')
+        Redis = mod.Redis
+        diag.package_load = 'ok'
+      } catch (e) {
+        diag.package_load = `failed: ${e.message}`
+        diag.failure = 'package_load_failed'
+      }
+
+      // Step 3: can we instantiate the client and ping?
+      if (Redis) {
+        try {
+          const client = new Redis({ url: redisUrl, token: redisToken })
+          diag.connection = 'client_created'
+          const pong = await Promise.race([
+            client.ping(),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('ping timeout')), 5000)),
+          ])
+          diag.ping    = String(pong)
+          diag.backend = 'redis'
+          diag.ok      = true
+        } catch (e) {
+          diag.connection = diag.connection || 'failed'
+          diag.ping       = `failed: ${e.message}`
+          diag.failure    = 'connection_or_auth_failed'
+        }
+      }
     }
-  } catch (e) {
-    checks.cache = { ok: false, error: e.message }
+
+    checks.redis = diag
   }
 
   const status = healthy ? 200 : 503
