@@ -37,7 +37,6 @@
     "api/crisis-broadcast.js":        { "maxDuration": 60 },
     "api/health-requirements.js":     { "maxDuration": 45 },
     "api/destination-feed.js":        { "maxDuration": 30 },
-    "api/health.js":                  { "maxDuration": 15 },
     "api/ops-analyze.js":             { "maxDuration": 90 },
     "api/ops-report.js":              { "maxDuration": 15 },
     "api/journey-agent.js":           { "maxDuration": 60 },
