@@ -11,6 +11,10 @@
  *      so operators can see a history of advisory changes.
  *   3. Queries for any organisations with active travellers in the affected
  *      country and inserts in-app alert records for them.
+ *   4. Manages the escalated-countries set (api_cache key: fcdo-escalated):
+ *      - Country upgraded to Level 3+ → added to set → fast cron picks it up
+ *        every 15 min automatically, regardless of its normal tier.
+ *      - Country drops below Level 3 → removed from set → returns to normal cadence.
  *
  * All operations are fire-and-forget — failures are logged but never throw
  * so they cannot break the main risk fetch pipeline.
@@ -28,6 +32,58 @@ function getAdmin() {
 const LEVEL_LABEL = { 1: 'Level 1 — Low', 2: 'Level 2 — Medium', 3: 'Level 3 — High', 4: 'Level 4 — Critical' }
 const SEV_LABEL   = { 1: 'Low', 2: 'Medium', 3: 'High', 4: 'Critical' }
 const DIRECTION   = (prev, next) => next > prev ? 'UPGRADED' : 'DOWNGRADED'
+
+// ── Escalated-countries set ───────────────────────────────────────────────────
+// Stored in api_cache as: { key: 'fcdo-escalated', value: { countries: string[] } }
+// The fast warmup cron reads this and adds escalated countries to every 15-min run.
+
+const ESCALATED_KEY = 'fcdo-escalated'
+
+export async function getEscalatedCountries() {
+  try {
+    const sb = getAdmin()
+    const { data } = await sb
+      .from('api_cache')
+      .select('value')
+      .eq('key', ESCALATED_KEY)
+      .maybeSingle()
+    return data?.value?.countries || []
+  } catch {
+    return []
+  }
+}
+
+async function setEscalatedCountries(sb, countries) {
+  await sb.from('api_cache').upsert(
+    { key: ESCALATED_KEY, value: { countries }, expires_at: null },
+    { onConflict: 'key' }
+  )
+}
+
+async function updateEscalatedSet(sb, country, newLevel) {
+  try {
+    const existing = await getEscalatedCountries()
+    const name     = country.toLowerCase()
+
+    if (newLevel >= 3) {
+      // Add to escalated set if not already present
+      if (!existing.map(c => c.toLowerCase()).includes(name)) {
+        const updated = [...existing, country]
+        await setEscalatedCountries(sb, updated)
+        console.log(`[fcdoAlert] ${country} added to fast-check escalated set (Level ${newLevel})`)
+      }
+    } else {
+      // Remove from escalated set — back to normal cadence
+      const updated = existing.filter(c => c.toLowerCase() !== name)
+      if (updated.length !== existing.length) {
+        await setEscalatedCountries(sb, updated)
+        console.log(`[fcdoAlert] ${country} removed from escalated set (Level ${newLevel} — normal cadence restored)`)
+      }
+    }
+  } catch (e) {
+    console.warn('[fcdoAlert] escalated set update failed:', e.message)
+  }
+}
 
 /**
  * Log an FCDO advisory change to the live intelligence feed and audit trail.
@@ -57,6 +113,11 @@ export async function logFcdoChange(country, prevLevel, newLevel, prevSev, newSe
       ? 'FCDO advises against travel to some areas. Verify route viability and adjust movement posture accordingly.'
       : 'Advisory downgraded. Continue monitoring — conditions may remain fluid.'
     }`
+
+  // ── 0. Update escalated-countries set ───────────────────────────────────
+  // Escalation: country moves to Level 3+ → added to fast 15-min check set.
+  // De-escalation: country drops below Level 3 → removed from set.
+  await updateEscalatedSet(sb, country, newLevel)
 
   // ── 1. Insert into live_intelligence (GSOC feed) ─────────────────────────
   try {

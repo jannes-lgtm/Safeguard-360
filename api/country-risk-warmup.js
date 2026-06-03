@@ -19,8 +19,9 @@
  *     changes here are rare but caught automatically.
  */
 
-import { getCountryRisk } from './country-risk.js'
-import { adapt }          from './_adapter.js'
+import { getCountryRisk }        from './country-risk.js'
+import { getEscalatedCountries } from './_fcdoAlert.js'
+import { adapt }                 from './_adapter.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TIER A — Critical risk (FCDO Level 4 or equivalent)
@@ -173,14 +174,28 @@ async function runWarmup(countries) {
 }
 
 async function _handler(req, res) {
-  const tier    = req.query?.tier || 'fast'
-  const start   = Date.now()
+  const tier  = req.query?.tier || 'fast'
+  const start = Date.now()
 
-  // fast  → Critical + High (Tier A + B) — runs every 15 min
-  // slow  → Medium + Low   (Tier C + D) — runs every 3 hours
-  const countries = tier === 'slow'
-    ? [...tierC, ...tierD]
-    : [...tierA, ...tierB]
+  let countries
+
+  if (tier === 'slow') {
+    // Slow tier: Medium + Low — every 3 hours
+    countries = [...tierC, ...tierD]
+  } else {
+    // Fast tier: Critical + High — every 15 min
+    // PLUS any country that has been dynamically escalated by _fcdoAlert
+    // (e.g. a normally-Low country that FCDO just upgraded to Level 3+).
+    const escalated = await getEscalatedCountries()
+    const fastSet   = new Set([...tierA, ...tierB].map(c => c.toLowerCase()))
+
+    const dynamicAdditions = escalated.filter(c => !fastSet.has(c.toLowerCase()))
+    if (dynamicAdditions.length) {
+      console.log(`[country-risk-warmup] Dynamic escalations added to fast run: ${dynamicAdditions.join(', ')}`)
+    }
+
+    countries = [...tierA, ...tierB, ...dynamicAdditions]
+  }
 
   const results = await runWarmup(countries)
   const elapsed = Date.now() - start
@@ -192,11 +207,11 @@ async function _handler(req, res) {
 
   return res.status(200).json({
     tier,
-    warmed:    results.warmed,
-    failed:    results.failed,
-    errors:    results.errors,
-    total:     countries.length,
-    elapsedMs: elapsed,
+    warmed:       results.warmed,
+    failed:       results.failed,
+    errors:       results.errors,
+    total:        countries.length,
+    elapsedMs:    elapsed,
   })
 }
 
