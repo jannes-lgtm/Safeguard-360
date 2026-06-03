@@ -164,7 +164,7 @@ function DomainNav({ role, badges, compact }) {
 }
 
 // ── Mobile bottom navigation ──────────────────────────────────────────────────
-function MobileBottomNav({ alertCount }) {
+function MobileBottomNav({ alertCount, role }) {
   const location = useLocation()
   const isActive = (path) => location.pathname === path
 
@@ -200,6 +200,10 @@ function MobileBottomNav({ alertCount }) {
     )
   }
 
+  // Solo travellers get a discovery-focused nav: world map intel + CAIRO advisory.
+  // /live-risk-feed is a corporate ops feed — not accessible to solo role.
+  const isSolo = role === 'solo'
+
   return (
     <div
       className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex items-stretch"
@@ -210,11 +214,23 @@ function MobileBottomNav({ alertCount }) {
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
-      <Item to="/dashboard" icon={LayoutGrid}  label="Home" />
-      <Item to="/checkin"   icon={CheckCircle} label="Check-in" />
-      <SOSButton />
-      <Item to="/live-risk-feed" icon={Radio}  label="Alerts" />
-      <Item to="/profile"   icon={UserCircle}  label="Profile" />
+      {isSolo ? (
+        <>
+          <Item to="/dashboard"     icon={LayoutGrid}  label="Home" />
+          <Item to="/country-risk"  icon={Globe}       label="Countries" />
+          <SOSButton />
+          <Item to="/journey-agent" icon={Navigation}  label="CAIRO" />
+          <Item to="/profile"       icon={UserCircle}  label="Profile" />
+        </>
+      ) : (
+        <>
+          <Item to="/dashboard"      icon={LayoutGrid}  label="Home" />
+          <Item to="/checkin"        icon={CheckCircle} label="Check-in" />
+          <SOSButton />
+          <Item to="/live-risk-feed" icon={Radio}       label="Alerts" />
+          <Item to="/profile"        icon={UserCircle}  label="Profile" />
+        </>
+      )}
     </div>
   )
 }
@@ -427,7 +443,7 @@ export default function Layout({ children, dark = false }) {
 
       {/* ── Mobile bottom nav (traveler / org_admin roles only) ── */}
       {profile && uxProfile.bottomNav && (
-        <MobileBottomNav alertCount={activeAlertCount} />
+        <MobileBottomNav alertCount={activeAlertCount} role={role} />
       )}
     </div>
   )
