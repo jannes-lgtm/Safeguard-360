@@ -377,20 +377,19 @@ ${knowledgeReports.map(r =>
           ? gdelt.topArticles.map(a => `  • [${a.source}] ${a.title}`).join('\n')
           : '  No significant articles in the last 6 hours'
 
+        const THEME_LABELS = {
+          PROTEST:    'public demonstrations',
+          MILITARY:   'military or security force activity',
+          TERRORISM:  'security incidents or attacks',
+          COUP:       'political instability or government disruption',
+          EVACUATION: 'population movement or evacuations',
+          SECURITY:   'law enforcement activity',
+          EMERGENCY:  'declared emergencies or government alerts',
+          CONFLICT:   'ongoing conflict or civil unrest',
+          KIDNAP:     'kidnapping or hostage incidents',
+        }
         const themesText = gdelt.themes?.length
-          ? gdelt.themes
-              .map(t => ({
-                PROTEST:    'public demonstrations',
-                MILITARY:   'military or security force activity',
-                TERRORISM:  'security incidents or attacks',
-                COUP:       'political instability or government disruption',
-                EVACUATION: 'population movement or evacuations',
-                SECURITY:   'law enforcement activity',
-                EMERGENCY:  'declared emergencies or government alerts',
-                CONFLICT:   'ongoing conflict or civil unrest',
-                KIDNAP:     'kidnapping or hostage incidents',
-              }[t] || t.toLowerCase())
-              .join(', ')
+          ? gdelt.themes.map(t => THEME_LABELS[t] || t.toLowerCase()).join(', ')
           : 'no specific themes identified'
 
         return `== CURRENT MONITORING ACTIVITY (last 6 hours) ==
