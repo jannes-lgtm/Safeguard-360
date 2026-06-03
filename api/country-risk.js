@@ -18,6 +18,7 @@ import { checkRateLimit } from './_rateLimit.js'
 import { dbCacheGet, dbCacheSet, dbCacheDel } from './_dbCache.js'
 import { parseRssXml } from './_rssParser.js'
 import { sharedCache } from './_sharedCache.js'
+import { logFcdoChange } from './_fcdoAlert.js'
 
 const CACHE_TTL      = 60 * 60 * 1000       // 1 hour
 const ISS_CACHE_TTL  = 4  * 60 * 60 * 1000  // 4 hours
@@ -109,10 +110,13 @@ async function fetchWithTimeout(url, options = {}, ms = 7000) {
 }
 
 // ── FCDO ─────────────────────────────────────────────────────────────────────
-async function fetchFcdo(country) {
-  const slug = fcdoSlug(country)
-  const hit = await sharedCache.get('fcdo:' + slug)
-  if (hit !== null) return hit
+// Returns advisory result + { changed: bool, updatedAt: string|null }
+// changed=true means the FCDO advisory was updated since our last fetch —
+// caller should invalidate the AI brief and log the change.
+async function fetchFcdo(country, { checkTimestamp = false } = {}) {
+  const slug   = fcdoSlug(country)
+  const tsKey  = 'fcdo-ts:' + slug
+  const cached = await sharedCache.get('fcdo:' + slug)
 
   try {
     const r = await fetchWithTimeout(
@@ -120,13 +124,27 @@ async function fetchFcdo(country) {
       { headers: { Accept: 'application/json' } }
     )
     if (!r?.ok) {
+      if (cached !== null) return { ...cached, changed: false }
       await sharedCache.set('fcdo:' + slug, null, 60 * 60 * 1000)
       return null
     }
 
-    const data = await r.json()
+    const data      = await r.json()
+    const updatedAt = data.public_updated_at || data.updated_at || null
+
+    // ── Timestamp short-circuit ──────────────────────────────────────────────
+    // If we have a cached result AND the advisory hasn't been updated, return
+    // the cached result immediately — no parsing, no AI invalidation needed.
+    if (checkTimestamp && cached !== null && updatedAt) {
+      const lastTs = await sharedCache.get(tsKey)
+      if (lastTs && lastTs === updatedAt) {
+        return { ...cached, changed: false, updatedAt }
+      }
+    }
+
     const warnings = data.details?.parts?.find(p => p.slug === 'warnings-and-insurance')
     if (!warnings?.body) {
+      if (updatedAt) await sharedCache.set(tsKey, updatedAt, 6 * 60 * 60 * 1000)
       await sharedCache.set('fcdo:' + slug, null, 60 * 60 * 1000)
       return null
     }
@@ -148,10 +166,18 @@ async function fetchFcdo(country) {
       message: fcdoLevelText(level),
       url: `https://www.gov.uk/foreign-travel-advice/${slug}`,
     }
+
+    // Detect level change vs previously cached advisory
+    const prevLevel = cached?.level ?? null
+    const changed   = prevLevel !== null && prevLevel !== level
+
     await sharedCache.set('fcdo:' + slug, result, 60 * 60 * 1000)
-    return result
+    if (updatedAt) await sharedCache.set(tsKey, updatedAt, 6 * 60 * 60 * 1000)
+
+    return { ...result, changed, prevLevel, updatedAt }
   } catch (e) {
     console.error('FCDO fetch error for', country, ':', e.message)
+    if (cached !== null) return { ...cached, changed: false }
     return null
   }
 }
@@ -191,11 +217,13 @@ async function fetchIssAlerts(country) {
 
 
 // ── Combined risk + AI synthesis ──────────────────────────────────────────────
-// forceRefresh=true: bypass AI cache, always fetch fresh FCDO, re-synthesise
-// if FCDO level has changed. Used by the warmup cron to ensure map colours
-// reflect live advisory changes within one warmup cycle (~1 hour).
-async function getCountryRisk(country, { forceRefresh = false } = {}) {
-  // Always fetch FCDO fresh when forceRefresh — bypass sharedCache for FCDO
+// forceRefresh=true  — bypass FCDO sharedCache, re-fetch advisory, use timestamp
+//                      check to skip AI invalidation if advisory unchanged.
+// checkTimestamp=true — passed through to fetchFcdo; skips re-parse when FCDO
+//                       public_updated_at matches our stored timestamp.
+async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = false } = {}) {
+  // On forceRefresh, bypass the cached FCDO result so we hit the live API
+  // and can compare timestamps / detect level changes.
   if (forceRefresh) {
     const slug = fcdoSlug(country)
     await sharedCache.delete('fcdo:' + slug)
@@ -203,7 +231,7 @@ async function getCountryRisk(country, { forceRefresh = false } = {}) {
 
   // Fetch all live sources in parallel for speed
   const [fcdo, iss, gdacs, usgs, health] = await Promise.all([
-    fetchFcdo(country),
+    fetchFcdo(country, { checkTimestamp: forceRefresh || checkTimestamp }),
     fetchIssAlerts(country),
     fetchGDACS(country),
     fetchUSGS(country),
@@ -214,6 +242,16 @@ async function getCountryRisk(country, { forceRefresh = false } = {}) {
   const severity = levelToSeverity(level)
   const dfatSlug = toSlug(country)
 
+  // ── FCDO change detection ────────────────────────────────────────────────
+  // If the advisory level changed, log it to the live intelligence feed and
+  // invalidate the AI brief so CAIRO re-synthesises with the new floor.
+  if (fcdo?.changed && fcdo.prevLevel !== null && level !== null) {
+    const prevSev = levelToSeverity(fcdo.prevLevel)
+    console.log(`[country-risk] FCDO ADVISORY CHANGE: ${country} — Level ${fcdo.prevLevel} (${prevSev}) → Level ${level} (${severity})`)
+    // Fire-and-forget: log to live_intelligence feed + audit trail
+    logFcdoChange(country, fcdo.prevLevel, level, prevSev, severity).catch(() => {})
+  }
+
   // ── AI synthesis (comprehensive scan — cached 1h per country) ────────────
   let ai_brief = null
   const apiKey = process.env.ANTHROPIC_API_KEY
@@ -221,14 +259,14 @@ async function getCountryRisk(country, { forceRefresh = false } = {}) {
     const cacheKey = country.toLowerCase()
     const dbKey    = `country-risk:ai:${cacheKey}`
 
-    // On forceRefresh: check if FCDO level changed vs cached brief.
-    // If changed, invalidate the AI cache so we re-synthesise with current advisory.
-    if (forceRefresh && severity) {
-      const cached = await dbCacheGet(dbKey)
-      if (cached?.overall_severity && cached.overall_severity !== severity) {
-        await sharedCache.del('risk-ai:' + cacheKey)
-        await dbCacheDel(dbKey)   // invalidate — forces re-synthesis on next pass
-        console.log(`[country-risk] FCDO level changed for ${country}: ${cached.overall_severity} → ${severity} — forcing re-synthesis`)
+    // Invalidate AI cache when FCDO level changed — forces re-synthesis so
+    // CAIRO brief reflects the new advisory floor on next warmup pass.
+    if ((forceRefresh || fcdo?.changed) && severity) {
+      const cachedBrief = await dbCacheGet(dbKey)
+      if (cachedBrief?.overall_severity && cachedBrief.overall_severity !== severity) {
+        await sharedCache.delete('risk-ai:' + cacheKey)
+        await dbCacheDel(dbKey)
+        console.log(`[country-risk] AI cache invalidated for ${country}: ${cachedBrief.overall_severity} → ${severity}`)
       }
     }
 

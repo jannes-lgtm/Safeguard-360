@@ -1,76 +1,143 @@
 /**
  * api/country-risk-warmup.js
  *
- * CAIRO Country Risk Cache Warmup
- * Vercel Cron: every hour (5 * * * *)
+ * CAIRO Country Risk Cache Warmup — Full FCDO Coverage
  *
- * Pre-warms the country risk AI brief cache for all monitored destinations
- * so CAIRO responses are consistently fast. Runs getCountryRisk() for each
- * country — if the cache is still warm it returns instantly; if expired it
- * re-synthesises and stores the fresh brief.
+ * Runs on two schedules (set in vercel.json):
+ *   Fast tier  — */15 * * * *  (every 15 min)  → Tier A + B  (~70 countries, Critical/High)
+ *   Slow tier  — 10 */3 * * *  (every 3 hours) → Tier C + D  (~150 countries, Medium/Low)
  *
- * Processes countries in small sequential batches to avoid overwhelming
- * the Anthropic API. Tier A (highest-traffic) countries are processed first.
+ * Caller passes ?tier=fast or ?tier=slow (defaults to fast).
+ *
+ * Key behaviour:
+ *   • Uses timestamp-first FCDO check — if public_updated_at is unchanged,
+ *     the country skips AI invalidation and returns in ~0.3s.
+ *   • If FCDO level has genuinely changed, _fcdoAlert.js logs the event to
+ *     live_intelligence (GSOC feed) and alerts any affected orgs.
+ *   • Tier A (Critical) and Tier B (High) are re-checked every 15 minutes.
+ *   • Tier C (Medium) and Tier D (Low/stable) re-checked every 3 hours —
+ *     changes here are rare but caught automatically.
  */
 
 import { getCountryRisk } from './country-risk.js'
 import { adapt }          from './_adapter.js'
 
-// ── Countries to keep warm ────────────────────────────────────────────────────
-// Tier A — critical/high risk, highest operational activity, always warm
+// ─────────────────────────────────────────────────────────────────────────────
+// TIER A — Critical risk (FCDO Level 4 or equivalent)
+// Checked every 15 minutes
+// ─────────────────────────────────────────────────────────────────────────────
 const TIER_A = [
-  // Africa — Critical/High
-  'Nigeria', 'Ethiopia', 'Democratic Republic of Congo', 'Sudan', 'Somalia',
-  'Mali', 'Burkina Faso', 'Niger', 'Chad', 'Mozambique', 'Libya',
-  'Central African Republic', 'Burundi', 'Guinea-Bissau', 'Guinea',
-  'Cameroon', 'Togo', 'Benin', 'Gabon', 'Eritrea',
-  // Middle East — Critical/High
-  'Lebanon', 'Yemen', 'Iraq', 'Syria', 'Iran',
-  'Israel', 'West Bank', 'United Arab Emirates',
-  // Asia — Critical/High
-  'Afghanistan', 'Pakistan', 'Myanmar',
-  // Americas — Critical/High
-  'Haiti', 'Honduras', 'Guatemala', 'Ecuador', 'Nicaragua',
-  'Jamaica', 'Venezuela', 'Colombia', 'Mexico',
-  // Europe — Critical
+  // Africa
+  'Somalia', 'South Sudan', 'Sudan', 'Libya', 'Mali', 'Niger', 'Burkina Faso',
+  'Central African Republic', 'Democratic Republic of Congo', 'Eritrea', 'Burundi',
+  // Middle East
+  'Syria', 'Yemen', 'Iraq', 'Iran', 'Israel', 'West Bank',
+  // Asia
+  'Afghanistan', 'Myanmar',
+  // Americas
+  'Haiti',
+  // Europe
   'Ukraine', 'Russia',
 ]
 
-// Tier B — medium risk, monitored destinations
+// ─────────────────────────────────────────────────────────────────────────────
+// TIER B — High risk (FCDO Level 3)
+// Checked every 15 minutes
+// ─────────────────────────────────────────────────────────────────────────────
 const TIER_B = [
-  // Africa — Medium
-  'Kenya', 'South Africa', 'Egypt', 'Tanzania', 'Uganda', 'Ghana',
-  'Senegal', 'Rwanda', 'Zimbabwe', 'Zambia', 'Angola', 'Algeria',
-  'Tunisia', 'Morocco', 'Sierra Leone', 'Liberia', 'Ivory Coast',
-  'Mauritania', 'Madagascar', 'Djibouti', 'Equatorial Guinea',
-  'Republic of Congo', 'Eswatini', 'Lesotho', 'Comoros',
-  'Malawi', 'Gambia',
-  // Middle East — Medium
-  'Jordan', 'Saudi Arabia',
-  // Americas — Medium
-  'Brazil', 'Colombia', 'Peru', 'Bolivia', 'El Salvador',
-  'Paraguay', 'Cuba', 'Dominican Republic', 'Trinidad and Tobago',
-  'Belize', 'Suriname', 'Guyana',
-  // Europe — Medium
+  // Africa
+  'Nigeria', 'Ethiopia', 'Chad', 'Mozambique', 'Cameroon', 'Togo', 'Benin',
+  'Ivory Coast', 'Kenya', 'Tanzania', 'Egypt', 'Algeria', 'Tunisia',
+  'Guinea-Bissau', 'Guinea', 'Gabon',
+  // Middle East
+  'Lebanon', 'Pakistan', 'Jordan', 'Saudi Arabia', 'United Arab Emirates',
+  // Americas
+  'Guatemala', 'Ecuador', 'Venezuela', 'Colombia', 'Mexico',
+  'Honduras', 'Nicaragua', 'Jamaica',
+  // Asia
+  'India',
+  // Europe
   'Turkey',
-  // Asia — Medium
-  'India', 'Indonesia', 'Philippines',
 ]
 
-const BATCH_SIZE     = 5    // Countries processed concurrently per wave
-const WAVE_DELAY_MS  = 600  // Pause between waves (avoids API bursts)
-const COUNTRY_TIMEOUT_MS = 15000  // Per-country timeout
+// ─────────────────────────────────────────────────────────────────────────────
+// TIER C — Medium risk (FCDO Level 2 or elevated operational presence)
+// Checked every 3 hours
+// ─────────────────────────────────────────────────────────────────────────────
+const TIER_C = [
+  // Africa
+  'South Africa', 'Ghana', 'Uganda', 'Rwanda', 'Zimbabwe', 'Zambia', 'Angola',
+  'Morocco', 'Sierra Leone', 'Liberia', 'Mauritania', 'Madagascar', 'Djibouti',
+  'Equatorial Guinea', 'Republic of Congo', 'Eswatini', 'Lesotho', 'Comoros',
+  'Malawi', 'Gambia', 'Senegal', 'Namibia', 'Botswana', 'Cape Verde',
+  'Sao Tome and Principe', 'Mauritius',
+  // Middle East & North Africa
+  'Kuwait', 'Bahrain', 'Qatar', 'Oman',
+  // Asia
+  'China', 'Bangladesh', 'Nepal', 'Sri Lanka', 'Thailand', 'Vietnam',
+  'Cambodia', 'Laos', 'Mongolia', 'Indonesia', 'Philippines', 'Malaysia',
+  'North Korea', 'Tajikistan', 'Kyrgyzstan', 'Uzbekistan', 'Turkmenistan', 'Kazakhstan',
+  // Americas
+  'Brazil', 'Peru', 'Bolivia', 'El Salvador', 'Paraguay', 'Cuba',
+  'Dominican Republic', 'Trinidad and Tobago', 'Belize', 'Suriname', 'Guyana',
+  'Panama', 'Costa Rica', 'Argentina', 'Chile',
+  // Europe
+  'Belarus', 'Serbia', 'Kosovo', 'Bosnia and Herzegovina', 'Albania',
+  'Moldova', 'Georgia', 'Armenia', 'Azerbaijan', 'North Macedonia', 'Montenegro',
+  // Africa (remaining)
+  'Burkina Faso', // already Tier A but kept as alias-safe
+]
 
-async function sleep(ms) {
+// ─────────────────────────────────────────────────────────────────────────────
+// TIER D — Low risk (FCDO Level 1 — stable, high-volume travel destinations)
+// Checked every 3 hours (same slow cron as Tier C — changes are very rare)
+// ─────────────────────────────────────────────────────────────────────────────
+const TIER_D = [
+  // Europe
+  'France', 'Germany', 'Spain', 'Italy', 'Netherlands', 'Belgium', 'Switzerland',
+  'Austria', 'Sweden', 'Norway', 'Denmark', 'Finland', 'Portugal', 'Ireland',
+  'Poland', 'Czech Republic', 'Hungary', 'Romania', 'Bulgaria', 'Croatia',
+  'Slovakia', 'Slovenia', 'Estonia', 'Latvia', 'Lithuania', 'Luxembourg',
+  'Malta', 'Cyprus', 'Iceland', 'Greece', 'Ukraine',
+  // Asia-Pacific
+  'Japan', 'South Korea', 'Singapore', 'Australia', 'New Zealand', 'Taiwan',
+  'Hong Kong', 'Brunei', 'Maldives', 'Bhutan',
+  // Americas
+  'United States', 'Canada', 'Uruguay',
+  // Africa (very low risk)
+  'Seychelles', 'Tunisia',
+]
+
+// De-duplicate across tiers — higher tiers take precedence
+function dedup(tiers) {
+  const seen = new Set()
+  return tiers.map(tier =>
+    tier.filter(c => {
+      const key = c.toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  )
+}
+
+const [tierA, tierB, tierC, tierD] = dedup([TIER_A, TIER_B, TIER_C, TIER_D])
+
+const BATCH_SIZE         = 8     // concurrent per wave
+const WAVE_DELAY_MS      = 400   // ms between waves
+const COUNTRY_TIMEOUT_MS = 14000 // per-country timeout
+
+function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 async function warmCountry(country) {
   try {
     await Promise.race([
-      // forceRefresh=true: always fetch fresh FCDO, invalidate AI cache if level changed
-      getCountryRisk(country, { forceRefresh: true }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), COUNTRY_TIMEOUT_MS)),
+      getCountryRisk(country, { forceRefresh: true, checkTimestamp: true }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), COUNTRY_TIMEOUT_MS)
+      ),
     ])
     return { country, ok: true }
   } catch (err) {
@@ -82,15 +149,11 @@ async function processBatch(countries) {
   return Promise.allSettled(countries.map(warmCountry))
 }
 
-async function _handler(req, res) {
-  // Allow manual trigger via GET, Vercel cron uses GET
-  const start   = Date.now()
+async function runWarmup(countries) {
   const results = { warmed: 0, failed: 0, errors: [] }
 
-  const allCountries = [...TIER_A, ...TIER_B]
-
-  for (let i = 0; i < allCountries.length; i += BATCH_SIZE) {
-    const batch   = allCountries.slice(i, i + BATCH_SIZE)
+  for (let i = 0; i < countries.length; i += BATCH_SIZE) {
+    const batch   = countries.slice(i, i + BATCH_SIZE)
     const settled = await processBatch(batch)
 
     for (const r of settled) {
@@ -99,24 +162,40 @@ async function _handler(req, res) {
         results.warmed++
       } else {
         results.failed++
-        results.errors.push(`${val.country}: ${val.error}`)
+        if (val.country) results.errors.push(`${val.country}: ${val.error}`)
       }
     }
 
-    // Don't delay after the last batch
-    if (i + BATCH_SIZE < allCountries.length) {
-      await sleep(WAVE_DELAY_MS)
-    }
+    if (i + BATCH_SIZE < countries.length) await sleep(WAVE_DELAY_MS)
   }
 
+  return results
+}
+
+async function _handler(req, res) {
+  const tier    = req.query?.tier || 'fast'
+  const start   = Date.now()
+
+  // fast  → Critical + High (Tier A + B) — runs every 15 min
+  // slow  → Medium + Low   (Tier C + D) — runs every 3 hours
+  const countries = tier === 'slow'
+    ? [...tierC, ...tierD]
+    : [...tierA, ...tierB]
+
+  const results = await runWarmup(countries)
   const elapsed = Date.now() - start
-  console.log(`[country-risk-warmup] warmed=${results.warmed} failed=${results.failed} elapsed=${elapsed}ms`)
+
+  console.log(
+    `[country-risk-warmup] tier=${tier} warmed=${results.warmed} ` +
+    `failed=${results.failed} countries=${countries.length} elapsed=${elapsed}ms`
+  )
 
   return res.status(200).json({
-    warmed:   results.warmed,
-    failed:   results.failed,
-    errors:   results.errors,
-    total:    allCountries.length,
+    tier,
+    warmed:    results.warmed,
+    failed:    results.failed,
+    errors:    results.errors,
+    total:     countries.length,
     elapsedMs: elapsed,
   })
 }
