@@ -256,8 +256,9 @@ async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = 
   }
 
   // ── AI synthesis (comprehensive scan — cached 1h per country) ────────────
-  let ai_brief = null
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  let ai_brief  = null
+  let trendMeta = null   // structured trend metadata for UI rating cards
+  const apiKey  = process.env.ANTHROPIC_API_KEY
   if (apiKey) {
     const cacheKey = country.toLowerCase()
     const dbKey    = `country-risk:ai:${cacheKey}`
@@ -277,15 +278,20 @@ async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = 
     const l1Hit = await sharedCache.get('risk-ai:' + cacheKey)
     if (l1Hit) {
       ai_brief = l1Hit
+      // Still fetch trend meta for cached hits — fast DB read, no synthesis needed
+      buildTrendContext(country).then(r => { trendMeta = r.meta }).catch(() => {})
     } else {
       // L2 — Supabase persistent cache (survives cold starts)
       const persisted = await dbCacheGet(dbKey)
       if (persisted) {
         ai_brief = persisted
         await sharedCache.set('risk-ai:' + cacheKey, ai_brief, 60 * 60 * 1000)
+        // Still fetch trend meta for cached hits
+        buildTrendContext(country).then(r => { trendMeta = r.meta }).catch(() => {})
       } else {
         // Cache miss — build trend context then run AI synthesis
-        const trendContext = await buildTrendContext(country)
+        const { context: trendContext, meta: trendMetaFromHistory } = await buildTrendContext(country)
+        trendMeta = trendMetaFromHistory   // capture for response
         ai_brief = await comprehensiveRiskScan(country, null, { fcdo, gdacs, usgs, iss, health, gdelt, trendContext }, apiKey)
         if (!ai_brief) {
           ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health, gdelt, trendContext }, apiKey)
@@ -341,11 +347,31 @@ async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = 
       source: a.source || 'Health Feed',
     }))
 
+  // ── Extract CAIRO severity (effective: highest of AI + FCDO) ─────────────
+  // Parsed inline so cached string ai_brief is handled too.
+  let cairoSeverity = null
+  try {
+    const parsed = ai_brief
+      ? (typeof ai_brief === 'string' ? JSON.parse(ai_brief) : ai_brief)
+      : null
+    cairoSeverity = parsed?.overall_severity || severity || null
+  } catch { cairoSeverity = severity || null }
+
   return {
     country,
     level,
     severity,
     ai_brief,
+    // ── Structured rating card fields (UI) ─────────────────────────────────
+    cairo_severity: cairoSeverity,
+    fcdo_level:     level,
+    fcdo_message:   fcdo?.message  || null,
+    fcdo_url:       fcdo?.url      || `https://www.gov.uk/foreign-travel-advice/${fcdoSlug(country)}`,
+    trend_direction: trendMeta?.direction ?? null,
+    trend_label:     trendMeta?.label     ?? null,
+    trend_reason:    trendMeta?.reason    ?? null,
+    trend_consecutive: trendMeta?.consecutive ?? null,
+    // ───────────────────────────────────────────────────────────────────────
     gdelt_tempo:        gdelt?.tempoScore   ?? null,
     gdelt_trend:        gdelt?.trend        ?? null,
     gdelt_themes:       gdelt?.themes       ?? [],

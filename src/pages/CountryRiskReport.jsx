@@ -9,6 +9,7 @@ import {
   ChevronRight, AlertTriangle, MapPin, Brain, Zap, Clock,
   ChevronDown, ChevronUp, FileText, Layers, HeartPulse,
   Swords, CloudRain, Users, Lock, ArrowLeft, Printer,
+  TrendingUp, TrendingDown, Minus, Activity, Newspaper,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -397,13 +398,29 @@ function AiBrief({ brief, loading }) {
   )
 }
 
+// ── Trend icon helper ─────────────────────────────────────────────────────────
+function TrendIcon({ direction, size = 14 }) {
+  if (direction === 'escalating') return <TrendingUp  size={size} className="text-[#EF7474]" />
+  if (direction === 'improving')  return <TrendingDown size={size} className="text-[#AACC00]" />
+  if (direction === 'volatile')   return <Activity     size={size} className="text-orange-400" />
+  return <Minus size={size} className="text-gray-400" />
+}
+
+const TREND_COLORS = {
+  escalating: { text: 'text-[#EF7474]',  bg: 'bg-[rgba(138,46,46,0.10)]', border: 'border-[rgba(138,46,46,0.25)]' },
+  improving:  { text: 'text-[#AACC00]',  bg: 'bg-[rgba(170,204,0,0.10)]', border: 'border-[rgba(170,204,0,0.25)]' },
+  volatile:   { text: 'text-orange-600', bg: 'bg-orange-50',              border: 'border-orange-200'              },
+  stable:     { text: 'text-gray-500',   bg: 'bg-gray-50',                border: 'border-gray-200'               },
+}
+const trendColor = (d) => TREND_COLORS[d] || TREND_COLORS.stable
+
 // ── Full country report ───────────────────────────────────────────────────────
 function CountryReport({ country, isDeveloper = false }) {
   const meta = COUNTRY_META[country]
-  const [risk, setRisk]       = useState(null)
-  const [weather, setWeather] = useState(null)
-  const [articles, setArticles] = useState([])
-  const [loading, setLoading]   = useState(true)
+  const [risk, setRisk]           = useState(null)
+  const [weather, setWeather]     = useState(null)
+  const [articles, setArticles]   = useState([])
+  const [loading, setLoading]     = useState(true)
   const [aiLoading, setAiLoading] = useState(true)
   const generated = new Date().toLocaleString('en-GB', {
     day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
@@ -470,6 +487,23 @@ function CountryReport({ country, isDeveloper = false }) {
     ? (() => { try { return typeof risk.ai_brief === 'string' ? JSON.parse(risk.ai_brief) : risk.ai_brief } catch { return null } })()
     : null
 
+  // ── Structured rating card data ───────────────────────────────────────────
+  const fcdoLevel      = risk?.fcdo_level  ?? risk?.level  ?? null
+  const fcdoMessage    = risk?.fcdo_message ?? null
+  const fcdoUrl        = risk?.fcdo_url    ?? `https://www.gov.uk/foreign-travel-advice/${country.toLowerCase().replace(/\s+/g, '-')}`
+  const cairoSeverity  = risk?.cairo_severity ?? aiBrief?.overall_severity ?? severity
+  const cairoSev       = sev(cairoSeverity)
+  const trendDir       = risk?.trend_direction  ?? null
+  const trendLabel     = risk?.trend_label      ?? null
+  const trendReason    = risk?.trend_reason     ?? null
+  const tc             = trendColor(trendDir)
+
+  // FCDO level label
+  const FCDO_LABEL = { 1: 'Normal Precautions', 2: 'Exercise Caution', 3: 'Reconsider Travel', 4: 'Do Not Travel' }
+  const fcdoLabel  = fcdoLevel ? (FCDO_LABEL[fcdoLevel] || sc.advice) : 'No advisory data'
+  const fcdoSevKey = fcdoLevel >= 4 ? 'Critical' : fcdoLevel >= 3 ? 'High' : fcdoLevel >= 2 ? 'Medium' : fcdoLevel === 1 ? 'Low' : 'Unknown'
+  const fcdoSc     = sev(fcdoSevKey)
+
   return (
     <div id="sg360-print-root" className="space-y-4">
 
@@ -492,45 +526,175 @@ function CountryReport({ country, isDeveloper = false }) {
         </div>
       </div>
 
-      {/* Report header */}
-      <div className="bg-white rounded-[10px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-5">
-        <div className="flex items-start justify-between gap-4 mb-4">
+      {/* ── Report header strip ── */}
+      <div className="bg-white rounded-[10px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] px-5 py-4">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{country}</h2>
+            <h2 className="text-2xl font-bold text-gray-900 leading-tight">{country}</h2>
             <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5">
               <MapPin size={11} />{meta.capital}
-              <span className="mx-1">·</span>
-              <FileText size={11} /> Report generated {generated}
+              <span className="mx-1 text-gray-200">·</span>
+              <FileText size={11} /> {generated}
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {isDeveloper && (
-              <button onClick={handlePrint} className="print-hide flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] border border-gray-200 text-xs text-gray-500 hover:border-[#AACC00] hover:text-[#AACC00] hover:bg-blue-50/40 transition-colors">
-                <Printer size={13} />
-                Export PDF
-              </button>
-            )}
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-[8px] border ${sc.light} ${sc.border}`}>
-            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${sc.dot}`} />
-            <div className="text-right">
-              <div className={`text-sm font-bold ${sc.text}`}>{severity} Risk</div>
-              <div className={`text-[10px] ${sc.text} opacity-80`}>{sc.advice}</div>
-            </div>
-          </div>
-          </div>{/* end flex shrink-0 wrapper */}
-        </div>
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-700 ${sc.bg}`} style={{ width: `${sc.bar}%` }} />
-        </div>
-        <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-          <span>Low</span><span>Medium</span><span>High</span><span>Critical</span>
+          {isDeveloper && (
+            <button onClick={handlePrint}
+              className="print-hide shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] border border-gray-200 text-xs text-gray-500 hover:border-[#AACC00] hover:text-[#AACC00] hover:bg-[rgba(170,204,0,0.04)] transition-colors">
+              <Printer size={13} /> Export PDF
+            </button>
+          )}
         </div>
       </div>
 
-      {/* AI Assessment */}
+      {/* ── Risk rating cards ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+        {/* FCDO Advisory */}
+        <div className="bg-white rounded-[10px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-base leading-none">🇬🇧</span>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">UK FCDO Advisory</span>
+          </div>
+          {loading ? (
+            <div className="space-y-1.5">
+              <div className="h-6 w-28 bg-gray-100 rounded animate-pulse" />
+              <div className="h-3 w-40 bg-gray-100 rounded animate-pulse" />
+            </div>
+          ) : fcdoLevel ? (
+            <>
+              <div className={`inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-[6px] border ${fcdoSc.light} ${fcdoSc.border}`}>
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${fcdoSc.dot}`} />
+                <span className={`text-sm font-bold ${fcdoSc.text}`}>Level {fcdoLevel} — {fcdoLabel}</span>
+              </div>
+              {fcdoMessage && (
+                <p className="text-xs text-gray-500 leading-relaxed">{fcdoMessage}</p>
+              )}
+              <a href={fcdoUrl} target="_blank" rel="noopener noreferrer"
+                className="mt-auto inline-flex items-center gap-1 text-[10px] text-gray-400 hover:text-[#0118A1] font-medium transition-colors">
+                View full advisory <ExternalLink size={9} />
+              </a>
+            </>
+          ) : (
+            <p className="text-xs text-gray-400">No FCDO advisory data available.</p>
+          )}
+        </div>
+
+        {/* CAIRO Assessment */}
+        <div className="bg-white rounded-[10px] border border-[#AACC00]/20 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <Brain size={12} className="text-[#AACC00]" />
+            <span className="text-[10px] font-bold text-[#AACC00] uppercase tracking-wider">CAIRO Assessment</span>
+          </div>
+          {(aiLoading && loading) ? (
+            <div className="space-y-1.5">
+              <div className="h-6 w-24 bg-gray-100 rounded animate-pulse" />
+              <div className="h-3 w-44 bg-gray-100 rounded animate-pulse" />
+              <div className="h-3 w-36 bg-gray-100 rounded animate-pulse" />
+            </div>
+          ) : (
+            <>
+              <div className={`inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-[6px] border ${cairoSev.light} ${cairoSev.border}`}>
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cairoSev.dot}`} />
+                <span className={`text-sm font-bold ${cairoSev.text}`}>{cairoSeverity || 'Analysing…'}</span>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Live analysis — FCDO advisory, GDACS disasters, GDELT media signals, health feeds and regional intelligence.
+              </p>
+              <span className="mt-auto inline-flex items-center gap-1 text-[10px] text-[#AACC00]/60 font-semibold">
+                <Zap size={9} /> Powered by Claude AI
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* Trend */}
+        <div className="bg-white rounded-[10px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <Activity size={12} className="text-gray-400" />
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Trend</span>
+          </div>
+          {loading ? (
+            <div className="space-y-1.5">
+              <div className="h-6 w-24 bg-gray-100 rounded animate-pulse" />
+              <div className="h-3 w-40 bg-gray-100 rounded animate-pulse" />
+            </div>
+          ) : trendDir ? (
+            <>
+              <div className={`inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-[6px] border ${tc.bg} ${tc.border}`}>
+                <TrendIcon direction={trendDir} size={12} />
+                <span className={`text-sm font-bold ${tc.text}`}>{trendLabel}</span>
+              </div>
+              {trendReason && (
+                <p className="text-xs text-gray-500 leading-relaxed">{trendReason}</p>
+              )}
+              <span className="mt-auto text-[10px] text-gray-400">Based on CAIRO assessment history</span>
+            </>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <div className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-[6px] border bg-gray-50 border-gray-200">
+                <Minus size={12} className="text-gray-400" />
+                <span className="text-sm font-bold text-gray-400">Building history</span>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Trend data builds over time as CAIRO monitors this country across multiple assessment cycles.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── CAIRO AI Assessment ── */}
       <AiBrief brief={aiBrief} loading={aiLoading && loading} />
 
-      {/* Health Alerts */}
+      {/* ── Intelligence Headlines (promoted — raw signal beneath the analysis) ── */}
+      <Section title="Intelligence Headlines" icon={Newspaper} accent="text-[#AACC00]"
+        count={articles.length} defaultOpen={true}>
+        {articles.length === 0 && !loading ? (
+          <p className="text-xs text-gray-400 py-4 text-center">No recent articles found mentioning {country}.</p>
+        ) : loading ? (
+          <div className="space-y-3 py-2">
+            {[...Array(3)].map((_,i) => (
+              <div key={i} className="flex items-start gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-gray-200 mt-2 shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3.5 bg-gray-100 rounded animate-pulse" />
+                  <div className="h-2.5 w-2/3 bg-gray-100 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-0 divide-y divide-gray-100">
+            {articles.map((a, i) => (
+              <div key={i} className="flex items-start gap-3 py-3 group">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#AACC00] mt-2 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <a href={a.url} target="_blank" rel="noopener noreferrer"
+                    className="text-sm font-medium text-gray-900 hover:text-[#AACC00] hover:underline leading-snug block mb-1">
+                    {a.title}
+                  </a>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-gray-50 border-gray-200 text-gray-500">
+                      {a.feedName}
+                    </span>
+                    {a.date && (
+                      <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                        <Clock size={9} />{timeAgo(a.date)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <a href={a.url} target="_blank" rel="noopener noreferrer"
+                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-[#AACC00] transition-all shrink-0 mt-1">
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* ── Health Alerts ── */}
       {!loading && (() => {
         const healthSrcs = (risk?.sources || []).filter(s => s.category === 'health')
         if (!healthSrcs.length) return null
@@ -562,10 +726,10 @@ function CountryReport({ country, isDeveloper = false }) {
         )
       })()}
 
-      {/* Official Advisories */}
+      {/* ── Official Advisories ── */}
       {!loading && risk?.sources?.filter(s => !s.category).length > 0 && (
         <Section title="Official Advisories" icon={Shield} accent="text-[#AACC00]"
-          count={risk.sources.filter(s => !s.category).length}>
+          count={risk.sources.filter(s => !s.category).length} defaultOpen={false}>
           <div className="space-y-2">
             {risk.sources.filter(s => !s.category).map((src, i) => (
               <a key={i} href={src.url} target="_blank" rel="noopener noreferrer"
@@ -592,7 +756,7 @@ function CountryReport({ country, isDeveloper = false }) {
         </Section>
       )}
 
-      {/* Active Disasters */}
+      {/* ── Active Disasters ── */}
       {!loading && risk?.gdacs_count > 0 && (
         <Section title="Active Disaster Events" icon={AlertTriangle} accent="text-[#EF7474]" count={risk.gdacs_count}>
           <p className="text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] border border-red-100 rounded-[6px] px-3 py-2">
@@ -602,7 +766,7 @@ function CountryReport({ country, isDeveloper = false }) {
         </Section>
       )}
 
-      {/* Seismic */}
+      {/* ── Seismic ── */}
       {!loading && risk?.usgs_count > 0 && (
         <Section title="Seismic Activity" icon={AlertTriangle} accent="text-orange-500" count={risk.usgs_count}>
           <p className="text-sm text-orange-700 bg-orange-50 border border-orange-100 rounded-[6px] px-3 py-2">
@@ -612,7 +776,7 @@ function CountryReport({ country, isDeveloper = false }) {
         </Section>
       )}
 
-      {/* Weather */}
+      {/* ── Weather ── */}
       {weather?.current && (
         <Section title={`Weather — ${meta.capital}`} icon={Thermometer} accent="text-sky-500">
           <div className="flex items-center gap-4 mb-4">
@@ -639,41 +803,6 @@ function CountryReport({ country, isDeveloper = false }) {
           )}
         </Section>
       )}
-
-      {/* Intel Headlines */}
-      <Section title="Intelligence Headlines" icon={FileText} accent="text-purple-500" count={articles.length} defaultOpen={articles.length > 0}>
-        {articles.length === 0 ? (
-          <p className="text-xs text-gray-400 py-4 text-center">No recent articles found mentioning {country}.</p>
-        ) : (
-          <div className="space-y-0 divide-y divide-gray-100">
-            {articles.map((a, i) => (
-              <div key={i} className="flex items-start gap-3 py-3 group">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#AACC00] mt-2 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <a href={a.url} target="_blank" rel="noopener noreferrer"
-                    className="text-sm font-medium text-gray-900 hover:text-[#AACC00] hover:underline leading-snug block mb-1">
-                    {a.title}
-                  </a>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-gray-50 border-gray-200 text-gray-500">
-                      {a.feedName}
-                    </span>
-                    {a.date && (
-                      <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                        <Clock size={9} />{timeAgo(a.date)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <a href={a.url} target="_blank" rel="noopener noreferrer"
-                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-[#AACC00] transition-all shrink-0 mt-1">
-                  <ExternalLink size={12} />
-                </a>
-              </div>
-            ))}
-          </div>
-        )}
-      </Section>
 
       {loading && (
         <div className="bg-white rounded-[10px] border border-gray-200 p-6 text-center">

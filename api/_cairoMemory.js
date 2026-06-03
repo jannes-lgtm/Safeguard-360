@@ -91,16 +91,9 @@ export async function getBriefHistory(country, n = MAX_HISTORY) {
 
 // ── Trend analysis ────────────────────────────────────────────────────────────
 
-/**
- * Analyse the brief history and return a plain-English trend context string
- * suitable for injection directly into the CAIRO synthesis prompt.
- *
- * Returns null if there is insufficient history (< 2 entries).
- */
-export async function buildTrendContext(country) {
-  const history = await getBriefHistory(country, 7)
-  if (!history || history.length < 2) return null
+// ── Internal trend analysis (shared by buildTrendContext and getTrendMeta) ────
 
+function _analyseTrend(history) {
   const severities = history
     .map(h => h.severity)
     .filter(s => SEV_ORDER[s] !== undefined)
@@ -115,6 +108,86 @@ export async function buildTrendContext(country) {
   const previousScore = SEV_ORDER[previous] || 0
   const oldestScore   = SEV_ORDER[oldest]   || 0
 
+  // Count consecutive assessments at current severity
+  let consecutive = 0
+  for (const s of severities) {
+    if (s === current) consecutive++
+    else break
+  }
+
+  // Determine trend direction across the full window
+  const isDeterioration = currentScore > oldestScore
+  const isImprovement   = currentScore < oldestScore
+  const isStable        = currentScore === oldestScore
+  const isVolatile      = !isStable
+    && severities.some(s => SEV_ORDER[s] < currentScore)
+    && severities.some(s => SEV_ORDER[s] > currentScore)
+
+  const justEscalated   = currentScore > previousScore
+  const justDeescalated = currentScore < previousScore
+
+  // ── Structured meta for the UI rating cards ────────────────────────────────
+  let meta = { direction: 'stable', label: 'Stable', reason: 'Consistent with previous assessment.', consecutive }
+
+  if (justEscalated) {
+    const prevTs   = history[1]?.ts ? new Date(history[1].ts) : null
+    const nowTs    = history[0]?.ts ? new Date(history[0].ts) : null
+    const hrs      = prevTs && nowTs ? Math.round((nowTs - prevTs) / 3_600_000) : null
+    const timeHint = hrs != null ? (hrs < 24 ? ` (${hrs}h ago)` : ` (${Math.round(hrs / 24)}d ago)`) : ''
+    meta = { direction: 'escalating', label: 'Escalating',
+      reason: `Upgraded from ${previous}${timeHint}.`, consecutive }
+  } else if (justDeescalated) {
+    const prevTs   = history[1]?.ts ? new Date(history[1].ts) : null
+    const nowTs    = history[0]?.ts ? new Date(history[0].ts) : null
+    const hrs      = prevTs && nowTs ? Math.round((nowTs - prevTs) / 3_600_000) : null
+    const timeHint = hrs != null ? (hrs < 24 ? ` (${hrs}h ago)` : ` (${Math.round(hrs / 24)}d ago)`) : ''
+    meta = { direction: 'improving', label: 'Improving',
+      reason: `Downgraded from ${previous}${timeHint}.`, consecutive }
+  } else if (consecutive >= 3) {
+    meta = { direction: 'stable', label: 'Sustained',
+      reason: `${consecutive} consecutive assessments at ${current}.`, consecutive }
+  } else if (isDeterioration && history.length >= 4) {
+    meta = { direction: 'escalating', label: 'Deteriorating',
+      reason: `Elevated from ${oldest} over recent monitoring period.`, consecutive }
+  } else if (isImprovement && history.length >= 4) {
+    meta = { direction: 'improving', label: 'Recovering',
+      reason: `Improved from ${oldest} over recent monitoring period.`, consecutive }
+  } else if (isVolatile && history.length >= 4) {
+    meta = { direction: 'volatile', label: 'Volatile',
+      reason: 'Conditions have been fluctuating — monitor closely.', consecutive }
+  }
+
+  return {
+    meta,
+    // These are forwarded to buildTrendContext for the AI prompt paragraph
+    _internals: {
+      current, previous, oldest, consecutive,
+      justEscalated, justDeescalated, isDeterioration, isImprovement, isVolatile,
+      currentScore, oldestScore,
+    },
+  }
+}
+
+/**
+ * Analyse the brief history and return:
+ *   { context: string|null, meta: object|null }
+ *
+ * context — plain-English paragraph for the CAIRO synthesis prompt
+ * meta    — structured { direction, label, reason, consecutive } for UI cards
+ *
+ * Returns { context: null, meta: null } if there is insufficient history (< 2 entries).
+ */
+export async function buildTrendContext(country) {
+  const history = await getBriefHistory(country, 7)
+  if (!history || history.length < 2) return { context: null, meta: null }
+
+  const analysis = _analyseTrend(history)
+  if (!analysis) return { context: null, meta: null }
+
+  const { meta, _internals: i } = analysis
+  const { current, previous, oldest, consecutive,
+    justEscalated, justDeescalated, isDeterioration, isImprovement, isVolatile } = i
+
   // Time span of the history window
   const newestTs = new Date(history[0].ts)
   const oldestTs = new Date(history[history.length - 1].ts)
@@ -123,36 +196,17 @@ export async function buildTrendContext(country) {
     ? `${hoursAgo} hour${hoursAgo !== 1 ? 's' : ''}`
     : `${Math.round(hoursAgo / 24)} day${Math.round(hoursAgo / 24) !== 1 ? 's' : ''}`
 
-  // Count consecutive assessments at current severity
-  let consecutiveAtCurrent = 0
-  for (const s of severities) {
-    if (s === current) consecutiveAtCurrent++
-    else break
-  }
-
-  // Determine trend direction across the full window
-  const isDeterioration  = currentScore > oldestScore
-  const isImprovement    = currentScore < oldestScore
-  const isStable         = currentScore === oldestScore
-  const isVolatile       = !isStable && severities.some(s => SEV_ORDER[s] < currentScore) && severities.some(s => SEV_ORDER[s] > currentScore)
-
-  // Recent shift (last two assessments)
-  const justEscalated    = currentScore > previousScore
-  const justDeescalated  = currentScore < previousScore
-
   // ── Build the trend context paragraph ────────────────────────────────────
   const lines = []
 
-  // Opening: how long we've been watching
   lines.push(
     `CAIRO has been monitoring ${country} across ${history.length} assessment${history.length !== 1 ? 's' : ''} ` +
     `over the past ${spanLabel}.`
   )
 
-  // Consecutive pattern
-  if (consecutiveAtCurrent >= 3) {
+  if (consecutive >= 3) {
     lines.push(
-      `The last ${consecutiveAtCurrent} consecutive assessments have rated conditions as ${current}. ` +
+      `The last ${consecutive} consecutive assessments have rated conditions as ${current}. ` +
       `This indicates a sustained pattern rather than an isolated or temporary development.`
     )
   } else if (justEscalated) {
@@ -167,7 +221,6 @@ export async function buildTrendContext(country) {
     )
   }
 
-  // Longer-term trajectory
   if (isDeterioration && history.length >= 4) {
     lines.push(
       `Over the full monitoring window, the risk profile has moved from ${oldest} to ${current}, ` +
@@ -195,5 +248,5 @@ export async function buildTrendContext(country) {
     if (tempoTrend) lines.push(tempoTrend)
   }
 
-  return lines.join(' ')
+  return { context: lines.join(' '), meta }
 }

@@ -84,7 +84,7 @@ const ALL_ROLES_NO_SOLO  = [T, O, A, D, GO, GA, PM, PO] // all roles except solo
 // reports are accessible via deep-links from Dashboard and CAIRO, not nav.
 //
 //   My Journey  → Dashboard · My Trips · Check In
-//   CAIRO       → CAIRO · News
+//   CAIRO       → CAIRO · News · Country Risk
 //   Emergency   → SOS · Control Room (personal status only)
 //   Account     → Profile
 
@@ -177,7 +177,7 @@ export const DOMAINS = [
         label: 'Country Risk',
         route: '/country-risk',
         icon: 'Shield',
-        roles: [T, ...ALL_ROLES_NO_SOLO],   // solo accesses via CAIRO, not separate nav
+        roles: ALL_ROLES,   // solo gets map access; knowledge_base + intel_feeds stay gated
       },
       {
         id: 'knowledge_base',
