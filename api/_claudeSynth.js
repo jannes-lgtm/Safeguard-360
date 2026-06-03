@@ -358,53 +358,77 @@ ${knowledgeReports.map(r =>
 `
     : ''
 
-  // ── GDELT live event signals ────────────────────────────────────────────────
+  // ── GDELT live event signals ─────────────────────────────────────────────────
+  // Labels are deliberately plain-English — no technical terminology reaches CAIRO.
+  // CAIRO is instructed to translate these into corporate advisory language.
   const gdeltSection = gdelt
     ? (() => {
-        const tempoLabel = !gdelt.tempoScore        ? 'Insufficient data'
-          : gdelt.tempoScore >= 2.5 || gdelt.capped ? `SPIKE — ${gdelt.tempoScore}× above baseline`
-          : gdelt.tempoScore >= 1.5                  ? `ELEVATED — ${gdelt.tempoScore}× above baseline`
-          : gdelt.tempoScore < 0.7                   ? `QUIET — ${gdelt.tempoScore}× baseline`
-          :                                            `Normal — ${gdelt.tempoScore}×`
+        const activityLevel = !gdelt.tempoScore
+          ? 'monitoring data unavailable'
+          : gdelt.tempoScore >= 2.5 || gdelt.capped
+            ? 'significantly more activity than usual — warrants close attention'
+          : gdelt.tempoScore >= 1.5
+            ? 'more activity than usual — situation developing'
+          : gdelt.tempoScore < 0.7
+            ? 'quieter than usual — no significant developments noted'
+          :   'within normal range'
 
         const articlesText = gdelt.topArticles?.length
           ? gdelt.topArticles.map(a => `  • [${a.source}] ${a.title}`).join('\n')
-          : '  None in last 6 hours'
+          : '  No significant articles in the last 6 hours'
 
         const themesText = gdelt.themes?.length
-          ? gdelt.themes.join(', ')
-          : 'None detected'
+          ? gdelt.themes
+              .map(t => ({
+                PROTEST:    'public demonstrations',
+                MILITARY:   'military or security force activity',
+                TERRORISM:  'security incidents or attacks',
+                COUP:       'political instability or government disruption',
+                EVACUATION: 'population movement or evacuations',
+                SECURITY:   'law enforcement activity',
+                EMERGENCY:  'declared emergencies or government alerts',
+                CONFLICT:   'ongoing conflict or civil unrest',
+                KIDNAP:     'kidnapping or hostage incidents',
+              }[t] || t.toLowerCase())
+              .join(', ')
+          : 'no specific themes identified'
 
-        return `== GDELT LIVE EVENT INTELLIGENCE (last 6h) ==
-Activity tempo: ${tempoLabel}
-Trend: ${gdelt.trend || 'stable'}
-Active themes: ${themesText}
-Breaking articles:
+        return `== CURRENT MONITORING ACTIVITY (last 6 hours) ==
+News and reporting volume: ${activityLevel}
+Monitoring trend: ${gdelt.trend === 'escalating' ? 'increasing' : gdelt.trend === 'de-escalating' ? 'decreasing' : 'steady'}
+Areas of reporting focus: ${themesText}
+Recent articles of note:
 ${articlesText}
 
 `
       })()
     : ''
 
-  const prompt = `You are a senior corporate travel security analyst. Analyse ALL available intelligence for ${location} and produce a structured risk assessment for a client travelling to this destination.
+  const prompt = `You are CAIRO, a senior corporate travel risk advisor. Analyse ALL available intelligence for ${location} and produce a structured risk assessment for a corporate client.
 
-== OFFICIAL ADVISORIES ==
+Your communication style is that of a trusted senior advisor briefing a board-level risk committee or a corporate security manager. You are measured, precise, and professional. You do not use military jargon, technical terminology, or alarmist language. When activity is elevated, you note that you are monitoring the situation closely and will provide updates as it develops. When conditions are calm, you say so clearly and confidently.
+
+== OFFICIAL GOVERNMENT ADVISORIES ==
 ${fcdoLine}
-Active disasters (GDACS): ${gdacsText}
-Earthquakes M5+ / 7d (USGS): ${usgsText}
+Active natural hazard events (GDACS): ${gdacsText}
+Seismic activity M5+ / 7 days (USGS): ${usgsText}
 
 ${gdeltSection}${knowledgeSection}== LIVE INTELLIGENCE FEEDS ==
-${catText('conflict', 'Conflict & War news')}
+${catText('conflict', 'Conflict & political instability')}
 
-${catText('security', 'Security analysis')}
+${catText('security', 'Security environment')}
 
-${catText('health', 'Health & Disease alerts')}
-Disease/outbreak feeds (WHO/PAHO/CIDRAP): ${healthText}
+${catText('health', 'Health & medical advisories')}
+Public health feeds (WHO/PAHO/CIDRAP): ${healthText}
 
-${catText('weather', 'Weather & Natural disasters')}
+${catText('weather', 'Weather & environmental conditions')}
 
 == INSTRUCTIONS ==
-Produce a structured JSON risk assessment. Be specific — reference actual events from the feeds above. Do not invent risks. If feeds show no relevant threats for this location, reflect that accurately.
+Produce a structured JSON risk assessment. Be specific — reference actual events from the intelligence above. Do not fabricate risks. Where feeds show no significant threats, reflect that accurately and reassure the client.
+
+When referencing monitoring activity levels, use natural corporate language — for example: "We are monitoring a higher than usual volume of reporting from this destination and will provide updated guidance should the situation develop further." Never reference technical terms such as tempo scores, baselines, multipliers, or system thresholds in client-facing output.
+
+Respond ONLY with valid JSON, no markdown:
 
 Respond ONLY with valid JSON, no markdown:
 {
@@ -770,7 +794,7 @@ export async function fetchWeatherAlerts(city, country) {
 export async function synthesiseBrief(country, city, sources, apiKey) {
   if (!apiKey) return null
 
-  const { fcdo, gdacs = [], usgs = [], iss, health } = sources
+  const { fcdo, gdacs = [], usgs = [], iss, health, gdelt } = sources
   const location = city ? `${city}, ${country}` : country
 
   const fcdoLine = fcdo
@@ -808,17 +832,29 @@ export async function synthesiseBrief(country, city, sources, apiKey) {
     ? `\nProprietary reports (Presight 360): ${briefReports.map(r => `[${r.title}] ${r.summary}`).join(' | ')}\n`
     : ''
 
-  const prompt = `You are a corporate travel security analyst briefing a risk manager.
-Analyse live intelligence for ${location} and give a concise assessment.
+  // GDELT monitoring context — plain language only, no technical terms
+  const gdeltLine = gdelt?.tempoScore != null
+    ? gdelt.tempoScore >= 2.5 || gdelt.capped
+      ? `\nCurrent monitoring note: We are tracking a notably higher than usual volume of reporting from this destination and are monitoring the situation closely. We will provide updated guidance should conditions develop further.`
+      : gdelt.tempoScore >= 1.5
+      ? `\nCurrent monitoring note: Reporting from this destination is running above the usual level. We are monitoring for further developments.`
+      : gdelt.tempoScore < 0.7
+      ? `\nCurrent monitoring note: Reporting from this destination is quieter than usual. No significant new developments noted at this time.`
+      : ''
+    : ''
+
+  const prompt = `You are CAIRO, a senior corporate travel risk advisor. Analyse the intelligence below for ${location} and provide a concise assessment for a corporate client.
+
+You communicate as a trusted senior advisor — measured, professional, and clear. Use plain business English. Do not use military terminology, technical jargon, or alarmist language. When noting elevated monitoring activity, frame it naturally: "We are monitoring a higher than usual level of activity from this destination and will keep you informed as the situation develops."
 
 Advisory: ${fcdoLine}
-Active disasters (GDACS): ${gdacsText}
-Earthquakes M5+ / 7d (USGS): ${usgsText}
-Security news (ISS Africa): ${issText}
-Disease & health outbreaks (WHO/ProMED/PAHO/CIDRAP): ${healthText}${briefKnowledgeSection}
+Active natural hazard events: ${gdacsText}
+Seismic activity M5+ / 7 days: ${usgsText}
+Security reporting (ISS Africa): ${issText}
+Public health advisories (WHO/ProMED/PAHO/CIDRAP): ${healthText}${gdeltLine}${briefKnowledgeSection}
 
 Respond ONLY with valid JSON, no markdown:
-{"summary":"2-3 sentence executive situation summary including any active health risks","threat_level":"Low|Medium|High|Critical","key_risks":["specific risk 1","specific risk 2","specific risk 3","health/disease risk if relevant"],"recommendations":["actionable rec 1","actionable rec 2","health precaution if relevant"]}`
+{"summary":"2-3 sentence executive situation summary in professional advisory tone — include any active monitoring notes naturally within the summary","threat_level":"Low|Medium|High|Critical","key_risks":["specific risk 1","specific risk 2","specific risk 3"],"recommendations":["actionable rec 1","actionable rec 2","health or practical precaution if relevant"]}`
 
   try {
     const model = await resolveModel(apiKey)
