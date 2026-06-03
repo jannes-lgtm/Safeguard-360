@@ -231,14 +231,23 @@ async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = 
     await sharedCache.delete('fcdo:' + slug)
   }
 
-  // Fetch all live sources in parallel for speed
+  // Fetch all live sources in parallel for speed.
+  // GDELT is wrapped in a 7s user-facing cap — the ingest cron (maxDuration 300s)
+  // populates the Redis cache at 30-min intervals using the full 22s timeout.
+  // On a cache hit this resolves in <100ms; on a cold miss it returns null
+  // rather than holding up the response.
+  const gdeltWithCap = Promise.race([
+    fetchGdeltSignals(country),
+    new Promise(resolve => setTimeout(() => resolve(null), 7000)),
+  ])
+
   const [fcdo, iss, gdacs, usgs, health, gdelt] = await Promise.all([
     fetchFcdo(country, { checkTimestamp: forceRefresh || checkTimestamp }),
     fetchIssAlerts(country),
     fetchGDACS(country),
     fetchUSGS(country),
     fetchHealthOutbreaks(country),
-    fetchGdeltSignals(country),   // GDELT: tempo score + live event signals
+    gdeltWithCap,
   ])
 
   const level    = fcdo?.level ?? null

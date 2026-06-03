@@ -29,7 +29,7 @@ import { sharedCache } from './_sharedCache.js'
 
 const GDELT_BASE  = 'https://api.gdeltproject.org/api/v2/doc/doc'
 const CACHE_TTL   = 30 * 60 * 1000   // 30 min cache per country
-const FETCH_MS    = 10_000            // 10s timeout per GDELT request
+const FETCH_MS    = 22_000            // 22s timeout — GDELT API averages 15-20s response time
 
 // ── Security keyword filter ───────────────────────────────────────────────────
 // Used to filter retrieved articles down to operationally relevant content.
