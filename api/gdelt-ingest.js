@@ -2,7 +2,7 @@
  * api/gdelt-ingest.js
  *
  * GDELT Tempo Ingest Cron
- * Vercel schedule: every 30 minutes (*/30 * * * *)
+ * Vercel schedule: every 30 minutes — cron: "* /30 * * * *" (no space)
  *
  * Fetches GDELT signals for all monitored countries and:
  *   1. Pre-warms the gdelt cache so country-risk.js gets GDELT from

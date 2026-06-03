@@ -4,8 +4,8 @@
  * CAIRO Country Risk Cache Warmup — Full FCDO Coverage
  *
  * Runs on two schedules (set in vercel.json):
- *   Fast tier  — */15 * * * *  (every 15 min)  → Tier A + B  (~70 countries, Critical/High)
- *   Slow tier  — 10 */3 * * *  (every 3 hours) → Tier C + D  (~150 countries, Medium/Low)
+ *   Fast tier  — every 15 min  → Tier A + B  (~70 countries, Critical/High)
+ *   Slow tier  — every 3 hours → Tier C + D  (~150 countries, Medium/Low)
  *
  * Caller passes ?tier=fast or ?tier=slow (defaults to fast).
  *

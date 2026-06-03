@@ -1,7 +1,7 @@
 /**
  * /api/sos-escalation-check
  *
- * Cron: runs every 5 minutes (see vercel.json schedule: "*/5 * * * *")
+ * Cron: runs every 5 minutes (vercel.json schedule: every-5-min)
  *
  * WHAT IT DOES:
  *   Finds active SOS events that have failed or missing notification delivery
