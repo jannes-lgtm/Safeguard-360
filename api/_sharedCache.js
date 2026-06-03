@@ -221,6 +221,46 @@ export const sharedCache = {
     const redis = await getRedis()
     return redis ? 'redis' : 'memory'
   },
+
+  /**
+   * Attempt to acquire a distributed lock.
+   * Returns true if the lock was acquired, false if another holder already has it.
+   *
+   * Uses Redis SET NX EX (atomic) when Redis is available.
+   * Falls back to in-memory check-then-set (non-atomic, acceptable for low-concurrency).
+   *
+   * @param {string} key    — lock name (no namespace prefix needed — added internally)
+   * @param {number} ttlMs  — lock TTL in milliseconds (auto-released after this)
+   */
+  async tryLock(key, ttlMs) {
+    const redis = await getRedis()
+    if (redis) {
+      try {
+        const ttlSec = Math.ceil(ttlMs / 1000)
+        const result = await redis.set(REDIS_KEY_PREFIX + key, '1', { nx: true, ex: ttlSec })
+        return result === 'OK'
+      } catch (e) {
+        console.warn('[sharedCache] tryLock Redis failed — allowing through:', e.message)
+        return true  // fail open: allow the run rather than permanently blocking
+      }
+    }
+    // In-memory fallback: best-effort (not atomic, but acceptable for rare overlaps)
+    if (memGet(key) !== null) return false
+    memSet(key, '1', ttlMs)
+    return true
+  },
+
+  /**
+   * Release a lock acquired via tryLock.
+   * Safe to call even if the lock has already expired.
+   */
+  async releaseLock(key) {
+    const redis = await getRedis()
+    if (redis) {
+      try { await redis.del(REDIS_KEY_PREFIX + key) } catch {}
+    }
+    memDelete(key)
+  },
 }
 
 // ── Test seam (never called in production) ────────────────────────────────────

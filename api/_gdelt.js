@@ -92,7 +92,25 @@ function parseGdeltDate(s = '') {
   } catch { return null }
 }
 
-async function fetchWithTimeout(url, ms = FETCH_MS) {
+// Rate-limit sentinel — returned when GDELT responds with its throttle message.
+// Callers must handle this distinctly from null (no data) so rate-limited runs
+// don't look identical to empty-signal runs in logs and response payloads.
+export const GDELT_RATE_LIMITED = 'RATE_LIMITED'
+
+// fetchWithTimeout supports an optional externalSignal so the ingest cron can
+// abort the underlying HTTP connection immediately when its per-country budget
+// expires — rather than leaving the connection open for up to 22s more.
+async function fetchWithTimeout(url, ms = FETCH_MS, externalSignal = null) {
+  // External signal provided: use it directly — caller owns the timeout.
+  if (externalSignal) {
+    try {
+      const r = await fetch(url, { signal: externalSignal })
+      return r
+    } catch {
+      return null  // AbortError or network error
+    }
+  }
+  // No external signal: create our own with the module-level FETCH_MS timeout.
   const ctrl = new AbortController()
   const id   = setTimeout(() => ctrl.abort(), ms)
   try {
@@ -106,10 +124,11 @@ async function fetchWithTimeout(url, ms = FETCH_MS) {
 }
 
 // ── Core fetch ────────────────────────────────────────────────────────────────
-async function fetchGdeltRaw(country) {
-  // GDELT Doc API — article list for past 24h
-  // We use a broad query (just country name) and filter client-side.
-  // This avoids GDELT query syntax complexity and gives max recall.
+// Returns:
+//   string[]        — article objects from GDELT (may be empty)
+//   GDELT_RATE_LIMITED — GDELT returned its throttle message (HTTP 200, text)
+//   null            — network error, timeout, or unexpected response
+async function fetchGdeltRaw(country, signal = null) {
   const params = new URLSearchParams({
     query:      `"${country}"`,
     mode:       'artlist',
@@ -118,11 +137,17 @@ async function fetchGdeltRaw(country) {
     format:     'json',
   })
 
-  const r = await fetchWithTimeout(`${GDELT_BASE}?${params}`)
+  const r = await fetchWithTimeout(`${GDELT_BASE}?${params}`, FETCH_MS, signal)
   if (!r?.ok) return null
 
   try {
-    const json = await r.json()
+    // Read as text first so we can detect the plain-text rate-limit message
+    // before attempting JSON.parse (which would throw and swallow the signal).
+    const text = await r.text()
+    if (text.startsWith('Please limit') || text.startsWith('Rate limit')) {
+      return GDELT_RATE_LIMITED
+    }
+    const json = JSON.parse(text)
     return json?.articles || []
   } catch {
     return null
@@ -186,13 +211,17 @@ function computeTempo(articles) {
  *   fetchedAt: string,
  * }|null>}
  */
-export async function fetchGdeltSignals(country) {
+// signal — optional AbortSignal from the ingest cron's per-country timeout.
+// When provided, aborting it immediately cancels the underlying HTTP fetch
+// rather than leaving the connection open until the internal 22s timer fires.
+export async function fetchGdeltSignals(country, signal = null) {
   const cacheKey = `gdelt:${country.toLowerCase()}`
   const cached   = await sharedCache.get(cacheKey)
   if (cached !== null) return cached
 
   try {
-    const articles = await fetchGdeltRaw(country)
+    const articles = await fetchGdeltRaw(country, signal)
+    if (articles === GDELT_RATE_LIMITED) return GDELT_RATE_LIMITED
     if (!articles) return null
 
     // Filter down to security-relevant articles

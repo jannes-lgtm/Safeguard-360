@@ -5,7 +5,8 @@
  *
  * Returns 200 if healthy, 503 if degraded.
  */
-import { adapt } from './_adapter.js'
+import { adapt }        from './_adapter.js'
+import { sharedCache } from './_sharedCache.js'
 
 async function _handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
@@ -23,11 +24,13 @@ async function _handler(req, res) {
     CRON_SECRET:            process.env.CRON_SECRET,
   }
   const optional = {
-    RESEND_API_KEY:         process.env.RESEND_API_KEY,
-    TWILIO_ACCOUNT_SID:     process.env.TWILIO_ACCOUNT_SID,
-    ESKOMSEPUSH_API_KEY:    process.env.ESKOMSEPUSH_API_KEY,
-    ACLED_API_KEY:          process.env.ACLED_API_KEY,
-    FLIGHTAWARE_API_KEY:    process.env.FLIGHTAWARE_API_KEY,
+    RESEND_API_KEY:           process.env.RESEND_API_KEY,
+    TWILIO_ACCOUNT_SID:       process.env.TWILIO_ACCOUNT_SID,
+    ESKOMSEPUSH_API_KEY:      process.env.ESKOMSEPUSH_API_KEY,
+    ACLED_API_KEY:            process.env.ACLED_API_KEY,
+    FLIGHTAWARE_API_KEY:      process.env.FLIGHTAWARE_API_KEY,
+    UPSTASH_REDIS_REST_URL:   process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
   }
 
   const missingRequired = Object.entries(required).filter(([, v]) => !v).map(([k]) => k)
@@ -94,6 +97,28 @@ async function _handler(req, res) {
     checks.feeds = { ok: r.ok, status: r.status, tested: 'BBC Africa RSS' }
   } catch (e) {
     checks.feeds = { ok: false, error: e.message }
+  }
+
+  // ── 5. Cache backend ─────────────────────────────────────────────────────
+  // Confirms whether the shared cache is using Redis (cross-instance, pre-warming
+  // effective) or in-memory fallback (per-instance only, pre-warming ineffective).
+  // If this shows 'memory', UPSTASH env vars are missing from Vercel production.
+  try {
+    const backend = await sharedCache.backend()
+    checks.cache = {
+      ok:      backend === 'redis',
+      backend,
+      note:    backend === 'redis'
+        ? 'Cross-instance Redis cache active — GDELT pre-warming is effective'
+        : 'In-memory fallback — UPSTASH_REDIS_REST_URL/TOKEN not set. GDELT pre-warming will not cross function instances.',
+    }
+    // Cache fallback is not a hard failure (platform degrades gracefully)
+    // but it does make pre-warming useless — flag in logs
+    if (backend !== 'redis') {
+      console.warn('[health] Cache is in-memory only — GDELT pre-warming ineffective across instances')
+    }
+  } catch (e) {
+    checks.cache = { ok: false, error: e.message }
   }
 
   const status = healthy ? 200 : 503
