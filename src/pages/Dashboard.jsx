@@ -287,9 +287,9 @@ function QuickActions({ role, hasActiveTrip, dark = false }) {
   ]
 
   const soloActions = [
-    { icon: Plane,       label: 'Plan a Trip',     desc: 'Add a new trip to your planner',       to: '/itinerary',    color: BRAND_GREEN, bg: DS.greenDim },
+    { icon: Plane,       label: 'Plan a Trip',     desc: 'Add a new trip to your planner',       to: '/itinerary',    color: BRAND_GREEN,  bg: DS.greenDim },
     { icon: Globe,       label: 'Country Intel',   desc: 'Check safety at your destination',     to: '/country-risk', color: DS.steelText, bg: DS.steelDim },
-    { icon: Brain,       label: 'AI Analyst',      desc: 'Ask about risk, safety, destinations', to: '/dashboard',    color: '#A78BFA',   bg: 'rgba(80,60,120,0.12)' },
+    { icon: Navigation,  label: 'Ask CAIRO',       desc: 'AI-powered operational risk advisory', to: '/journey-agent', color: '#A78BFA',   bg: 'rgba(80,60,120,0.12)' },
     { icon: Headphones,  label: '24/7 Support',    desc: 'Reach emergency support anytime',      to: '/assistance',   color: DS.amberText, bg: DS.amberDim },
   ]
 
@@ -2059,13 +2059,15 @@ export default function Dashboard() {
         const textCol  = expired || critical ? DS.redText   : DS.amberText
         const emoji    = expired ? '🚨' : critical ? '⚠️' : '📋'
         const title    = expired
-          ? 'Passport Expired — Travel Blocked'
+          ? 'Passport expired'
           : critical
-            ? `Passport Expiring in ${days} Day${days !== 1 ? 's' : ''} — Renew Immediately`
-            : `Passport Renewal Due — ${days} Days Remaining`
+            ? `Passport expires in ${days} day${days !== 1 ? 's' : ''}`
+            : `Passport expires in ${days} days`
         const sub      = expired
-          ? 'Your passport has expired. Most countries will deny entry. Renew before booking any travel.'
-          : `Most countries require 6 months passport validity beyond your travel dates. Please renew as soon as possible.`
+          ? 'Most countries will deny entry — renew immediately.'
+          : critical
+            ? 'Renew immediately — most countries require 6 months validity.'
+            : 'Renew before your next trip.'
         return (
           <Link to="/profile"
             style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', marginBottom: 16, background: expired || critical ? 'rgba(168,53,53,0.15)' : 'rgba(234,179,8,0.12)', border: `1px solid ${expired || critical ? 'rgba(168,53,53,0.30)' : 'rgba(234,179,8,0.25)'}`, textDecoration: 'none', transition: 'opacity 0.15s' }}>
@@ -2088,11 +2090,9 @@ export default function Dashboard() {
         <MorningBriefCard brief={morningBrief} loading={briefLoading} />
       )}
 
-      {/* ── SOLO: AI assistant at top ── */}
+      {/* ── SOLO: World Map — primary landing view ── */}
       {role === 'solo' && (
-        <div className="mb-7">
-          <DashboardAiChat profile={profile} trips={myTrips} orgName={null} role={role} dark={dark} />
-        </div>
+        <SoloWorldMap trips={myTrips} onCountryClick={setSelectedCountry} T={T} />
       )}
 
       {/* ── DEVELOPER PLATFORM HEALTH ── */}
@@ -2437,7 +2437,6 @@ export default function Dashboard() {
                 onCountryClick={setSelectedCountry}
                 T={T}
               />
-              <SoloWorldMap trips={myTrips} onCountryClick={setSelectedCountry} T={T} />
               <LiveIntelWidget trips={myTrips} />
             </>
           )}
