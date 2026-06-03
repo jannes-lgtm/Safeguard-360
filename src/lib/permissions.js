@@ -55,13 +55,14 @@ const PM = 'project_manager'
 const PO = 'project_operator'
 
 // Named sets — compose these to define module access
-const TRAVELERS     = [S, T]
-const ALL_ADMIN     = [O, A, D]
-const GSOC          = [GO, GA]
-const PROJECT       = [PM, PO]
-const OPS_ACCESS    = [O, A, D, GO, GA]          // operational command layer
-const BROAD_ACCESS  = [S, T, O, A, D]            // all non-GSOC, non-project
-const ALL_ROLES     = [S, T, O, A, D, GO, GA, PM, PO]
+const TRAVELERS          = [S, T]
+const ALL_ADMIN          = [O, A, D]
+const GSOC               = [GO, GA]
+const PROJECT            = [PM, PO]
+const OPS_ACCESS         = [O, A, D, GO, GA]          // operational command layer
+const BROAD_ACCESS       = [S, T, O, A, D]            // all non-GSOC, non-project
+const ALL_ROLES          = [S, T, O, A, D, GO, GA, PM, PO]
+const ALL_ROLES_NO_SOLO  = [T, O, A, D, GO, GA, PM, PO] // all roles except solo
 
 // ── Domain and Module definitions ─────────────────────────────────────────────
 //
@@ -75,14 +76,26 @@ const ALL_ROLES     = [S, T, O, A, D, GO, GA, PM, PO]
 //   red?     — renders item in red (emergency/SOS style)
 //
 // Domain shows in sidebar only when ≥1 module within it is visible to current role.
+//
+// ── Solo traveller design intent ────────────────────────────────────────────
+// Solo travelers see a deliberately focused 8-item nav across 4 domains.
+// Routes still exist for everything — just not surfaced as primary nav.
+// Country risk is accessed within CAIRO. Live location, visa, and incident
+// reports are accessible via deep-links from Dashboard and CAIRO, not nav.
+//
+//   My Journey  → Dashboard · My Trips · Check In
+//   CAIRO       → CAIRO · News
+//   Emergency   → SOS · Control Room (personal status only)
+//   Account     → Profile
 
 export const DOMAINS = [
-  // ── 1. TRAVEL ──────────────────────────────────────────────────────────────
+  // ── 1. MY JOURNEY ──────────────────────────────────────────────────────────
   // Traveler movement lifecycle and trip management.
-  // Visible to: solo, traveller, org_admin, admin, developer, project roles
+  // Solo: Dashboard + My Trips + Check In only — clean and focused.
+  // Corporate/admin: full suite including approvals, visa, live location.
   {
     id: 'travel',
-    label: 'Travel',
+    label: 'My Journey',
     modules: [
       {
         id: 'dashboard',
@@ -99,6 +112,13 @@ export const DOMAINS = [
         roles: [...TRAVELERS, ...ALL_ADMIN],
       },
       {
+        id: 'check_in',
+        label: 'Check In',
+        route: '/checkin',
+        icon: 'CheckCircle',
+        roles: TRAVELERS,
+      },
+      {
         id: 'travel_approvals',
         label: 'Travel Approvals',
         route: '/approvals',
@@ -107,35 +127,29 @@ export const DOMAINS = [
         badge: 'pendingApprovals',
       },
       {
-        id: 'check_in',
-        label: 'Check In',
-        route: '/checkin',
-        icon: 'CheckCircle',
-        roles: TRAVELERS,
-      },
-      {
         id: 'live_location',
         label: 'Live Location',
         route: '/live-map',
         icon: 'Navigation',
-        roles: TRAVELERS,
+        roles: [T, ...ALL_ADMIN],   // solo accesses via dashboard deep-link, not nav
       },
       {
         id: 'visa',
         label: 'Visa Assistant',
         route: '/visa',
         icon: 'Globe',
-        roles: [...TRAVELERS, ...ALL_ADMIN],
+        roles: [T, ...ALL_ADMIN],   // solo accesses via My Trips deep-link
       },
     ],
   },
 
-  // ── 2. INTELLIGENCE ────────────────────────────────────────────────────────
-  // Situational awareness and threat intelligence.
-  // Visible to: all roles
+  // ── 2. CAIRO ───────────────────────────────────────────────────────────────
+  // AI-powered intelligence layer. CAIRO is the single entry point for all
+  // AI-generated content — country risk briefs are accessed within CAIRO,
+  // not as a separate nav item for solo travelers.
   {
     id: 'intelligence',
-    label: 'Intelligence',
+    label: 'CAIRO',
     modules: [
       {
         id: 'cairo',
@@ -145,25 +159,25 @@ export const DOMAINS = [
         roles: ALL_ROLES,
       },
       {
+        id: 'news',
+        label: 'News',
+        route: '/news',
+        icon: 'Newspaper',
+        roles: ALL_ROLES,
+      },
+      {
         id: 'live_risk_feed',
         label: 'Live Risk Feed',
         route: '/live-risk-feed',
         icon: 'Radio',
-        roles: ALL_ROLES,
+        roles: [T, ...ALL_ROLES_NO_SOLO],   // solo sees news only, not raw feed
       },
       {
         id: 'country_risk',
-        label: 'Country Risk Reports',
+        label: 'Country Risk',
         route: '/country-risk',
         icon: 'Shield',
-        roles: ALL_ROLES,
-      },
-      {
-        id: 'news',
-        label: 'News Updates',
-        route: '/news',
-        icon: 'Newspaper',
-        roles: ALL_ROLES,
+        roles: [T, ...ALL_ROLES_NO_SOLO],   // solo accesses via CAIRO, not separate nav
       },
       {
         id: 'knowledge_base',
@@ -184,10 +198,11 @@ export const DOMAINS = [
 
   // ── 3. OPERATIONS ──────────────────────────────────────────────────────────
   // Live command-and-control and operational oversight.
-  // Visible to: org_admin, admin, developer, gsoc_operator, gsoc_admin, project roles
+  // Solo: Control Room only (personal status view).
+  // GSOC/admin: full operational suite.
   {
     id: 'operations',
-    label: 'Operations',
+    label: 'Operations',   // solo sees only Control Room from this domain
     modules: [
       {
         id: 'watch_board',
@@ -219,10 +234,10 @@ export const DOMAINS = [
       },
       {
         id: 'control_room',
-        label: 'Live Control Room',
+        label: 'Control Room',
         route: '/control-room',
         icon: 'Headphones',
-        roles: OPS_ACCESS,
+        roles: [S, ...OPS_ACCESS],   // solo gets personal view; full view for ops
       },
       {
         id: 'heat_map',
@@ -271,10 +286,10 @@ export const DOMAINS = [
 
   // ── 4. RESPONSE ────────────────────────────────────────────────────────────
   // Emergency response and assistance coordination.
-  // Visible to: all roles (SOS restricted to travelers)
+  // Solo: SOS only — prominent. Assistance/incidents accessible from Dashboard.
   {
     id: 'response',
-    label: 'Response',
+    label: 'Emergency',
     modules: [
       {
         id: 'sos',
@@ -293,24 +308,24 @@ export const DOMAINS = [
       },
       {
         id: 'assistance',
-        label: 'Assistance Requests',
+        label: 'Assistance',
         route: '/assistance',
         icon: 'Headphones',
-        roles: [...BROAD_ACCESS, ...GSOC],
+        roles: [T, ...ALL_ADMIN, ...GSOC],   // solo accesses via SOS or Dashboard
       },
       {
         id: 'incidents',
         label: 'Incident Reports',
         route: '/incidents',
         icon: 'Siren',
-        roles: ALL_ROLES,
+        roles: [T, ...ALL_ADMIN, ...GSOC, ...PROJECT],   // solo via Dashboard
       },
       {
         id: 'services',
         label: 'Service Providers',
         route: '/services',
         icon: 'Briefcase',
-        roles: [...BROAD_ACCESS, ...GSOC],
+        roles: [T, ...ALL_ADMIN, ...GSOC],
       },
     ],
   },

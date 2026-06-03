@@ -121,27 +121,46 @@ function NavItem({ to, icon: Icon, label, badge, red, compact }) {
 // Renders all domains + modules visible to `role`.
 // Replaces the 7 hardcoded per-role nav functions.
 
+// Solo-friendly domain label overrides — same data, friendlier language
+const SOLO_DOMAIN_LABELS = {
+  travel:       'My Journey',
+  intelligence: 'CAIRO',
+  operations:   'Status',
+  response:     'Emergency',
+  account:      'Account',
+}
+
 function DomainNav({ role, badges, compact }) {
-  const domains = getVisibleDomains(role)
-  return domains.map(domain => (
-    <div key={domain.id}>
-      <NavSection label={domain.label} compact={compact} />
-      {domain.modules.map(mod => {
-        const Icon = ICON_MAP[mod.icon] || null
-        return (
-          <NavItem
-            key={mod.id}
-            to={mod.route}
-            icon={Icon}
-            label={mod.label}
-            badge={mod.badge ? (badges[mod.badge] ?? 0) : 0}
-            red={mod.red}
-            compact={compact}
-          />
-        )
-      })}
-    </div>
-  ))
+  const domains  = getVisibleDomains(role)
+  const isSolo   = role === 'solo'
+  return domains.map(domain => {
+    const label = isSolo && SOLO_DOMAIN_LABELS[domain.id]
+      ? SOLO_DOMAIN_LABELS[domain.id]
+      : domain.label
+    return (
+      <div key={domain.id}>
+        <NavSection label={label} compact={compact} />
+        {domain.modules.map(mod => {
+          const Icon = ICON_MAP[mod.icon] || null
+          // Solo: rename nav items to friendlier language
+          const itemLabel = isSolo
+            ? ({ cairo: 'Ask CAIRO', control_room: 'My Status', news: 'News & Alerts' }[mod.id] || mod.label)
+            : mod.label
+          return (
+            <NavItem
+              key={mod.id}
+              to={mod.route}
+              icon={Icon}
+              label={itemLabel}
+              badge={mod.badge ? (badges[mod.badge] ?? 0) : 0}
+              red={mod.red}
+              compact={compact}
+            />
+          )
+        })}
+      </div>
+    )
+  })
 }
 
 // ── Mobile bottom navigation ──────────────────────────────────────────────────
