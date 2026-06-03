@@ -278,16 +278,16 @@ async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = 
     const l1Hit = await sharedCache.get('risk-ai:' + cacheKey)
     if (l1Hit) {
       ai_brief = l1Hit
-      // Still fetch trend meta for cached hits — fast DB read, no synthesis needed
-      buildTrendContext(country).then(r => { trendMeta = r.meta }).catch(() => {})
+      // Await trend meta — fire-and-forget loses it before response is built
+      try { const r = await buildTrendContext(country); trendMeta = r.meta } catch {}
     } else {
       // L2 — Supabase persistent cache (survives cold starts)
       const persisted = await dbCacheGet(dbKey)
       if (persisted) {
         ai_brief = persisted
         await sharedCache.set('risk-ai:' + cacheKey, ai_brief, 60 * 60 * 1000)
-        // Still fetch trend meta for cached hits
-        buildTrendContext(country).then(r => { trendMeta = r.meta }).catch(() => {})
+        // Await trend meta — fire-and-forget loses it before response is built
+        try { const r = await buildTrendContext(country); trendMeta = r.meta } catch {}
       } else {
         // Cache miss — build trend context then run AI synthesis
         const { context: trendContext, meta: trendMetaFromHistory } = await buildTrendContext(country)
