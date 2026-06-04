@@ -11,7 +11,7 @@ import { adapt } from './_adapter.js'
 async function _handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
-  const secret = req.headers.get?.('x-scan-secret') || req.headers['x-scan-secret']
+  const secret = req.query?.secret || req.headers.get?.('x-scan-secret') || req.headers['x-scan-secret']
   if (secret !== process.env.SCAN_SECRET) {
     return res.status(401).json({ error: 'Unauthorised' })
   }
