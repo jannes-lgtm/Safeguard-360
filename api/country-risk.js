@@ -366,6 +366,29 @@ async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = 
     cairoSeverity = parsed?.overall_severity || severity || null
   } catch { cairoSeverity = severity || null }
 
+  // ── GDELT tempo override ──────────────────────────────────────────────────
+  // CAIRO history alone can show "Sustained" (stable) even when live media
+  // signals are spiking. If GDELT tempo ≥ 1.5 and CAIRO says stable, upgrade
+  // to volatile so the trend card reflects real-time conditions.
+  if (trendMeta && trendMeta.direction === 'stable' && gdelt?.tempoScore != null) {
+    const tempo = gdelt.tempoScore
+    if (tempo >= 2.5) {
+      trendMeta = {
+        ...trendMeta,
+        direction: 'volatile',
+        label:     'Volatile',
+        reason:    `Risk level unchanged but significant media spike detected (${tempo}×). Monitor closely.`,
+      }
+    } else if (tempo >= 1.5) {
+      trendMeta = {
+        ...trendMeta,
+        direction: 'volatile',
+        label:     'Volatile',
+        reason:    `Risk level unchanged but elevated media signals detected (${tempo}×).`,
+      }
+    }
+  }
+
   return {
     country,
     level,
