@@ -94,7 +94,7 @@ export default function CrisisBroadcast() {
           Crisis Broadcast
         </h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          Send an urgent message to all or selected travellers — delivered by email and SMS
+          Send an urgent message to all or selected travellers — delivered by email, SMS and WhatsApp
         </p>
       </div>
 

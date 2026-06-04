@@ -26,6 +26,8 @@ async function _handler(req, res) {
   const optional = {
     RESEND_API_KEY:           process.env.RESEND_API_KEY,
     TWILIO_ACCOUNT_SID:       process.env.TWILIO_ACCOUNT_SID,
+    TWILIO_AUTH_TOKEN:        process.env.TWILIO_AUTH_TOKEN,
+    TWILIO_WHATSAPP_FROM:     process.env.TWILIO_WHATSAPP_FROM,
     ESKOMSEPUSH_API_KEY:      process.env.ESKOMSEPUSH_API_KEY,
     ACLED_API_KEY:            process.env.ACLED_API_KEY,
     FLIGHTAWARE_API_KEY:      process.env.FLIGHTAWARE_API_KEY,

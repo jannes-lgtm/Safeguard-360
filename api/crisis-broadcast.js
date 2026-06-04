@@ -135,7 +135,7 @@ async function _handler(req, res) {
     : { data: null }
 
   // Build traveller query
-  let query = sb.from('profiles').select('id, full_name, email, phone, whatsapp')
+  let query = sb.from('profiles').select('id, full_name, email, phone, whatsapp_number')
   if (org_id) query = query.eq('org_id', org_id)
   query = query.in('role', ['traveller', 'solo'])
 
@@ -178,9 +178,9 @@ async function _handler(req, res) {
 
   const sends = []
   for (const t of travellers) {
-    if (t.email)    sends.push(sendEmail(t.email, fullSubject, html).catch(() => false))
-    if (t.phone)    sends.push(sendSms(t.phone, smsBody).catch(() => false))
-    if (t.whatsapp) sends.push(sendWhatsApp(t.whatsapp, waBody).catch(() => false))
+    if (t.email)           sends.push(sendEmail(t.email, fullSubject, html).catch(() => false))
+    if (t.phone)           sends.push(sendSms(t.phone, smsBody).catch(() => false))
+    if (t.whatsapp_number) sends.push(sendWhatsApp(t.whatsapp_number, waBody).catch(() => false))
   }
 
   const results = await Promise.allSettled(sends)

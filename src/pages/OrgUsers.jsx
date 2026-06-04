@@ -10,6 +10,7 @@ import {
   BookOpen, RefreshCw, ChevronDown, ChevronUp, Mail,
   UserPlus, X, Shield, FileText, Printer, Globe,
   Phone, Calendar, Plane, GraduationCap, AlertCircle,
+  MessageCircle, Send,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
@@ -24,8 +25,22 @@ function complianceColor(pct) {
 }
 
 // ── User row ──────────────────────────────────────────────────────────────────
-function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, onReinvite, onRemove, reinviting, removing }) {
-  const [open, setOpen] = useState(false)
+function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, onReinvite, onRemove, onWhatsApp, reinviting, removing }) {
+  const [open, setOpen]       = useState(false)
+  const [waOpen, setWaOpen]   = useState(false)
+  const [waMsg, setWaMsg]     = useState('')
+  const [waSending, setWaSending] = useState(false)
+  const [waResult, setWaResult]   = useState(null)  // { ok } | { error }
+
+  const handleSendWa = async () => {
+    if (!waMsg.trim()) return
+    setWaSending(true)
+    setWaResult(null)
+    const result = await onWhatsApp(user.id, waMsg.trim())
+    setWaResult(result)
+    setWaSending(false)
+    if (result?.ok) { setWaMsg(''); setTimeout(() => { setWaOpen(false); setWaResult(null) }, 2000) }
+  }
 
   const totalModules    = trainingRecs.length
   const completedModules = trainingRecs.filter(r => r.completed).length
@@ -221,9 +236,16 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
               style={{ border: `1px solid ${BRAND_BLUE}`, color: DS.green, background: `${BRAND_BLUE}07` }}>
               <Clock size={12}/> Send Reminder
             </a>
+            {user.whatsapp_number && (
+              <button onClick={() => { setWaOpen(p => !p); setWaResult(null) }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85"
+                style={{ background: '#25D366', color: '#fff' }}>
+                <MessageCircle size={12}/> WhatsApp
+              </button>
+            )}
             <button onClick={() => onReinvite(user)} disabled={reinviting}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
-              style={{ background: BRAND_GREEN, color: DS.green }}>
+              style={{ background: BRAND_GREEN, color: DS.bg }}>
               {reinviting
                 ? <><div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" /> Sending…</>
                 : <><UserPlus size={12}/> Resend Invite</>}
@@ -234,6 +256,45 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
               <X size={12}/> Remove from Org
             </button>
           </div>
+
+          {/* WhatsApp composer */}
+          {waOpen && (
+            <div className="mt-2 rounded-xl border border-[#25D366]/30 bg-[#f0fdf4] p-3 space-y-2">
+              <p className="text-[10px] font-bold text-[#16a34a] uppercase tracking-wide flex items-center gap-1.5">
+                <MessageCircle size={10}/> WhatsApp — {user.full_name || user.email}
+              </p>
+              <textarea
+                value={waMsg}
+                onChange={e => setWaMsg(e.target.value)}
+                placeholder="Type your message…"
+                rows={3}
+                maxLength={1600}
+                className="w-full border border-[#25D366]/30 rounded-lg px-3 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 bg-white resize-none"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] text-gray-400">{waMsg.length}/1600</span>
+                <div className="flex gap-2">
+                  <button onClick={() => { setWaOpen(false); setWaMsg(''); setWaResult(null) }}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-100">
+                    Cancel
+                  </button>
+                  <button onClick={handleSendWa} disabled={waSending || !waMsg.trim()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white rounded-lg disabled:opacity-40"
+                    style={{ background: '#25D366' }}>
+                    {waSending
+                      ? <><div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"/> Sending…</>
+                      : <><Send size={11}/> Send</>}
+                  </button>
+                </div>
+              </div>
+              {waResult?.ok && (
+                <p className="text-[11px] font-semibold text-[#16a34a]">✓ Message sent successfully</p>
+              )}
+              {waResult?.error && (
+                <p className="text-[11px] font-semibold text-[#EF7474]">{waResult.error}</p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -369,6 +430,21 @@ export default function OrgUsers() {
       setInviteResult({ error: 'Network error. Please try again.' })
     } finally {
       setInviting(false)
+    }
+  }
+
+  const handleWhatsApp = async (userId, message) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const r = await fetch('/api/send-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ userId, message }),
+      })
+      const data = await r.json()
+      return r.ok ? { ok: true } : { error: data.error || 'Failed to send' }
+    } catch {
+      return { error: 'Network error — please try again' }
     }
   }
 
@@ -557,6 +633,7 @@ export default function OrgUsers() {
                 pendingApprovals={approvalMap[u.id] || 0}
                 onReinvite={handleReinvite}
                 onRemove={u => setConfirmRemove(u)}
+                onWhatsApp={handleWhatsApp}
                 reinviting={reinvitingId === u.id}
                 removing={removingId === u.id}
               />
@@ -589,6 +666,7 @@ export default function OrgUsers() {
                 pendingApprovals={approvalMap[u.id] || 0}
                 onReinvite={handleReinvite}
                 onRemove={u => setConfirmRemove(u)}
+                onWhatsApp={handleWhatsApp}
                 reinviting={reinvitingId === u.id}
                 removing={removingId === u.id}
               />
