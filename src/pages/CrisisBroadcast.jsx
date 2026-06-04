@@ -103,18 +103,28 @@ export default function CrisisBroadcast() {
         {/* ── Composer ── */}
         <div className="lg:col-span-2 space-y-4">
 
-          {/* Success banner */}
+          {/* Result banner */}
           {result && (
-            <div className="flex items-start gap-3 px-5 py-4 bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] rounded-2xl">
-              <CheckCircle2 size={18} className="text-[#AACC00] mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-bold text-green-800">Broadcast sent successfully</p>
-                <p className="text-xs text-[#AACC00] mt-0.5">
-                  Delivered to <strong>{result.recipient_count}</strong> recipient{result.recipient_count !== 1 ? 's' : ''}
-                  {result.sent !== result.recipient_count && ` (${result.sent} notifications dispatched)`}.
+            <div className={`flex items-start gap-3 px-5 py-4 rounded-2xl border ${result.sent > 0 ? 'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.25)]' : 'bg-[rgba(138,46,46,0.08)] border-[rgba(138,46,46,0.25)]'}`}>
+              <CheckCircle2 size={18} className={`mt-0.5 shrink-0 ${result.sent > 0 ? 'text-[#AACC00]' : 'text-[#EF7474]'}`} />
+              <div className="flex-1">
+                <p className={`text-sm font-bold ${result.sent > 0 ? 'text-green-800' : 'text-[#EF7474]'}`}>
+                  {result.sent > 0 ? 'Broadcast sent' : 'Broadcast found recipients but 0 delivered'}
                 </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {result.recipient_count} recipient{result.recipient_count !== 1 ? 's' : ''} · {result.sent} notification{result.sent !== 1 ? 's' : ''} dispatched
+                </p>
+                {result.channels?.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {result.channels.map((c, i) => (
+                      <span key={i} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${c.ok ? 'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.30)] text-[#AACC00]' : 'bg-[rgba(138,46,46,0.08)] border-[rgba(138,46,46,0.25)] text-[#EF7474]'}`}>
+                        {c.ok ? '✓' : '✗'} {c.channel} {c.to}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-              <button onClick={() => setResult(null)} className="ml-auto text-green-400 hover:text-[#AACC00] text-lg leading-none">×</button>
+              <button onClick={() => setResult(null)} className="ml-auto text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
             </div>
           )}
 
