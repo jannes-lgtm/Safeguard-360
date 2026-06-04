@@ -176,15 +176,31 @@ async function _handler(req, res) {
   const smsBody      = `S360 BROADCAST [${severity}]: ${subject}\n\n${message.substring(0, 120)}${message.length > 120 ? '…' : ''}\n\nOpen: ${APP_URL}`
   const waBody       = `*Safeguard 360 Broadcast [${severity}]*\n\n*${subject}*\n\n${message}\n\nOpen: ${APP_URL}`
 
-  const sends = []
+  const sendLog = []
+  const sends   = []
   for (const t of travellers) {
-    if (t.email)           sends.push(sendEmail(t.email, fullSubject, html).catch(() => false))
-    if (t.phone)           sends.push(sendSms(t.phone, smsBody).catch(() => false))
-    if (t.whatsapp_number) sends.push(sendWhatsApp(t.whatsapp_number, waBody).catch(() => false))
+    if (t.email) {
+      sendLog.push({ channel: 'email', to: t.email })
+      sends.push(sendEmail(t.email, fullSubject, html).catch(e => { console.error('[crisis-broadcast] email error:', e.message); return false }))
+    }
+    if (t.phone) {
+      sendLog.push({ channel: 'sms', to: t.phone.slice(0, 6) + '***' })
+      sends.push(sendSms(t.phone, smsBody).catch(e => { console.error('[crisis-broadcast] sms error:', e.message); return false }))
+    }
+    if (t.whatsapp_number) {
+      sendLog.push({ channel: 'whatsapp', to: t.whatsapp_number.slice(0, 6) + '***' })
+      sends.push(sendWhatsApp(t.whatsapp_number, waBody).catch(e => { console.error('[crisis-broadcast] whatsapp error:', e.message); return false }))
+    }
   }
 
-  const results = await Promise.allSettled(sends)
-  const sent    = results.filter(r => r.status === 'fulfilled' && r.value).length
+  const results   = await Promise.allSettled(sends)
+  const outcomes  = results.map((r, i) => ({
+    ...sendLog[i],
+    ok: r.status === 'fulfilled' && r.value === true,
+  }))
+  const sent = outcomes.filter(o => o.ok).length
+
+  console.log('[crisis-broadcast] outcomes:', JSON.stringify(outcomes))
 
   // Log broadcast
   try {
@@ -201,7 +217,7 @@ async function _handler(req, res) {
   } catch {}
 
   console.log(`[crisis-broadcast] Sent ${sent} notifications to ${travellers.length} travellers (${severity})`)
-  return res.json({ ok: true, sent, recipient_count: travellers.length })
+  return res.json({ ok: true, sent, recipient_count: travellers.length, channels: outcomes })
 }
 
 export const handler = adapt(_handler)
