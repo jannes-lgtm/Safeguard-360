@@ -17,6 +17,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <!-- Visible fallback — hidden by JS as soon as the app loads.
+         If you see this text, JavaScript is not executing at all. -->
+    <div id="__preload" style="position:fixed;top:0;left:0;right:0;bottom:0;background:#090A0C;display:flex;align-items:center;justify-content:center;z-index:99998;">
+      <div style="text-align:center;font-family:monospace;color:#aacc00;padding:24px;">
+        <div style="font-size:18px;font-weight:bold;margin-bottom:8px;">SafeGuard 360</div>
+        <div style="font-size:13px;color:#6e7480;" id="__preload_msg">Loading…</div>
+      </div>
+    </div>
     <div id="root"></div>
     <script src="/boot.js"></script>
     <script type="module" src="/src/main.jsx"></script>

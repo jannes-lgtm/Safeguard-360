@@ -87,8 +87,12 @@ try {
     </React.StrictMode>,
   )
   _diag.step('render() called — React is running')
-  // Hide diagnostics after successful render (slight delay so React can paint)
-  setTimeout(() => _diag.hide(), 4000)
+  // Hide the static preload screen and diagnostics once React is running
+  setTimeout(() => {
+    const pre = document.getElementById('__preload')
+    if (pre) pre.remove()
+    _diag.hide()
+  }, 2000)
 } catch (err) {
   _diag.error(`ReactDOM.createRoot / render threw: ${err.message}`)
   if (err.stack) _diag.error(err.stack.split('\n').slice(0, 4).join(' | '))

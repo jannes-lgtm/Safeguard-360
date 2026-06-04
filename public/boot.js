@@ -55,5 +55,9 @@
     }
   }, true /* capture phase */)
 
+  // Update the static preload message so we know JS ran
+  var pm = document.getElementById('__preload_msg')
+  if (pm) pm.textContent = 'boot.js ran ✓ — loading app…'
+
   line('✓ boot.js loaded — watchers active', '#6e7480')
 })()
