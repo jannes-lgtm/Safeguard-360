@@ -1,7 +1,7 @@
 // SafeGuard360 Service Worker
 // Strategy: cache-first for static assets, network-first for API calls
 
-const CACHE_NAME = 'sg360-v1'
+const CACHE_NAME = 'sg360-v3'
 
 // Static assets to pre-cache on install
 const PRECACHE_URLS = [
