@@ -1,8 +1,10 @@
 /**
  * api/gdelt-ingest.js
  *
- * GDELT Tempo Ingest Cron — every 30 minutes
- * Vercel schedule: "* /30 * * * *" (no space between * and /)
+ * GDELT Tempo Ingest Cron — two batches, staggered 15 minutes apart
+ *
+ *   Cron 1: "0,30 * * * *"   → /api/gdelt-ingest?batch=1  (Tier A — 22 critical countries)
+ *   Cron 2: "15,45 * * * *"  → /api/gdelt-ingest?batch=2  (Tier B — 22 high-risk countries)
  *
  * Purpose:
  *   1. Pre-warms the GDELT Redis cache so country-risk.js always gets data
@@ -20,12 +22,12 @@
  *     lifetime to the budget cap — no background leaks.
  *   - getEscalatedCountries() is called ONCE before the loop (not per-country).
  *   - All escalated-set changes are committed in a SINGLE Supabase upsert.
- *   - A distributed Redis lock prevents overlapping cron + manual runs.
+ *   - A distributed Redis lock (per-batch) prevents overlapping runs.
  *
  * Runtime budget (worst case — all countries hit the 8s cap):
  *   N × PER_COUNTRY_CAP + (N-1) × BATCH_DELAY
- *   20 × 8000 + 19 × 5500 = 264 500ms  —  within 300 000ms maxDuration
- *   Hard limit: MAX_COUNTRIES = 22  →  22 × 8000 + 21 × 5500 = 291 500ms
+ *   22 × 8000 + 21 × 5500 = 291 500ms  —  within 300 000ms maxDuration
+ *   Hard limit: MAX_COUNTRIES = 22 per batch
  */
 
 import { fetchGdeltSignals, GDELT_RATE_LIMITED } from './_gdelt.js'
@@ -38,19 +40,25 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL |
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 // ── Countries to monitor via GDELT ────────────────────────────────────────────
-// Critical + top High only. Lower-risk countries get GDELT on-demand when a
-// user opens their risk report (country-risk.js, 7s live cap, falls back gracefully).
-const MONITORED = [
-  // Critical (FCDO Level 4 / active conflict) — 17 countries
+// Split into two batches — each cron hits /api/gdelt-ingest?batch=N.
+// Lower-risk countries get GDELT on-demand when a user opens their risk report
+// (country-risk.js, 7s live cap, falls back gracefully).
+
+// Batch 1: Tier A — Critical (FCDO Level 3-4 / active conflict) — 22 countries
+const BATCH_1 = [
   'Somalia', 'South Sudan', 'Sudan', 'Libya', 'Mali', 'Niger', 'Burkina Faso',
   'Central African Republic', 'Democratic Republic of Congo',
   'Syria', 'Yemen', 'Iraq', 'Afghanistan', 'Myanmar', 'Ukraine', 'Russia', 'Iran',
-  // High — highest-traffic user queries — 3 countries
-  'Nigeria', 'Pakistan', 'Mexico',
+  'Nigeria', 'Pakistan', 'Mexico', 'Ethiopia', 'Haiti',
 ]
 
-// De-duplicate and freeze
-const COUNTRIES = [...new Set(MONITORED)]
+// Batch 2: Tier B — High-risk (elevated advisory / high traveller traffic) — 22 countries
+const BATCH_2 = [
+  'Lebanon', 'Venezuela', 'Colombia', 'Egypt', 'India', 'Turkey',
+  'Kenya', 'Mozambique', 'Cameroon', 'Chad', 'Zimbabwe', 'Israel',
+  'Belarus', 'Azerbaijan', 'Philippines', 'Indonesia', 'Saudi Arabia',
+  'Bangladesh', 'North Korea', 'Tunisia', 'Serbia', 'Georgia',
+]
 
 // ── Runtime budget ────────────────────────────────────────────────────────────
 // Hard limit to prevent future additions from silently causing Vercel timeouts.
@@ -71,8 +79,8 @@ const PER_COUNTRY_CAP = 8000   // ms — AbortController cap per GDELT fetch
 
 // ── Distributed lock ─────────────────────────────────────────────────────────
 // Prevents overlapping runs (e.g. manual trigger + cron firing simultaneously).
+// Lock is per-batch so batch=1 and batch=2 can run concurrently without conflict.
 // Uses Redis SET NX EX when available; in-memory check-then-set as fallback.
-const INGEST_LOCK_KEY = 'gdelt-ingest-lock'
 const INGEST_LOCK_TTL = 310 * 1000   // 310s — slightly above maxDuration
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
@@ -211,21 +219,27 @@ async function processCountry(country, escalatedList) {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 async function _handler(req, res) {
+  // ── Select batch ──────────────────────────────────────────────────────────
+  // Cron 1: /api/gdelt-ingest?batch=1  → Tier A (default)
+  // Cron 2: /api/gdelt-ingest?batch=2  → Tier B
+  const batchNum  = (req.query?.batch ?? '1') === '2' ? 2 : 1
+  const COUNTRIES = [...new Set(batchNum === 2 ? BATCH_2 : BATCH_1)]
+  const LOCK_KEY  = `gdelt-ingest-lock-b${batchNum}`
+
   // ── Runtime budget guard ──────────────────────────────────────────────────
-  // Prevents future additions to MONITORED from silently causing Vercel timeouts.
   // Hard limit: MAX_COUNTRIES × PER_COUNTRY_CAP + (MAX_COUNTRIES-1) × BATCH_DELAY < 300 000ms
   if (COUNTRIES.length > MAX_COUNTRIES) {
-    const msg = `[gdelt-ingest] FATAL: COUNTRIES.length (${COUNTRIES.length}) exceeds MAX_COUNTRIES (${MAX_COUNTRIES}). ` +
+    const msg = `[gdelt-ingest] FATAL: batch=${batchNum} COUNTRIES.length (${COUNTRIES.length}) exceeds MAX_COUNTRIES (${MAX_COUNTRIES}). ` +
                 `Worst-case runtime would be ${COUNTRIES.length * PER_COUNTRY_CAP + (COUNTRIES.length - 1) * BATCH_DELAY}ms — ` +
-                `over the 300 000ms Vercel limit. Reduce MONITORED before deploying.`
+                `over the 300 000ms Vercel limit. Reduce the batch before deploying.`
     console.error(msg)
     return res.status(500).json({ error: msg })
   }
 
   // ── Distributed lock — prevent overlapping runs ───────────────────────────
-  const locked = await sharedCache.tryLock(INGEST_LOCK_KEY, INGEST_LOCK_TTL)
+  const locked = await sharedCache.tryLock(LOCK_KEY, INGEST_LOCK_TTL)
   if (!locked) {
-    console.log('[gdelt-ingest] Another run is in progress — skipping this invocation')
+    console.log(`[gdelt-ingest] batch=${batchNum} Another run is in progress — skipping this invocation`)
     return res.status(200).json({ skipped: true, reason: 'lock_held' })
   }
 
@@ -267,17 +281,18 @@ async function _handler(req, res) {
 
   } finally {
     // Always release the lock, even if the run threw
-    await sharedCache.releaseLock(INGEST_LOCK_KEY)
+    await sharedCache.releaseLock(LOCK_KEY)
   }
 
   const elapsed = Date.now() - start
   console.log(
-    `[gdelt-ingest] done: processed=${results.processed} spikes=${results.spikes.length} ` +
+    `[gdelt-ingest] batch=${batchNum} done: processed=${results.processed} spikes=${results.spikes.length} ` +
     `elevated=${results.elevated.length} rate_limited=${results.rate_limited} ` +
     `skipped=${results.skipped} failed=${results.failed.length} elapsed=${elapsed}ms`
   )
 
   return res.status(200).json({
+    batch:        batchNum,
     processed:    results.processed,
     spikes:       results.spikes,
     elevated:     results.elevated,
