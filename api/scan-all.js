@@ -111,19 +111,29 @@ async function _handler(req, res) {
   //    scan-all itself returns in <5s — no more Vercel timeout risk.
   const countries = Object.keys(countryTrips)
 
-  await inngest.send(
-    countries.map(country => ({
-      name: 'safeguard360/scan.country',
-      data: {
-        country,
-        trips:       countryTrips[country],
-        supabaseUrl: SUPABASE_URL,
-        serviceKey:  SERVICE_KEY,
-        aiKey:       AI_KEY || null,
-        today,
-      },
-    }))
-  )
+  try {
+    await inngest.send(
+      countries.map(country => ({
+        name: 'safeguard360/scan.country',
+        data: {
+          country,
+          trips:       countryTrips[country],
+          supabaseUrl: SUPABASE_URL,
+          serviceKey:  SERVICE_KEY,
+          aiKey:       AI_KEY || null,
+          today,
+        },
+      }))
+    )
+  } catch (err) {
+    console.error('[scan-all] inngest.send failed:', err.message)
+    return res.status(500).json({
+      error:       `Inngest fanout failed: ${err.message}`,
+      hint:        'Ensure INNGEST_EVENT_KEY is configured in Vercel environment variables',
+      countries,
+      itineraries: itineraries.length,
+    })
+  }
 
   log.info('cron fanned out', {
     itineraries: itineraries.length,
