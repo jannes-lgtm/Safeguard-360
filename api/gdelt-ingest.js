@@ -1,27 +1,35 @@
 /**
  * api/gdelt-ingest.js
  *
- * GDELT Tempo Ingest — 6 small batches spread across every 30 minutes.
+ * GDELT Tempo Ingest — 12 batches of 7 countries, spread across each hour.
  *
- *   batch=1  "0,30 * * * *"   — 7 countries  (Africa conflict core)
- *   batch=2  "5,35 * * * *"   — 7 countries  (Middle East + SE Asia)
- *   batch=3  "10,40 * * * *"  — 8 countries  (Major powers + high-volume)
- *   batch=4  "15,45 * * * *"  — 7 countries  (Tier B — Americas + MENA)
- *   batch=5  "20,50 * * * *"  — 8 countries  (Tier B — Africa + Europe)
- *   batch=6  "25,55 * * * *"  — 7 countries  (Tier B — Asia + rest)
+ * TIER 1 — Critical and High-risk countries (first 30 min of each hour):
+ *   batch=1   "0 * * * *"   — 7 countries  (Africa conflict core)
+ *   batch=2   "5 * * * *"   — 7 countries  (Middle East + SE Asia)
+ *   batch=3   "10 * * * *"  — 7 countries  (Major powers + high-volume)
+ *   batch=4   "15 * * * *"  — 7 countries  (Americas + MENA high-risk)
+ *   batch=5   "20 * * * *"  — 7 countries  (Africa + Eastern Europe)
+ *   batch=6   "25 * * * *"  — 7 countries  (Asia + rest of Tier 1)
  *
- * Why 6 small batches instead of 2-3 large ones:
- *   - GDELT rate limit: 1 request/5 seconds per IP. Large batches from the
- *     same Vercel IP pool can collide when batches overlap or run close together.
- *   - Small batches (7-8 countries × 22s cap = ~3.5 min max) finish well before
- *     the next batch starts (5-min gap), guaranteeing no cross-batch rate limiting.
- *   - 22s cap for ALL batches: GDELT sometimes takes 15-20s for high-volume
- *     countries (Ethiopia, Ukraine, etc.). The old 8s cap caused consistent
- *     timeouts for these. 22s matches GDELT's full response window.
- *   - Every country gets fresh GDELT data every 30 minutes.
+ * TIER 2 — Expanded coverage: Africa, Middle East, South America (second 30 min):
+ *   batch=7   "32 * * * *"  — 7 countries  (South America core)
+ *   batch=8   "37 * * * *"  — 7 countries  (South America + West Africa)
+ *   batch=9   "42 * * * *"  — 7 countries  (Central + East Africa)
+ *   batch=10  "47 * * * *"  — 7 countries  (East Africa + North Africa)
+ *   batch=11  "52 * * * *"  — 7 countries  (Gulf states + Levant)
+ *   batch=12  "57 * * * *"  — 7 countries  (Central Asia expansion)
  *
- * Runtime budget per batch (worst case — all 8 countries hit the 22s cap):
- *   8 × 22 000 + 7 × 5 500 = 176 000 + 38 500 = 214 500ms  —  within 300 000ms
+ * Design rationale — why 12 batches of 7, not fewer large batches:
+ *   - GDELT rate limit: 1 request per 5 seconds per IP. At 7 countries with a
+ *     5.5s inter-request delay, each batch is safely within that limit.
+ *   - 7-country hard cap + 22s per-country cap: worst-case runtime is
+ *     7 × 22 000 + 6 × 5 500 = 154 000 + 33 000 = 187 000ms — well inside
+ *     the 300 000ms Vercel function limit, with 113s of headroom.
+ *   - 5-minute gap between Tier 1 batches prevents any cross-batch 429s.
+ *   - Tier 2 starts at :32 — 7 min after Tier 1 ends at :25 — keeping the
+ *     same clean separation between tiers.
+ *   - All 84 countries refresh every 60 minutes. Tier 1 (44 countries) refreshes
+ *     in the first 30 min, Tier 2 (40 countries) in the second 30 min.
  *
  * Purpose:
  *   1. Pre-warms the GDELT Redis cache so country-risk.js always gets data
@@ -43,35 +51,65 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL |
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 // ── Countries to monitor via GDELT ────────────────────────────────────────────
-// 44 countries split into 6 batches of 7-8, each running every 30 minutes.
-// Lower-risk countries get GDELT on-demand in country-risk.js (7s live cap).
+// 84 countries across 12 batches of 7. MAX_COUNTRIES = 7 is a hard constraint:
+// 7 × 22 000 + 6 × 5 500 = 187 000ms worst-case — safe inside 300 000ms limit.
+// DO NOT add an 8th country to any batch without recalculating the budget.
 
-const BATCH_1 = [  // :00 and :30 — Africa conflict core (7)
+// ── TIER 1: Critical & High-risk (batches 1-6, :00-:25 each hour) ─────────────
+
+const BATCH_1 = [  // :00 — Africa conflict core (7)
   'Somalia', 'South Sudan', 'Sudan', 'Libya', 'Mali', 'Niger', 'Burkina Faso',
 ]
-const BATCH_2 = [  // :05 and :35 — Middle East + SE Asia (7)
+const BATCH_2 = [  // :05 — Central Africa + Middle East + SE Asia (7)
   'Central African Republic', 'Democratic Republic of Congo',
   'Syria', 'Yemen', 'Iraq', 'Afghanistan', 'Myanmar',
 ]
-const BATCH_3 = [  // :10 and :40 — Major powers + high-volume countries (8)
-  'Ukraine', 'Russia', 'Iran', 'Nigeria', 'Pakistan', 'Mexico', 'Ethiopia', 'Haiti',
+const BATCH_3 = [  // :10 — Major powers + high-volume (7)
+  'Ukraine', 'Russia', 'Iran', 'Nigeria', 'Pakistan', 'Mexico', 'Ethiopia',
 ]
-const BATCH_4 = [  // :15 and :45 — Tier B Americas + MENA (7)
-  'Lebanon', 'Venezuela', 'Colombia', 'Egypt', 'India', 'Turkey', 'Kenya',
+const BATCH_4 = [  // :15 — Americas + MENA high-risk (7)
+  'Haiti', 'Lebanon', 'Venezuela', 'Colombia', 'Egypt', 'India', 'Turkey',
 ]
-const BATCH_5 = [  // :20 and :50 — Tier B Africa + Eastern Europe (8)
-  'Mozambique', 'Cameroon', 'Chad', 'Zimbabwe', 'Israel', 'Belarus', 'Azerbaijan', 'Philippines',
+const BATCH_5 = [  // :20 — East Africa + Eastern Europe (7)
+  'Kenya', 'Mozambique', 'Cameroon', 'Chad', 'Zimbabwe', 'Israel', 'Belarus',
 ]
-const BATCH_6 = [  // :25 and :55 — Tier B Asia + rest (7)
-  'Indonesia', 'Saudi Arabia', 'Bangladesh', 'North Korea', 'Tunisia', 'Serbia', 'Georgia',
+const BATCH_6 = [  // :25 — Caucasus + South/SE Asia (7)
+  'Azerbaijan', 'Philippines', 'Indonesia', 'Saudi Arabia', 'Bangladesh', 'North Korea', 'Tunisia',
 ]
 
-const BATCH_MAP = { 1: BATCH_1, 2: BATCH_2, 3: BATCH_3, 4: BATCH_4, 5: BATCH_5, 6: BATCH_6 }
+// ── TIER 2: Expanded regional coverage (batches 7-12, :32-:57 each hour) ──────
+// Tier 2 starts at :32 — 7 minutes after Tier 1 ends at :25 —
+// ensuring no cross-tier GDELT rate-limit collisions.
+
+const BATCH_7 = [  // :32 — South America core (7)
+  'Serbia', 'Georgia', 'Brazil', 'Argentina', 'Peru', 'Ecuador', 'Bolivia',
+]
+const BATCH_8 = [  // :37 — Southern Cone + West Africa (7)
+  'Chile', 'Paraguay', 'Uruguay', 'South Africa', 'Ghana', 'Senegal', 'Ivory Coast',
+]
+const BATCH_9 = [  // :42 — West + Central + East Africa (7)
+  'Guinea', 'Liberia', 'Sierra Leone', 'Uganda', 'Tanzania', 'Rwanda', 'Angola',
+]
+const BATCH_10 = [  // :47 — East Africa + North Africa (7)
+  'Zambia', 'Congo', 'Eritrea', 'Djibouti', 'Morocco', 'Algeria', 'Burundi',
+]
+const BATCH_11 = [  // :52 — Gulf states + Levant (7)
+  'Madagascar', 'Malawi', 'UAE', 'Qatar', 'Jordan', 'Kuwait', 'Oman',
+]
+const BATCH_12 = [  // :57 — Central Asia (7)
+  'Bahrain', 'Armenia', 'Kazakhstan', 'Kyrgyzstan', 'Tajikistan', 'Uzbekistan', 'Turkmenistan',
+]
+
+const BATCH_MAP = {
+   1: BATCH_1,  2: BATCH_2,  3: BATCH_3,  4: BATCH_4,
+   5: BATCH_5,  6: BATCH_6,  7: BATCH_7,  8: BATCH_8,
+   9: BATCH_9, 10: BATCH_10, 11: BATCH_11, 12: BATCH_12,
+}
 
 // ── Runtime budget ────────────────────────────────────────────────────────────
 // Hard limit: N × PER_COUNTRY_CAP + (N-1) × BATCH_DELAY < 300 000ms
-// Worst case (8 countries × 22s cap): 8×22000 + 7×5500 = 214 500ms ✓
-const MAX_COUNTRIES = 8
+// Worst case (7 countries × 22s cap): 7×22000 + 6×5500 = 187 000ms ✓ (113s headroom)
+const MAX_COUNTRIES = 7
 
 // ── Thresholds ────────────────────────────────────────────────────────────────
 const SPIKE_THRESHOLD      = 2.5   // tempoScore — add to fast 15-min tier
