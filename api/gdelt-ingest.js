@@ -258,7 +258,11 @@ async function _handler(req, res) {
   }
 
   const start   = Date.now()
-  const results = { processed: 0, spikes: [], elevated: [], failed: [], rate_limited: 0, skipped: 0 }
+  const results = {
+    processed: 0, spikes: [], elevated: [], failed: [], rate_limited: 0, skipped: 0,
+    // Per-country breakdown for audit/diagnosis
+    details: [],
+  }
 
   try {
     // Fetch escalated list ONCE — passed to every processCountry call.
@@ -269,11 +273,22 @@ async function _handler(req, res) {
     const toDeescalate = []
 
     for (let i = 0; i < COUNTRIES.length; i += BATCH_SIZE) {
-      const batch   = COUNTRIES.slice(i, i + BATCH_SIZE)
-      const settled = await Promise.allSettled(batch.map(c => processCountry(c, escalatedList, CAP)))
+      const batch      = COUNTRIES.slice(i, i + BATCH_SIZE)
+      const t0         = Date.now()
+      const settled    = await Promise.allSettled(batch.map(c => processCountry(c, escalatedList, CAP)))
+      const batchMs    = Date.now() - t0
 
       for (const r of settled) {
         const v = r.status === 'fulfilled' ? r.value : { ok: false, error: r.reason?.message, country: '?' }
+        // Record per-country detail for audit response
+        results.details.push({
+          country: v.country,
+          ok:      v.ok,
+          skipped: v.skipped ?? false,
+          reason:  v.reason  ?? null,
+          tempo:   v.tempoScore ?? null,
+          ms:      batchMs,
+        })
         if (!v.ok) {
           results.failed.push(v.country)
         } else if (v.skipped) {
@@ -307,6 +322,7 @@ async function _handler(req, res) {
 
   return res.status(200).json({
     batch:        batchNum,
+    cap_ms:       CAP,
     processed:    results.processed,
     spikes:       results.spikes,
     elevated:     results.elevated,
@@ -315,6 +331,7 @@ async function _handler(req, res) {
     skipped:      results.skipped,
     total:        COUNTRIES.length,
     elapsedMs:    elapsed,
+    details:      results.details,   // per-country breakdown — use for auditing
   })
 }
 
