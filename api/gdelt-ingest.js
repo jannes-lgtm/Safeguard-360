@@ -44,12 +44,13 @@ const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 // Lower-risk countries get GDELT on-demand when a user opens their risk report
 // (country-risk.js, 7s live cap, falls back gracefully).
 
-// Batch 1: Tier A — Critical (FCDO Level 3-4 / active conflict) — 22 countries
+// Batch 1: Tier A — Critical (FCDO Level 3-4 / active conflict) — 20 countries
+// Kept at 20 to stay safely within 300s budget at 8s cap per country.
 const BATCH_1 = [
   'Somalia', 'South Sudan', 'Sudan', 'Libya', 'Mali', 'Niger', 'Burkina Faso',
   'Central African Republic', 'Democratic Republic of Congo',
   'Syria', 'Yemen', 'Iraq', 'Afghanistan', 'Myanmar', 'Ukraine', 'Russia', 'Iran',
-  'Nigeria', 'Pakistan', 'Mexico', 'Ethiopia', 'Haiti',
+  'Nigeria', 'Pakistan', 'Mexico',
 ]
 
 // Batch 2: Tier B — High-risk (elevated advisory / high traveller traffic) — 22 countries
@@ -58,6 +59,15 @@ const BATCH_2 = [
   'Kenya', 'Mozambique', 'Cameroon', 'Chad', 'Zimbabwe', 'Israel',
   'Belarus', 'Azerbaijan', 'Philippines', 'Indonesia', 'Saudi Arabia',
   'Bangladesh', 'North Korea', 'Tunisia', 'Serbia', 'Georgia',
+]
+
+// Batch 3: Slow-GDELT countries — run with full 22s timeout (only 2 countries so budget is trivial)
+// Ethiopia and Haiti generate very high news volume, so GDELT takes 15-20s to respond.
+// The 8s cap used by batches 1+2 consistently times out for these. Running them in their own
+// dedicated batch with PER_COUNTRY_CAP_SLOW (22s) guarantees they always get cached.
+// Budget: 2 × 22s + 1 × 5.5s = 49.5s — well within 300s maxDuration.
+const BATCH_3 = [
+  'Ethiopia', 'Haiti',
 ]
 
 // ── Runtime budget ────────────────────────────────────────────────────────────
@@ -73,9 +83,10 @@ const DEESCALATE_THRESHOLD = 0.8   // tempoScore — consider removing from esca
 const DEESCALATE_READINGS  = 2     // consecutive low readings before de-escalating
 
 // ── Timing ────────────────────────────────────────────────────────────────────
-const BATCH_SIZE      = 1      // sequential — GDELT rate limit: 1 req/5s
-const BATCH_DELAY     = 5500   // ms between countries — 5.5s > 5s minimum
-const PER_COUNTRY_CAP = 8000   // ms — AbortController cap per GDELT fetch
+const BATCH_SIZE          = 1      // sequential — GDELT rate limit: 1 req/5s
+const BATCH_DELAY         = 5500   // ms between countries — 5.5s > 5s minimum
+const PER_COUNTRY_CAP     = 8000   // ms — AbortController cap for batches 1+2
+const PER_COUNTRY_CAP_SLOW = 22000  // ms — full GDELT timeout for batch 3 (high-volume countries)
 
 // ── Distributed lock ─────────────────────────────────────────────────────────
 // Prevents overlapping runs (e.g. manual trigger + cron firing simultaneously).
@@ -152,13 +163,14 @@ async function setLowReadings(country, count) {
 
 // ── Process single country ────────────────────────────────────────────────────
 // escalatedList pre-fetched once by the handler — zero Supabase reads here.
+// cap: per-country timeout in ms (PER_COUNTRY_CAP for batches 1+2, PER_COUNTRY_CAP_SLOW for batch 3)
 // Returns a result object; never throws.
-async function processCountry(country, escalatedList) {
-  // Create an AbortController tied to PER_COUNTRY_CAP.
+async function processCountry(country, escalatedList, cap = PER_COUNTRY_CAP) {
+  // Create an AbortController tied to the cap.
   // Aborting it cancels the underlying HTTP connection immediately,
   // preventing the 14-second background-fetch leak that occurs with Promise.race.
   const ctrl     = new AbortController()
-  const capTimer = setTimeout(() => ctrl.abort(), PER_COUNTRY_CAP)
+  const capTimer = setTimeout(() => ctrl.abort(), cap)
 
   let signals
   try {
@@ -220,10 +232,12 @@ async function processCountry(country, escalatedList) {
 // ── Handler ───────────────────────────────────────────────────────────────────
 async function _handler(req, res) {
   // ── Select batch ──────────────────────────────────────────────────────────
-  // Cron 1: /api/gdelt-ingest?batch=1  → Tier A (default)
-  // Cron 2: /api/gdelt-ingest?batch=2  → Tier B
-  const batchNum  = (req.query?.batch ?? '1') === '2' ? 2 : 1
-  const COUNTRIES = [...new Set(batchNum === 2 ? BATCH_2 : BATCH_1)]
+  // Cron 1: /api/gdelt-ingest?batch=1  → Tier A 20 countries, 8s cap
+  // Cron 2: /api/gdelt-ingest?batch=2  → Tier B 22 countries, 8s cap
+  // Cron 3: /api/gdelt-ingest?batch=3  → Slow-GDELT 2 countries, 22s cap
+  const batchNum  = Number(req.query?.batch ?? '1') || 1
+  const COUNTRIES = [...new Set(batchNum === 3 ? BATCH_3 : batchNum === 2 ? BATCH_2 : BATCH_1)]
+  const CAP       = batchNum === 3 ? PER_COUNTRY_CAP_SLOW : PER_COUNTRY_CAP
   const LOCK_KEY  = `gdelt-ingest-lock-b${batchNum}`
 
   // ── Runtime budget guard ──────────────────────────────────────────────────
@@ -256,7 +270,7 @@ async function _handler(req, res) {
 
     for (let i = 0; i < COUNTRIES.length; i += BATCH_SIZE) {
       const batch   = COUNTRIES.slice(i, i + BATCH_SIZE)
-      const settled = await Promise.allSettled(batch.map(c => processCountry(c, escalatedList)))
+      const settled = await Promise.allSettled(batch.map(c => processCountry(c, escalatedList, CAP)))
 
       for (const r of settled) {
         const v = r.status === 'fulfilled' ? r.value : { ok: false, error: r.reason?.message, country: '?' }
