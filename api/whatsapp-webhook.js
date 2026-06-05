@@ -31,7 +31,7 @@ const env = {
   supabaseUrl:    () => process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
   serviceKey:     () => process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   validateSig:    () => (process.env.TWILIO_VALIDATE_SIG || 'true') !== 'false',
-  siteUrl:        () => process.env.URL || process.env.DEPLOY_URL || 'https://rainbow-monstera-ab64b3.netlify.app',
+  siteUrl:        () => process.env.APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://www.risk360.co'),
 }
 
 // Max messages kept in WhatsApp session history (user + assistant pairs)

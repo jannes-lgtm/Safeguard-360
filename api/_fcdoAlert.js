@@ -152,13 +152,13 @@ export async function logFcdoChange(country, prevLevel, newLevel, prevSev, newSe
 
   // ── 3. In-app alerts for orgs with active travellers in this country ──────
   try {
-    // Find active trips to the affected country
+    // Find active itineraries to the affected country
     const { data: trips } = await sb
-      .from('trips')
+      .from('itineraries')
       .select('org_id, user_id')
-      .ilike('destination_country', country)
-      .gte('end_date', now.slice(0, 10))
-      .eq('status', 'approved')
+      .ilike('arrival_city', `%${country}%`)
+      .gte('return_date', now.slice(0, 10))
+      .eq('approval_status', 'approved')
 
     if (trips?.length) {
       const orgIds = [...new Set(trips.map(t => t.org_id).filter(Boolean))]
@@ -181,7 +181,6 @@ export async function logFcdoChange(country, prevLevel, newLevel, prevSev, newSe
       }
     }
   } catch (e) {
-    // org_alerts table may not exist yet — non-fatal
     console.warn('[fcdoAlert] org alert insert failed (non-fatal):', e.message)
   }
 

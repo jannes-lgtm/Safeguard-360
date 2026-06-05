@@ -178,7 +178,7 @@ export default function TripShare() {
           <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
             <p className="text-[11px] text-gray-400 text-center">
               Safeguard 360 — Travel Safety Platform —{' '}
-              <a href="https://safeguard360.co.za" className="text-gray-500 hover:underline">safeguard360.co.za</a>
+              <a href="https://www.risk360.co" className="text-gray-500 hover:underline">risk360.co</a>
             </p>
           </div>
         </div>

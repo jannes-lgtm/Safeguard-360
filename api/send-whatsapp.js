@@ -93,7 +93,7 @@ async function _handler(req, res) {
   }
 
   // ── Log to audit trail ───────────────────────────────────────────────────
-  sb.from('audit_log').insert({
+  sb.from('audit_logs').insert({
     actor_id:   caller.id,
     action:     'whatsapp_sent',
     target_id:  target.id,

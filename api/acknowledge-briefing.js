@@ -16,7 +16,7 @@ import { sendEmail } from './_notify.js'
 import { adapt } from './_adapter.js'
 import { getSupabaseAdmin } from './_supabase.js'
 
-const APP_URL = process.env.APP_URL || 'https://safeguard360.co.za'
+const APP_URL = process.env.APP_URL || 'https://www.risk360.co'
 const SUPABASE_URL = () => process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 const ANON_KEY     = () => process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
 
@@ -275,7 +275,7 @@ async function _handler(req, res) {
   ])
 
   // Audit log
-  await supabaseAdmin.from('audit_log').insert({
+  await supabaseAdmin.from('audit_logs').insert({
     user_id:   user.id,
     action:    'briefing_acknowledged',
     target_id: briefing_id,

@@ -103,7 +103,7 @@ async function _handler(req, res) {
       .eq('status', 'Active')
       .ilike('country', `%${trip.arrival_city || ''}%`)
       .order('severity').limit(10),
-    fetch(`${SUPABASE_URL().replace('/rest/v1','')}/api/country-risk?country=${encodeURIComponent(trip.arrival_city || '')}`)
+    fetch(`${process.env.APP_URL || 'https://www.risk360.co'}/api/country-risk?country=${encodeURIComponent(trip.arrival_city || '')}`)
       .then(r => r.ok ? r.json() : null).catch(() => null),
   ])
 
@@ -214,7 +214,7 @@ Return this exact JSON structure (all values must be strings or arrays of string
   }
 
   // Audit log
-  await supabaseAdmin.from('audit_log').insert({
+  await supabaseAdmin.from('audit_logs').insert({
     user_id:    user.id,
     action:     'briefing_generated',
     target_id:  briefing.id,
