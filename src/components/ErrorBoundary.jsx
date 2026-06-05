@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import { log } from '../lib/logger'
+import { Sentry } from '../lib/sentry'
 
 /**
  * SafeGuard360 — Global Error Boundary
@@ -33,6 +34,14 @@ export default class ErrorBoundary extends Component {
       message:    error?.message,
       stack:      error?.stack?.split('\n').slice(0, 5).join(' | '),
       component:  info?.componentStack?.split('\n').slice(0, 3).join(' | '),
+    })
+
+    // Forward to Sentry (safe no-op when DSN not configured)
+    Sentry?.captureException?.(error, {
+      contexts: {
+        react: { componentStack: info?.componentStack },
+        boundary: { context: this.props.context || 'App' },
+      },
     })
   }
 

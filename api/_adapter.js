@@ -5,6 +5,8 @@
  * Detection: Vercel passes a real http.ServerResponse as the second argument,
  * which always has writeHead(). Netlify's context object does not.
  */
+import { captureApiException } from './_sentry.js'
+
 export function adapt(handler) {
   return async (reqOrEvent, resOrContext) => {
     // Vercel: second arg is a real http.ServerResponse — pass through directly.
@@ -14,6 +16,11 @@ export function adapt(handler) {
         await handler(reqOrEvent, resOrContext)
       } catch (e) {
         console.error('[adapter] handler error:', e.message, e.stack)
+        await captureApiException(e, {
+          method:   reqOrEvent?.method,
+          url:      reqOrEvent?.url,
+          endpoint: reqOrEvent?.url?.split('?')[0],
+        })
         if (!resOrContext.headersSent) {
           resOrContext.status(500).json({ error: e.message })
         }
@@ -54,6 +61,11 @@ export function adapt(handler) {
       await handler(req, res)
     } catch (e) {
       console.error('[adapter] handler error:', e.message, e.stack)
+      await captureApiException(e, {
+        method:   event.httpMethod,
+        url:      event.path,
+        endpoint: event.path,
+      })
       return {
         statusCode: 500,
         headers,
