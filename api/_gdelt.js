@@ -138,7 +138,16 @@ async function fetchGdeltRaw(country, signal = null) {
   })
 
   const r = await fetchWithTimeout(`${GDELT_BASE}?${params}`, FETCH_MS, signal)
-  if (!r?.ok) return null
+  if (!r) return null
+
+  // HTTP 429 = rate-limited at the transport level (no body to read).
+  // Return the sentinel so callers treat it the same as the text-based rate-limit.
+  if (r.status === 429) return GDELT_RATE_LIMITED
+
+  if (!r.ok) {
+    console.warn(`[gdelt] HTTP ${r.status} for "${country}"`)
+    return null
+  }
 
   try {
     // Read as text first so we can detect the plain-text rate-limit message
