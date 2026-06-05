@@ -9,9 +9,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, ChevronDown, Shield, MapPin, Lock, FileText, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 const TERMS_VERSION = '1.0'
 
 export default function TermsAndConditions() {
@@ -28,7 +26,7 @@ export default function TermsAndConditions() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { navigate('/login'); return }
       const { data: prof } = await supabase
-        .from('profiles').select('*').eq('id', user.id).single()
+        .from('profiles').select('*').eq('id', user.id).maybeSingle()
       setProfile({ ...prof, id: user.id, email: user.email })
 
       // If already accepted this version, skip straight to dashboard
@@ -61,17 +59,20 @@ export default function TermsAndConditions() {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) throw new Error('Session expired — please refresh and try again.')
 
-      // UPDATE only — never overwrite org_id, role, or other profile fields
-      const { error: updateError, count } = await supabase
+      // UPDATE only — never overwrite org_id, role, or other profile fields.
+      // Add .select('id') so Supabase v2 returns the actual updated rows (not count: null).
+      const { data: updated, error: updateError } = await supabase
         .from('profiles')
         .update({ terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() })
         .eq('id', user.id)
+        .select('id')
 
       if (updateError) throw new Error(`Could not save your acceptance: ${updateError.message}`)
 
-      // If profile didn't exist yet (edge case), create a minimal one from auth metadata.
+      // If profile didn't exist yet (edge case: Supabase trigger failed at signup),
+      // create a minimal one from auth metadata.
       // Use role from user_metadata so solo users keep role:'solo', not 'traveller'.
-      if (count === 0) {
+      if (!updated?.length) {
         const { error: insertError } = await supabase
           .from('profiles')
           .insert({
@@ -105,14 +106,14 @@ export default function TermsAndConditions() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: '#F0F2F8' }}>
+      style={{ background: '#090A0C' }}>
       <div className="w-full max-w-2xl">
 
         {/* Header card */}
         <div className="rounded-2xl text-white p-6 mb-4"
           style={{ background: `linear-gradient(135deg, ${BRAND_BLUE} 0%, #0a24cc 100%)` }}>
           <div className="flex items-center gap-3 mb-2">
-            <img src="/logo-transparent.png" alt="SafeGuard360" className="h-10 object-contain" />
+            <img src="/logo-transparent.png" alt="SafeGuard360" className="h-12 object-contain" />
           </div>
           <h1 className="text-xl font-bold mb-1">Terms of Service & Privacy Policy</h1>
           <p className="text-sm text-white/70">
@@ -121,12 +122,12 @@ export default function TermsAndConditions() {
         </div>
 
         {/* Scrollable terms */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-4">
+        <div className="rounded-2xl overflow-hidden mb-4" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="h-[420px] overflow-y-auto p-6 text-sm text-gray-700 leading-relaxed space-y-5"
-            style={{ scrollbarWidth: 'thin' }}
+            className="h-[420px] overflow-y-auto p-6 text-sm leading-relaxed space-y-5"
+            style={{ scrollbarWidth: 'thin', color: '#94A3B8' }}
           >
 
             {/* Section 1 */}
@@ -143,7 +144,7 @@ export default function TermsAndConditions() {
             {/* Section 2 */}
             <Section icon={Lock} title="2. Data We Collect">
               <p>We collect and process the following personal data:</p>
-              <ul className="list-disc list-inside mt-2 space-y-1 text-gray-600">
+              <ul className="list-disc list-inside mt-2 space-y-1" style={{ color: '#64748B' }}>
                 <li>Account information (name, email address, role)</li>
                 <li>Travel itinerary details (destinations, dates, flight numbers)</li>
                 <li>Training completion records</li>
@@ -156,11 +157,11 @@ export default function TermsAndConditions() {
 
             {/* Section 3 — Location — most important for consent */}
             <Section icon={MapPin} title="3. Location Monitoring & Tracking" highlight>
-              <p className="font-semibold text-gray-900 mb-2">
+              <p className="font-semibold mb-2" style={{ color: '#F1F5F9' }}>
                 By accepting these terms you explicitly consent to the following location
                 data collection:
               </p>
-              <ul className="list-disc list-inside space-y-2 text-gray-700">
+              <ul className="list-disc list-inside space-y-2" style={{ color: '#94A3B8' }}>
                 <li>
                   <strong>Passive location updates</strong> — when you have an active trip,
                   your GPS coordinates are automatically recorded each time you open or use
@@ -180,25 +181,25 @@ export default function TermsAndConditions() {
                   while that page is open.
                 </li>
               </ul>
-              <div className="mt-3 bg-blue-50 border border-blue-100 rounded-xl p-3">
-                <p className="text-xs text-blue-800">
+              <div className="mt-3 rounded-xl p-3" style={{ background: 'rgba(1,24,161,0.2)', border: '1px solid rgba(1,24,161,0.35)' }}>
+                <p className="text-xs" style={{ color: '#93C5FD' }}>
                   <strong>Purpose:</strong> Location data is collected solely to support
                   your organisation's duty of care obligations and to enable emergency
                   assistance. It is never sold to third parties or used for commercial
                   profiling. Location history is automatically deleted after 90 days.
                 </p>
               </div>
-              <p className="mt-3 text-gray-600">
+              <p className="mt-3" style={{ color: '#64748B' }}>
                 Your browser will request location permission the first time the platform
                 needs your location. You may deny this permission; however, some safety
                 features (check-in, SOS, passive tracking) will be unavailable.
               </p>
-              <p className="mt-2 text-gray-600">
+              <p className="mt-2" style={{ color: '#64748B' }}>
                 Corporate travellers: your location data is accessible to your company's
                 designated Travel Manager/Admin as part of their duty of care obligations.
                 This is disclosed in your employment travel policy.
               </p>
-              <p className="mt-2 text-gray-600">
+              <p className="mt-2" style={{ color: '#64748B' }}>
                 Solo travellers: your location data is accessible only to SafeGuard360
                 control room operators for the purpose of providing emergency assistance.
               </p>
@@ -222,7 +223,7 @@ export default function TermsAndConditions() {
 
             {/* Section 5 */}
             <Section title="5. Data Retention">
-              <ul className="list-disc list-inside space-y-1 text-gray-600">
+              <ul className="list-disc list-inside space-y-1" style={{ color: '#64748B' }}>
                 <li>Location pings: 90 days (auto-deleted)</li>
                 <li>Check-in records: duration of employment / account life</li>
                 <li>Training records: duration of employment / account life</li>
@@ -234,7 +235,7 @@ export default function TermsAndConditions() {
             {/* Section 6 */}
             <Section title="6. Your Rights">
               <p>Under GDPR, POPIA, and applicable privacy law you have the right to:</p>
-              <ul className="list-disc list-inside mt-2 space-y-1 text-gray-600">
+              <ul className="list-disc list-inside mt-2 space-y-1" style={{ color: '#64748B' }}>
                 <li>Access all personal data held about you</li>
                 <li>Request correction of inaccurate data</li>
                 <li>Request deletion of your data (subject to legal retention obligations)</li>
@@ -243,7 +244,7 @@ export default function TermsAndConditions() {
               </ul>
               <p className="mt-2">
                 To exercise any of these rights, contact your organisation's Travel Manager
-                or email <span className="font-medium text-[#0118A1]">privacy@safeguard360.com</span>.
+                or email <span className="font-medium text-[#AACC00]">privacy@safeguard360.com</span>.
               </p>
             </Section>
 
@@ -275,14 +276,14 @@ export default function TermsAndConditions() {
             </Section>
 
             {/* Bottom spacer so user has to scroll */}
-            <div className="pt-4 text-center text-xs text-gray-400">
+            <div className="pt-4 text-center text-xs" style={{ color: '#334155' }}>
               — End of Terms of Service & Privacy Policy v{TERMS_VERSION} —
             </div>
           </div>
 
           {/* Scroll indicator */}
           {!scrolled && (
-            <div className="border-t border-gray-100 px-6 py-3 flex items-center justify-center gap-2 text-xs text-gray-400 bg-gray-50">
+            <div className="px-6 py-3 flex items-center justify-center gap-2 text-xs" style={{ borderTop: '1px solid rgba(255,255,255,0.07)', background: '#0A0F1C', color: '#475569' }}>
               <ChevronDown size={13} className="animate-bounce" />
               Scroll to the bottom to continue
             </div>
@@ -290,7 +291,7 @@ export default function TermsAndConditions() {
         </div>
 
         {/* Accept panel */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
+        <div className="rounded-2xl p-5 space-y-4" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
           {/* Checkbox */}
           <label className={`flex items-start gap-3 cursor-pointer ${!scrolled ? 'opacity-40 pointer-events-none' : ''}`}>
             <div className="mt-0.5 relative shrink-0">
@@ -301,12 +302,12 @@ export default function TermsAndConditions() {
                 className="sr-only"
               />
               <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                checked ? 'border-[#0118A1] bg-[#0118A1]' : 'border-gray-300'
+                checked ? 'border-[#AACC00] bg-[#0118A1]' : 'border-slate-600'
               }`}>
                 {checked && <CheckCircle2 size={12} color="white" strokeWidth={3} />}
               </div>
             </div>
-            <span className="text-sm text-gray-700 leading-relaxed">
+            <span className="text-sm leading-relaxed" style={{ color: '#94A3B8' }}>
               I have read and understood the Terms of Service and Privacy Policy, including
               the <strong>location monitoring disclosure in Section 3</strong>. I consent
               to the collection and processing of my personal data as described, including
@@ -316,7 +317,7 @@ export default function TermsAndConditions() {
 
           {/* Error message */}
           {acceptError && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] text-sm text-[#EF7474]">
               <AlertTriangle size={14} className="shrink-0" />
               {acceptError}
             </div>
@@ -332,7 +333,7 @@ export default function TermsAndConditions() {
             {accepting ? 'Saving acceptance…' : 'I Accept — Continue to SafeGuard360'}
           </button>
 
-          <p className="text-[10px] text-gray-400 text-center">
+          <p className="text-[10px] text-center" style={{ color: '#334155' }}>
             Acceptance logged with timestamp · Version {TERMS_VERSION} ·{' '}
             {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
@@ -345,14 +346,21 @@ export default function TermsAndConditions() {
 // ── Section component ─────────────────────────────────────────────────────────
 function Section({ icon: Icon, title, children, highlight }) {
   return (
-    <div className={`rounded-xl p-4 ${highlight ? 'bg-amber-50 border border-amber-100' : 'bg-gray-50'}`}>
+    <div
+      className="rounded-xl p-4"
+      style={highlight
+        ? { background: 'rgba(212,166,74,0.08)', border: '1px solid rgba(212,166,74,0.2)' }
+        : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }
+      }
+    >
       <div className="flex items-center gap-2 mb-2">
-        {Icon && <Icon size={14} className={highlight ? 'text-amber-600' : 'text-gray-400'} />}
-        <h2 className={`text-xs font-bold uppercase tracking-wide ${highlight ? 'text-amber-800' : 'text-gray-500'}`}>
+        {Icon && <Icon size={14} style={{ color: highlight ? '#D4A64A' : '#475569' }} />}
+        <h2 className="text-xs font-bold uppercase tracking-wide"
+          style={{ color: highlight ? '#D4A64A' : '#64748B' }}>
           {title}
         </h2>
       </div>
-      <div className="text-sm text-gray-700 leading-relaxed space-y-2">
+      <div className="text-sm leading-relaxed space-y-2" style={{ color: '#94A3B8' }}>
         {children}
       </div>
     </div>

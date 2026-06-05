@@ -15,13 +15,13 @@
 
 import { comprehensiveRiskScan, synthesiseBrief, fetchGDACS, fetchUSGS, fetchHealthOutbreaks } from './_claudeSynth.js'
 import { checkRateLimit } from './_rateLimit.js'
-import { dbCacheGet, dbCacheSet } from './_dbCache.js'
+import { dbCacheGet, dbCacheSet, dbCacheDel } from './_dbCache.js'
+import { parseRssXml } from './_rssParser.js'
+import { sharedCache } from './_sharedCache.js'
+import { logFcdoChange } from './_fcdoAlert.js'
+import { fetchGdeltSignals } from './_gdelt.js'
+import { storeBriefHistory, buildTrendContext } from './_cairoMemory.js'
 
-let issCache    = []
-let issCacheTime = 0
-
-const FCDO_CACHE     = {}   // { [slug]: { data, ts } }  — in-memory (short-lived, cheap to re-fetch)
-const AI_BRIEF_CACHE = {}   // { [countryLower]: { data, ts } }  — in-memory L1; Supabase is L2
 const CACHE_TTL      = 60 * 60 * 1000       // 1 hour
 const ISS_CACHE_TTL  = 4  * 60 * 60 * 1000  // 4 hours
 
@@ -30,7 +30,7 @@ async function _handler(req, res) {
   if (!country) return res.status(400).json({ error: 'country required' })
 
   // Rate limit: 60 country risk checks per IP/user per hour (cached, but AI is invoked for new countries)
-  const { allowed } = checkRateLimit(req, 'country-risk', { max: 60, windowMs: 3_600_000 })
+  const { allowed } = await checkRateLimit(req, 'country-risk', { max: 60, windowMs: 3_600_000 })
   if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   try {
@@ -112,10 +112,13 @@ async function fetchWithTimeout(url, options = {}, ms = 7000) {
 }
 
 // ── FCDO ─────────────────────────────────────────────────────────────────────
-async function fetchFcdo(country) {
-  const slug = fcdoSlug(country)
-  const cached = FCDO_CACHE[slug]
-  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data
+// Returns advisory result + { changed: bool, updatedAt: string|null }
+// changed=true means the FCDO advisory was updated since our last fetch —
+// caller should invalidate the AI brief and log the change.
+async function fetchFcdo(country, { checkTimestamp = false } = {}) {
+  const slug   = fcdoSlug(country)
+  const tsKey  = 'fcdo-ts:' + slug
+  const cached = await sharedCache.get('fcdo:' + slug)
 
   try {
     const r = await fetchWithTimeout(
@@ -123,14 +126,28 @@ async function fetchFcdo(country) {
       { headers: { Accept: 'application/json' } }
     )
     if (!r?.ok) {
-      FCDO_CACHE[slug] = { data: null, ts: Date.now() }
+      if (cached !== null) return { ...cached, changed: false }
+      await sharedCache.set('fcdo:' + slug, null, 60 * 60 * 1000)
       return null
     }
 
-    const data = await r.json()
+    const data      = await r.json()
+    const updatedAt = data.public_updated_at || data.updated_at || null
+
+    // ── Timestamp short-circuit ──────────────────────────────────────────────
+    // If we have a cached result AND the advisory hasn't been updated, return
+    // the cached result immediately — no parsing, no AI invalidation needed.
+    if (checkTimestamp && cached !== null && updatedAt) {
+      const lastTs = await sharedCache.get(tsKey)
+      if (lastTs && lastTs === updatedAt) {
+        return { ...cached, changed: false, updatedAt }
+      }
+    }
+
     const warnings = data.details?.parts?.find(p => p.slug === 'warnings-and-insurance')
     if (!warnings?.body) {
-      FCDO_CACHE[slug] = { data: null, ts: Date.now() }
+      if (updatedAt) await sharedCache.set(tsKey, updatedAt, 6 * 60 * 60 * 1000)
+      await sharedCache.set('fcdo:' + slug, null, 60 * 60 * 1000)
       return null
     }
 
@@ -151,10 +168,18 @@ async function fetchFcdo(country) {
       message: fcdoLevelText(level),
       url: `https://www.gov.uk/foreign-travel-advice/${slug}`,
     }
-    FCDO_CACHE[slug] = { data: result, ts: Date.now() }
-    return result
+
+    // Detect level change vs previously cached advisory
+    const prevLevel = cached?.level ?? null
+    const changed   = prevLevel !== null && prevLevel !== level
+
+    await sharedCache.set('fcdo:' + slug, result, 60 * 60 * 1000)
+    if (updatedAt) await sharedCache.set(tsKey, updatedAt, 6 * 60 * 60 * 1000)
+
+    return { ...result, changed, prevLevel, updatedAt }
   } catch (e) {
     console.error('FCDO fetch error for', country, ':', e.message)
+    if (cached !== null) return { ...cached, changed: false }
     return null
   }
 }
@@ -168,20 +193,20 @@ function fcdoLevelText(level) {
 
 // ── ISS Africa RSS ────────────────────────────────────────────────────────────
 async function fetchIssAlerts(country) {
-  const now = Date.now()
-  if (now - issCacheTime > ISS_CACHE_TTL) {
+  let issItems = await sharedCache.get('iss:feed')
+  if (!issItems) {
     const r = await fetchWithTimeout('https://issafrica.org/rss/iss-today', {}, 6000)
     if (r?.ok) {
       try {
-        issCache = parseRssItems(await r.text())
-        issCacheTime = now
+        issItems = parseRssXml(await r.text())
+        await sharedCache.set('iss:feed', issItems, ISS_CACHE_TTL)
       } catch { /* keep stale */ }
     }
   }
 
-  if (!issCache?.length) return null
+  if (!issItems?.length) return null
   const q = country.toLowerCase()
-  const matches = issCache
+  const matches = issItems
     .filter(item => (item.title + ' ' + item.description).toLowerCase().includes(q))
     .slice(0, 3)
   if (!matches.length) return null
@@ -192,66 +217,111 @@ async function fetchIssAlerts(country) {
   }
 }
 
-function parseRssItems(xml) {
-  const items = []
-  const re = /<item>([\s\S]*?)<\/item>/g
-  let m
-  while ((m = re.exec(xml)) !== null) {
-    const block = m[1]
-    const get = tag => {
-      const x = block.match(new RegExp(
-        `<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([^<]*)<\\/${tag}>`
-      ))
-      return x ? (x[1] || x[2] || '').trim() : ''
-    }
-    items.push({ title: get('title'), link: get('link'), description: get('description'), pubDate: get('pubDate') })
-  }
-  return items
-}
 
 // ── Combined risk + AI synthesis ──────────────────────────────────────────────
-async function getCountryRisk(country) {
-  // Fetch all live sources in parallel for speed
-  const [fcdo, iss, gdacs, usgs, health] = await Promise.all([
-    fetchFcdo(country),
+// forceRefresh=true  — bypass FCDO sharedCache, re-fetch advisory, use timestamp
+//                      check to skip AI invalidation if advisory unchanged.
+// checkTimestamp=true — passed through to fetchFcdo; skips re-parse when FCDO
+//                       public_updated_at matches our stored timestamp.
+async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = false } = {}) {
+  // On forceRefresh, bypass the cached FCDO result so we hit the live API
+  // and can compare timestamps / detect level changes.
+  if (forceRefresh) {
+    const slug = fcdoSlug(country)
+    await sharedCache.delete('fcdo:' + slug)
+  }
+
+  // Fetch all live sources in parallel for speed.
+  // GDELT is wrapped in a 7s user-facing cap — the ingest cron (maxDuration 300s)
+  // populates the Redis cache at 30-min intervals using the full 22s timeout.
+  // On a cache hit this resolves in <100ms; on a cold miss it returns null
+  // rather than holding up the response.
+  const gdeltWithCap = Promise.race([
+    fetchGdeltSignals(country),
+    new Promise(resolve => setTimeout(() => resolve(null), 7000)),
+  ])
+
+  const [fcdo, iss, gdacs, usgs, health, gdelt] = await Promise.all([
+    fetchFcdo(country, { checkTimestamp: forceRefresh || checkTimestamp }),
     fetchIssAlerts(country),
     fetchGDACS(country),
     fetchUSGS(country),
     fetchHealthOutbreaks(country),
+    gdeltWithCap,
   ])
 
   const level    = fcdo?.level ?? null
   const severity = levelToSeverity(level)
   const dfatSlug = toSlug(country)
 
+  // ── FCDO change detection ────────────────────────────────────────────────
+  // If the advisory level changed, log it to the live intelligence feed and
+  // invalidate the AI brief so CAIRO re-synthesises with the new floor.
+  if (fcdo?.changed && fcdo.prevLevel !== null && level !== null) {
+    const prevSev = levelToSeverity(fcdo.prevLevel)
+    console.log(`[country-risk] FCDO ADVISORY CHANGE: ${country} — Level ${fcdo.prevLevel} (${prevSev}) → Level ${level} (${severity})`)
+    // Fire-and-forget: log to live_intelligence feed + audit trail
+    logFcdoChange(country, fcdo.prevLevel, level, prevSev, severity).catch(() => {})
+  }
+
   // ── AI synthesis (comprehensive scan — cached 1h per country) ────────────
-  let ai_brief = null
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  let ai_brief  = null
+  let trendMeta = null   // structured trend metadata for UI rating cards
+  const apiKey  = process.env.ANTHROPIC_API_KEY
   if (apiKey) {
-    // comprehensiveRiskScan manages its own cache internally; AI_BRIEF_CACHE here
-    // is kept for compatibility but the function deduplicates itself.
     const cacheKey = country.toLowerCase()
     const dbKey    = `country-risk:ai:${cacheKey}`
 
-    // L1 — in-memory (fastest, resets on cold start)
-    const cached = AI_BRIEF_CACHE[cacheKey]
-    if (cached && Date.now() - cached.ts < CACHE_TTL) {
-      ai_brief = cached.data
+    // Invalidate AI cache when FCDO level changed — forces re-synthesis so
+    // CAIRO brief reflects the new advisory floor on next warmup pass.
+    if ((forceRefresh || fcdo?.changed) && severity) {
+      const cachedBrief = await dbCacheGet(dbKey)
+      if (cachedBrief?.overall_severity && cachedBrief.overall_severity !== severity) {
+        await sharedCache.delete('risk-ai:' + cacheKey)
+        await dbCacheDel(dbKey)
+        console.log(`[country-risk] AI cache invalidated for ${country}: ${cachedBrief.overall_severity} → ${severity}`)
+      }
+    }
+
+    // L1 — shared cache (Redis when available, in-memory fallback)
+    const l1Hit = await sharedCache.get('risk-ai:' + cacheKey)
+    if (l1Hit) {
+      ai_brief = l1Hit
+      // Await trend meta — fire-and-forget loses it before response is built
+      try { const r = await buildTrendContext(country); trendMeta = r.meta } catch {}
     } else {
       // L2 — Supabase persistent cache (survives cold starts)
       const persisted = await dbCacheGet(dbKey)
       if (persisted) {
         ai_brief = persisted
-        AI_BRIEF_CACHE[cacheKey] = { data: ai_brief, ts: Date.now() }
+        await sharedCache.set('risk-ai:' + cacheKey, ai_brief, 60 * 60 * 1000)
+        // Await trend meta — fire-and-forget loses it before response is built
+        try { const r = await buildTrendContext(country); trendMeta = r.meta } catch {}
       } else {
-        // Cache miss — run AI synthesis
-        ai_brief = await comprehensiveRiskScan(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
+        // Cache miss — build trend context then run AI synthesis
+        const { context: trendContext, meta: trendMetaFromHistory } = await buildTrendContext(country)
+        trendMeta = trendMetaFromHistory   // capture for response
+        ai_brief = await comprehensiveRiskScan(country, null, { fcdo, gdacs, usgs, iss, health, gdelt, trendContext }, apiKey)
         if (!ai_brief) {
-          ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health }, apiKey)
+          ai_brief = await synthesiseBrief(country, null, { fcdo, gdacs, usgs, iss, health, gdelt, trendContext }, apiKey)
         }
         if (ai_brief) {
-          AI_BRIEF_CACHE[cacheKey] = { data: ai_brief, ts: Date.now() }
-          dbCacheSet(dbKey, ai_brief, CACHE_TTL)  // fire-and-forget
+          // Store this brief in CAIRO's history for future trend analysis
+          storeBriefHistory(country, ai_brief, {
+            gdelt_tempo: gdelt?.tempoScore ?? null,
+            gdelt_trend: gdelt?.trend      ?? null,
+          }).catch(() => {})
+          // Merge FCDO-derived severity so country-risk-summary always has a
+          // map-ready overall_severity even if the AI brief omits it.
+          const SEVER_ORDER = ['Low', 'Medium', 'High', 'Critical']
+          const aiSev   = ai_brief.overall_severity
+          const fcdoSev = severity   // levelToSeverity(fcdo.level)
+          const effectiveSev = (aiSev && fcdoSev)
+            ? SEVER_ORDER.indexOf(fcdoSev) > SEVER_ORDER.indexOf(aiSev) ? fcdoSev : aiSev
+            : aiSev || fcdoSev || null
+          const briefToCache = { ...ai_brief, overall_severity: effectiveSev }
+          await sharedCache.set('risk-ai:' + cacheKey, briefToCache, 60 * 60 * 1000)
+          dbCacheSet(dbKey, briefToCache, CACHE_TTL)  // fire-and-forget
         }
       }
     }
@@ -286,11 +356,57 @@ async function getCountryRisk(country) {
       source: a.source || 'Health Feed',
     }))
 
+  // ── Extract CAIRO severity (effective: highest of AI + FCDO) ─────────────
+  // Parsed inline so cached string ai_brief is handled too.
+  let cairoSeverity = null
+  try {
+    const parsed = ai_brief
+      ? (typeof ai_brief === 'string' ? JSON.parse(ai_brief) : ai_brief)
+      : null
+    cairoSeverity = parsed?.overall_severity || severity || null
+  } catch { cairoSeverity = severity || null }
+
+  // ── GDELT tempo override ──────────────────────────────────────────────────
+  // CAIRO history alone can show "Sustained" (stable) even when live media
+  // signals are spiking. If GDELT tempo ≥ 1.5 and CAIRO says stable, upgrade
+  // to volatile so the trend card reflects real-time conditions.
+  if (trendMeta && trendMeta.direction === 'stable' && gdelt?.tempoScore != null) {
+    const tempo = gdelt.tempoScore
+    if (tempo >= 2.5) {
+      trendMeta = {
+        ...trendMeta,
+        direction: 'volatile',
+        label:     'Volatile',
+        reason:    `Risk level unchanged but significant media spike detected (${tempo}×). Monitor closely.`,
+      }
+    } else if (tempo >= 1.5) {
+      trendMeta = {
+        ...trendMeta,
+        direction: 'volatile',
+        label:     'Volatile',
+        reason:    `Risk level unchanged but elevated media signals detected (${tempo}×).`,
+      }
+    }
+  }
+
   return {
     country,
     level,
     severity,
     ai_brief,
+    // ── Structured rating card fields (UI) ─────────────────────────────────
+    cairo_severity: cairoSeverity,
+    fcdo_level:     level,
+    fcdo_message:   fcdo?.message  || null,
+    fcdo_url:       fcdo?.url      || `https://www.gov.uk/foreign-travel-advice/${fcdoSlug(country)}`,
+    trend_direction: trendMeta?.direction ?? null,
+    trend_label:     trendMeta?.label     ?? null,
+    trend_reason:    trendMeta?.reason    ?? null,
+    trend_consecutive: trendMeta?.consecutive ?? null,
+    // ───────────────────────────────────────────────────────────────────────
+    gdelt_tempo:        gdelt?.tempoScore   ?? null,
+    gdelt_trend:        gdelt?.trend        ?? null,
+    gdelt_themes:       gdelt?.themes       ?? [],
     gdacs_count:        gdacs.length,
     usgs_count:         usgs.length,
     health_alerts:      health?.matches?.length || 0,

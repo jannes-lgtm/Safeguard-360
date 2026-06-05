@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Clock, CheckCircle2, XCircle, LogOut, Mail } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 export default function PendingApproval() {
   const navigate = useNavigate()
@@ -51,11 +50,11 @@ export default function PendingApproval() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#F0F2F8' }}>
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#090A0C' }}>
       <div className="w-full max-w-md">
 
         <div className="flex justify-center mb-8">
-          <img src="/logo-colour.png" alt="SafeGuard360" className="h-10 w-auto" />
+          <img src="/logo-transparent.png" alt="SafeGuard360" className="h-12 w-auto" />
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -92,7 +91,7 @@ export default function PendingApproval() {
                 </div>
                 <a href="mailto:support@risk360.co"
                   className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold"
-                  style={{ background: BRAND_BLUE, color: 'white' }}>
+                  style={{ background: DS.green, color: DS.bg }}>
                   <Mail size={15} /> Contact Support
                 </a>
               </>

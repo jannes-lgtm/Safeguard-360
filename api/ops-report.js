@@ -9,7 +9,7 @@
  */
 
 import { adapt } from './_adapter.js'
-import { getSupabaseAdmin } from './_supabase.js'
+import { getSupabaseAdmin, verifyAdminJwt } from './_supabase.js'
 import { checkRateLimit } from './_rateLimit.js'
 
 async function _handler(req, res) {
@@ -17,8 +17,12 @@ async function _handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(204).end()
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
+    // Auth — admin or developer JWT required
+    const jwt = await verifyAdminJwt(req.headers['authorization'] || '')
+    if (!jwt.ok) return res.status(jwt.status).json({ error: jwt.error })
+
     // Light rate limit (report can be refreshed frequently from the dashboard)
-    const { allowed } = checkRateLimit(req, 'ops-report', { max: 60, windowMs: 3_600_000 })
+    const { allowed } = await checkRateLimit(req, 'ops-report', { max: 60, windowMs: 3_600_000 })
     if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded' })
 
     let sb

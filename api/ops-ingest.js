@@ -26,7 +26,7 @@ async function _handler(req, res) {
     const token = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '').trim()
 
     // Rate limit by IP or token
-    const { allowed } = checkRateLimit(req, 'ops-ingest', { max: 60, windowMs: 3_600_000 })
+    const { allowed } = await checkRateLimit(req, 'ops-ingest', { max: 60, windowMs: 3_600_000 })
     if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded' })
 
     let sb

@@ -3,22 +3,27 @@ import {
   Radio, RefreshCw, ExternalLink, Key, Handshake,
   Clock, Plus, X, Plane, Ship, Rss,
   Zap, Globe, Shield, MessageSquare, Crosshair, MapPin, CloudLightning,
-  Check, AlertCircle, Activity, ChevronDown, ChevronUp, Lightbulb, Star
+  Check, AlertCircle, Activity, ChevronDown, ChevronUp, Lightbulb, Star, Car
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 
 // ── Categories ───────────────────────────────────────────────────────────────
 const CATEGORIES = [
-  { id: 'flight',       label: 'Flight Intelligence',  icon: Plane,          bg: 'bg-sky-100',    text: 'text-sky-800',    border: 'border-sky-200' },
-  { id: 'vessel',       label: 'Vessel Tracking',       icon: Ship,           bg: 'bg-cyan-100',   text: 'text-cyan-800',   border: 'border-cyan-200' },
-  { id: 'conflict',     label: 'Armed Conflict',        icon: Crosshair,      bg: 'bg-red-100',    text: 'text-red-800',    border: 'border-red-200' },
-  { id: 'loadshedding', label: 'Load Shedding',         icon: Zap,            bg: 'bg-amber-100',  text: 'text-amber-800',  border: 'border-amber-200' },
-  { id: 'country-risk', label: 'Country Risk',          icon: Globe,          bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200' },
-  { id: 'security',     label: 'Security Intelligence', icon: Shield,         bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' },
-  { id: 'health',       label: 'Disease & Health',      icon: Activity,       bg: 'bg-rose-100',   text: 'text-rose-800',   border: 'border-rose-200' },
-  { id: 'community',    label: 'Community Reports',     icon: MessageSquare,  bg: 'bg-green-100',  text: 'text-green-800',  border: 'border-green-200' },
-  { id: 'weather',      label: 'Weather & Disasters',   icon: CloudLightning, bg: 'bg-teal-100',   text: 'text-teal-800',   border: 'border-teal-200' },
+  { id: 'flight',         label: 'Flight Intelligence',  icon: Plane,          bg: 'bg-sky-100',    text: 'text-sky-800',    border: 'border-sky-200' },
+  { id: 'vessel',         label: 'Vessel Tracking',       icon: Ship,           bg: 'bg-cyan-100',   text: 'text-cyan-800',   border: 'border-cyan-200' },
+  { id: 'conflict',       label: 'Armed Conflict',        icon: Crosshair,      bg: 'bg-red-100',    text: 'text-red-800',    border: 'border-[rgba(138,46,46,0.30)]' },
+  { id: 'loadshedding',   label: 'Load Shedding',         icon: Zap,            bg: 'bg-amber-100',  text: 'text-amber-800',  border: 'border-[rgba(144,106,37,0.30)]' },
+  { id: 'country-risk',   label: 'Country Risk',          icon: Globe,          bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200' },
+  { id: 'security',       label: 'Security Intelligence', icon: Shield,         bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200' },
+  { id: 'crime',          label: 'Organised Crime',       icon: AlertCircle,    bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200' },
+  { id: 'economic',       label: 'Economic Risk',         icon: Activity,       bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200' },
+  { id: 'traffic',        label: 'Live Traffic',          icon: Car,            bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200' },
+  { id: 'infrastructure', label: 'Infrastructure',        icon: Zap,            bg: 'bg-slate-100',  text: 'text-slate-800',  border: 'border-slate-200' },
+  { id: 'aviation',       label: 'Aviation Incidents',    icon: Plane,          bg: 'bg-blue-100',   text: 'text-blue-800',   border: 'border-blue-200' },
+  { id: 'health',         label: 'Disease & Health',      icon: Activity,       bg: 'bg-rose-100',   text: 'text-rose-800',   border: 'border-rose-200' },
+  { id: 'community',      label: 'Community Reports',     icon: MessageSquare,  bg: 'bg-green-100',  text: 'text-green-800',  border: 'border-[rgba(170,204,0,0.25)]' },
+  { id: 'weather',        label: 'Weather & Disasters',   icon: CloudLightning, bg: 'bg-teal-100',   text: 'text-teal-800',   border: 'border-teal-200' },
 ]
 const getCat = (id) => CATEGORIES.find(c => c.id === id) || CATEGORIES[5]
 
@@ -108,6 +113,30 @@ const BUILTIN_FEEDS = [
     description: 'Overseas Security Advisory Council — detailed US State Dept security reports for business travellers. Comprehensive Africa and Middle East coverage.',
     geography: 'Africa + Middle East', updateFrequency: 'As issued',
     status: 'pending', sourceUrl: 'https://www.osac.gov', builtin: true },
+  { id: 'oxford-analytica', name: 'Oxford Analytica', category: 'security', feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Daily geopolitical and macroeconomic analysis from a global network of 1,000+ expert analysts — country risk assessments, political stability and strategic intelligence across 200 countries.',
+    geography: 'Global', updateFrequency: 'Daily',
+    status: 'active', sourceUrl: 'https://www.oxan.com', builtin: true },
+  { id: 'soufan-center', name: 'The Soufan Center', category: 'security', feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Authoritative analysis on terrorism, extremism and international security — jihadist movements, great power competition, African threat actors (ISWAP, Al-Shabaab, AQ).',
+    geography: 'Global', updateFrequency: 'Multiple weekly',
+    status: 'active', sourceUrl: 'https://thesoufancenter.org', builtin: true },
+  { id: 'foreign-policy', name: 'Foreign Policy', category: 'security', feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Global affairs, geopolitics and security analysis — great power competition, conflict zones, diplomatic developments and emerging-market risk.',
+    geography: 'Global', updateFrequency: 'Daily',
+    status: 'active', sourceUrl: 'https://foreignpolicy.com', builtin: true },
+  { id: 'africa-report', name: 'The Africa Report', category: 'security', feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'In-depth political and business intelligence across all African markets — leadership changes, elections, economic shifts and security developments.',
+    geography: 'Africa', updateFrequency: 'Daily',
+    status: 'active', sourceUrl: 'https://www.theafricareport.com', builtin: true },
+  { id: 'csis', name: 'CSIS', category: 'security', feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Center for Strategic and International Studies — defence, geopolitics and international security analysis. Africa programme, Middle East and global strategic trends.',
+    geography: 'Global', updateFrequency: 'As issued',
+    status: 'pending', sourceUrl: 'https://www.csis.org', builtin: true },
+  { id: 'spglobal', name: 'S&P Global Market Intelligence', category: 'security', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'Country risk scores, sovereign credit ratings, political risk assessments and economic intelligence across 200+ markets. Integrates directly into CAIRO country-level risk advisory.',
+    geography: 'Global (200+ countries)', updateFrequency: 'Daily / as issued',
+    status: 'pending_key', envVar: 'SPGLOBAL_API_KEY', sourceUrl: 'https://www.spglobal.com/en', builtin: true },
   { id: 'control-risks', name: 'Control Risks', category: 'security', feedType: 'Partnership', scope: 'international', countries: [],
     description: 'World-leading political risk and security intelligence — real-time alerts, 180+ country profiles, analyst reports and 24/7 crisis response.',
     geography: 'Global', updateFrequency: 'Real-time',
@@ -155,6 +184,133 @@ const BUILTIN_FEEDS = [
     geography: 'Global', updateFrequency: 'Real-time',
     status: 'partnership', sourceUrl: 'https://www.internationalsos.com', builtin: true },
 
+  // ── CAIRO RSS Context Pipeline ──────────────────────────────────────────────
+  // These feeds are fetched on every journey request via fetchArticlesForCountry()
+  // and also ingested by the hourly intel cron. Defined in api/_claudeSynth.js.
+
+  // Wire services
+  { id: 'reuters-world',    name: 'Reuters World',        category: 'conflict',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Reuters global wire service — breaking news and conflict reporting worldwide. Tier 1 source.',
+    geography: 'Global', updateFrequency: 'Continuous', status: 'active', sourceUrl: 'https://feeds.reuters.com/reuters/worldNews', builtin: true },
+  { id: 'ap-world',         name: 'AP World',             category: 'conflict',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Associated Press world news feed via RSSHub proxy (AP deprecated official RSS).',
+    geography: 'Global', updateFrequency: 'Continuous', status: 'active', sourceUrl: 'https://rsshub.app/apnews/topics/world-news', builtin: true },
+  { id: 'bbc-world',        name: 'BBC World',            category: 'conflict',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'BBC News world service — global conflict and security reporting. Tier 1 source.',
+    geography: 'Global', updateFrequency: 'Continuous', status: 'active', sourceUrl: 'https://feeds.bbci.co.uk/news/world/rss.xml', builtin: true },
+  { id: 'france24',         name: 'France 24',            category: 'conflict',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'France 24 English — strong Africa and MENA coverage.',
+    geography: 'Global', updateFrequency: 'Continuous', status: 'active', sourceUrl: 'https://www.france24.com/en/rss', builtin: true },
+  { id: 'aljazeera',        name: 'Al Jazeera',           category: 'conflict',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Al Jazeera English — authoritative Middle East, Africa and Asia coverage.',
+    geography: 'Global', updateFrequency: 'Continuous', status: 'active', sourceUrl: 'https://www.aljazeera.com/xml/rss/all.xml', builtin: true },
+  { id: 'middle-east-eye',  name: 'Middle East Eye',      category: 'conflict',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Independent Middle East news and analysis — conflict, politics and society.',
+    geography: 'Middle East + North Africa', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://www.middleeasteye.net/rss', builtin: true },
+  { id: 'iran-intl',        name: 'Iran International',   category: 'conflict',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Iran-focused news and analysis — IRGC, regional proxy activity, sanctions.',
+    geography: 'Iran + Middle East', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://www.iranintl.com/en/rss', builtin: true },
+  { id: 'kyiv-independent', name: 'Kyiv Independent',     category: 'conflict',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Ukraine-Russia conflict reporting — frontline updates, drone warfare, international response.',
+    geography: 'Eastern Europe', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://kyivindependent.com/feed/', builtin: true },
+  { id: 'un-news-africa',   name: 'UN News Africa',       category: 'conflict',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'UN News Africa feed — humanitarian crises, peacekeeping operations, displacement.',
+    geography: 'Africa', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://news.un.org/feed/subscribe/en/news/region/africa/feed/rss.xml', builtin: true },
+  { id: 'un-news-me',       name: 'UN News ME',           category: 'conflict',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'UN News Middle East feed — humanitarian emergencies, conflict updates.',
+    geography: 'Middle East', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://news.un.org/feed/subscribe/en/news/region/middle-east/feed/rss.xml', builtin: true },
+  { id: 'acled-blog',       name: 'ACLED Blog',           category: 'conflict',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'ACLED analytical blog — conflict trend analysis and research insights. Complements ACLED API data.',
+    geography: 'Africa + Middle East', updateFrequency: 'Weekly', status: 'active', sourceUrl: 'https://acleddata.com/category/analysis/feed/', builtin: true },
+  { id: 'defense-post',     name: 'The Defense Post',     category: 'conflict',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Defence and security news — military operations, arms and conflict reporting.',
+    geography: 'Global', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://thedefensepost.com/feed/', builtin: true },
+  { id: 'bbc-africa',       name: 'BBC Africa',           category: 'security',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'BBC Africa dedicated feed — politics, security, elections and society across the continent.',
+    geography: 'Africa', updateFrequency: 'Continuous', status: 'active', sourceUrl: 'https://feeds.bbci.co.uk/news/world/africa/rss.xml', builtin: true },
+  { id: 'iss-africa',       name: 'ISS Africa',           category: 'security',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Institute for Security Studies Africa — research and analysis on conflict, crime, governance and justice across Africa.',
+    geography: 'Africa', updateFrequency: 'Multiple weekly', status: 'active', sourceUrl: 'https://issafrica.org/rss/iss-today', builtin: true },
+  { id: 'crisis-group-africa', name: 'Crisis Group Africa', category: 'security',    feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'International Crisis Group Africa programme — early warning and conflict prevention analysis.',
+    geography: 'Africa', updateFrequency: 'As issued', status: 'active', sourceUrl: 'https://www.crisisgroup.org/rss/africa', builtin: true },
+  { id: 'crisis-group-mena',  name: 'Crisis Group MENA',  category: 'security',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'International Crisis Group MENA programme — Middle East and North Africa conflict analysis.',
+    geography: 'Middle East + North Africa', updateFrequency: 'As issued', status: 'active', sourceUrl: 'https://www.crisisgroup.org/rss/middle-east-north-africa', builtin: true },
+  { id: 'jamestown',         name: 'Jamestown Foundation', category: 'security',      feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Jamestown Foundation — terrorism, extremism and security analysis. Strong Sahel and jihadist movement coverage.',
+    geography: 'Global', updateFrequency: 'Multiple weekly', status: 'active', sourceUrl: 'https://jamestown.org/feed/', builtin: true },
+  { id: 'war-on-rocks',      name: 'War on the Rocks',    category: 'security',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Analysis on national security, defence and military strategy from practitioners and scholars.',
+    geography: 'Global', updateFrequency: 'Multiple weekly', status: 'active', sourceUrl: 'https://warontherocks.com/feed/', builtin: true },
+  { id: 'janes-defence',     name: 'Janes Defence',       category: 'security',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Janes — world-leading institutional defence intelligence. Military capabilities, order of battle, weapons systems and conflict analysis. Tier 1 source.',
+    geography: 'Global', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://www.janes.com/feeds/news.xml', builtin: true },
+  { id: 'strategy-bridge',   name: 'The Strategy Bridge', category: 'security',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Military strategy and operational analysis from serving and former military professionals.',
+    geography: 'Global', updateFrequency: 'Multiple weekly', status: 'active', sourceUrl: 'https://thestrategybridge.org/feed', builtin: true },
+  { id: 'iiss',              name: 'IISS',                 category: 'security',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'International Institute for Strategic Studies — defence, security and conflict research. Publisher of The Military Balance. Tier 1 source.',
+    geography: 'Global', updateFrequency: 'As issued', status: 'active', sourceUrl: 'https://www.iiss.org/feed', builtin: true },
+  { id: 'the-diplomat',      name: 'The Diplomat',         category: 'security',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Asia-Pacific security, politics and foreign policy analysis. Key source for China, Taiwan, North Korea and regional tensions.',
+    geography: 'Asia-Pacific', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://thediplomat.com/feed/', builtin: true },
+  { id: 'euractiv',          name: 'Euractiv',             category: 'security',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'European Union policy, security and geopolitics — NATO, Ukraine, EU enlargement and European defence.',
+    geography: 'Europe', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://www.euractiv.com/feed/', builtin: true },
+  { id: 'insight-crime',     name: 'InSight Crime',        category: 'crime',          feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Leading investigative journalism on organised crime in Latin America and the Caribbean — cartels, gangs, drug trafficking and K&R patterns.',
+    geography: 'Latin America + Caribbean', updateFrequency: 'Multiple weekly', status: 'active', sourceUrl: 'https://www.insightcrime.org/feed/', builtin: true },
+  { id: 'trading-economics', name: 'Trading Economics',    category: 'economic',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Macroeconomic data and forecasts — currency crises, inflation, sanctions and economic risk signals correlated with operational risk.',
+    geography: 'Global', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://tradingeconomics.com/feed.xml', builtin: true },
+  { id: 'power-tech',        name: 'Power Technology',     category: 'infrastructure', feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Energy infrastructure news — power grid failures, energy crises and critical infrastructure disruptions affecting operational environments.',
+    geography: 'Global', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://www.power-technology.com/feed/', builtin: true },
+  { id: 'netblocks',         name: 'NetBlocks',            category: 'infrastructure', feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Real-time internet shutdown and network disruption monitoring — detects comms blackouts, social media blocks and censorship events 15–30 min ahead of news outlets. Critical for field team comms awareness.',
+    geography: 'Global', updateFrequency: 'Real-time (as detected)', status: 'active', sourceUrl: 'https://netblocks.org', builtin: true },
+  { id: 'aviapages',         name: 'AviPages',             category: 'aviation',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Aviation incident and safety reports — airspace closures, aircraft incidents and aviation disruption alerts.',
+    geography: 'Global', updateFrequency: 'As issued', status: 'active', sourceUrl: 'https://aviapages.com/feed/incidents', builtin: true },
+
+  // RSS Health feeds (in CAIRO pipeline alongside structured health connectors)
+  { id: 'who-rss',           name: 'WHO News',             category: 'health',         feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'WHO global health news feed — disease outbreaks, health emergencies and public health announcements.',
+    geography: 'Global', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://www.who.int/rss-feeds/news-english.xml', builtin: true },
+  { id: 'reliefweb-who',     name: 'ReliefWeb/WHO',        category: 'health',         feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'ReliefWeb WHO-sourced updates — disease outbreak reports filtered from the UN humanitarian information platform.',
+    geography: 'Global', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://reliefweb.int/updates/rss.xml?source=WHO', builtin: true },
+  { id: 'outbreak-news',     name: 'Outbreak News Today',  category: 'health',         feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Independent infectious disease reporting — outbreak alerts, travel health advisories and disease surveillance.',
+    geography: 'Global', updateFrequency: 'Multiple daily', status: 'active', sourceUrl: 'https://outbreaknewstoday.com/feed/', builtin: true },
+  { id: 'cidrap',            name: 'CIDRAP',               category: 'health',         feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Center for Infectious Disease Research and Policy — authoritative outbreak news and antimicrobial resistance tracking.',
+    geography: 'Global', updateFrequency: 'Daily', status: 'active', sourceUrl: 'https://www.cidrap.umn.edu/rss.xml', builtin: true },
+  { id: 'paho',              name: 'PAHO',                 category: 'health',         feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Pan American Health Organization — disease surveillance and health alerts for the Americas.',
+    geography: 'Americas', updateFrequency: 'As issued', status: 'active', sourceUrl: 'https://www.paho.org/en/rss.xml', builtin: true },
+  { id: 'africa-cdc',        name: 'Africa CDC',           category: 'health',         feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'Africa Centres for Disease Control — outbreak alerts, disease surveillance and public health emergencies across the continent.',
+    geography: 'Africa', updateFrequency: 'As issued', status: 'active', sourceUrl: 'https://africacdc.org/feed/', builtin: true },
+  { id: 'reliefweb-disasters', name: 'ReliefWeb Disasters', category: 'weather',       feedType: 'RSS Feed', scope: 'international', countries: [],
+    description: 'UN ReliefWeb disaster alerts — floods, earthquakes, cyclones, drought and complex humanitarian emergencies.',
+    geography: 'Global', updateFrequency: 'As issued', status: 'active', sourceUrl: 'https://reliefweb.int/disasters/rss.xml', builtin: true },
+
+  // ── Live Traffic ───────────────────────────────────────────────────────────
+  { id: 'here-traffic', name: 'HERE Traffic', category: 'traffic', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'HERE Routing v8 + Traffic v7 — live travel times, free-flow baselines, jam factor, speed, and real-time road incidents per monitored corridor. Primary traffic intelligence source for CAIRO.',
+    geography: 'Africa + Middle East (monitored corridors)', updateFrequency: 'Every 30 min (ingest cron)',
+    status: 'active', envVar: 'HERE_API_KEY', sourceUrl: 'https://developer.here.com/products/routing', builtin: true },
+  { id: 'google-routes', name: 'Google Routes', category: 'traffic', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'Google Routes API v2 — traffic-aware travel time corroboration alongside HERE. Used to cross-validate congestion levels and provide consensus assessments for Plan Route and CAIRO context.',
+    geography: 'Global (Plan Route + monitored corridors)', updateFrequency: 'Every 30 min (ingest cron) + on-demand (Plan Route)',
+    status: 'active', envVar: 'GOOGLE_MAPS_API_KEY', sourceUrl: 'https://developers.google.com/maps/documentation/routes', builtin: true },
+  { id: 'osm-overpass', name: 'OSM Overpass', category: 'traffic', feedType: 'REST API', scope: 'international', countries: [],
+    description: 'OpenStreetMap Overpass API — free, no API key. Queries road closures and construction tags (highway=construction, access=no, barrier=*) within corridor bounding boxes.',
+    geography: 'Global (monitored corridors)', updateFrequency: 'Every 30 min (ingest cron)',
+    status: 'active', sourceUrl: 'https://overpass-api.de', builtin: true },
+
   // Local — South Africa
   { id: 'eskomsepush', name: 'EskomSePush', category: 'loadshedding', feedType: 'REST API', scope: 'local', countries: ['South Africa'],
     description: 'Live Eskom load shedding stage and area schedules across South Africa.', geography: 'South Africa', updateFrequency: 'Real-time (15 min cache)',
@@ -184,11 +340,11 @@ const BUILTIN_FEEDS = [
 
 // ── Status config ─────────────────────────────────────────────────────────────
 const STATUS = {
-  active:      { label: 'Live',                dot: 'bg-green-500',  text: 'text-green-700',  bg: 'bg-green-50',  border: 'border-green-200' },
-  pending_key: { label: 'API Key Needed',      dot: 'bg-amber-400',  text: 'text-amber-700',  bg: 'bg-amber-50',  border: 'border-amber-200' },
+  active:      { label: 'Live',                dot: 'bg-green-500',  text: 'text-[#AACC00]',  bg: 'bg-[rgba(170,204,0,0.10)]',  border: 'border-[rgba(170,204,0,0.25)]' },
+  pending_key: { label: 'API Key Needed',      dot: 'bg-amber-400',  text: 'text-[#D4A64A]',  bg: 'bg-[rgba(144,106,37,0.12)]',  border: 'border-[rgba(144,106,37,0.30)]' },
   partnership: { label: 'Pending Partnership', dot: 'bg-violet-400', text: 'text-violet-700', bg: 'bg-violet-50', border: 'border-violet-200' },
   pending:     { label: 'Pending Setup',       dot: 'bg-gray-400',   text: 'text-gray-600',   bg: 'bg-gray-50',   border: 'border-gray-200' },
-  error:       { label: 'Error',               dot: 'bg-red-500',    text: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200' },
+  error:       { label: 'Error',               dot: 'bg-red-500',    text: 'text-[#EF7474]',    bg: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-[rgba(138,46,46,0.30)]' },
 }
 
 // ── Audit: feeds needing activation ──────────────────────────────────────────
@@ -271,10 +427,10 @@ const SUGGESTED_FEEDS = []
 // ── Status icon ───────────────────────────────────────────────────────────────
 function StatusIcon({ status }) {
   if (status === 'active') {
-    return <Check size={15} className="text-green-500" strokeWidth={2.5} />
+    return <Check size={15} className="text-[#AACC00]" strokeWidth={2.5} />
   }
   if (status === 'error') {
-    return <X size={15} className="text-red-500" strokeWidth={2.5} />
+    return <X size={15} className="text-[#EF7474]" strokeWidth={2.5} />
   }
   return <Plus size={15} className="text-amber-400" strokeWidth={2.5} />
 }
@@ -294,9 +450,9 @@ function StatusLegend() {
   return (
     <div className="flex items-center gap-5 text-xs text-gray-500 mb-3">
       <span className="font-medium text-gray-600">Status:</span>
-      <span className="flex items-center gap-1.5"><Check size={12} className="text-green-500" strokeWidth={2.5} /> Live</span>
+      <span className="flex items-center gap-1.5"><Check size={12} className="text-[#AACC00]" strokeWidth={2.5} /> Live</span>
       <span className="flex items-center gap-1.5"><Plus size={12} className="text-amber-400" strokeWidth={2.5} /> Needs activation</span>
-      <span className="flex items-center gap-1.5"><X size={12} className="text-red-500" strokeWidth={2.5} /> Error</span>
+      <span className="flex items-center gap-1.5"><X size={12} className="text-[#EF7474]" strokeWidth={2.5} /> Error</span>
     </div>
   )
 }
@@ -309,7 +465,7 @@ function FeedRow({ feed, onDelete }) {
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-gray-900">{feed.name}</span>
           {!feed.builtin && (
-            <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded font-medium">Custom</span>
+            <span className="text-[10px] bg-blue-50 text-[#6EA8C8] border border-blue-200 px-1.5 py-0.5 rounded font-medium">Custom</span>
           )}
         </div>
         {feed.envVar && (
@@ -334,7 +490,7 @@ function FeedRow({ feed, onDelete }) {
         <div className="flex items-center gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
           {feed.sourceUrl && (
             <a href={feed.sourceUrl} target="_blank" rel="noopener noreferrer"
-              className="text-xs text-[#0118A1] hover:underline font-medium flex items-center gap-1">
+              className="text-xs text-[#AACC00] hover:underline font-medium flex items-center gap-1">
               <ExternalLink size={11} />
               {feed.status === 'pending_key' ? 'Get key' : feed.status === 'partnership' ? 'Website' : 'Source'}
             </a>
@@ -405,8 +561,8 @@ function ActivationCard({ feed, guide }) {
   const [open, setOpen] = useState(false)
   if (!guide) return null
   return (
-    <div className="bg-white border border-amber-200 rounded-[8px] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-      <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border-b border-amber-200 cursor-pointer"
+    <div className="bg-white border border-[rgba(144,106,37,0.30)] rounded-[8px] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+      <div className="flex items-center justify-between px-4 py-3 bg-[rgba(144,106,37,0.12)] border-b border-[rgba(144,106,37,0.30)] cursor-pointer"
         onClick={() => setOpen(o => !o)}>
         <div className="flex items-center gap-3">
           <Plus size={14} className="text-amber-500" strokeWidth={2.5} />
@@ -416,7 +572,7 @@ function ActivationCard({ feed, guide }) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-amber-700 bg-amber-100 border border-amber-200 rounded px-2 py-0.5 font-medium">{guide.cost}</span>
+          <span className="text-xs text-[#D4A64A] bg-amber-100 border border-[rgba(144,106,37,0.30)] rounded px-2 py-0.5 font-medium">{guide.cost}</span>
           {open ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
         </div>
       </div>
@@ -426,13 +582,13 @@ function ActivationCard({ feed, guide }) {
           <ol className="space-y-1.5 mb-4">
             {guide.steps.map((step, i) => (
               <li key={i} className="flex items-start gap-2 text-xs text-gray-700">
-                <span className="shrink-0 w-5 h-5 rounded-full bg-amber-100 text-amber-700 font-bold flex items-center justify-center text-[10px] mt-0.5">{i + 1}</span>
+                <span className="shrink-0 w-5 h-5 rounded-full bg-amber-100 text-[#D4A64A] font-bold flex items-center justify-center text-[10px] mt-0.5">{i + 1}</span>
                 {step}
               </li>
             ))}
           </ol>
           <a href={guide.url} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold px-4 py-2 rounded-[6px] text-xs transition-colors">
+            className="inline-flex items-center gap-1.5 bg-[#AACC00] hover:bg-[#99bb00] text-[#AACC00] font-semibold px-4 py-2 rounded-[6px] text-xs transition-colors">
             <ExternalLink size={12} />
             {guide.cost.startsWith('$') || guide.cost.toLowerCase().includes('month') ? 'Purchase & get key' : 'Register for free key'}
           </a>
@@ -456,11 +612,11 @@ function SuggestedCard({ suggestion }) {
             </span>
           )}
           {suggestion.tier === 'free' && (
-            <span className="text-[10px] bg-green-50 text-green-700 border border-green-200 rounded px-1.5 py-0.5 font-semibold">Free</span>
+            <span className="text-[10px] bg-[rgba(170,204,0,0.10)] text-[#AACC00] border border-[rgba(170,204,0,0.25)] rounded px-1.5 py-0.5 font-semibold">Free</span>
           )}
         </div>
         <a href={suggestion.url} target="_blank" rel="noopener noreferrer"
-          className="shrink-0 text-[#0118A1] hover:text-[#0118A1]/70 transition-colors">
+          className="shrink-0 text-[#AACC00] hover:text-[#AACC00]/70 transition-colors">
           <ExternalLink size={13} />
         </a>
       </div>
@@ -491,14 +647,14 @@ function AuditPanel({ allFeeds }) {
           <h2 className="text-base font-bold text-gray-900">Active & Live</h2>
           <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{activeFeeds.length} feeds</span>
         </div>
-        <div className="bg-white border border-green-200 rounded-[8px] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+        <div className="bg-white border border-[rgba(170,204,0,0.25)] rounded-[8px] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
           {activeFeeds.map((feed, i) => {
             const c = getCat(feed.category)
             const Icon = c.icon
             return (
               <div key={feed.id}
                 className={`flex items-center gap-3 px-4 py-3 ${i < activeFeeds.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                <Check size={14} className="text-green-500 shrink-0" strokeWidth={2.5} />
+                <Check size={14} className="text-[#AACC00] shrink-0" strokeWidth={2.5} />
                 <span className="text-sm font-semibold text-gray-900 min-w-[160px]">{feed.name}</span>
                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide border shrink-0 ${c.bg} ${c.text} ${c.border}`}>
                   <Icon size={9} />{c.label}
@@ -507,7 +663,7 @@ function AuditPanel({ allFeeds }) {
                 <span className="text-[10px] text-gray-400">{feed.updateFrequency}</span>
                 {feed.sourceUrl && (
                   <a href={feed.sourceUrl} target="_blank" rel="noopener noreferrer"
-                    className="text-gray-300 hover:text-[#0118A1] transition-colors shrink-0">
+                    className="text-gray-300 hover:text-[#AACC00] transition-colors shrink-0">
                     <ExternalLink size={12} />
                   </a>
                 )}
@@ -538,7 +694,7 @@ function AuditPanel({ allFeeds }) {
       {SUGGESTED_FEEDS.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Lightbulb size={16} className="text-[#0118A1]" />
+            <Lightbulb size={16} className="text-[#AACC00]" />
             <h2 className="text-base font-bold text-gray-900">Suggested Additions</h2>
           </div>
           <p className="text-xs text-gray-500 mb-5">Additional feeds recommended for a comprehensive duty-of-care programme.</p>
@@ -640,7 +796,7 @@ function AddFeedModal({ onClose, onSaved, defaultScope = 'international', defaul
                   onClick={() => setForm(p => ({ ...p, scope: opt.value }))}
                   className={`px-3 py-2.5 rounded-[6px] text-xs font-medium border text-left transition-colors
                     ${form.scope === opt.value
-                      ? 'bg-[#0118A1] text-white border-[#0118A1]'
+                      ? 'bg-[#0118A1] text-white border-[#AACC00]'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
                   {opt.value === 'international' ? '🌍' : '📍'} {opt.label}
                 </button>
@@ -704,12 +860,12 @@ function AddFeedModal({ onClose, onSaved, defaultScope = 'international', defaul
             <textarea className={inputClass} rows={2} placeholder="Partnership contact, pricing, API key location…" {...f('notes')} />
           </div>
 
-          {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>}
+          {error && <p className="text-xs text-[#EF7474] bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded px-3 py-2">{error}</p>}
         </div>
         <div className="flex items-center justify-end gap-3 p-5 border-t border-gray-100">
           <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2">Cancel</button>
           <button onClick={handleSave} disabled={saving}
-            className="bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold px-5 py-2 rounded-[6px] text-sm transition-colors disabled:opacity-60">
+            className="bg-[#AACC00] hover:bg-[#99bb00] text-[#AACC00] font-semibold px-5 py-2 rounded-[6px] text-sm transition-colors disabled:opacity-60">
             {saving ? 'Saving…' : 'Add Feed'}
           </button>
         </div>
@@ -791,7 +947,7 @@ export default function IntelFeeds() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Radio size={20} className="text-[#1E2461]" />
+            <Radio size={20} className="text-[#AACC00]" />
             <h1 className="text-2xl font-bold text-gray-900">Intel Feeds</h1>
           </div>
           <p className="text-sm text-gray-500">All intelligence sources — manage, categorise and add new data channels</p>
@@ -802,7 +958,7 @@ export default function IntelFeeds() {
             <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           </button>
           <button onClick={() => openModal({ scope: activeTab === 'local' ? 'local' : 'international', country: selectedCountry || '' })}
-            className="flex items-center gap-2 bg-[#AACC00] hover:bg-[#99bb00] text-[#0118A1] font-semibold px-4 py-2 rounded-[6px] text-sm transition-colors">
+            className="flex items-center gap-2 bg-[#AACC00] hover:bg-[#99bb00] text-[#AACC00] font-semibold px-4 py-2 rounded-[6px] text-sm transition-colors">
             <Plus size={15} />
             Add Feed
           </button>
@@ -813,9 +969,9 @@ export default function IntelFeeds() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {[
           { label: 'Total Feeds', value: allFeeds.length },
-          { label: 'Live & Active', value: liveCount, color: 'text-green-600' },
-          { label: 'Needs Activation', value: pendingCount, color: 'text-amber-600' },
-          { label: 'Custom Added', value: customFeeds.length, color: 'text-[#0118A1]' },
+          { label: 'Live & Active', value: liveCount, color: 'text-[#AACC00]' },
+          { label: 'Needs Activation', value: pendingCount, color: 'text-[#D4A64A]' },
+          { label: 'Custom Added', value: customFeeds.length, color: 'text-[#AACC00]' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-4 text-center">
             <div className={`text-3xl font-bold ${s.color || 'text-gray-900'}`}>{s.value}</div>
@@ -831,7 +987,7 @@ export default function IntelFeeds() {
           return (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors
-                ${activeTab === tab.id ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'}`}>
+                ${activeTab === tab.id ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#AACC00]'}`}>
               <Icon size={14} />
               {tab.label}
               {tab.count !== null && (
@@ -849,7 +1005,7 @@ export default function IntelFeeds() {
           <div className="flex items-center justify-between mb-3">
             <StatusLegend />
             <button onClick={() => openModal({ scope: 'international' })}
-              className="text-xs text-[#0118A1] hover:underline flex items-center gap-1 shrink-0">
+              className="text-xs text-[#AACC00] hover:underline flex items-center gap-1 shrink-0">
               <Plus size={11} /> Add international feed
             </button>
           </div>
@@ -861,7 +1017,7 @@ export default function IntelFeeds() {
           <div className="flex items-center justify-between mb-3">
             <StatusLegend />
             <button onClick={() => openModal({ scope: 'local', country: selectedCountry || '' })}
-              className="text-xs text-[#0118A1] hover:underline flex items-center gap-1 shrink-0">
+              className="text-xs text-[#AACC00] hover:underline flex items-center gap-1 shrink-0">
               <Plus size={11} /> Add local feed
             </button>
           </div>
@@ -872,7 +1028,7 @@ export default function IntelFeeds() {
               <p className="text-sm font-medium text-gray-500 mb-1">No local feeds yet</p>
               <p className="text-xs mb-4">Add country-specific feeds for each office location</p>
               <button onClick={() => openModal({ scope: 'local' })}
-                className="inline-flex items-center gap-2 bg-[#AACC00] text-[#0118A1] font-semibold px-4 py-2 rounded-[6px] text-sm">
+                className="inline-flex items-center gap-2 bg-[#AACC00] text-[#AACC00] font-semibold px-4 py-2 rounded-[6px] text-sm">
                 <Plus size={14} /> Add local feed
               </button>
             </div>
@@ -884,7 +1040,7 @@ export default function IntelFeeds() {
                     onClick={() => setLocalCountry(country)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
                       ${selectedCountry === country
-                        ? 'bg-[#0118A1] text-white border-[#0118A1]'
+                        ? 'bg-[#0118A1] text-white border-[#AACC00]'
                         : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
                     <MapPin size={10} />
                     {country}
@@ -902,7 +1058,7 @@ export default function IntelFeeds() {
               {selectedCountry && (
                 <div>
                   <div className="flex items-center gap-2 mb-4">
-                    <MapPin size={14} className="text-[#1E2461]" />
+                    <MapPin size={14} className="text-[#AACC00]" />
                     <h3 className="text-sm font-bold text-gray-800">{selectedCountry}</h3>
                     <span className="text-xs text-gray-400">{countryFeeds.length} feed{countryFeeds.length !== 1 ? 's' : ''}</span>
                   </div>

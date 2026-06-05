@@ -4,9 +4,8 @@
 
 import { fetchWithRetry } from './_retry.js'
 import { emit } from './_telemetry.js'
-
-const cache = {}
-const CACHE_TTL = 30 * 60 * 1000 // 30 minutes — shorter TTL so outbreak news surfaces faster
+import { parseRssXml } from './_rssParser.js'
+import { cache as appCache } from './_cacheManager.js'
 
 // ── Pre-configured Africa + Middle East risk/security RSS feeds ───────────────
 export const PRECONFIGURED_FEEDS = [
@@ -133,6 +132,30 @@ export const PRECONFIGURED_FEEDS = [
     description: 'Expert analysis on African politics, security and society — in-depth reporting on conflict zones, governance and elections across the continent.',
   },
   {
+    id: 'oxford-analytica',
+    name: 'Oxford Analytica Daily Brief',
+    category: 'security',
+    geography: 'Global',
+    url: 'https://www.dowjones.com/djoxan/feed',
+    description: 'Oxford Analytica — daily geopolitical and macroeconomic analysis. Country risk, political stability assessments, and strategic intelligence from 1,000+ expert network.',
+  },
+  {
+    id: 'soufan-center',
+    name: 'The Soufan Center',
+    category: 'security',
+    geography: 'Global',
+    url: 'https://thesoufancenter.org/feed/',
+    description: 'Soufan Center — authoritative analysis on terrorism, extremism, geopolitical risk and international security. Strong coverage of jihadist movements, great power competition and African threat actors.',
+  },
+  {
+    id: 'africa-report',
+    name: 'The Africa Report',
+    category: 'security',
+    geography: 'Africa',
+    url: 'https://www.theafricareport.com/feed/',
+    description: 'The Africa Report — in-depth political and business intelligence across all African markets. Leadership changes, elections, economic shifts and security developments.',
+  },
+  {
     id: 'osac',
     name: 'OSAC Security Reports',
     category: 'security',
@@ -233,6 +256,22 @@ export const PRECONFIGURED_FEEDS = [
     description: 'War on the Rocks — expert strategic and military analysis of active conflicts, defence policy and geopolitical flashpoints.',
   },
   {
+    id: 'foreign-policy',
+    name: 'Foreign Policy',
+    category: 'conflict',
+    geography: 'Global',
+    url: 'https://foreignpolicy.com/feed/',
+    description: 'Foreign Policy — global affairs, geopolitics and security analysis. Premium coverage of great power competition, conflict zones and diplomatic developments.',
+  },
+  {
+    id: 'csis',
+    name: 'CSIS — Center for Strategic & International Studies',
+    category: 'security',
+    geography: 'Global',
+    url: 'https://www.csis.org/rss.xml',
+    description: 'CSIS analysis on defence, geopolitics and international security — Africa, Middle East and global strategic trends.',
+  },
+  {
     id: 'defense-post',
     name: 'The Defense Post',
     category: 'conflict',
@@ -245,7 +284,7 @@ export const PRECONFIGURED_FEEDS = [
     name: 'ACLED Research Blog',
     category: 'conflict',
     geography: 'Global',
-    url: 'https://acleddata.com/feed/',
+    url: 'https://acleddata.com/category/analysis/feed/',
     description: 'ACLED data-driven analysis of armed conflict trends, protest movements and political violence worldwide.',
   },
   {
@@ -318,45 +357,47 @@ async function fetchRss(url, ms = 8000) {
   }
 }
 
-function parseRss(xml) {
-  const items = []
-  // Handle both RSS <item> and Atom <entry> formats
-  const itemRegex = /<(?:item|entry)>([\s\S]*?)<\/(?:item|entry)>/g
-  let match
-  while ((match = itemRegex.exec(xml)) !== null) {
-    const block = match[1]
-    const get = (tag) => {
-      const m = block.match(
-        new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([^<]*)<\\/${tag}>`, 'i')
-      )
-      return m ? (m[1] || m[2] || '').trim() : ''
-    }
-    // Atom uses <link href="..."/> or <link>url</link>
-    let link = get('link')
-    if (!link) {
-      const linkAttr = block.match(/<link[^>]+href=["']([^"']+)["']/)
-      if (linkAttr) link = linkAttr[1]
-    }
-    const title = get('title')
-    if (!title) continue
-    items.push({
-      title,
-      link,
-      description: get('description') || get('summary') || '',
-      pubDate: get('pubDate') || get('published') || get('updated') || '',
-    })
-  }
-  return items
-}
 
 async function _handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { url, id, limit = 5 } = req.query
+  const { url, id, category, limit = 5 } = req.query
 
-  // Return list of all pre-configured feeds
-  if (!url && !id) {
+  // Return list of all pre-configured feeds (or filter by category)
+  if (!url && !id && !category) {
     return res.json({ feeds: PRECONFIGURED_FEEDS })
+  }
+
+  // Multi-feed category fetch — fetch up to 4 feeds in the category in parallel
+  if (category && !url && !id) {
+    const catFeeds = PRECONFIGURED_FEEDS.filter(f => f.category === category).slice(0, 4)
+    if (!catFeeds.length) return res.json({ articles: [], total: 0 })
+
+    const perFeed = Math.max(3, Math.ceil(parseInt(limit) / catFeeds.length))
+    const results = await Promise.allSettled(catFeeds.map(async f => {
+      const hit = appCache.get('rss:' + f.url)
+      if (hit) return { feed: f, articles: hit.articles }
+      const xml = await fetchRss(f.url)
+      if (!xml) return { feed: f, articles: [] }
+      const items = parseRssXml(xml)
+      const articles = items.slice(0, perFeed).map(item => ({
+        title:   item.title,
+        url:     item.link,
+        summary: item.description.replace(/<[^>]*>/g, '').slice(0, 200).trim(),
+        source:  f.name,
+        date:    item.pubDate ? new Date(item.pubDate).toISOString() : null,
+      })).filter(a => a.title)
+      appCache.set('rss:' + f.url, { articles }, 30 * 60 * 1000)
+      return { feed: f, articles }
+    }))
+
+    const allArticles = results
+      .filter(r => r.status === 'fulfilled')
+      .flatMap(r => r.value.articles)
+      .sort((a, b) => (b.date || '') > (a.date || '') ? 1 : -1)
+      .slice(0, parseInt(limit))
+
+    return res.json({ articles: allArticles, total: allArticles.length, category, fetchedAt: new Date().toISOString() })
   }
 
   // Resolve URL from id or use provided URL
@@ -371,8 +412,9 @@ async function _handler(req, res) {
   if (!feedUrl) return res.status(400).json({ error: 'url or id required' })
 
   // Return cached if fresh
-  if (cache[feedUrl] && Date.now() - cache[feedUrl].time < CACHE_TTL) {
-    return res.json({ ...cache[feedUrl].data, cached: true })
+  const cachedFeed = appCache.get('rss:' + feedUrl)
+  if (cachedFeed) {
+    return res.json({ ...cachedFeed, cached: true })
   }
 
   const t0 = Date.now()
@@ -381,7 +423,7 @@ async function _handler(req, res) {
   emit({ type: 'feed_fetch', feedId: id || null, endpoint: 'rss-ingest', success: !!xml, durationMs: fetchMs, metadata: { url: feedUrl } })
   if (!xml) return res.json({ feed: feedMeta || { url: feedUrl }, articles: [], total: 0, fetchError: true, fetchedAt: new Date().toISOString() })
 
-  const items = parseRss(xml)
+  const items = parseRssXml(xml)
   const articles = items.slice(0, parseInt(limit)).map(item => ({
     title: item.title,
     url: item.link,
@@ -396,7 +438,7 @@ async function _handler(req, res) {
     fetchedAt: new Date().toISOString(),
   }
 
-  cache[feedUrl] = { data: result, time: Date.now() }
+  appCache.set('rss:' + feedUrl, result, 30 * 60 * 1000)
   res.json(result)
 }
 

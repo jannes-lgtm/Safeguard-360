@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Lock, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 
 export default function ResetPassword() {
   const navigate = useNavigate()
@@ -19,8 +17,8 @@ export default function ResetPassword() {
   useEffect(() => {
     // Supabase parses the token from the URL hash automatically
     // when the page loads — just check we have a session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setValidSession(true)
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setValidSession(true)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -55,12 +53,12 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#F0F2F8' }}>
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#090A0C' }}>
       <div className="w-full max-w-md">
 
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <img src="/logo-colour.png" alt="SafeGuard360" className="h-10 w-auto" />
+          <img src="/logo-transparent.png" alt="SafeGuard360" className="h-12 w-auto" />
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -109,7 +107,7 @@ export default function ResetPassword() {
                       onChange={e => setPassword(e.target.value)}
                       placeholder="Minimum 8 characters"
                       required
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-white"
                     />
                     <button type="button" onClick={() => setShowPw(v => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -128,7 +126,7 @@ export default function ResetPassword() {
                     onChange={e => setConfirm(e.target.value)}
                     placeholder="Repeat your new password"
                     required
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-white"
                   />
                 </div>
 
@@ -150,7 +148,7 @@ export default function ResetPassword() {
                 )}
 
                 {error && (
-                  <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                  <div className="flex items-center gap-2 px-4 py-3 bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-xl text-sm text-[#EF7474]">
                     <AlertTriangle size={14} className="shrink-0" /> {error}
                   </div>
                 )}

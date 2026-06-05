@@ -56,7 +56,7 @@ async function _handler(req, res) {
   }
 
   // Rate limit: 30 AI requests per user per hour
-  const { allowed } = checkRateLimit(req, 'ai-assistant', { max: 30, windowMs: 3_600_000 })
+  const { allowed } = await checkRateLimit(req, 'ai-assistant', { max: 30, windowMs: 3_600_000 })
   if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   const { message, context = {}, history = [] } = req.body || {}

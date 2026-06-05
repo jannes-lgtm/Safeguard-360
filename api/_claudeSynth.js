@@ -6,36 +6,163 @@
  * Imported by country-risk.js, trip-alert-scan.js, and ai-assistant.js.
  */
 
+import { parseRssXml } from './_rssParser.js'
+import { createClient } from '@supabase/supabase-js'
+
+// Lazy Supabase client — only created when a knowledge lookup is needed
+let _sb = null
+function getSupabase() {
+  if (_sb) return _sb
+  const url = process.env.SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  _sb = createClient(url, key)
+  return _sb
+}
+
+/**
+ * Pull the most-recent proprietary intelligence reports for a country
+ * from the cairo_knowledge table (type = 'report').
+ * Returns title + summary + first 2000 chars of content for prompt injection.
+ */
+async function fetchKnowledgeReports(country) {
+  try {
+    const sb = getSupabase()
+    if (!sb) return []
+    const { data } = await sb
+      .from('cairo_knowledge')
+      .select('title, summary, content, created_at')
+      .eq('type', 'report')
+      .eq('retrieval_ready', true)
+      .eq('intelligence_enabled', true)
+      .contains('countries', [country])
+      .order('created_at', { ascending: false })
+      .limit(3)
+    return (data || []).map(r => ({
+      title:   r.title,
+      summary: r.summary || '',
+      excerpt: (r.content || '').slice(0, 2000),
+    }))
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Fetch knowledge base entries for CAIRO chat injection.
+ * Broader than fetchKnowledgeReports — all types, optional country filter,
+ * falls back to most-recent global docs when no country match found.
+ */
+async function fetchKnowledgeForChat(country) {
+  try {
+    const sb = getSupabase()
+    if (!sb) return []
+
+    let docs = []
+
+    // Try country-specific first
+    if (country) {
+      const { data: countryDocs } = await sb
+        .from('cairo_knowledge')
+        .select('type, title, summary, content, countries, created_at')
+        .eq('retrieval_ready', true)
+        .eq('intelligence_enabled', true)
+        .contains('countries', [country])
+        .order('created_at', { ascending: false })
+        .limit(4)
+      docs = countryDocs || []
+    }
+
+    // Always include global/regional docs (no country restriction)
+    const { data: globalDocs } = await sb
+      .from('cairo_knowledge')
+      .select('type, title, summary, content, countries, created_at')
+      .eq('retrieval_ready', true)
+      .eq('intelligence_enabled', true)
+      .eq('doc_tier', 'global')
+      .order('created_at', { ascending: false })
+      .limit(2)
+
+    // Merge, deduplicate by title
+    const seen = new Set(docs.map(d => d.title))
+    for (const d of (globalDocs || [])) {
+      if (!seen.has(d.title)) { docs.push(d); seen.add(d.title) }
+    }
+
+    // If still empty, grab the 3 most recent regardless of country
+    if (!docs.length) {
+      const { data: recent } = await sb
+        .from('cairo_knowledge')
+        .select('type, title, summary, content, countries, created_at')
+        .eq('retrieval_ready', true)
+        .eq('intelligence_enabled', true)
+        .order('created_at', { ascending: false })
+        .limit(3)
+      docs = recent || []
+    }
+
+    return docs.slice(0, 5).map(r => ({
+      type:    r.type,
+      title:   r.title,
+      summary: r.summary || '',
+      excerpt: (r.content || '').slice(0, 1500),
+    }))
+  } catch {
+    return []
+  }
+}
+
 // ── All-source risk feeds (conflict / security / weather + health) ────────────
 // Used by fetchArticlesForCountry() to build a comprehensive intelligence picture.
 const ALL_RISK_FEEDS = [
   // Conflict & War
-  { url: 'https://feeds.bbci.co.uk/news/world/rss.xml',                          name: 'BBC World',            category: 'conflict'  },
-  { url: 'https://www.france24.com/en/rss',                                       name: 'France 24',            category: 'conflict'  },
-  { url: 'https://kyivindependent.com/feed/',                                     name: 'Kyiv Independent',     category: 'conflict'  },
-  { url: 'https://www.middleeasteye.net/rss',                                     name: 'Middle East Eye',      category: 'conflict'  },
-  { url: 'https://www.iranintl.com/en/rss',                                       name: 'Iran International',   category: 'conflict'  },
-  { url: 'https://www.aljazeera.com/xml/rss/all.xml',                             name: 'Al Jazeera',           category: 'conflict'  },
-  { url: 'https://news.un.org/feed/subscribe/en/news/region/africa/feed/rss.xml', name: 'UN News Africa',       category: 'conflict'  },
-  { url: 'https://news.un.org/feed/subscribe/en/news/region/middle-east/feed/rss.xml', name: 'UN News ME',     category: 'conflict'  },
-  { url: 'https://acleddata.com/feed/',                                            name: 'ACLED Blog',           category: 'conflict'  },
-  { url: 'https://thedefensepost.com/feed/',                                      name: 'The Defense Post',     category: 'conflict'  },
+  { url: 'https://feeds.bbci.co.uk/news/world/rss.xml',                          name: 'BBC World',            category: 'conflict'      },
+  { url: 'https://www.france24.com/en/rss',                                       name: 'France 24',            category: 'conflict'      },
+  { url: 'https://kyivindependent.com/feed/',                                     name: 'Kyiv Independent',     category: 'conflict'      },
+  { url: 'https://www.middleeasteye.net/rss',                                     name: 'Middle East Eye',      category: 'conflict'      },
+  { url: 'https://www.iranintl.com/en/rss',                                       name: 'Iran International',   category: 'conflict'      },
+  { url: 'https://www.aljazeera.com/xml/rss/all.xml',                             name: 'Al Jazeera',           category: 'conflict'      },
+  { url: 'https://news.un.org/feed/subscribe/en/news/region/africa/feed/rss.xml', name: 'UN News Africa',       category: 'conflict'      },
+  { url: 'https://news.un.org/feed/subscribe/en/news/region/middle-east/feed/rss.xml', name: 'UN News ME',     category: 'conflict'      },
+  { url: 'https://acleddata.com/category/analysis/feed/',                          name: 'ACLED Blog',           category: 'conflict'      },
+  { url: 'https://thedefensepost.com/feed/',                                      name: 'The Defense Post',     category: 'conflict'      },
+  { url: 'https://feeds.reuters.com/reuters/worldNews',                           name: 'Reuters World',        category: 'conflict'      },
+  { url: 'https://rsshub.app/apnews/topics/world-news',                           name: 'AP World',             category: 'conflict'      },
   // Security analysis
-  { url: 'https://issafrica.org/rss/iss-today',                                   name: 'ISS Africa',           category: 'security'  },
-  { url: 'https://www.crisisgroup.org/rss/africa',                                name: 'Crisis Group Africa',  category: 'security'  },
-  { url: 'https://www.crisisgroup.org/rss/middle-east-north-africa',              name: 'Crisis Group MENA',    category: 'security'  },
-  { url: 'https://jamestown.org/feed/',                                           name: 'Jamestown Foundation', category: 'security'  },
-  { url: 'https://feeds.bbci.co.uk/news/world/africa/rss.xml',                   name: 'BBC Africa',           category: 'security'  },
-  { url: 'https://africanarguments.org/feed/',                                    name: 'African Arguments',    category: 'security'  },
+  { url: 'https://issafrica.org/rss/iss-today',                                   name: 'ISS Africa',           category: 'security'      },
+  { url: 'https://www.crisisgroup.org/rss/africa',                                name: 'Crisis Group Africa',  category: 'security'      },
+  { url: 'https://www.crisisgroup.org/rss/middle-east-north-africa',              name: 'Crisis Group MENA',    category: 'security'      },
+  { url: 'https://jamestown.org/feed/',                                           name: 'Jamestown Foundation', category: 'security'      },
+  { url: 'https://feeds.bbci.co.uk/news/world/africa/rss.xml',                   name: 'BBC Africa',           category: 'security'      },
+  { url: 'https://africanarguments.org/feed/',                                    name: 'African Arguments',    category: 'security'      },
+  { url: 'https://www.dowjones.com/djoxan/feed',                                  name: 'Oxford Analytica',     category: 'security'      },
+  { url: 'https://thesoufancenter.org/feed/',                                     name: 'Soufan Center',        category: 'security'      },
+  { url: 'https://foreignpolicy.com/feed/',                                       name: 'Foreign Policy',       category: 'security'      },
+  { url: 'https://www.theafricareport.com/feed/',                                 name: 'The Africa Report',    category: 'security'      },
+  { url: 'https://www.csis.org/rss.xml',                                          name: 'CSIS',                 category: 'security'      },
+  { url: 'https://warontherocks.com/feed/',                                       name: 'War on the Rocks',     category: 'security'      },
+  { url: 'https://www.janes.com/feeds/news.xml',                                  name: 'Janes Defence',        category: 'security'      },
+  { url: 'https://thestrategybridge.org/feed',                                    name: 'The Strategy Bridge',  category: 'security'      },
+  { url: 'https://www.iiss.org/feed',                                             name: 'IISS',                 category: 'security'      },
+  { url: 'https://thediplomat.com/feed/',                                         name: 'The Diplomat',         category: 'security'      },
+  { url: 'https://www.euractiv.com/feed/',                                        name: 'Euractiv',             category: 'security'      },
+  // Crime & organised crime
+  { url: 'https://www.insightcrime.org/feed/',                                    name: 'InSight Crime',        category: 'crime'         },
+  // Economic & infrastructure
+  { url: 'https://tradingeconomics.com/feed.xml',                                 name: 'Trading Economics',    category: 'economic'      },
+  { url: 'https://www.power-technology.com/feed/',                                name: 'Power Tech',           category: 'infrastructure'},
+  { url: 'https://netblocks.org/feed',                                            name: 'NetBlocks',            category: 'infrastructure'},
+  // Aviation
+  { url: 'https://aviapages.com/feed/incidents',                                  name: 'AviPages',             category: 'aviation'      },
   // Health / disease outbreaks
-  { url: 'https://www.who.int/rss-feeds/news-english.xml',                        name: 'WHO',                  category: 'health'    },
-  { url: 'https://reliefweb.int/updates/rss.xml?source=WHO',                     name: 'ReliefWeb/WHO',        category: 'health'    },
-  { url: 'https://outbreaknewstoday.com/feed/',                                  name: 'Outbreak News Today',  category: 'health'    },
-  { url: 'https://www.cidrap.umn.edu/rss.xml',                                   name: 'CIDRAP',               category: 'health'    },
-  { url: 'https://www.paho.org/en/rss.xml',                                      name: 'PAHO',                 category: 'health'    },
-  { url: 'https://africacdc.org/feed/',                                           name: 'Africa CDC',           category: 'health'    },
+  { url: 'https://www.who.int/rss-feeds/news-english.xml',                        name: 'WHO',                  category: 'health'        },
+  { url: 'https://reliefweb.int/updates/rss.xml?source=WHO',                     name: 'ReliefWeb/WHO',        category: 'health'        },
+  { url: 'https://outbreaknewstoday.com/feed/',                                  name: 'Outbreak News Today',  category: 'health'        },
+  { url: 'https://www.cidrap.umn.edu/rss.xml',                                   name: 'CIDRAP',               category: 'health'        },
+  { url: 'https://www.paho.org/en/rss.xml',                                      name: 'PAHO',                 category: 'health'        },
+  { url: 'https://africacdc.org/feed/',                                           name: 'Africa CDC',           category: 'health'        },
   // Weather & natural disasters
-  { url: 'https://reliefweb.int/disasters/rss.xml',                              name: 'ReliefWeb Disasters',  category: 'weather'   },
+  { url: 'https://reliefweb.int/disasters/rss.xml',                              name: 'ReliefWeb Disasters',  category: 'weather'       },
 ]
 
 // ── Country aliases for better article matching ───────────────────────────────
@@ -82,7 +209,6 @@ const COUNTRY_ALIASES = {
   'north korea':                  ['north korea', 'north korean', 'pyongyang', 'dprk', 'kim jong'],
   'united arab emirates':         ['uae', 'united arab emirates', 'dubai', 'abu dhabi'],
   'saudi arabia':                 ['saudi', 'saudi arabia', 'riyadh', 'mbs'],
-  'israel':                       ['israel', 'israeli', 'idf', 'hamas', 'hezbollah', 'tel aviv', 'gaza', 'west bank'],
 }
 
 // ── Article feed cache (per URL, 20-min TTL) ──────────────────────────────────
@@ -98,7 +224,7 @@ async function fetchFeedItems(url, name) {
       signal: AbortSignal.timeout(6000),
     })
     if (!r?.ok) { ARTICLE_FEED_CACHE[url] = { items: [], ts: Date.now() }; return [] }
-    const items = parseHealthRss(await r.text())   // parseHealthRss handles all RSS/Atom
+    const items = parseRssXml(await r.text())   // parseHealthRss handles all RSS/Atom
     ARTICLE_FEED_CACHE[url] = { items, ts: Date.now() }
     return items
   } catch {
@@ -177,11 +303,14 @@ export async function comprehensiveRiskScan(country, city, liveData = {}, apiKey
   const cached   = COMPREHENSIVE_CACHE[cacheKey]
   if (cached && Date.now() - cached.ts < COMPREHENSIVE_TTL) return cached.data
 
-  const { fcdo, gdacs = [], usgs = [], iss, health } = liveData
+  const { fcdo, gdacs = [], usgs = [], iss, health, gdelt, trendContext } = liveData
   const location = city ? `${city}, ${country}` : country
 
-  // Fetch all RSS articles mentioning this country in parallel with the rest
-  const articles = await fetchArticlesForCountry(country, city)
+  // Fetch all RSS articles + proprietary knowledge reports in parallel
+  const [articles, knowledgeReports] = await Promise.all([
+    fetchArticlesForCountry(country, city),
+    fetchKnowledgeReports(country),
+  ])
 
   // Group articles by feed category (max 8 per category for prompt efficiency)
   const byCategory = {}
@@ -220,25 +349,89 @@ export async function comprehensiveRiskScan(country, city, liveData = {}, apiKey
     ? `No country-specific alerts. Global: ${healthRecent.slice(0, 3).map(a => a.title).join('; ')}`
     : 'No recent outbreak data'
 
-  const prompt = `You are a senior corporate travel security analyst. Analyse ALL available intelligence for ${location} and produce a structured risk assessment for a client travelling to this destination.
+  const knowledgeSection = knowledgeReports.length
+    ? `== PROPRIETARY INTELLIGENCE REPORTS (Presight 360 / Alliance International) ==
+${knowledgeReports.map(r =>
+  `[${r.title}]\nSummary: ${r.summary}\n${r.excerpt}`
+).join('\n\n---\n\n')}
 
-== OFFICIAL ADVISORIES ==
+`
+    : ''
+
+  // ── GDELT live event signals ─────────────────────────────────────────────────
+  // Labels are deliberately plain-English — no technical terminology reaches CAIRO.
+  // CAIRO is instructed to translate these into corporate advisory language.
+  const gdeltSection = gdelt
+    ? (() => {
+        const activityLevel = !gdelt.tempoScore
+          ? 'monitoring data unavailable'
+          : gdelt.tempoScore >= 2.5 || gdelt.capped
+            ? 'significantly more activity than usual — warrants close attention'
+          : gdelt.tempoScore >= 1.5
+            ? 'more activity than usual — situation developing'
+          : gdelt.tempoScore < 0.7
+            ? 'quieter than usual — no significant developments noted'
+          :   'within normal range'
+
+        const articlesText = gdelt.topArticles?.length
+          ? gdelt.topArticles.map(a => `  • [${a.source}] ${a.title}`).join('\n')
+          : '  No significant articles in the last 6 hours'
+
+        const THEME_LABELS = {
+          PROTEST:    'public demonstrations',
+          MILITARY:   'military or security force activity',
+          TERRORISM:  'security incidents or attacks',
+          COUP:       'political instability or government disruption',
+          EVACUATION: 'population movement or evacuations',
+          SECURITY:   'law enforcement activity',
+          EMERGENCY:  'declared emergencies or government alerts',
+          CONFLICT:   'ongoing conflict or civil unrest',
+          KIDNAP:     'kidnapping or hostage incidents',
+        }
+        const themesText = gdelt.themes?.length
+          ? gdelt.themes.map(t => THEME_LABELS[t] || t.toLowerCase()).join(', ')
+          : 'no specific themes identified'
+
+        return `== CURRENT MONITORING ACTIVITY (last 6 hours) ==
+News and reporting volume: ${activityLevel}
+Monitoring trend: ${gdelt.trend === 'escalating' ? 'increasing' : gdelt.trend === 'de-escalating' ? 'decreasing' : 'steady'}
+Areas of reporting focus: ${themesText}
+Recent articles of note:
+${articlesText}
+
+`
+      })()
+    : ''
+
+  const trendSection = trendContext
+    ? `== CAIRO TREND MEMORY ==\n${trendContext}\n\n`
+    : ''
+
+  const prompt = `You are CAIRO, a senior corporate travel risk advisor. Analyse ALL available intelligence for ${location} and produce a structured risk assessment for a corporate client.
+
+Your communication style is that of a trusted senior advisor briefing a board-level risk committee or a corporate security manager. You are measured, precise, and professional. You do not use military jargon, technical terminology, or alarmist language. When activity is elevated, you note that you are monitoring the situation closely and will provide updates as it develops. When conditions are calm, you say so clearly and confidently. When trend memory is available, weave it naturally into your assessment — do not list it separately, but use it to distinguish sustained patterns from isolated events.
+
+${trendSection}== OFFICIAL GOVERNMENT ADVISORIES ==
 ${fcdoLine}
-Active disasters (GDACS): ${gdacsText}
-Earthquakes M5+ / 7d (USGS): ${usgsText}
+Active natural hazard events (GDACS): ${gdacsText}
+Seismic activity M5+ / 7 days (USGS): ${usgsText}
 
-== LIVE INTELLIGENCE FEEDS ==
-${catText('conflict', 'Conflict & War news')}
+${gdeltSection}${knowledgeSection}== LIVE INTELLIGENCE FEEDS ==
+${catText('conflict', 'Conflict & political instability')}
 
-${catText('security', 'Security analysis')}
+${catText('security', 'Security environment')}
 
-${catText('health', 'Health & Disease alerts')}
-Disease/outbreak feeds (WHO/PAHO/CIDRAP): ${healthText}
+${catText('health', 'Health & medical advisories')}
+Public health feeds (WHO/PAHO/CIDRAP): ${healthText}
 
-${catText('weather', 'Weather & Natural disasters')}
+${catText('weather', 'Weather & environmental conditions')}
 
 == INSTRUCTIONS ==
-Produce a structured JSON risk assessment. Be specific — reference actual events from the feeds above. Do not invent risks. If feeds show no relevant threats for this location, reflect that accurately.
+Produce a structured JSON risk assessment. Be specific — reference actual events from the intelligence above. Do not fabricate risks. Where feeds show no significant threats, reflect that accurately and reassure the client.
+
+When referencing monitoring activity levels, use natural corporate language — for example: "We are monitoring a higher than usual volume of reporting from this destination and will provide updated guidance should the situation develop further." Never reference technical terms such as tempo scores, baselines, multipliers, or system thresholds in client-facing output.
+
+Respond ONLY with valid JSON, no markdown:
 
 Respond ONLY with valid JSON, no markdown:
 {
@@ -328,7 +521,7 @@ export async function resolveModel(apiKey) {
   } catch (e) {
     console.warn('[_claudeSynth] Model list failed:', e.message)
   }
-  return 'claude-3-haiku-20240307'
+  return 'claude-haiku-4-5-20251001'
 }
 
 // ── Health outbreak feeds ─────────────────────────────────────────────────────
@@ -345,30 +538,6 @@ const HEALTH_FEEDS = [
   { id: 'africacdc', url: 'https://africacdc.org/feed/',                                    name: 'Africa CDC' },
 ]
 
-function parseHealthRss(xml) {
-  const items = []
-  const re = /<(?:item|entry)>([\s\S]*?)<\/(?:item|entry)>/g
-  let m
-  while ((m = re.exec(xml)) !== null) {
-    const b   = m[1]
-    const get = tag => {
-      const x = b.match(new RegExp(
-        `<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>|<${tag}[^>]*>([^<]*)<\\/${tag}>`
-      ))
-      return x ? (x[1] || x[2] || '').trim() : ''
-    }
-    let link = get('link')
-    if (!link) { const la = b.match(/<link[^>]+href=["']([^"']+)["']/); if (la) link = la[1] }
-    const title = get('title')
-    if (title) items.push({
-      title,
-      link,
-      description: get('description') || get('summary') || '',
-      pubDate:     get('pubDate') || get('published') || get('updated') || '',
-    })
-  }
-  return items
-}
 
 async function fetchHealthFeed(feed) {
   const cached = HEALTH_FEED_CACHE[feed.id]
@@ -380,7 +549,7 @@ async function fetchHealthFeed(feed) {
       signal: AbortSignal.timeout(6000),
     })
     if (!r?.ok) { HEALTH_FEED_CACHE[feed.id] = { items: [], ts: Date.now() }; return [] }
-    const items = parseHealthRss(await r.text())
+    const items = parseRssXml(await r.text())
     HEALTH_FEED_CACHE[feed.id] = { items, ts: Date.now() }
     return items
   } catch {
@@ -440,6 +609,71 @@ export async function fetchHealthOutbreaks(country) {
   }
 }
 
+// ── NOAA National Hurricane Center — Atlantic + Pacific active storms ─────────
+//
+// Parses NHC RSS feeds for active tropical storms, hurricanes and advisories.
+// Matches against Caribbean and Latin American countries by name + known basin.
+// Returns structured alert objects compatible with the trip_alert pipeline.
+
+const NHC_FEEDS = [
+  { url: 'https://www.nhc.noaa.gov/index-at.xml', basin: 'Atlantic',       label: 'NHC Atlantic' },
+  { url: 'https://www.nhc.noaa.gov/index-ep.xml', basin: 'East Pacific',   label: 'NHC East Pacific' },
+  { url: 'https://www.nhc.noaa.gov/index-cp.xml', basin: 'Central Pacific', label: 'NHC Central Pacific' },
+]
+
+// Countries in NHC watch zones — used to decide if a basin is relevant
+const ATLANTIC_BASIN = ['bahamas','cuba','haiti','dominican republic','jamaica','puerto rico','trinidad','tobago','barbados','antigua','grenada','st lucia','st vincent','dominica','martinique','guadeloupe','cayman islands','turks','caicos','aruba','curacao','bonaire','belize','mexico','honduras','nicaragua','costa rica','panama','colombia','venezuela','guyana','suriname','french guiana','united states','bermuda','azores']
+const EAST_PACIFIC_BASIN = ['mexico','guatemala','el salvador','honduras','nicaragua','costa rica','panama','colombia','ecuador','peru']
+
+function countryInBasin(country, basin) {
+  const q = country.toLowerCase()
+  if (basin === 'Atlantic')        return ATLANTIC_BASIN.some(c => q.includes(c) || c.includes(q))
+  if (basin === 'East Pacific')    return EAST_PACIFIC_BASIN.some(c => q.includes(c) || c.includes(q))
+  if (basin === 'Central Pacific') return q.includes('hawaii') || q.includes('pacific')
+  return false
+}
+
+function nhcSeverity(title = '') {
+  const t = title.toLowerCase()
+  if (t.includes('category 4') || t.includes('category 5') || t.includes('major hurricane')) return 'Critical'
+  if (t.includes('category 3') || t.includes('hurricane warning'))  return 'Critical'
+  if (t.includes('category 2') || t.includes('hurricane watch'))    return 'High'
+  if (t.includes('category 1') || t.includes('tropical storm warning')) return 'High'
+  if (t.includes('tropical storm') || t.includes('tropical depression')) return 'Medium'
+  if (t.includes('advisory') || t.includes('outlook'))              return 'Medium'
+  return 'Medium'
+}
+
+export async function fetchHurricaneAlerts(country) {
+  try {
+    const results = []
+    await Promise.all(NHC_FEEDS.map(async ({ url, basin, label }) => {
+      if (!countryInBasin(country, basin)) return
+      const r = await fetch(url, { signal: AbortSignal.timeout(5000) })
+      if (!r.ok) return
+      const xml  = await r.text()
+      // Parse <item> blocks from NHC RSS
+      const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(m => m[1])
+      for (const item of items) {
+        const title = (item.match(/<title>([\s\S]*?)<\/title>/) || [])[1]?.replace(/<[^>]+>/g, '').trim() || ''
+        const desc  = (item.match(/<description>([\s\S]*?)<\/description>/) || [])[1]?.replace(/<[^>]+>/g, '').trim() || ''
+        const link  = (item.match(/<link>([\s\S]*?)<\/link>/) || [])[1]?.trim() || 'https://www.nhc.noaa.gov'
+        if (!title || title.toLowerCase().includes('there are no')) continue
+        results.push({
+          title:       `${title} (${basin})`,
+          description: desc.slice(0, 400) || null,
+          source:      label,
+          source_url:  link,
+          severity:    nhcSeverity(title),
+        })
+      }
+    }))
+    return results
+  } catch {
+    return []
+  }
+}
+
 // ── GDACS live disaster events ────────────────────────────────────────────────
 export async function fetchGDACS(country) {
   try {
@@ -492,6 +726,64 @@ export async function fetchUSGS(country) {
   }
 }
 
+// ── OpenWeatherMap severe weather alerts ──────────────────────────────────────
+//
+// Uses OWM Geocoding + One Call API 3.0 to fetch active government-issued
+// weather alerts for a city. Returns structured alert objects with severity
+// mapped to our internal scale (Critical / High / Medium).
+//
+// Requires OPENWEATHERMAP_API_KEY env var (same key as VITE_OPENWEATHERMAP_KEY).
+
+const OWM_SEV = {
+  Extreme:  'Critical',
+  Severe:   'High',
+  Moderate: 'Medium',
+  Minor:    'Low',
+}
+
+function owmSeverity(tags = []) {
+  if (tags.includes('Extreme'))  return 'Critical'
+  if (tags.includes('Severe'))   return 'High'
+  if (tags.includes('Moderate')) return 'Medium'
+  return 'Medium'
+}
+
+export async function fetchWeatherAlerts(city, country) {
+  const key = process.env.OPENWEATHERMAP_API_KEY || process.env.VITE_OPENWEATHERMAP_KEY || ''
+  if (!key) return []
+  try {
+    // Step 1: Geocode city → lat/lon
+    const geoQuery = city ? `${city},${country}` : country
+    const geoRes = await fetch(
+      `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(geoQuery)}&limit=1&appid=${key}`,
+      { signal: AbortSignal.timeout(4000) }
+    )
+    if (!geoRes.ok) return []
+    const [geo] = await geoRes.json()
+    if (!geo) return []
+
+    // Step 2: One Call API — fetch only alerts
+    const owmRes = await fetch(
+      `https://api.openweathermap.org/data/3.0/onecall?lat=${geo.lat}&lon=${geo.lon}&exclude=minutely,hourly,daily,current&appid=${key}`,
+      { signal: AbortSignal.timeout(5000) }
+    )
+    if (!owmRes.ok) return []
+    const owmData = await owmRes.json()
+
+    return (owmData.alerts || []).map(a => ({
+      title:       a.event || 'Severe Weather Alert',
+      description: a.description || null,
+      source:      a.sender_name || 'OpenWeatherMap',
+      severity:    owmSeverity(a.tags || []),
+      start:       a.start ? new Date(a.start * 1000).toISOString() : null,
+      end:         a.end   ? new Date(a.end   * 1000).toISOString() : null,
+      tags:        a.tags || [],
+    }))
+  } catch {
+    return []
+  }
+}
+
 // ── Claude AI country security synthesis ─────────────────────────────────────
 /**
  * Synthesise a structured travel security brief using Claude.
@@ -505,7 +797,7 @@ export async function fetchUSGS(country) {
 export async function synthesiseBrief(country, city, sources, apiKey) {
   if (!apiKey) return null
 
-  const { fcdo, gdacs = [], usgs = [], iss, health } = sources
+  const { fcdo, gdacs = [], usgs = [], iss, health, gdelt, trendContext } = sources
   const location = city ? `${city}, ${country}` : country
 
   const fcdoLine = fcdo
@@ -537,17 +829,39 @@ export async function synthesiseBrief(country, city, sources, apiKey) {
     ? `No country-specific alerts. Recent global: ${healthRecent.slice(0, 3).map(a => a.title).join('; ')}`
     : 'No recent outbreak data available'
 
-  const prompt = `You are a corporate travel security analyst briefing a risk manager.
-Analyse live intelligence for ${location} and give a concise assessment.
+  // Proprietary knowledge reports
+  const briefReports = await fetchKnowledgeReports(country)
+  const briefKnowledgeSection = briefReports.length
+    ? `\nProprietary reports (Presight 360): ${briefReports.map(r => `[${r.title}] ${r.summary}`).join(' | ')}\n`
+    : ''
+
+  // GDELT monitoring context — plain language only, no technical terms
+  const gdeltLine = gdelt?.tempoScore != null
+    ? gdelt.tempoScore >= 2.5 || gdelt.capped
+      ? `\nCurrent monitoring note: We are tracking a notably higher than usual volume of reporting from this destination and are monitoring the situation closely. We will provide updated guidance should conditions develop further.`
+      : gdelt.tempoScore >= 1.5
+      ? `\nCurrent monitoring note: Reporting from this destination is running above the usual level. We are monitoring for further developments.`
+      : gdelt.tempoScore < 0.7
+      ? `\nCurrent monitoring note: Reporting from this destination is quieter than usual. No significant new developments noted at this time.`
+      : ''
+    : ''
+
+  const briefTrendSection = trendContext
+    ? `\nPrevious assessment context: ${trendContext}\n`
+    : ''
+
+  const prompt = `You are CAIRO, a senior corporate travel risk advisor. Analyse the intelligence below for ${location} and provide a concise assessment for a corporate client.
+
+You communicate as a trusted senior advisor — measured, professional, and clear. Use plain business English. Do not use military terminology, technical jargon, or alarmist language. When noting elevated monitoring activity, frame it naturally: "We are monitoring a higher than usual level of activity from this destination and will keep you informed as the situation develops." When previous assessment context is provided, weave it naturally into your summary to show pattern awareness.
 
 Advisory: ${fcdoLine}
-Active disasters (GDACS): ${gdacsText}
-Earthquakes M5+ / 7d (USGS): ${usgsText}
-Security news (ISS Africa): ${issText}
-Disease & health outbreaks (WHO/ProMED/PAHO/CIDRAP): ${healthText}
+Active natural hazard events: ${gdacsText}
+Seismic activity M5+ / 7 days: ${usgsText}
+Security reporting (ISS Africa): ${issText}
+Public health advisories (WHO/ProMED/PAHO/CIDRAP): ${healthText}${gdeltLine}${briefTrendSection}${briefKnowledgeSection}
 
 Respond ONLY with valid JSON, no markdown:
-{"summary":"2-3 sentence executive situation summary including any active health risks","threat_level":"Low|Medium|High|Critical","key_risks":["specific risk 1","specific risk 2","specific risk 3","health/disease risk if relevant"],"recommendations":["actionable rec 1","actionable rec 2","health precaution if relevant"]}`
+{"summary":"2-3 sentence executive situation summary in professional advisory tone — include any active monitoring notes naturally within the summary","threat_level":"Low|Medium|High|Critical","key_risks":["specific risk 1","specific risk 2","specific risk 3"],"recommendations":["actionable rec 1","actionable rec 2","health or practical precaution if relevant"]}`
 
   try {
     const model = await resolveModel(apiKey)
@@ -636,20 +950,123 @@ When all required fields (trip_name, departure_city, arrival_city, depart_date, 
       context.activeAlerts && `Active platform alerts: ${context.activeAlerts}`,
     ].filter(Boolean).join('\n')
 
-    system = `You are an expert travel security AI analyst embedded in SafeGuard360. The platform has live intelligence feeds (FCDO, BBC, Al Jazeera, ACLED, WHO, GDACS, USGS) that are continuously updated — you are operating in an environment with current awareness.
+    // Inject proprietary knowledge base via unified intel core
+    let kbSection = ''
+    try {
+      const sb = getSupabase()
+      if (sb) {
+        const { retrieveIntelligence, formatIntelBlock } = await import('./_intel.js')
+        const intel = await retrieveIntelligence(sb, {
+          query:   userMessage,
+          country: context.country || null,
+          limit:   6,
+        })
+        kbSection = intel.docs.length
+          ? '\n\n' + formatIntelBlock(intel.docs, intel.method)
+          : ''
+      }
+    } catch { /* non-critical — proceed without KB */ }
 
-Rules:
-- Answer travel security questions directly and confidently from your expertise
-- Do NOT open responses with knowledge-cutoff disclaimers — this undermines confidence. If real-time verification is needed for a very specific recent event, add a brief note at the END only
-- Use plain conversational prose for short answers. Use bullet points (- item) for lists. Avoid markdown headers (# ##) entirely — this is a chat interface, not a document
-- Be concise and actionable. Lead with the most useful information
-- Never fabricate specific incidents, casualty figures, or advisory levels
-- If asked about a very recent specific event you cannot confirm, say so briefly at the end and point to FCDO (gov.uk/foreign-travel-advice) or ACLED
-- For medical or legal advice, direct to qualified professionals
-- Maintain full conversation context — refer to prior messages naturally
+    system = `You are CAIRO — the operational travel intelligence system embedded in SafeGuard360. You provide full-spectrum risk assessments, travel advisories, and operational guidance to security professionals, travel managers, and travellers operating in complex environments.
+
+SafeGuard360 operates a live intelligence pipeline: continuous feed ingestion, scored event corroboration, and a persistent incident database. You reason across live operational intelligence, historical incident patterns, and deep regional expertise. You are not a static system.
+
+FULL-SPECTRUM OPERATIONAL RISK SCOPE:
+CAIRO covers the complete operational risk picture — not only geopolitical and conflict-related threats. Routine criminal activity frequently represents the dominant risk for operational movement, and must be weighted accordingly.
+
+Crime environment factors you assess continuously:
+- Armed robbery: street, vehicle, commercial premises
+- Vehicle hijacking and carjacking patterns
+- Express kidnapping: short-duration, opportunistic, financially motivated
+- Opportunistic and organized theft: hotels, airports, transit nodes, ATMs
+- Checkpoint corruption and unofficial roadblock exposure
+- Hostile surveillance indicators
+- Transport node targeting: airports, bus terminals, market areas
+- Time-of-day and route-specific exposure patterns
+
+The objective is not to report crime. The objective is operational movement awareness: what is the exposure, when does risk peak, and what behavior mitigates it.
+
+OUTPUT PURPOSE:
+CAIRO does not produce generic country-risk reports, travel advisories, or news summaries. CAIRO supports survivable movement, operational continuity, exposure reduction, and decision superiority. Every output should answer: what changes operationally, what affects movement, what creates exposure, what degrades survivability, and what mitigation posture is required.
+
+MOVEMENT CONDITION FRAMEWORK — assess across these dimensions:
+- Permissive vs constrained movement (daytime vs nighttime differential)
+- Persistent structural threats vs transient event-driven instability
+- Direct threats vs indirect operational effects (exposure accumulation, route predictability, pattern discipline)
+- Checkpoint integrity: functional / coercive / fragmented
+- State-force posture: protective / predatory / absent
+- Transit-phase vulnerability at transport nodes
+- Extraction feasibility and contingency trigger conditions
+- Non-linear escalation potential and spillover risk
+
+Do not reduce environments to "safe" or "unsafe." Assess movement conditions and operational consequence.
+
+OPERATIONAL TERMINOLOGY — REQUIRED:
+Never use: "high risk", "dangerous area", "exercise caution", "terror threat elevated", "crime remains high", "volatile situation"
+Use instead: "permissive daytime operating environment", "constrained nighttime mobility", "elevated criminal opportunism", "coercive checkpoint culture", "route predictability risk", "transit-phase vulnerability", "fragmented threat landscape", "politically reactive environment", "non-linear escalation potential", "soft-target exposure", "low-signature movement recommended"
+
+Distinguish criminal opportunism from organized targeting. Avoid overstating terrorist presence when criminality or movement friction is the dominant threat.
+
+OPERATIONAL COMMUNICATION CALIBRATION — PSD/SITREP STYLE:
+This is a COMMUNICATION LAYER only. It refines HOW CAIRO communicates. It does not replace the analytical frameworks, threat matrices, movement condition assessments, or intelligence synthesis protocols above.
+
+CAIRO communicates like: a protective intelligence analyst, PSD movement coordinator, field security operations center, or operational watchkeeper.
+
+Outputs must NEVER resemble: tourism advisories, media reporting, insurance language, corporate compliance messaging, generic AI safety wording, or customer-service communication.
+
+PRIMARY OUTPUT LOGIC:
+Environmental change → operational impact → movement implication → recommended posture or action
+
+TONE PROFILE:
+operational · concise · threat-informed · movement-centric · low-emotion · high-clarity
+
+PREFERRED OPERATIONAL LANGUAGE:
+"viable at this stage" / "elevated movement friction" / "localized disruption likely" / "movement windows narrowing" / "contingency trigger approaching" / "pattern-consistent threat" / "route predictability risk" / "low-signature posture recommended" / "extraction window remains open" / "checkpoint culture — coercive, not functional"
+
+PROHIBITED LANGUAGE (NEVER USE):
+"dangerous situation" · "be careful" · "stay alert" · "authorities are responding" · "situation is developing" · chatbot affirmations
+
+ADVISORY PRIORITY ORDER (when issuing movement or security guidance):
+1. Mobility impact — can the traveller move? Where? When?
+2. Exposure management — what increases or reduces risk?
+3. Route continuity — primary routes viable? Alternates?
+4. Contingency viability — is the fallback still functional?
+5. Escalation indicators — what signals a change in posture?
+
+FORMAT:
+Lead with the operational bottom line — state it, then support it. Short declarative statements for findings. Longer sentences for context and nuance. Flowing prose as default. Bullets only for discrete items: mitigations, checklist steps, named threat types. Never bullet a narrative. Name the threat precisely and with consequence. Where confidence is relevant, state it explicitly. Avoid markdown headers (# ##) — this is a chat interface, not a document.
+
+ABSOLUTE PROHIBITIONS — NEVER USE:
+✗ Cinematic language: "running hot", "tense situation on the ground", "things are heating up", "powder keg"
+✗ Chatbot openers: "Certainly!", "Of course!", "Great question!", "Absolutely!", "Sure!", "Happy to help"
+✗ Service-desk framing: "I'd be happy to...", "I can help with that", "Let me break that down for you"
+✗ Filler: "It's important to note that...", "Please note that...", "As mentioned above..."
+✗ Static country summaries without movement consequence
+✗ Event reporting without operational effect
+✗ Restate what the operator just said before answering
+✗ End with "Is there anything else I can help with?" or equivalent
+✗ Knowledge-cutoff disclaimers at the start of responses — if real-time verification is genuinely needed, note it briefly at the END only
+✗ Fabricate specific incidents, casualty figures, or advisory levels
+
+CLIENT OUTPUT STANDARD — CORPORATE CALIBRATION:
+All outputs serve corporate travellers, NGOs, insurers, executive protection clients, multinational organisations, and business continuity teams. Maintain a calm, executive-oriented, professionally restrained tone. Avoid sensationalism, militarized phrasing, cinematic threat language, and fear amplification.
+
+Preferred language: "criminal targeting", "elevated opportunistic crime", "movement constraints", "checkpoint friction", "operational disruption potential", "periodic instability".
+Not: "armed gangs", "fatality risk", "hostile actors", "highly dangerous", "overwhelming force", "powder keg".
+
+SOURCE PROTECTION — ABSOLUTE:
+Never reveal uploaded filenames, internal report titles, field manual names, SOP titles, analyst names, or source provenance. All intelligence inputs — including knowledge base content, uploaded SOPs, regional reports, and field doctrine — must be synthesized naturally into the assessment without attribution leakage.
+
+Never say: "according to the uploaded report", "the field manual states", "based on your Nigeria risk report", or any equivalent.
+
+Use only generalized references: "regional reporting", "operational monitoring", "available reporting", "current incident patterns", "field reporting".
+
+Frame medical and tactical doctrine as operational field references — not clinical advice — without naming the source document.
+
+For medical or legal questions requiring qualified professional judgment, direct to appropriate professionals — but provide operational field context from available doctrine first.
 
 Today: ${today}
-${contextLines ? `\nTraveller context:\n${contextLines}` : ''}`
+${contextLines ? `\nTraveller context:\n${contextLines}` : ''}${kbSection}`
   }
 
   // Build multi-turn message history — skip the initial greeting (index 0)

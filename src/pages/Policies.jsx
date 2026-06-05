@@ -26,9 +26,8 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 // ── Category config ───────────────────────────────────────────────────────────
 const CAT_CONFIG = {
@@ -67,7 +66,7 @@ function StatusChip({ status }) {
 function InternalBadge() {
   return (
     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide"
-      style={{ background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' }}>
+      style={{ background: DS.greenDim, color: '#15803D', border: '1px solid #BBF7D0' }}>
       Internal
     </span>
   )
@@ -98,7 +97,7 @@ function PolicyCard({ policy, acknowledged, onAcknowledge, ackLoading }) {
         {/* Icon + title */}
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-            style={{ background: catConf.bg || `${BRAND_BLUE}10` }}>
+            style={{ background: catConf.bg || DS.greenDim }}>
             <Icon size={18} style={{ color: catConf.color || BRAND_BLUE }} />
           </div>
           <div className="flex-1 min-w-0">
@@ -141,7 +140,7 @@ function PolicyCard({ policy, acknowledged, onAcknowledge, ackLoading }) {
               onClick={() => onAcknowledge(policy.id)}
               disabled={ackLoading === policy.id}
               className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all hover:opacity-90 disabled:opacity-60"
-              style={{ background: BRAND_BLUE, color: 'white' }}>
+              style={{ background: DS.green, color: DS.bg }}>
               {ackLoading === policy.id
                 ? <><RefreshCw size={11} className="animate-spin" />Saving...</>
                 : <><CheckCircle2 size={11} />Acknowledge</>}
@@ -205,7 +204,7 @@ function AddPolicyModal({ orgId, onClose, onSaved }) {
     onClose()
   }
 
-  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20"
   const labelClass = "text-xs font-semibold text-gray-600 block mb-1.5"
 
   return (
@@ -213,7 +212,7 @@ function AddPolicyModal({ orgId, onClose, onSaved }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Plus size={16} style={{ color: BRAND_BLUE }} />
+            <Plus size={16} style={{ color: DS.green }} />
             <h2 className="text-base font-bold text-gray-900">Add Policy</h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
@@ -221,11 +220,11 @@ function AddPolicyModal({ orgId, onClose, onSaved }) {
 
         <div className="px-6 py-5 space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700">{error}</div>
+            <div className="bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-xl px-4 py-3 text-xs text-[#EF7474]">{error}</div>
           )}
 
           <div>
-            <label className={labelClass}>Policy name <span className="text-red-500">*</span></label>
+            <label className={labelClass}>Policy name <span className="text-[#EF7474]">*</span></label>
             <input className={inputClass} placeholder="e.g. International Travel Security Policy" {...f('name')} />
           </div>
 
@@ -260,7 +259,7 @@ function AddPolicyModal({ orgId, onClose, onSaved }) {
           </button>
           <button onClick={handleSave} disabled={saving || !form.name.trim()}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl disabled:opacity-50"
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            style={{ background: BRAND_GREEN, color: DS.green }}>
             {saving ? <><RefreshCw size={13} className="animate-spin" /> Saving…</> : <><Upload size={13} /> Add Policy</>}
           </button>
         </div>
@@ -287,7 +286,7 @@ function RequestPolicyModal({ orgName, onClose }) {
     onClose()
   }
 
-  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20"
   const labelClass = "text-xs font-semibold text-gray-600 block mb-1.5"
 
   return (
@@ -295,7 +294,7 @@ function RequestPolicyModal({ orgName, onClose }) {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Mail size={16} style={{ color: BRAND_BLUE }} />
+            <Mail size={16} style={{ color: DS.green }} />
             <h2 className="text-base font-bold text-gray-900">Request from SafeGuard360</h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
@@ -303,7 +302,7 @@ function RequestPolicyModal({ orgName, onClose }) {
 
         <div className="px-6 py-5 space-y-4">
           <div>
-            <label className={labelClass}>Policy title / topic needed <span className="text-red-500">*</span></label>
+            <label className={labelClass}>Policy title / topic needed <span className="text-[#EF7474]">*</span></label>
             <input className={inputClass} placeholder="e.g. Remote Work Security Policy" {...f('title')} />
           </div>
 
@@ -330,7 +329,7 @@ function RequestPolicyModal({ orgName, onClose }) {
           </button>
           <button onClick={handleSubmit} disabled={!form.title.trim()}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl disabled:opacity-50 transition-opacity"
-            style={{ background: BRAND_BLUE, color: 'white' }}>
+            style={{ background: DS.green, color: DS.bg }}>
             <Mail size={14} /> Send Request
           </button>
         </div>
@@ -428,12 +427,12 @@ export default function Policies() {
           <div className="flex items-center gap-2 shrink-0 mt-1">
             <button onClick={() => setShowRequestModal(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-colors hover:bg-[#0118A1]/5"
-              style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, background: 'white' }}>
+              style={{ borderColor: BRAND_BLUE, color: DS.green, background: DS.surface }}>
               <Mail size={15} /> Request from SafeGuard360
             </button>
             <button onClick={() => setShowAddModal(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-              style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+              style={{ background: BRAND_GREEN, color: DS.green }}>
               <Plus size={15} /> Add Policy
             </button>
           </div>
@@ -442,12 +441,12 @@ export default function Policies() {
 
       {/* Acknowledgement table missing */}
       {ackTableMissing && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
+        <div className="bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] rounded-2xl p-4 mb-6">
           <div className="flex items-start gap-3">
-            <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+            <AlertCircle size={15} className="text-[#D4A64A] shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-bold text-amber-800 mb-1">Acknowledgement tracking not set up</p>
-              <p className="text-xs text-amber-700 leading-relaxed">
+              <p className="text-xs text-[#D4A64A] leading-relaxed">
                 Run the SQL at the top of <code className="bg-amber-100 px-1 rounded">src/pages/Policies.jsx</code> in Supabase to enable policy sign-offs.
               </p>
             </div>
@@ -498,7 +497,7 @@ export default function Policies() {
             onClick={() => setFilter(tab.key)}
             className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
             style={filter === tab.key
-              ? { background: BRAND_BLUE, color: 'white' }
+              ? { background: DS.green, color: DS.bg }
               : { color: '#94A3B8' }
             }>
             {tab.label}

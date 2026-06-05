@@ -3,12 +3,12 @@ import { Plane, Clock, XCircle, CheckCircle, AlertTriangle, RefreshCw, Bell } fr
 import { toIcao, isKnownIata } from '../lib/airlineCodes'
 
 const STATUS_CONFIG = {
-  'Scheduled':      { label: 'Scheduled', color: 'text-gray-600 bg-gray-100', Icon: Clock },
-  'En Route/On Time': { label: 'On Time', color: 'text-green-700 bg-green-100', Icon: Plane },
-  'En Route/Late':  { label: 'Delayed', color: 'text-amber-700 bg-amber-100', Icon: AlertTriangle },
-  'Arrived':        { label: 'Landed', color: 'text-blue-700 bg-blue-100', Icon: CheckCircle },
-  'Cancelled':      { label: 'Cancelled', color: 'text-red-700 bg-red-100', Icon: XCircle },
-  'Diverted':       { label: 'Diverted', color: 'text-orange-700 bg-orange-100', Icon: AlertTriangle },
+  'Scheduled':        { label: 'Scheduled', color: 'text-[#6E7480] bg-[rgba(255,255,255,0.04)]', Icon: Clock },
+  'En Route/On Time': { label: 'On Time',   color: 'text-[#AACC00] bg-[rgba(170,204,0,0.10)]',   Icon: Plane },
+  'En Route/Late':    { label: 'Delayed',   color: 'text-[#D4A64A] bg-[rgba(144,106,37,0.12)]',  Icon: AlertTriangle },
+  'Arrived':          { label: 'Landed',    color: 'text-[#6EA8C8] bg-[rgba(58,88,112,0.12)]',   Icon: CheckCircle },
+  'Cancelled':        { label: 'Cancelled', color: 'text-[#EF7474] bg-[rgba(138,46,46,0.12)]',   Icon: XCircle },
+  'Diverted':         { label: 'Diverted',  color: 'text-[#D4A64A] bg-[rgba(144,106,37,0.10)]',  Icon: AlertTriangle },
 }
 
 function formatDelay(minutes) {
@@ -86,7 +86,7 @@ export default function FlightStatus({ flightNumber, tripName, profile }) {
 
   if (error) return (
     <div className="mt-2 flex items-center gap-2">
-      <span className="text-xs text-red-600">⚠ {error}</span>
+      <span className="text-xs text-[#EF7474]">⚠ {error}</span>
       <button onClick={check} className="text-xs text-[#1B3A6B] hover:underline">Retry</button>
     </div>
   )
@@ -126,7 +126,7 @@ export default function FlightStatus({ flightNumber, tripName, profile }) {
       {eta && <span className="text-xs text-gray-500">→ Arr {eta}</span>}
       {status._mock && <span className="text-xs text-gray-400 italic">demo data</span>}
       {notified && (
-        <span className="inline-flex items-center gap-1 text-xs text-green-600">
+        <span className="inline-flex items-center gap-1 text-xs text-[#AACC00]">
           <Bell size={10} /> Contacts notified
         </span>
       )}

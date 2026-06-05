@@ -4,6 +4,8 @@ import {
   Search, Shield, Swords, HeartPulse, CloudRain
 } from 'lucide-react'
 import Layout from '../components/Layout'
+import { timeAgo } from '../lib/dateUtils'
+import { listFeeds, getFeedById } from '../services/intelligenceService'
 
 // ── Category definitions ──────────────────────────────────────────────────────
 const CATEGORIES = [
@@ -21,10 +23,10 @@ const CATEGORIES = [
     id:    'conflict',
     label: 'Conflict & War',
     icon:  Swords,
-    color: 'text-red-700',
-    bg:    'bg-red-50',
-    border:'border-red-200',
-    badge: 'bg-red-100 text-red-700 border-red-200',
+    color: 'text-[#EF7474]',
+    bg:    'bg-[rgba(138,46,46,0.12)]',
+    border:'border-[rgba(138,46,46,0.30)]',
+    badge: 'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',
     header:'bg-red-600',
   },
   {
@@ -51,16 +53,6 @@ const CATEGORIES = [
 
 const REGIONS = ['All', 'Africa', 'Middle East', 'Global']
 
-function timeAgo(d) {
-  if (!d) return null
-  const s = Math.floor((Date.now() - new Date(d)) / 1000)
-  if (s < 60) return `${s}s ago`
-  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`
-  const dy = Math.floor(h / 24); if (dy < 7) return `${dy}d ago`
-  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-}
-
 // ── Article card ──────────────────────────────────────────────────────────────
 function ArticleCard({ article, catMeta }) {
   const ago = timeAgo(article.date)
@@ -73,7 +65,7 @@ function ArticleCard({ article, catMeta }) {
           href={article.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm font-semibold text-gray-900 hover:text-[#0118A1] hover:underline leading-snug block mb-1.5"
+          className="text-sm font-semibold text-gray-900 hover:text-[#AACC00] hover:underline leading-snug block mb-1.5"
         >
           {article.title}
         </a>
@@ -98,7 +90,7 @@ function ArticleCard({ article, catMeta }) {
         href={article.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-gray-300 hover:text-[#0118A1] transition-colors opacity-0 group-hover:opacity-100 shrink-0 mt-1"
+        className="text-gray-300 hover:text-[#AACC00] transition-colors opacity-0 group-hover:opacity-100 shrink-0 mt-1"
       >
         <ExternalLink size={13} />
       </a>
@@ -138,7 +130,7 @@ function CategorySection({ cat, articles, expanded, onToggle }) {
         <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50">
           <button
             onClick={onToggle}
-            className="text-xs font-medium text-[#0118A1] hover:underline"
+            className="text-xs font-medium text-[#AACC00] hover:underline"
           >
             {expanded ? `Show fewer` : `Show all ${articles.length} articles →`}
           </button>
@@ -161,8 +153,7 @@ export default function NewsUpdates() {
 
   // Fetch feed list
   useEffect(() => {
-    fetch('/api/rss-ingest')
-      .then(r => r.json())
+    listFeeds()
       .then(d => {
         const feeds = d.feeds || []
         setRssFeeds(feeds)
@@ -181,8 +172,7 @@ export default function NewsUpdates() {
     rssFeeds.forEach(feed => {
       // Fetch more articles from health feeds so outbreak events aren't cut off
       const limit = feed.category === 'health' ? 20 : 10
-      fetch(`/api/rss-ingest?id=${feed.id}&limit=${limit}`)
-        .then(r => r.json())
+      getFeedById(feed.id, limit)
         .then(d => {
           if (d.articles?.length) {
             const tagged = d.articles.map(a => ({
@@ -192,9 +182,16 @@ export default function NewsUpdates() {
               feedCategory:  feed.category,
               feedGeography: feed.geography,
             }))
-            setArticles(prev =>
-              [...prev, ...tagged].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-            )
+            setArticles(prev => {
+              const seen = new Set(prev.map(a => (a.title || '').slice(0, 80).toLowerCase()))
+              const fresh = tagged.filter(a => {
+                const key = (a.title || '').slice(0, 80).toLowerCase()
+                if (seen.has(key)) return false
+                seen.add(key)
+                return true
+              })
+              return [...prev, ...fresh].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+            })
           }
           loadedRef.current.add(feed.id)
           setLoadedCount(loadedRef.current.size)
@@ -233,7 +230,7 @@ export default function NewsUpdates() {
       {/* Header */}
       <div className="mb-5">
         <div className="flex items-center gap-2 mb-1">
-          <Newspaper size={20} className="text-[#0118A1]" />
+          <Newspaper size={20} className="text-[#AACC00]" />
           <h1 className="text-2xl font-bold text-gray-900">News Updates</h1>
         </div>
         <p className="text-sm text-gray-500">
@@ -246,7 +243,7 @@ export default function NewsUpdates() {
         <div className="mb-4">
           <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
             <span className="flex items-center gap-1.5">
-              <RefreshCw size={11} className="animate-spin text-[#0118A1]" />
+              <RefreshCw size={11} className="animate-spin text-[#AACC00]" />
               Loading feeds… {loadedCount} / {totalFeeds} sources
             </span>
             <span>{articles.length} articles loaded</span>
@@ -269,7 +266,7 @@ export default function NewsUpdates() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search headlines…"
-            className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-xs focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"
+            className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-xs focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00]"
           />
         </div>
 
@@ -282,7 +279,7 @@ export default function NewsUpdates() {
               onClick={() => setRegionFilter(r)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
                 ${regionFilter === r
-                  ? 'bg-[#0118A1] text-white border-[#0118A1]'
+                  ? 'bg-[#0118A1] text-white border-[#AACC00]'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}
             >
               {r}
@@ -324,7 +321,7 @@ export default function NewsUpdates() {
           <p className="text-sm text-gray-400">No articles match the current filters.</p>
           <button
             onClick={() => { setRegionFilter('All'); setSearch('') }}
-            className="mt-3 text-xs text-[#0118A1] hover:underline"
+            className="mt-3 text-xs text-[#AACC00] hover:underline"
           >
             Clear filters
           </button>

@@ -67,7 +67,7 @@ create table if not exists public.profiles (
   email                 text unique,
   company               text,
   role                  text default 'traveller'
-    check (role in ('admin', 'org_admin', 'traveller', 'solo', 'developer')),
+    check (role in ('admin', 'org_admin', 'traveller', 'solo', 'developer', 'gsoc_operator', 'gsoc_admin', 'project_manager', 'project_operator')),
   phone                 text,
   whatsapp_number       text,
   country               text,
@@ -167,6 +167,27 @@ create table if not exists public.policies (
   status       text default 'Active' check (status in ('Active', 'Under Review', 'Archived'))
 );
 alter table public.policies enable row level security;
+
+
+-- policy_acknowledgements (tracks when each user acknowledges each policy)
+create table if not exists public.policy_acknowledgements (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid references auth.users(id) on delete cascade not null,
+  policy_id       uuid references public.policies(id) on delete cascade not null,
+  acknowledged_at timestamptz not null default now(),
+  unique (user_id, policy_id)
+);
+alter table public.policy_acknowledgements enable row level security;
+
+
+-- terms_acceptances (legacy audit log; active flow now updates profiles.terms_accepted_at)
+create table if not exists public.terms_acceptances (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references auth.users(id) on delete cascade not null,
+  version     text not null,
+  accepted_at timestamptz not null default now()
+);
+alter table public.terms_acceptances enable row level security;
 
 
 -- training_progress
@@ -275,6 +296,23 @@ create table if not exists public.staff_locations (
   recorded_at timestamptz not null default now()
 );
 alter table public.staff_locations enable row level security;
+
+
+-- location_pings (passive background location from usePassiveLocation hook, max once per 15 min)
+create table if not exists public.location_pings (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references auth.users(id) on delete cascade not null,
+  trip_id     uuid references public.itineraries(id) on delete set null,
+  org_id      uuid references public.organisations(id) on delete set null,
+  latitude    decimal(10,8) not null,
+  longitude   decimal(11,8) not null,
+  accuracy    int,
+  altitude    decimal,
+  speed       decimal,
+  source      text default 'passive',
+  recorded_at timestamptz not null default now()
+);
+alter table public.location_pings enable row level security;
 
 
 -- trip_alerts (personalised, per-trip alerts from scan)
@@ -475,6 +513,19 @@ create table if not exists public.training_modules (
   created_at    timestamptz default now()
 );
 alter table public.training_modules enable row level security;
+
+
+-- training_records (one row per user per module; tracks completion)
+create table if not exists public.training_records (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid references auth.users(id) on delete cascade not null,
+  module_id    uuid references public.training_modules(id) on delete cascade not null,
+  completed    boolean not null default false,
+  completed_at timestamptz,
+  created_at   timestamptz not null default now(),
+  unique (user_id, module_id)
+);
+alter table public.training_records enable row level security;
 
 
 -- travel_policies

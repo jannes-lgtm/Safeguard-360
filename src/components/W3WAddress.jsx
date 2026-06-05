@@ -66,7 +66,7 @@ export default function W3WAddress({ lat, lng, showMap = true, className = '' })
             href={`https://www.google.com/maps?q=${latNum},${lngNum}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[11px] font-medium text-[#0118A1] hover:underline"
+            className="text-[11px] font-medium text-[#AACC00] hover:underline"
           >
             Google Maps ↗
           </a>

@@ -3,58 +3,109 @@ import { useSearchParams } from 'react-router-dom'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { MAP_STYLES } from '../lib/mapConfig'
+import { RISK_MAP, buildRiskGeoJSON } from '../lib/riskData'
 import {
   Shield, Search, RefreshCw, ExternalLink, Wind, Thermometer,
   ChevronRight, AlertTriangle, MapPin, Brain, Zap, Clock,
   ChevronDown, ChevronUp, FileText, Layers, HeartPulse,
-  Swords, CloudRain, Users, Lock, ArrowLeft
+  Swords, CloudRain, Users, Lock, ArrowLeft, Printer,
+  TrendingUp, TrendingDown, Minus, Activity, Newspaper,
 } from 'lucide-react'
 import Layout from '../components/Layout'
+import { supabase } from '../lib/supabase'
+import { timeAgo } from '../lib/dateUtils'
+import { getCountryRisk, listFeeds, getFeedById } from '../services/intelligenceService'
+import { DS } from '../lib/ds'
+
+// ── Print stylesheet — injected/removed around window.print() ─────────────────
+const PRINT_CSS = `
+  @media print {
+    @page { margin: 14mm 14mm 16mm 14mm; size: A4 portrait; }
+    body * { visibility: hidden !important; }
+    #sg360-print-root, #sg360-print-root * { visibility: visible !important; }
+    #sg360-print-root {
+      position: fixed; inset: 0;
+      overflow: visible; background: #fff;
+      padding: 0; font-size: 10.5pt; color: #111;
+    }
+    .print-hide { display: none !important; }
+    .print-cover { display: block !important; }
+    a { text-decoration: none; color: inherit; }
+    .shadow-\\[0_1px_3px_rgba\\(0\\,0\\,0\\,0\\.06\\)\\] { box-shadow: none !important; }
+  }
+`
 
 // ── Country metadata (for weather widget coordinates + capital) ───────────────
 const COUNTRY_META = {
   // ── Africa ──────────────────────────────────────────────────────────────────
+  'Algeria':                      { capital: 'Algiers',       lat: 36.7372,  lon:   3.0865  },
   'Angola':                       { capital: 'Luanda',        lat: -8.8383,  lon:  13.2344  },
+  'Benin':                        { capital: 'Porto-Novo',    lat: 6.3676,   lon:   2.4252  },
   'Botswana':                     { capital: 'Gaborone',      lat: -24.6282, lon:  25.9231  },
   'Burkina Faso':                 { capital: 'Ouagadougou',   lat: 12.3647,  lon:  -1.5354  },
+  'Burundi':                      { capital: 'Gitega',        lat: -3.3869,  lon:  29.9102  },
+  'Cabo Verde':                   { capital: 'Praia',         lat: 14.9330,  lon: -23.5133  },
   'Cameroon':                     { capital: 'Yaoundé',       lat: 3.8480,   lon:  11.5021  },
   'Central African Republic':     { capital: 'Bangui',        lat: 4.3947,   lon:  18.5582  },
   'Chad':                         { capital: "N'Djamena",     lat: 12.1348,  lon:  15.0557  },
+  'Comoros':                      { capital: 'Moroni',        lat: -11.7022, lon:  43.2551  },
   'Democratic Republic of Congo': { capital: 'Kinshasa',      lat: -4.3217,  lon:  15.3222  },
+  'Djibouti':                     { capital: 'Djibouti',      lat: 11.5720,  lon:  43.1456  },
   'Egypt':                        { capital: 'Cairo',         lat: 30.0444,  lon:  31.2357  },
+  'Equatorial Guinea':            { capital: 'Malabo',        lat: 3.7523,   lon:   8.7742  },
+  'Eritrea':                      { capital: 'Asmara',        lat: 15.3228,  lon:  38.9251  },
+  'Eswatini':                     { capital: 'Mbabane',       lat: -26.3054, lon:  31.1367  },
   'Ethiopia':                     { capital: 'Addis Ababa',   lat: 9.0320,   lon:  38.7469  },
+  'Gabon':                        { capital: 'Libreville',    lat: -0.8037,  lon:   9.4673  },
+  'Gambia':                       { capital: 'Banjul',        lat: 13.4531,  lon: -16.5780  },
   'Ghana':                        { capital: 'Accra',         lat: 5.6037,   lon:  -0.1870  },
   'Guinea':                       { capital: 'Conakry',       lat: 9.6412,   lon: -13.5784  },
+  'Guinea-Bissau':                { capital: 'Bissau',        lat: 11.8037,  lon: -15.1804  },
+  'Ivory Coast':                  { capital: 'Yamoussoukro',  lat: 5.3600,   lon:  -4.0083  },
   'Kenya':                        { capital: 'Nairobi',       lat: -1.2921,  lon:  36.8219  },
+  'Lesotho':                      { capital: 'Maseru',        lat: -29.3142, lon:  27.4869  },
+  'Liberia':                      { capital: 'Monrovia',      lat: 6.2907,   lon: -10.7605  },
   'Libya':                        { capital: 'Tripoli',       lat: 32.9020,  lon:  13.1800  },
+  'Madagascar':                   { capital: 'Antananarivo',  lat: -18.7669, lon:  46.8691  },
   'Malawi':                       { capital: 'Lilongwe',      lat: -13.9626, lon:  33.7741  },
   'Mali':                         { capital: 'Bamako',        lat: 12.3714,  lon:  -8.0000  },
   'Mauritania':                   { capital: 'Nouakchott',    lat: 18.0735,  lon: -15.9582  },
+  'Mauritius':                    { capital: 'Port Louis',    lat: -20.1654, lon:  57.4896  },
   'Morocco':                      { capital: 'Rabat',         lat: 33.9716,  lon:  -6.8498  },
   'Mozambique':                   { capital: 'Maputo',        lat: -25.9692, lon:  32.5732  },
   'Namibia':                      { capital: 'Windhoek',      lat: -22.5609, lon:  17.0658  },
   'Niger':                        { capital: 'Niamey',        lat: 13.5137,  lon:   2.1098  },
   'Nigeria':                      { capital: 'Abuja',         lat: 9.0765,   lon:   7.3986  },
+  'Republic of Congo':            { capital: 'Brazzaville',   lat: -4.2662,  lon:  15.2832  },
   'Rwanda':                       { capital: 'Kigali',        lat: -1.9441,  lon:  30.0619  },
+  'Sao Tome and Principe':        { capital: 'São Tomé',      lat: 0.1864,   lon:   6.6131  },
   'Senegal':                      { capital: 'Dakar',         lat: 14.7167,  lon: -17.4677  },
+  'Seychelles':                   { capital: 'Victoria',      lat: -4.6796,  lon:  55.4920  },
   'Sierra Leone':                 { capital: 'Freetown',      lat: 8.4897,   lon: -13.2344  },
   'Somalia':                      { capital: 'Mogadishu',     lat: 2.0469,   lon:  45.3182  },
   'South Africa':                 { capital: 'Pretoria',      lat: -25.7461, lon:  28.1881  },
   'South Sudan':                  { capital: 'Juba',          lat: 4.8594,   lon:  31.5713  },
   'Sudan':                        { capital: 'Khartoum',      lat: 15.5007,  lon:  32.5599  },
   'Tanzania':                     { capital: 'Dodoma',        lat: -6.1722,  lon:  35.7395  },
+  'Togo':                         { capital: 'Lomé',          lat: 6.1375,   lon:   1.2124  },
   'Tunisia':                      { capital: 'Tunis',         lat: 36.8190,  lon:  10.1658  },
   'Uganda':                       { capital: 'Kampala',       lat: 0.3476,   lon:  32.5825  },
   'Zambia':                       { capital: 'Lusaka',        lat: -15.4167, lon:  28.2833  },
   'Zimbabwe':                     { capital: 'Harare',        lat: -17.8292, lon:  31.0522  },
   // ── Middle East ─────────────────────────────────────────────────────────────
+  'Bahrain':                      { capital: 'Manama',        lat: 26.0667,  lon:  50.5577  },
   'Iran':                         { capital: 'Tehran',        lat: 35.6892,  lon:  51.3890  },
   'Iraq':                         { capital: 'Baghdad',       lat: 33.3152,  lon:  44.3661  },
+  'Israel':                       { capital: 'Jerusalem',     lat: 31.7683,  lon:  35.2137  },
   'Jordan':                       { capital: 'Amman',         lat: 31.9539,  lon:  35.9106  },
+  'Kuwait':                       { capital: 'Kuwait City',   lat: 29.3759,  lon:  47.9774  },
   'Lebanon':                      { capital: 'Beirut',        lat: 33.8886,  lon:  35.4955  },
+  'Oman':                         { capital: 'Muscat',        lat: 23.6140,  lon:  58.5922  },
+  'Qatar':                        { capital: 'Doha',          lat: 25.2854,  lon:  51.5310  },
   'Saudi Arabia':                 { capital: 'Riyadh',        lat: 24.7136,  lon:  46.6753  },
   'Syria':                        { capital: 'Damascus',      lat: 33.5102,  lon:  36.2913  },
   'United Arab Emirates':         { capital: 'Abu Dhabi',     lat: 24.4539,  lon:  54.3773  },
+  'West Bank':                    { capital: 'Ramallah',      lat: 31.9522,  lon:  35.2332  },
   'Yemen':                        { capital: "Sana'a",        lat: 15.3694,  lon:  44.1910  },
   // ── Europe ──────────────────────────────────────────────────────────────────
   'France':                       { capital: 'Paris',         lat: 48.8566,  lon:   2.3522  },
@@ -72,95 +123,39 @@ const COUNTRY_META = {
   'Philippines':                  { capital: 'Manila',        lat: 14.5995,  lon: 120.9842  },
   'Singapore':                    { capital: 'Singapore',     lat: 1.3521,   lon: 103.8198  },
   // ── Americas ────────────────────────────────────────────────────────────────
+  'Argentina':                    { capital: 'Buenos Aires',  lat: -34.6037, lon: -58.3816  },
+  'Bahamas':                      { capital: 'Nassau',        lat: 25.0343,  lon: -77.3963  },
+  'Barbados':                     { capital: 'Bridgetown',    lat: 13.1939,  lon: -59.5432  },
+  'Belize':                       { capital: 'Belmopan',      lat: 17.2510,  lon: -88.7590  },
+  'Bolivia':                      { capital: 'Sucre',         lat: -16.5000, lon: -68.1500  },
   'Brazil':                       { capital: 'Brasília',      lat: -15.7801, lon: -47.9292  },
+  'Chile':                        { capital: 'Santiago',      lat: -33.4569, lon: -70.6483  },
   'Colombia':                     { capital: 'Bogotá',        lat: 4.7110,   lon: -74.0721  },
+  'Costa Rica':                   { capital: 'San José',      lat: 9.9281,   lon: -84.0907  },
+  'Cuba':                         { capital: 'Havana',        lat: 23.1136,  lon: -82.3666  },
+  'Dominican Republic':           { capital: 'Santo Domingo', lat: 18.4861,  lon: -69.9312  },
+  'Ecuador':                      { capital: 'Quito',         lat: -0.1807,  lon: -78.4678  },
+  'El Salvador':                  { capital: 'San Salvador',  lat: 13.6929,  lon: -89.2182  },
+  'Guatemala':                    { capital: 'Guatemala City', lat: 14.6349,  lon: -90.5069  },
+  'Guyana':                       { capital: 'Georgetown',    lat: 6.8013,   lon: -58.1551  },
   'Haiti':                        { capital: 'Port-au-Prince',lat: 18.5944,  lon: -72.3074  },
+  'Honduras':                     { capital: 'Tegucigalpa',   lat: 14.0723,  lon: -87.2062  },
+  'Jamaica':                      { capital: 'Kingston',      lat: 17.9927,  lon: -76.7936  },
   'Mexico':                       { capital: 'Mexico City',   lat: 19.4326,  lon: -99.1332  },
+  'Nicaragua':                    { capital: 'Managua',       lat: 12.1328,  lon: -86.2976  },
+  'Panama':                       { capital: 'Panama City',   lat: 8.9936,   lon: -79.5197  },
+  'Paraguay':                     { capital: 'Asunción',      lat: -25.2867, lon: -57.6470  },
+  'Peru':                         { capital: 'Lima',          lat: -12.0464, lon: -77.0428  },
+  'Suriname':                     { capital: 'Paramaribo',    lat: 5.8520,   lon: -55.2038  },
+  'Trinidad and Tobago':          { capital: 'Port of Spain', lat: 10.6549,  lon: -61.5019  },
   'United States':                { capital: 'Washington DC', lat: 38.9072,  lon: -77.0369  },
+  'Uruguay':                      { capital: 'Montevideo',    lat: -34.9011, lon: -56.1645  },
   'Venezuela':                    { capital: 'Caracas',       lat: 10.4806,  lon: -66.9036  },
   // ── Oceania ─────────────────────────────────────────────────────────────────
   'Australia':                    { capital: 'Canberra',      lat: -35.2809, lon: 149.1300  },
 }
 
-// ── Risk map data: all countries with base risk levels + region ───────────────
-const RISK_MAP = {
-  // Critical
-  'Somalia':                       { lat: 2.0469,   lon: 45.3182,  risk: 'Critical', region: 'Africa'       },
-  'South Sudan':                   { lat: 4.8594,   lon: 31.5713,  risk: 'Critical', region: 'Africa'       },
-  'Sudan':                         { lat: 15.5007,  lon: 32.5599,  risk: 'Critical', region: 'Africa'       },
-  'Libya':                         { lat: 32.9020,  lon: 13.1800,  risk: 'Critical', region: 'Africa'       },
-  'Syria':                         { lat: 33.5102,  lon: 36.2913,  risk: 'Critical', region: 'Middle East'  },
-  'Yemen':                         { lat: 15.3694,  lon: 44.1910,  risk: 'Critical', region: 'Middle East'  },
-  'Iraq':                          { lat: 33.3152,  lon: 44.3661,  risk: 'Critical', region: 'Middle East'  },
-  'Afghanistan':                   { lat: 34.5553,  lon: 69.2075,  risk: 'Critical', region: 'Asia'         },
-  'Democratic Republic of Congo':  { lat: -4.3217,  lon: 15.3222,  risk: 'Critical', region: 'Africa'       },
-  // High
-  'Nigeria':                       { lat: 9.0765,   lon: 7.3986,   risk: 'High',     region: 'Africa'       },
-  'Mali':                          { lat: 12.3714,  lon: -8.0000,  risk: 'High',     region: 'Africa'       },
-  'Niger':                         { lat: 13.5137,  lon: 2.1098,   risk: 'High',     region: 'Africa'       },
-  'Chad':                          { lat: 12.1348,  lon: 15.0557,  risk: 'High',     region: 'Africa'       },
-  'Ethiopia':                      { lat: 9.0320,   lon: 38.7469,  risk: 'High',     region: 'Africa'       },
-  'Mozambique':                    { lat: -25.9692, lon: 32.5732,  risk: 'High',     region: 'Africa'       },
-  'Lebanon':                       { lat: 33.8886,  lon: 35.4955,  risk: 'High',     region: 'Middle East'  },
-  'Pakistan':                      { lat: 33.6844,  lon: 73.0479,  risk: 'High',     region: 'Asia'         },
-  'Myanmar':                       { lat: 19.7633,  lon: 96.0785,  risk: 'High',     region: 'Asia'         },
-  'Haiti':                         { lat: 18.5944,  lon: -72.3074, risk: 'High',     region: 'Americas'     },
-  'Ukraine':                       { lat: 50.4501,  lon: 30.5234,  risk: 'High',     region: 'Europe'       },
-  'Burkina Faso':                  { lat: 12.3647,  lon: -1.5354,  risk: 'High',     region: 'Africa'       },
-  'Central African Republic':      { lat: 4.3947,   lon: 18.5582,  risk: 'High',     region: 'Africa'       },
-  // Medium
-  'Kenya':                         { lat: -1.2921,  lon: 36.8219,  risk: 'Medium',   region: 'Africa'       },
-  'Uganda':                        { lat: 0.3476,   lon: 32.5825,  risk: 'Medium',   region: 'Africa'       },
-  'Tanzania':                      { lat: -6.1722,  lon: 35.7395,  risk: 'Medium',   region: 'Africa'       },
-  'Zimbabwe':                      { lat: -17.8292, lon: 31.0522,  risk: 'Medium',   region: 'Africa'       },
-  'Zambia':                        { lat: -15.4167, lon: 28.2833,  risk: 'Medium',   region: 'Africa'       },
-  'Cameroon':                      { lat: 3.8480,   lon: 11.5021,  risk: 'Medium',   region: 'Africa'       },
-  'Egypt':                         { lat: 30.0444,  lon: 31.2357,  risk: 'Medium',   region: 'Africa'       },
-  'Jordan':                        { lat: 31.9539,  lon: 35.9106,  risk: 'Medium',   region: 'Middle East'  },
-  'Tunisia':                       { lat: 36.8190,  lon: 10.1658,  risk: 'Medium',   region: 'Africa'       },
-  'Angola':                        { lat: -8.8383,  lon: 13.2344,  risk: 'Medium',   region: 'Africa'       },
-  'Sierra Leone':                  { lat: 8.4897,   lon: -13.2344, risk: 'Medium',   region: 'Africa'       },
-  'Mauritania':                    { lat: 18.0735,  lon: -15.9582, risk: 'Medium',   region: 'Africa'       },
-  'Guinea':                        { lat: 9.6412,   lon: -13.5784, risk: 'Medium',   region: 'Africa'       },
-  'Venezuela':                     { lat: 10.4806,  lon: -66.9036, risk: 'Medium',   region: 'Americas'     },
-  'Colombia':                      { lat: 4.7110,   lon: -74.0721, risk: 'Medium',   region: 'Americas'     },
-  'Iran':                          { lat: 35.6892,  lon: 51.3890,  risk: 'Medium',   region: 'Middle East'  },
-  'Russia':                        { lat: 55.7558,  lon: 37.6173,  risk: 'Medium',   region: 'Europe'       },
-  'Saudi Arabia':                  { lat: 24.7136,  lon: 46.6753,  risk: 'Medium',   region: 'Middle East'  },
-  'Indonesia':                     { lat: -6.2088,  lon: 106.8456, risk: 'Medium',   region: 'Asia'         },
-  'Philippines':                   { lat: 14.5995,  lon: 120.9842, risk: 'Medium',   region: 'Asia'         },
-  'India':                         { lat: 28.6139,  lon: 77.2090,  risk: 'Medium',   region: 'Asia'         },
-  'Brazil':                        { lat: -15.7801, lon: -47.9292, risk: 'Medium',   region: 'Americas'     },
-  'Mexico':                        { lat: 19.4326,  lon: -99.1332, risk: 'Medium',   region: 'Americas'     },
-  // Low
-  'South Africa':                  { lat: -25.7461, lon: 28.1881,  risk: 'Low',      region: 'Africa'       },
-  'Ghana':                         { lat: 5.6037,   lon: -0.1870,  risk: 'Low',      region: 'Africa'       },
-  'Rwanda':                        { lat: -1.9441,  lon: 30.0619,  risk: 'Low',      region: 'Africa'       },
-  'Senegal':                       { lat: 14.7167,  lon: -17.4677, risk: 'Low',      region: 'Africa'       },
-  'Morocco':                       { lat: 33.9716,  lon: -6.8498,  risk: 'Low',      region: 'Africa'       },
-  'Botswana':                      { lat: -24.6282, lon: 25.9231,  risk: 'Low',      region: 'Africa'       },
-  'Namibia':                       { lat: -22.5609, lon: 17.0658,  risk: 'Low',      region: 'Africa'       },
-  'Malawi':                        { lat: -13.9626, lon: 33.7741,  risk: 'Low',      region: 'Africa'       },
-  'United Kingdom':                { lat: 51.5074,  lon: -0.1278,  risk: 'Low',      region: 'Europe'       },
-  'France':                        { lat: 48.8566,  lon: 2.3522,   risk: 'Low',      region: 'Europe'       },
-  'Germany':                       { lat: 52.5200,  lon: 13.4050,  risk: 'Low',      region: 'Europe'       },
-  'Greece':                        { lat: 37.9838,  lon: 23.7275,  risk: 'Low',      region: 'Europe'       },
-  'Italy':                         { lat: 41.9028,  lon: 12.4964,  risk: 'Low',      region: 'Europe'       },
-  'Netherlands':                   { lat: 52.3676,  lon: 4.9041,   risk: 'Low',      region: 'Europe'       },
-  'Poland':                        { lat: 52.2297,  lon: 21.0122,  risk: 'Low',      region: 'Europe'       },
-  'Portugal':                      { lat: 38.7223,  lon: -9.1393,  risk: 'Low',      region: 'Europe'       },
-  'Romania':                       { lat: 44.4268,  lon: 26.1025,  risk: 'Medium',   region: 'Europe'       },
-  'Serbia':                        { lat: 44.8176,  lon: 20.4633,  risk: 'Medium',   region: 'Europe'       },
-  'Spain':                         { lat: 40.4168,  lon: -3.7038,  risk: 'Low',      region: 'Europe'       },
-  'Sweden':                        { lat: 59.3293,  lon: 18.0686,  risk: 'Low',      region: 'Europe'       },
-  'Switzerland':                   { lat: 46.9481,  lon: 7.4474,   risk: 'Low',      region: 'Europe'       },
-  'Turkey':                        { lat: 39.9334,  lon: 32.8597,  risk: 'Medium',   region: 'Europe'       },
-  'United States':                 { lat: 38.9072,  lon: -77.0369, risk: 'Low',      region: 'Americas'     },
-  'Australia':                     { lat: -35.2809, lon: 149.1300, risk: 'Low',      region: 'Oceania'      },
-  'Singapore':                     { lat: 1.3521,   lon: 103.8198, risk: 'Low',      region: 'Asia'         },
-  'Japan':                         { lat: 35.6762,  lon: 139.6503, risk: 'Low',      region: 'Asia'         },
-  'United Arab Emirates':          { lat: 24.4539,  lon: 54.3773,  risk: 'Low',      region: 'Middle East'  },
-}
+// RISK_MAP imported from '../lib/riskData'
 
 const COUNTRIES = Object.keys(COUNTRY_META).sort()
 
@@ -168,15 +163,18 @@ const REGIONS = ['All', 'Africa', 'Middle East', 'Europe', 'Asia', 'Americas', '
 
 // ── Severity config ───────────────────────────────────────────────────────────
 const SEV = {
-  Critical: { bg: 'bg-red-600',    light: 'bg-red-50',    border: 'border-red-200',    text: 'text-red-700',    dot: 'bg-red-500',    bar: 100, advice: 'Do Not Travel'      },
+  Critical: { bg: 'bg-red-600',    light: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-[rgba(138,46,46,0.30)]',    text: 'text-[#EF7474]',    dot: 'bg-red-500',    bar: 100, advice: 'Do Not Travel'      },
   High:     { bg: 'bg-orange-500', light: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', dot: 'bg-orange-500', bar: 75,  advice: 'Reconsider Travel'   },
   Medium:   { bg: 'bg-yellow-500', light: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700', dot: 'bg-yellow-500', bar: 50,  advice: 'Exercise Caution'    },
-  Low:      { bg: 'bg-green-500',  light: 'bg-green-50',  border: 'border-green-200',  text: 'text-green-700',  dot: 'bg-green-500',  bar: 25,  advice: 'Normal Precautions'  },
+  Low:      { bg: 'bg-green-500',  light: 'bg-[rgba(170,204,0,0.10)]',  border: 'border-[rgba(170,204,0,0.25)]',  text: 'text-[#AACC00]',  dot: 'bg-green-500',  bar: 25,  advice: 'Normal Precautions'  },
   Unknown:  { bg: 'bg-gray-400',   light: 'bg-gray-50',   border: 'border-gray-200',   text: 'text-gray-500',   dot: 'bg-gray-400',   bar: 10,  advice: 'No advisory data'    },
 }
 const sev = (s) => SEV[s] || SEV.Unknown
 
-// Risk map style (circle markers)
+// Risk colours (choropleth fills) — muted/professional palette
+const RISK_COLOR = { Critical: '#c0392b', High: '#d35400', Medium: '#d4a017', Low: '#1e8449' }
+
+// Keep for popup badge styling
 const RISK_STYLE = {
   Critical: { color: '#dc2626', fillColor: '#dc2626', radius: 18 },
   High:     { color: '#ea580c', fillColor: '#ea580c', radius: 14 },
@@ -184,6 +182,48 @@ const RISK_STYLE = {
   Low:      { color: '#16a34a', fillColor: '#22c55e', radius: 8  },
 }
 const rs = (r) => RISK_STYLE[r] || RISK_STYLE.Low
+
+// ── Choropleth helpers ────────────────────────────────────────────────────────
+const WORLD_GEOJSON_URL = '/world.geojson'
+
+// Our RISK_MAP key → GeoJSON "name" property (verified against Natural Earth 50m)
+const GEO_NAME_MAP = {
+  'DR Congo':                      'Democratic Republic of the Congo',
+  'Democratic Republic of Congo':  'Democratic Republic of the Congo',
+  'United States':                 'USA',
+  'United Kingdom':                'England',
+  'Tanzania':                      'United Republic of Tanzania',
+  'Ivory Coast':                   'Ivory Coast',           // GeoJSON uses Ivory Coast, not Côte d'Ivoire
+  'Eswatini':                      'Swaziland',             // GeoJSON still uses old name
+  'Republic of Congo':             'Republic of the Congo', // GeoJSON includes "the"
+  'Guinea-Bissau':                 'Guinea Bissau',         // GeoJSON has no hyphen
+  'Bahamas':                       'The Bahamas',           // GeoJSON includes "The"
+  'West Bank':                     'West Bank',
+}
+const GEO_NAME_REVERSE = Object.fromEntries(
+  Object.entries(GEO_NAME_MAP).map(([k, v]) => [v, k])
+)
+function geoToKey(geoName) { return GEO_NAME_REVERSE[geoName] || geoName }
+
+function buildFillExpr(dataset, filter = 'All') {
+  const pairs = []
+  Object.entries(dataset).forEach(([name, c]) => {
+    if (filter !== 'All' && c.region !== filter) return
+    pairs.push(GEO_NAME_MAP[name] || name, RISK_COLOR[c.risk])
+  })
+  if (!pairs.length) return 'rgba(0,0,0,0)'
+  return ['match', ['get', 'name'], ...pairs, 'rgba(0,0,0,0)']
+}
+
+function buildBorderExpr(dataset, filter = 'All') {
+  const pairs = []
+  Object.entries(dataset).forEach(([name, c]) => {
+    if (filter !== 'All' && c.region !== filter) return
+    pairs.push(GEO_NAME_MAP[name] || name, RISK_COLOR[c.risk])
+  })
+  if (!pairs.length) return 'rgba(255,255,255,0.06)'
+  return ['match', ['get', 'name'], ...pairs, 'rgba(255,255,255,0.06)']
+}
 
 // WMO weather codes
 const WMO = {
@@ -199,15 +239,6 @@ const dayLabel = (i, times) => {
   if (i === 0) return 'Today'
   if (i === 1) return 'Tomorrow'
   return DOW[new Date(times[i]).getDay()]
-}
-
-function timeAgo(d) {
-  if (!d) return null
-  const s = Math.floor((Date.now() - new Date(d)) / 1000)
-  if (s < 60) return `${s}s ago`
-  const m = Math.floor(s/60); if (m < 60) return `${m}m ago`
-  const h = Math.floor(m/60); if (h < 24) return `${h}h ago`
-  const dy = Math.floor(h/24); return `${dy}d ago`
 }
 
 // ── Collapsible section ───────────────────────────────────────────────────────
@@ -231,7 +262,7 @@ function Section({ title, icon: Icon, accent = 'text-gray-500', count, defaultOp
 
 // ── Risk category config for individual risk items ────────────────────────────
 const RISK_CAT = {
-  conflict:  { icon: Swords,        color: 'text-red-600',    bg: 'bg-red-50',    border: 'border-red-200'    },
+  conflict:  { icon: Swords,        color: 'text-[#EF7474]',    bg: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-[rgba(138,46,46,0.30)]'    },
   security:  { icon: Lock,          color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
   health:    { icon: HeartPulse,    color: 'text-rose-600',   bg: 'bg-rose-50',   border: 'border-rose-200'   },
   weather:   { icon: CloudRain,     color: 'text-sky-600',    bg: 'bg-sky-50',    border: 'border-sky-200'    },
@@ -244,11 +275,11 @@ const riskCat = (cat) => RISK_CAT[cat] || RISK_CAT.security
 function AiBrief({ brief, loading }) {
   if (loading) {
     return (
-      <div className="bg-white rounded-[10px] border border-[#0118A1]/20 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-        <div className="flex items-center gap-2.5 px-4 py-3 bg-[#0118A1]/5 border-b border-[#0118A1]/10">
-          <Brain size={14} className="text-[#0118A1]" />
-          <span className="text-xs font-bold text-[#0118A1] uppercase tracking-wider">AI Risk Assessment</span>
-          <span className="ml-auto flex items-center gap-1 text-[10px] text-[#0118A1]/60">
+      <div className="bg-white rounded-[10px] border border-[#AACC00]/20 shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-[#0118A1]/5 border-b border-[#AACC00]/10">
+          <Brain size={14} className="text-[#AACC00]" />
+          <span className="text-xs font-bold text-[#AACC00] uppercase tracking-wider">AI Risk Assessment</span>
+          <span className="ml-auto flex items-center gap-1 text-[10px] text-[#AACC00]/60">
             <RefreshCw size={9} className="animate-spin" /> Analysing all intelligence sources…
           </span>
         </div>
@@ -274,10 +305,10 @@ function AiBrief({ brief, loading }) {
   const threatSev   = sev(threatLevel)
 
   return (
-    <div className="bg-white rounded-[10px] border border-[#0118A1]/20 shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
-      <div className="flex items-center gap-2.5 px-4 py-3 bg-[#0118A1]/5 border-b border-[#0118A1]/10">
-        <Brain size={14} className="text-[#0118A1]" />
-        <span className="text-xs font-bold text-[#0118A1] uppercase tracking-wider">AI Risk Assessment</span>
+    <div className="bg-white rounded-[10px] border border-[#AACC00]/20 shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
+      <div className="flex items-center gap-2.5 px-4 py-3 bg-[#0118A1]/5 border-b border-[#AACC00]/10">
+        <Brain size={14} className="text-[#AACC00]" />
+        <span className="text-xs font-bold text-[#AACC00] uppercase tracking-wider">AI Risk Assessment</span>
         <span className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full border ${threatSev.light} ${threatSev.border} ${threatSev.text}`}>
           {threatLevel}
         </span>
@@ -367,17 +398,80 @@ function AiBrief({ brief, loading }) {
   )
 }
 
+// ── Trend icon helper ─────────────────────────────────────────────────────────
+function TrendIcon({ direction, size = 14 }) {
+  if (direction === 'escalating') return <TrendingUp  size={size} className="text-[#EF7474]" />
+  if (direction === 'improving')  return <TrendingDown size={size} className="text-[#AACC00]" />
+  if (direction === 'volatile')   return <Activity     size={size} className="text-orange-400" />
+  return <Minus size={size} className="text-gray-400" />
+}
+
+const TREND_COLORS = {
+  escalating: { text: 'text-[#EF7474]',  bg: 'bg-[rgba(138,46,46,0.10)]', border: 'border-[rgba(138,46,46,0.25)]' },
+  improving:  { text: 'text-[#AACC00]',  bg: 'bg-[rgba(170,204,0,0.10)]', border: 'border-[rgba(170,204,0,0.25)]' },
+  volatile:   { text: 'text-orange-600', bg: 'bg-orange-50',              border: 'border-orange-200'              },
+  stable:     { text: 'text-gray-500',   bg: 'bg-gray-50',                border: 'border-gray-200'               },
+}
+const trendColor = (d) => TREND_COLORS[d] || TREND_COLORS.stable
+
+// GDELT theme → operational plain-English signal phrase
+const GDELT_THEME_PHRASES = {
+  CONFLICT:   'Armed conflict on the increase',
+  TERRORISM:  'Terrorism threats elevated',
+  PROTEST:    'Civil unrest signals detected',
+  MILITARY:   'Military activity increasing',
+  COUP:       'Political instability indicators present',
+  EVACUATION: 'Displacement and evacuation activity reported',
+  EMERGENCY:  'State of emergency indicators',
+  SECURITY:   'Security force activity elevated',
+  KIDNAP:     'Kidnap and hostage risk signals',
+}
+
+// Priority order — show the highest-priority theme phrase first
+const THEME_PRIORITY = ['COUP','TERRORISM','KIDNAP','CONFLICT','MILITARY','EMERGENCY','EVACUATION','PROTEST','SECURITY']
+
+function getGdeltSignalPhrases(themes = []) {
+  if (!themes?.length) return []
+  const sorted = [...themes].sort((a, b) => {
+    const ai = THEME_PRIORITY.indexOf(a)
+    const bi = THEME_PRIORITY.indexOf(b)
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
+  })
+  return sorted.slice(0, 2).map(t => GDELT_THEME_PHRASES[t]).filter(Boolean)
+}
+
+function gdeltTempoLabel(tempo) {
+  if (tempo === null || tempo === undefined) return null
+  if (tempo >= 2.5) return 'significant spike'
+  if (tempo >= 1.5) return 'elevated'
+  if (tempo >= 0.8) return 'normal'
+  return 'quiet'
+}
+
 // ── Full country report ───────────────────────────────────────────────────────
-function CountryReport({ country }) {
+function CountryReport({ country, isDeveloper = false }) {
   const meta = COUNTRY_META[country]
-  const [risk, setRisk]       = useState(null)
-  const [weather, setWeather] = useState(null)
-  const [articles, setArticles] = useState([])
-  const [loading, setLoading]   = useState(true)
+  const [risk, setRisk]           = useState(null)
+  const [weather, setWeather]     = useState(null)
+  const [articles, setArticles]   = useState([])
+  const [loading, setLoading]     = useState(true)
   const [aiLoading, setAiLoading] = useState(true)
   const generated = new Date().toLocaleString('en-GB', {
     day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'
   })
+
+  function handlePrint() {
+    const style = document.createElement('style')
+    style.id = 'sg360-print-style'
+    style.textContent = PRINT_CSS
+    document.head.appendChild(style)
+    const cleanup = () => {
+      document.getElementById('sg360-print-style')?.remove()
+      window.removeEventListener('afterprint', cleanup)
+    }
+    window.addEventListener('afterprint', cleanup)
+    window.print()
+  }
 
   useEffect(() => {
     if (!meta) return
@@ -385,7 +479,7 @@ function CountryReport({ country }) {
     setLoading(true); setAiLoading(true)
 
     Promise.all([
-      fetch(`/api/country-risk?country=${encodeURIComponent(country)}`).then(r => r.json()).catch(() => null),
+      getCountryRisk(country).catch(() => null),
       fetch(
         `https://api.open-meteo.com/v1/forecast?latitude=${meta.lat}&longitude=${meta.lon}` +
         `&current=temperature_2m,weathercode,wind_speed_10m,relative_humidity_2m` +
@@ -396,14 +490,12 @@ function CountryReport({ country }) {
       setLoading(false); setAiLoading(false)
     })
 
-    fetch('/api/rss-ingest')
-      .then(r => r.json())
+    listFeeds()
       .then(({ feeds = [] }) => {
         const terms = [country.toLowerCase()]
         if (meta.capital) terms.push(meta.capital.toLowerCase())
         const fetches = feeds.slice(0, 8).map(f =>
-          fetch(`/api/rss-ingest?id=${f.id}&limit=5`)
-            .then(r => r.json())
+          getFeedById(f.id, 5)
             .then(d => (d.articles || []).map(a => ({ ...a, feedName: f.name, feedCategory: f.category })))
             .catch(() => [])
         )
@@ -429,39 +521,235 @@ function CountryReport({ country }) {
     ? (() => { try { return typeof risk.ai_brief === 'string' ? JSON.parse(risk.ai_brief) : risk.ai_brief } catch { return null } })()
     : null
 
+  // ── Structured rating card data ───────────────────────────────────────────
+  const fcdoLevel      = risk?.fcdo_level  ?? risk?.level  ?? null
+  const fcdoMessage    = risk?.fcdo_message ?? null
+  const fcdoUrl        = risk?.fcdo_url    ?? `https://www.gov.uk/foreign-travel-advice/${country.toLowerCase().replace(/\s+/g, '-')}`
+  const cairoSeverity  = risk?.cairo_severity ?? aiBrief?.overall_severity ?? severity
+  const cairoSev       = sev(cairoSeverity)
+  const trendDir       = risk?.trend_direction  ?? null
+  const trendLabel     = risk?.trend_label      ?? null
+  const trendReason    = risk?.trend_reason     ?? null
+  const tc             = trendColor(trendDir)
+  const gdeltThemes    = risk?.gdelt_themes     ?? []
+  const gdeltTempo     = risk?.gdelt_tempo      ?? null
+  const gdeltSignals   = getGdeltSignalPhrases(gdeltThemes)
+  const gdeltTempoStr  = gdeltTempo !== null ? `${gdeltTempoLabel(gdeltTempo)} · ${gdeltTempo}×` : null
+
+  // FCDO level label
+  const FCDO_LABEL = { 1: 'Normal Precautions', 2: 'Exercise Caution', 3: 'Reconsider Travel', 4: 'Do Not Travel' }
+  const fcdoLabel  = fcdoLevel ? (FCDO_LABEL[fcdoLevel] || sc.advice) : 'No advisory data'
+  const fcdoSevKey = fcdoLevel >= 4 ? 'Critical' : fcdoLevel >= 3 ? 'High' : fcdoLevel >= 2 ? 'Medium' : fcdoLevel === 1 ? 'Low' : 'Unknown'
+  const fcdoSc     = sev(fcdoSevKey)
+
   return (
-    <div className="space-y-4">
-      {/* Report header */}
-      <div className="bg-white rounded-[10px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-5">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">{country}</h2>
-            <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5">
-              <MapPin size={11} />{meta.capital}
-              <span className="mx-1">·</span>
-              <FileText size={11} /> Report generated {generated}
-            </p>
-          </div>
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-[8px] border shrink-0 ${sc.light} ${sc.border}`}>
-            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${sc.dot}`} />
-            <div className="text-right">
-              <div className={`text-sm font-bold ${sc.text}`}>{severity} Risk</div>
-              <div className={`text-[10px] ${sc.text} opacity-80`}>{sc.advice}</div>
+    <div id="sg360-print-root" className="space-y-4">
+
+      {/* Hidden print cover — only visible when printing */}
+      <div className="print-cover hidden">
+        <div style={{ borderBottom: '2px solid #0118A1', paddingBottom: '10px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div>
+              <div style={{ fontSize: '18pt', fontWeight: 800, color: DS.bg, letterSpacing: '-0.5px' }}>SafeGuard 360</div>
+              <div style={{ fontSize: '9pt', color: '#555', marginTop: '2px' }}>Country Risk Intelligence Report</div>
+            </div>
+            <div style={{ textAlign: 'right', fontSize: '8.5pt', color: '#666' }}>
+              <div style={{ fontWeight: 600 }}>{country} — {meta.capital}</div>
+              <div>Generated: {generated}</div>
+              <div style={{ marginTop: '2px', color: '#c00', fontWeight: 700, fontSize: '7.5pt', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                CONFIDENTIAL — Developer Use Only
+              </div>
             </div>
           </div>
         </div>
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-700 ${sc.bg}`} style={{ width: `${sc.bar}%` }} />
-        </div>
-        <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-          <span>Low</span><span>Medium</span><span>High</span><span>Critical</span>
+      </div>
+
+      {/* ── Report header strip ── */}
+      <div className="bg-white rounded-[10px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] px-5 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 leading-tight">{country}</h2>
+            <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5">
+              <MapPin size={11} />{meta.capital}
+              <span className="mx-1 text-gray-200">·</span>
+              <FileText size={11} /> {generated}
+            </p>
+          </div>
+          {isDeveloper && (
+            <button onClick={handlePrint}
+              className="print-hide shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] border border-gray-200 text-xs text-gray-500 hover:border-[#AACC00] hover:text-[#AACC00] hover:bg-[rgba(170,204,0,0.04)] transition-colors">
+              <Printer size={13} /> Export PDF
+            </button>
+          )}
         </div>
       </div>
 
-      {/* AI Assessment */}
+      {/* ── Risk rating cards ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+        {/* FCDO Advisory */}
+        <div className="bg-white rounded-[10px] border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-base leading-none">🇬🇧</span>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">UK FCDO Advisory</span>
+          </div>
+          {loading ? (
+            <div className="space-y-1.5">
+              <div className="h-6 w-28 bg-gray-100 rounded animate-pulse" />
+              <div className="h-3 w-40 bg-gray-100 rounded animate-pulse" />
+            </div>
+          ) : fcdoLevel ? (
+            <>
+              <div className={`inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-[6px] border ${fcdoSc.light} ${fcdoSc.border}`}>
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${fcdoSc.dot}`} />
+                <span className={`text-sm font-bold ${fcdoSc.text}`}>Level {fcdoLevel} — {fcdoLabel}</span>
+              </div>
+              {fcdoMessage && (
+                <p className="text-xs text-gray-500 leading-relaxed">{fcdoMessage}</p>
+              )}
+              <a href={fcdoUrl} target="_blank" rel="noopener noreferrer"
+                className="mt-auto inline-flex items-center gap-1 text-[10px] text-gray-400 hover:text-[#0118A1] font-medium transition-colors">
+                View full advisory <ExternalLink size={9} />
+              </a>
+            </>
+          ) : (
+            <p className="text-xs text-gray-400">No FCDO advisory data available.</p>
+          )}
+        </div>
+
+        {/* CAIRO Assessment */}
+        <div className="bg-white rounded-[10px] border border-[#AACC00]/20 shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <Brain size={12} className="text-[#AACC00]" />
+            <span className="text-[10px] font-bold text-[#AACC00] uppercase tracking-wider">CAIRO Assessment</span>
+          </div>
+          {(aiLoading && loading) ? (
+            <div className="space-y-1.5">
+              <div className="h-6 w-24 bg-gray-100 rounded animate-pulse" />
+              <div className="h-3 w-44 bg-gray-100 rounded animate-pulse" />
+              <div className="h-3 w-36 bg-gray-100 rounded animate-pulse" />
+            </div>
+          ) : (
+            <>
+              <div className={`inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-[6px] border ${cairoSev.light} ${cairoSev.border}`}>
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cairoSev.dot}`} />
+                <span className={`text-sm font-bold ${cairoSev.text}`}>{cairoSeverity || 'Analysing…'}</span>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Live analysis — FCDO advisory, GDACS disasters, GDELT media signals, health feeds and regional intelligence.
+              </p>
+              <span className="mt-auto inline-flex items-center gap-1 text-[10px] text-[#AACC00]/60 font-semibold">
+                <Zap size={9} /> Powered by Claude AI
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* Trend */}
+        <div className={`bg-white rounded-[10px] border shadow-[0_1px_3px_rgba(0,0,0,0.06)] p-4 flex flex-col gap-2 ${trendDir ? tc.border : 'border-gray-200'}`}>
+          <div className="flex items-center gap-2">
+            <TrendIcon direction={trendDir || 'stable'} size={12} />
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${trendDir ? tc.text : 'text-gray-400'}`}>Trend</span>
+          </div>
+          {loading ? (
+            <div className="space-y-1.5">
+              <div className="h-6 w-24 bg-gray-100 rounded animate-pulse" />
+              <div className="h-3 w-40 bg-gray-100 rounded animate-pulse" />
+              <div className="h-3 w-32 bg-gray-100 rounded animate-pulse" />
+            </div>
+          ) : trendDir ? (
+            <>
+              <div className={`inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-[6px] border ${tc.bg} ${tc.border}`}>
+                <TrendIcon direction={trendDir} size={12} />
+                <span className={`text-sm font-bold ${tc.text}`}>{trendLabel}</span>
+              </div>
+              {trendReason && (
+                <p className="text-xs text-gray-500 leading-relaxed">{trendReason}</p>
+              )}
+              {gdeltSignals.length > 0 && (
+                <div className="flex flex-col gap-0.5">
+                  {gdeltSignals.map((phrase, i) => (
+                    <p key={i} className={`text-xs font-semibold ${tc.text} leading-relaxed`}>
+                      · {phrase}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <div className="mt-auto flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[10px] text-gray-400">CAIRO assessment history</span>
+                {gdeltTempoStr && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${tc.bg} ${tc.text}`}>
+                    GDELT: {gdeltTempoStr}
+                  </span>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <div className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-[6px] border bg-gray-50 border-gray-200">
+                <Minus size={12} className="text-gray-400" />
+                <span className="text-sm font-bold text-gray-400">Building history</span>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Trend data builds over time as CAIRO monitors this country across multiple assessment cycles.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── CAIRO AI Assessment ── */}
       <AiBrief brief={aiBrief} loading={aiLoading && loading} />
 
-      {/* Health Alerts */}
+      {/* ── Intelligence Headlines (promoted — raw signal beneath the analysis) ── */}
+      <Section title="Intelligence Headlines" icon={Newspaper} accent="text-[#AACC00]"
+        count={articles.length} defaultOpen={true}>
+        {articles.length === 0 && !loading ? (
+          <p className="text-xs text-gray-400 py-4 text-center">No recent articles found mentioning {country}.</p>
+        ) : loading ? (
+          <div className="space-y-3 py-2">
+            {[...Array(3)].map((_,i) => (
+              <div key={i} className="flex items-start gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-gray-200 mt-2 shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3.5 bg-gray-100 rounded animate-pulse" />
+                  <div className="h-2.5 w-2/3 bg-gray-100 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-0 divide-y divide-gray-100">
+            {articles.map((a, i) => (
+              <div key={i} className="flex items-start gap-3 py-3 group">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#AACC00] mt-2 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <a href={a.url} target="_blank" rel="noopener noreferrer"
+                    className="text-sm font-medium text-gray-900 hover:text-[#AACC00] hover:underline leading-snug block mb-1">
+                    {a.title}
+                  </a>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-gray-50 border-gray-200 text-gray-500">
+                      {a.feedName}
+                    </span>
+                    {a.date && (
+                      <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                        <Clock size={9} />{timeAgo(a.date)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <a href={a.url} target="_blank" rel="noopener noreferrer"
+                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-[#AACC00] transition-all shrink-0 mt-1">
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* ── Health Alerts ── */}
       {!loading && (() => {
         const healthSrcs = (risk?.sources || []).filter(s => s.category === 'health')
         if (!healthSrcs.length) return null
@@ -493,47 +781,47 @@ function CountryReport({ country }) {
         )
       })()}
 
-      {/* Official Advisories */}
+      {/* ── Official Advisories ── */}
       {!loading && risk?.sources?.filter(s => !s.category).length > 0 && (
-        <Section title="Official Advisories" icon={Shield} accent="text-[#0118A1]"
-          count={risk.sources.filter(s => !s.category).length}>
+        <Section title="Official Advisories" icon={Shield} accent="text-[#AACC00]"
+          count={risk.sources.filter(s => !s.category).length} defaultOpen={false}>
           <div className="space-y-2">
             {risk.sources.filter(s => !s.category).map((src, i) => (
               <a key={i} href={src.url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-3 p-3 rounded-[8px] border border-gray-100 hover:border-[#0118A1]/30 hover:bg-blue-50/30 transition-colors group">
+                className="flex items-center gap-3 p-3 rounded-[8px] border border-gray-100 hover:border-[#AACC00]/30 hover:bg-blue-50/30 transition-colors group">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold text-gray-800 group-hover:text-[#0118A1]">{src.name}</span>
+                    <span className="text-sm font-semibold text-gray-800 group-hover:text-[#AACC00]">{src.name}</span>
                     {src.level && (
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded border
-                        ${src.level >= 4 ? 'bg-red-50 border-red-200 text-red-700' :
+                        ${src.level >= 4 ? 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)] text-[#EF7474]' :
                           src.level >= 3 ? 'bg-orange-50 border-orange-200 text-orange-700' :
                           src.level >= 2 ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
-                          'bg-green-50 border-green-200 text-green-700'}`}>
+                          'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.25)] text-[#AACC00]'}`}>
                         Level {src.level}
                       </span>
                     )}
                   </div>
                   {src.message && <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{src.message}</p>}
                 </div>
-                <ExternalLink size={13} className="text-gray-300 group-hover:text-[#0118A1] shrink-0" />
+                <ExternalLink size={13} className="text-gray-300 group-hover:text-[#AACC00] shrink-0" />
               </a>
             ))}
           </div>
         </Section>
       )}
 
-      {/* Active Disasters */}
+      {/* ── Active Disasters ── */}
       {!loading && risk?.gdacs_count > 0 && (
-        <Section title="Active Disaster Events" icon={AlertTriangle} accent="text-red-500" count={risk.gdacs_count}>
-          <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-[6px] px-3 py-2">
+        <Section title="Active Disaster Events" icon={AlertTriangle} accent="text-[#EF7474]" count={risk.gdacs_count}>
+          <p className="text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] border border-red-100 rounded-[6px] px-3 py-2">
             {risk.gdacs_count} active disaster event{risk.gdacs_count !== 1 ? 's' : ''} recorded by GDACS.{' '}
             <a href="https://gdacs.org" target="_blank" rel="noopener noreferrer" className="underline font-medium">View on GDACS →</a>
           </p>
         </Section>
       )}
 
-      {/* Seismic */}
+      {/* ── Seismic ── */}
       {!loading && risk?.usgs_count > 0 && (
         <Section title="Seismic Activity" icon={AlertTriangle} accent="text-orange-500" count={risk.usgs_count}>
           <p className="text-sm text-orange-700 bg-orange-50 border border-orange-100 rounded-[6px] px-3 py-2">
@@ -543,7 +831,7 @@ function CountryReport({ country }) {
         </Section>
       )}
 
-      {/* Weather */}
+      {/* ── Weather ── */}
       {weather?.current && (
         <Section title={`Weather — ${meta.capital}`} icon={Thermometer} accent="text-sky-500">
           <div className="flex items-center gap-4 mb-4">
@@ -571,44 +859,9 @@ function CountryReport({ country }) {
         </Section>
       )}
 
-      {/* Intel Headlines */}
-      <Section title="Intelligence Headlines" icon={FileText} accent="text-purple-500" count={articles.length} defaultOpen={articles.length > 0}>
-        {articles.length === 0 ? (
-          <p className="text-xs text-gray-400 py-4 text-center">No recent articles found mentioning {country}.</p>
-        ) : (
-          <div className="space-y-0 divide-y divide-gray-100">
-            {articles.map((a, i) => (
-              <div key={i} className="flex items-start gap-3 py-3 group">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#AACC00] mt-2 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <a href={a.url} target="_blank" rel="noopener noreferrer"
-                    className="text-sm font-medium text-gray-900 hover:text-[#0118A1] hover:underline leading-snug block mb-1">
-                    {a.title}
-                  </a>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-gray-50 border-gray-200 text-gray-500">
-                      {a.feedName}
-                    </span>
-                    {a.date && (
-                      <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                        <Clock size={9} />{timeAgo(a.date)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <a href={a.url} target="_blank" rel="noopener noreferrer"
-                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-[#0118A1] transition-all shrink-0 mt-1">
-                  <ExternalLink size={12} />
-                </a>
-              </div>
-            ))}
-          </div>
-        )}
-      </Section>
-
       {loading && (
         <div className="bg-white rounded-[10px] border border-gray-200 p-6 text-center">
-          <RefreshCw size={16} className="animate-spin text-[#0118A1] mx-auto mb-2" />
+          <RefreshCw size={16} className="animate-spin text-[#AACC00] mx-auto mb-2" />
           <p className="text-xs text-gray-400">Fetching intelligence from all sources…</p>
         </div>
       )}
@@ -622,10 +875,28 @@ export default function CountryRiskReport() {
   const [search,        setSearch]      = useState('')
   const [regionFilter,  setRegionFilter] = useState('All')
   const [mobilePicker,  setMobilePicker] = useState(false)
+  const [userRole,      setUserRole]    = useState(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('profiles').select('role').eq('id', user.id).single()
+        .then(({ data }) => setUserRole(data?.role ?? null))
+    })
+  }, [])
 
   const containerRef     = useRef(null)
   const mapRef           = useRef(null)
   const selectCountryRef = useRef(null)
+
+  const OWM_KEY = import.meta.env.VITE_OPENWEATHERMAP_KEY || ''
+  const [wxLayer, setWxLayer] = useState(null) // null | 'precipitation_new' | 'wind_new' | 'temp_new'
+
+  const WX_LAYERS = [
+    { id: 'precipitation_new', label: 'Rain', color: '#38bdf8' },
+    { id: 'wind_new',          label: 'Wind', color: '#a78bfa' },
+    { id: 'temp_new',          label: 'Temp', color: '#fb923c' },
+  ]
 
   const selectedParam = searchParams.get('country') || ''
   const [selected, setSelected] = useState(
@@ -655,6 +926,16 @@ export default function CountryRiskReport() {
   // Keep ref current so MapLibre popup buttons never use a stale closure
   selectCountryRef.current = selectCountry
 
+  // Toggle weather layers on the map
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map?.isStyleLoaded() || !OWM_KEY) return
+    WX_LAYERS.forEach(({ id }) => {
+      if (!map.getLayer(`wx-${id}`)) return
+      map.setLayoutProperty(`wx-${id}`, 'visibility', wxLayer === id ? 'visible' : 'none')
+    })
+  }, [wxLayer])
+
   // ── MapLibre map init ──────────────────────────────────────────────────────
   useEffect(() => {
     if (selected) {
@@ -665,98 +946,219 @@ export default function CountryRiskReport() {
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: MAP_STYLES.standard,
+      style: MAP_STYLES.operational,
       center: [20, 5],
       zoom: 2.5,
     })
     mapRef.current = map
 
-    const buildData = (filter) => ({
-      type: 'FeatureCollection',
-      features: Object.entries(RISK_MAP)
-        .filter(([, c]) => filter === 'All' || c.region === filter)
-        .map(([name, c]) => ({
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [c.lon, c.lat] },
-          properties: { name, risk: c.risk, region: c.region },
-        }))
-    })
+    const popupStyle = document.createElement('style')
+    popupStyle.textContent = `
+      .maplibregl-popup-content {
+        background: #11131A; color: #EAEEF5;
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 10px; padding: 12px 14px;
+        font-family: system-ui, sans-serif;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      }
+      .maplibregl-popup-close-button { color: #6E7480; font-size: 16px; }
+      .maplibregl-popup-tip { display: none !important; }
+    `
+    document.head.appendChild(popupStyle)
 
     map.on('load', () => {
-      map.addSource('risk-countries', { type: 'geojson', data: buildData(regionFilter) })
-
-      map.addLayer({
-        id: 'risk-circles',
-        type: 'circle',
-        source: 'risk-countries',
-        paint: {
-          'circle-radius': ['match', ['get', 'risk'], 'Critical', 18, 'High', 14, 'Medium', 11, 8],
-          'circle-color':  ['match', ['get', 'risk'], 'Critical', '#dc2626', 'High', '#ea580c', 'Medium', '#eab308', '#22c55e'],
-          'circle-opacity': 0.75,
-          'circle-stroke-width': 1.5,
-          'circle-stroke-color': ['match', ['get', 'risk'], 'Critical', '#b91c1c', 'High', '#c2410c', 'Medium', '#ca8a04', '#16a34a'],
-          'circle-stroke-opacity': 0.9,
-        }
+      // ── World polygon source (choropleth) ─────────────────────────────────
+      map.addSource('world', {
+        type: 'geojson',
+        data: WORLD_GEOJSON_URL,
+        generateId: true,
       })
 
-      map.on('click', 'risk-circles', (e) => {
-        const props     = e.features[0].properties
-        const rStyle    = RISK_STYLE[props.risk] || RISK_STYLE.Low
-        const textColor = props.risk === 'Medium' ? '#1f2937' : '#fff'
+      // Dark base fill for all unrated countries
+      map.addLayer({
+        id: 'country-base',
+        type: 'fill',
+        source: 'world',
+        paint: {
+          'fill-color':   '#0d1017',
+          'fill-opacity': 1,
+        },
+      })
+
+      // Risk-coloured fill for rated countries
+      map.addLayer({
+        id: 'country-fill',
+        type: 'fill',
+        source: 'world',
+        paint: {
+          'fill-color':   buildFillExpr(RISK_MAP, regionFilter),
+          'fill-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            0.90,
+            0.55,
+          ],
+        },
+      })
+
+      // Universal grid — thin line on EVERY country so adjacent same-colour countries are always separable
+      map.addLayer({
+        id: 'country-grid',
+        type: 'line',
+        source: 'world',
+        paint: {
+          'line-color': 'rgba(255,255,255,0.18)',
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            1, 0.3,
+            5, 0.7,
+            8, 1.2,
+          ],
+        },
+      })
+
+      // Brighter accent border on rated countries, drawn on top of the grid
+      map.addLayer({
+        id: 'country-borders',
+        type: 'line',
+        source: 'world',
+        paint: {
+          'line-color': buildBorderExpr(RISK_MAP, regionFilter),
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            2, 0.6,
+            6, 1.4,
+          ],
+          'line-opacity': 0.65,
+        },
+      })
+
+      // Country name labels
+      map.addLayer({
+        id: 'country-labels',
+        type: 'symbol',
+        source: 'world',
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-font': ['Open Sans Bold', 'Open Sans Regular'],
+          'text-size': [
+            'interpolate', ['linear'], ['zoom'],
+            2, 9,
+            4, 11,
+            6, 13,
+          ],
+          'text-max-width': 6,
+          'text-allow-overlap': false,
+          'text-ignore-placement': false,
+        },
+        paint: {
+          'text-color': 'rgba(255,255,255,0.88)',
+          'text-halo-color': 'rgba(0,0,0,0.70)',
+          'text-halo-width': 1.5,
+          'text-halo-blur': 0.5,
+        },
+      })
+
+      // ── Weather overlay (OpenWeatherMap tiles) ────────────────────────────
+      if (OWM_KEY) {
+        WX_LAYERS.forEach(({ id }) => {
+          map.addSource(`wx-${id}`, {
+            type: 'raster',
+            tiles: [`https://tile.openweathermap.org/map/${id}/{z}/{x}/{y}.png?appid=${OWM_KEY}`],
+            tileSize: 256,
+            attribution: '© OpenWeatherMap',
+          })
+          map.addLayer({
+            id:     `wx-${id}`,
+            type:   'raster',
+            source: `wx-${id}`,
+            layout: { visibility: 'none' },
+            paint:  { 'raster-opacity': 0.65 },
+          })
+        })
+      }
+
+      // ── Hover feature state ────────────────────────────────────────────────
+      let hoveredId = null
+      map.on('mousemove', 'country-fill', (e) => {
+        if (!e.features?.length) return
+        const feat = e.features[0]
+        const geoName = feat.properties?.name || ''
+        const key = geoToKey(geoName)
+        if (!RISK_MAP[key]) return   // only highlight rated countries
+
+        if (hoveredId !== null) {
+          map.setFeatureState({ source: 'world', id: hoveredId }, { hover: false })
+        }
+        hoveredId = feat.id
+        map.setFeatureState({ source: 'world', id: hoveredId }, { hover: true })
+        map.getCanvas().style.cursor = 'pointer'
+      })
+
+      map.on('mouseleave', 'country-fill', () => {
+        if (hoveredId !== null) {
+          map.setFeatureState({ source: 'world', id: hoveredId }, { hover: false })
+          hoveredId = null
+        }
+        map.getCanvas().style.cursor = ''
+      })
+
+      // ── Click → popup ──────────────────────────────────────────────────────
+      map.on('click', 'country-fill', (e) => {
+        if (!e.features?.length) return
+        const geoName = e.features[0].properties?.name || ''
+        const key     = geoToKey(geoName)
+        const entry   = RISK_MAP[key]
+        if (!entry) return   // unrated country — no popup
+
+        const rStyle = RISK_STYLE[entry.risk] || RISK_STYLE.Low
 
         const wrap = document.createElement('div')
-        wrap.style.cssText = 'font-family:sans-serif;padding:4px 0;min-width:170px'
+        wrap.style.cssText = 'font-family:system-ui,-apple-system,sans-serif;min-width:190px'
 
         const nameEl = document.createElement('div')
-        nameEl.style.cssText = 'font-weight:700;font-size:14px;margin-bottom:6px'
-        nameEl.textContent = props.name
+        nameEl.style.cssText = 'font-weight:700;font-size:13px;color:#EAEEF5;margin-bottom:5px'
+        nameEl.textContent = key
 
         const badge = document.createElement('div')
-        badge.style.cssText = `display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${rStyle.fillColor};color:${textColor};margin-bottom:8px`
-        badge.textContent = `${props.risk} Risk`
+        badge.style.cssText = `display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;background:${rStyle.fillColor}22;color:${rStyle.fillColor};border:1px solid ${rStyle.fillColor}44;margin-bottom:5px`
+        badge.textContent = `${entry.risk?.toUpperCase()} RISK`
 
         const regionEl = document.createElement('div')
-        regionEl.style.cssText = 'font-size:11px;color:#6b7280;margin-bottom:10px'
-        regionEl.textContent = props.region
+        regionEl.style.cssText = 'font-size:10px;color:#6E7480;margin-bottom:10px'
+        regionEl.textContent = entry.region
 
         const btn = document.createElement('button')
         btn.textContent = 'View Full Report →'
-        btn.style.cssText = 'display:block;width:100%;background:#0118A1;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer'
-        btn.onclick = () => selectCountryRef.current?.(props.name)
+        btn.style.cssText = 'display:block;width:100%;background:#AACC00;color:#09090B;border:none;border-radius:6px;padding:7px 14px;font-size:11px;font-weight:700;cursor:pointer'
+        btn.onmouseover = () => { btn.style.opacity = '0.85' }
+        btn.onmouseout  = () => { btn.style.opacity = '1' }
+        btn.onclick = () => selectCountryRef.current?.(key)
 
         wrap.appendChild(nameEl); wrap.appendChild(badge)
         wrap.appendChild(regionEl); wrap.appendChild(btn)
 
-        new maplibregl.Popup({ closeButton: true, maxWidth: '220px' })
-          .setLngLat(e.features[0].geometry.coordinates.slice())
+        new maplibregl.Popup({ closeButton: true, maxWidth: '230px' })
+          .setLngLat(e.lngLat)
           .setDOMContent(wrap)
           .addTo(map)
       })
-
-      map.on('mouseenter', 'risk-circles', () => { map.getCanvas().style.cursor = 'pointer' })
-      map.on('mouseleave', 'risk-circles', () => { map.getCanvas().style.cursor = '' })
     })
 
-    return () => { map.remove(); mapRef.current = null }
+    return () => { map.remove(); mapRef.current = null; popupStyle.remove() }
   }, [selected])
 
-  // Update GeoJSON data when region filter changes
+  // Update choropleth paint when region filter changes
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
     const apply = () => {
-      const src = map.getSource('risk-countries')
-      if (!src) return
-      src.setData({
-        type: 'FeatureCollection',
-        features: Object.entries(RISK_MAP)
-          .filter(([, c]) => regionFilter === 'All' || c.region === regionFilter)
-          .map(([name, c]) => ({
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [c.lon, c.lat] },
-            properties: { name, risk: c.risk, region: c.region },
-          }))
-      })
+      if (map.getLayer('country-fill')) {
+        map.setPaintProperty('country-fill', 'fill-color', buildFillExpr(RISK_MAP, regionFilter))
+      }
+      if (map.getLayer('country-borders')) {
+        map.setPaintProperty('country-borders', 'line-color', buildBorderExpr(RISK_MAP, regionFilter))
+      }
     }
     if (map.isStyleLoaded()) apply(); else map.once('load', apply)
   }, [regionFilter])
@@ -790,7 +1192,7 @@ export default function CountryRiskReport() {
       {/* Page header */}
       <div className="mb-5">
         <div className="flex items-center gap-2 mb-1">
-          <Shield size={20} className="text-[#0118A1]" />
+          <Shield size={20} className="text-[#AACC00]" />
           <h1 className="text-2xl font-bold text-gray-900">Country Risk Reports</h1>
         </div>
         <p className="text-sm text-gray-500">
@@ -823,8 +1225,8 @@ export default function CountryRiskReport() {
             onClick={() => setMobilePicker(p => !p)}
             className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
             <span className="flex items-center gap-2">
-              <Search size={13} className="text-[#0118A1]" />
-              <span className={selected ? 'text-[#0118A1] font-semibold' : 'text-gray-500'}>
+              <Search size={13} className="text-[#AACC00]" />
+              <span className={selected ? 'text-[#AACC00] font-semibold' : 'text-gray-500'}>
                 {selected || 'Select a country…'}
               </span>
             </span>
@@ -841,7 +1243,7 @@ export default function CountryRiskReport() {
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder="Search country…"
-                    className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-xs focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"
+                    className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-xs focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00]"
                   />
                 </div>
               </div>
@@ -857,7 +1259,7 @@ export default function CountryRiskReport() {
         {selected && (
           <button onClick={backToMap}
             className="mt-2 w-full flex items-center gap-2 justify-center px-3 py-2.5 bg-white border border-gray-200 rounded-[8px] text-xs text-gray-600 font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-            <ArrowLeft size={12} className="text-[#0118A1]" />
+            <ArrowLeft size={12} className="text-[#AACC00]" />
             Back to Risk Map
           </button>
         )}
@@ -875,7 +1277,7 @@ export default function CountryRiskReport() {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search country…"
-                  className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-xs focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"
+                  className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-xs focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00]"
                 />
               </div>
             </div>
@@ -890,7 +1292,7 @@ export default function CountryRiskReport() {
           {selected && (
             <button onClick={backToMap}
               className="w-full flex items-center gap-2 justify-center px-3 py-2.5 bg-white border border-gray-200 rounded-[8px] text-xs text-gray-600 font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <ArrowLeft size={12} className="text-[#0118A1]" />
+              <ArrowLeft size={12} className="text-[#AACC00]" />
               Back to Risk Map
             </button>
           )}
@@ -907,7 +1309,7 @@ export default function CountryRiskReport() {
                 <button key={r} onClick={() => setRegionFilter(r)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
                     ${regionFilter === r
-                      ? 'bg-[#0118A1] text-white border-[#0118A1]'
+                      ? 'bg-[#0118A1] text-white border-[#AACC00]'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
                   {r}
                 </button>
@@ -915,32 +1317,47 @@ export default function CountryRiskReport() {
             </div>
 
             {/* Map container */}
-            <div className="rounded-[10px] overflow-hidden border border-gray-200 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-              style={{ height: 500 }}>
+            <div className="rounded-[10px] overflow-hidden relative" style={{ height: 500 }}>
               <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
+              {/* Weather layer toggles */}
+              {OWM_KEY && (
+                <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5">
+                  {WX_LAYERS.map(({ id, label, color }) => (
+                    <button key={id} onClick={() => setWxLayer(wxLayer === id ? null : id)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all"
+                      style={wxLayer === id
+                        ? { background: color, color: '#fff', boxShadow: `0 0 10px ${color}60` }
+                        : { background: 'rgba(9,10,12,0.80)', color: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.10)' }
+                      }>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Legend */}
             <div className="mt-3 flex items-center gap-4 flex-wrap bg-white border border-gray-200 rounded-[8px] px-4 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Risk Level</span>
-              {['Critical', 'High', 'Medium', 'Low'].map(level => {
-                const s = RISK_STYLE[level]
-                return (
-                  <div key={level} className="flex items-center gap-1.5">
-                    <div className="rounded-full shrink-0"
-                      style={{ width: s.radius * 1.2, height: s.radius * 1.2, background: s.fillColor, opacity: 0.85 }} />
-                    <span className="text-xs text-gray-600">{level}</span>
-                  </div>
-                )
-              })}
+              {['Critical', 'High', 'Medium', 'Low'].map(level => (
+                <div key={level} className="flex items-center gap-1.5">
+                  <div className="rounded-[3px] shrink-0"
+                    style={{ width: 14, height: 14, background: RISK_COLOR[level], opacity: 0.85 }} />
+                  <span className="text-xs text-gray-600">{level}</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-1.5">
+                <div className="rounded-[3px] shrink-0" style={{ width: 14, height: 14, background: '#1a1c28' }} />
+                <span className="text-xs text-gray-400">Unrated</span>
+              </div>
               <span className="ml-auto text-[10px] text-gray-400 hidden sm:block">
-                {Object.entries(RISK_MAP).filter(([, c]) => regionFilter === 'All' || c.region === regionFilter).length} countries · click any circle for report
+                {Object.entries(RISK_MAP).filter(([, c]) => regionFilter === 'All' || c.region === regionFilter).length} countries monitored · click any country for report
               </span>
             </div>
           </div>
 
           {/* Report view */}
-          {selected && <CountryReport key={selected} country={selected} />}
+          {selected && <CountryReport key={selected} country={selected} isDeveloper={userRole === 'developer'} />}
 
         </div>
       </div>

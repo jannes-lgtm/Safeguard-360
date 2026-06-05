@@ -7,6 +7,7 @@
  */
 
 import { resolveModel } from './_claudeSynth.js'
+import { claudeCall } from './_claudeClient.js'
 import { adapt } from './_adapter.js'
 import { checkRateLimit } from './_rateLimit.js'
 
@@ -35,7 +36,7 @@ async function handler(req, res) {
   }
 
   // Rate limit: 20 visa checks per user per hour
-  const { allowed } = checkRateLimit(req, 'visa-check', { max: 20, windowMs: 3_600_000 })
+  const { allowed } = await checkRateLimit(req, 'visa-check', { max: 20, windowMs: 3_600_000 })
   if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
@@ -80,28 +81,12 @@ Be accurate and specific. If you are uncertain about exact fees or processing ti
 
   try {
     const model = await resolveModel(ANTHROPIC_API_KEY)
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key':         ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type':      'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 900,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+    const apiKey = ANTHROPIC_API_KEY
+    const raw = await claudeCall(apiKey, {
+      messages:  [{ role: 'user', content: prompt }],
+      model,
+      maxTokens: 900,
     })
-
-    if (!r.ok) {
-      const err = await r.text()
-      console.error('Anthropic error:', err)
-      res.status(502).json({ error: 'AI service error' }); return
-    }
-
-    const aiData = await r.json()
-    const raw = aiData.content?.[0]?.text || ''
 
     // Strip markdown fences if present
     const clean = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()

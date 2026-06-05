@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Megaphone, Send, Users, AlertTriangle, CheckCircle2, Clock, ChevronDown } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
+import { DS } from '../lib/ds'
 
 const SEVERITY_OPTIONS = [
   { value: 'Critical', label: 'Critical', color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', emoji: '🚨' },
@@ -15,7 +16,7 @@ const RECIPIENT_OPTIONS = [
   { value: 'upcoming', label: 'Departing in next 7 days',            sub: 'Travellers with a trip starting this week' },
 ]
 
-const inputCls  = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
+const inputCls  = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-white'
 const labelCls  = 'block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide'
 
 export default function CrisisBroadcast() {
@@ -34,9 +35,9 @@ export default function CrisisBroadcast() {
   useEffect(() => { init() }, [])
 
   const init = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    const { data: prof } = await supabase.from('profiles').select('*, organisations(name)').eq('id', session.user.id).single()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: prof } = await supabase.from('profiles').select('*, organisations(name)').eq('id', user.id).single()
     setProfile(prof)
     loadHistory(prof?.org_id)
   }
@@ -93,7 +94,7 @@ export default function CrisisBroadcast() {
           Crisis Broadcast
         </h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          Send an urgent message to all or selected travellers — delivered by email and SMS
+          Send an urgent message to all or selected travellers — delivered by email, SMS and WhatsApp
         </p>
       </div>
 
@@ -102,18 +103,28 @@ export default function CrisisBroadcast() {
         {/* ── Composer ── */}
         <div className="lg:col-span-2 space-y-4">
 
-          {/* Success banner */}
+          {/* Result banner */}
           {result && (
-            <div className="flex items-start gap-3 px-5 py-4 bg-green-50 border border-green-200 rounded-2xl">
-              <CheckCircle2 size={18} className="text-green-500 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-bold text-green-800">Broadcast sent successfully</p>
-                <p className="text-xs text-green-700 mt-0.5">
-                  Delivered to <strong>{result.recipient_count}</strong> recipient{result.recipient_count !== 1 ? 's' : ''}
-                  {result.sent !== result.recipient_count && ` (${result.sent} notifications dispatched)`}.
+            <div className={`flex items-start gap-3 px-5 py-4 rounded-2xl border ${result.sent > 0 ? 'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.25)]' : 'bg-[rgba(138,46,46,0.08)] border-[rgba(138,46,46,0.25)]'}`}>
+              <CheckCircle2 size={18} className={`mt-0.5 shrink-0 ${result.sent > 0 ? 'text-[#AACC00]' : 'text-[#EF7474]'}`} />
+              <div className="flex-1">
+                <p className={`text-sm font-bold ${result.sent > 0 ? 'text-green-800' : 'text-[#EF7474]'}`}>
+                  {result.sent > 0 ? 'Broadcast sent' : 'Broadcast found recipients but 0 delivered'}
                 </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {result.recipient_count} recipient{result.recipient_count !== 1 ? 's' : ''} · {result.sent} notification{result.sent !== 1 ? 's' : ''} dispatched
+                </p>
+                {result.channels?.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {result.channels.map((c, i) => (
+                      <span key={i} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${c.ok ? 'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.30)] text-[#AACC00]' : 'bg-[rgba(138,46,46,0.08)] border-[rgba(138,46,46,0.25)] text-[#EF7474]'}`}>
+                        {c.ok ? '✓' : '✗'} {c.channel} {c.to}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
-              <button onClick={() => setResult(null)} className="ml-auto text-green-400 hover:text-green-600 text-lg leading-none">×</button>
+              <button onClick={() => setResult(null)} className="ml-auto text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
             </div>
           )}
 
@@ -146,8 +157,8 @@ export default function CrisisBroadcast() {
                     <label key={opt.value}
                       className="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all"
                       style={recipients === opt.value
-                        ? { borderColor: '#0118A1', background: '#EEF1FF' }
-                        : { borderColor: '#E5E7EB', background: '#fff' }}>
+                        ? { borderColor: DS.green, background: DS.greenDim }
+                        : { borderColor: '#E5E7EB', background: DS.surface }}>
                       <input
                         type="radio" name="recipients" value={opt.value}
                         checked={recipients === opt.value}
@@ -191,7 +202,7 @@ export default function CrisisBroadcast() {
 
               {/* Error */}
               {error && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                <div className="flex items-center gap-2 px-4 py-3 bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-xl text-sm text-[#EF7474]">
                   <AlertTriangle size={14} className="shrink-0" /> {error}
                 </div>
               )}
@@ -222,9 +233,9 @@ export default function CrisisBroadcast() {
                   Send Broadcast to {RECIPIENT_OPTIONS.find(r => r.value === recipients)?.label}
                 </button>
               ) : (
-                <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                <div className="rounded-xl border border-amber-300 bg-[rgba(144,106,37,0.12)] p-4">
                   <p className="text-sm font-bold text-amber-900 mb-1">Confirm broadcast</p>
-                  <p className="text-xs text-amber-700 mb-3">
+                  <p className="text-xs text-[#D4A64A] mb-3">
                     This will send a <strong>{severity}</strong> priority message to all matching travellers via email and SMS.
                     This cannot be undone.
                   </p>
@@ -261,7 +272,7 @@ export default function CrisisBroadcast() {
               </div>
             ) : history.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: '#EEF1FF' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: DS.greenDim }}>
                   <Megaphone size={18} color="#0118A1" />
                 </div>
                 <p className="text-xs text-gray-400">No broadcasts sent yet</p>

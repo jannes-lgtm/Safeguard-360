@@ -7,9 +7,8 @@ import {
 import Layout from '../components/Layout'
 import ProgressBar from '../components/ProgressBar'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 // ── ISO 31030 module metadata ─────────────────────────────────────────────────
 const MODULE_META = {
@@ -108,7 +107,7 @@ function ModuleModal({ mod, tripAssignments, onClose, onComplete }) {
             <X size={16} />
           </button>
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl font-black"
-            style={{ background: BRAND_BLUE, color: 'white' }}>
+            style={{ background: DS.green, color: DS.bg }}>
             {mod.module_order}
           </div>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
@@ -121,13 +120,13 @@ function ModuleModal({ mod, tripAssignments, onClose, onComplete }) {
 
           {/* Required for trip banner */}
           {requiredTrips.length > 0 && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="rounded-xl border border-[rgba(144,106,37,0.30)] bg-[rgba(144,106,37,0.12)] px-4 py-3">
               <div className="flex items-center gap-2 mb-1.5">
-                <AlertTriangle size={12} className="text-amber-600 shrink-0" />
+                <AlertTriangle size={12} className="text-[#D4A64A] shrink-0" />
                 <p className="text-xs font-bold text-amber-800">Required before travel</p>
               </div>
               {requiredTrips.map(a => (
-                <div key={a.id} className="flex items-center gap-1.5 text-xs text-amber-700 mt-1">
+                <div key={a.id} className="flex items-center gap-1.5 text-xs text-[#D4A64A] mt-1">
                   <Plane size={10} />
                   {a.trip_name || 'Upcoming trip'}
                 </div>
@@ -150,7 +149,7 @@ function ModuleModal({ mod, tripAssignments, onClose, onComplete }) {
                 {meta.topics.map((t, i) => (
                   <li key={i} className="flex items-center gap-2 text-xs text-gray-600">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ background: BRAND_BLUE, opacity: 0.5 }} />
+                      style={{ background: DS.green, opacity: 0.5 }} />
                     {t}
                   </li>
                 ))}
@@ -169,7 +168,7 @@ function ModuleModal({ mod, tripAssignments, onClose, onComplete }) {
             <p className="text-xs font-semibold text-blue-800 mb-1">
               Interactive content launching soon
             </p>
-            <p className="text-xs text-blue-600 leading-relaxed">
+            <p className="text-xs text-[#6EA8C8] leading-relaxed">
               The full interactive module is being prepared. Once you have reviewed
               the topics and understand the material, you can mark this module as complete.
             </p>
@@ -177,8 +176,8 @@ function ModuleModal({ mod, tripAssignments, onClose, onComplete }) {
 
           {/* Complete / done state */}
           {done ? (
-            <div className="flex items-center justify-center gap-2 py-3 rounded-xl text-green-700 font-bold text-sm"
-              style={{ background: '#F0FDF4', border: '1.5px solid #BBF7D0' }}>
+            <div className="flex items-center justify-center gap-2 py-3 rounded-xl text-[#AACC00] font-bold text-sm"
+              style={{ background: DS.greenDim, border: '1.5px solid #BBF7D0' }}>
               <CheckCircle2 size={16} />
               Module complete!
             </div>
@@ -187,7 +186,7 @@ function ModuleModal({ mod, tripAssignments, onClose, onComplete }) {
               onClick={markComplete}
               disabled={completing}
               className="w-full py-3 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+              style={{ background: BRAND_GREEN, color: DS.green }}>
               {completing
                 ? <><RefreshCw size={14} className="animate-spin" /> Saving…</>
                 : <><CheckCircle2 size={14} /> Mark as Complete</>
@@ -222,25 +221,25 @@ function TripRequirementsBanner({ trips, modules }) {
           <div key={trip.id}
             className={`rounded-2xl border p-5 ${
               allDone
-                ? 'bg-green-50 border-green-200'
-                : 'bg-amber-50 border-amber-200'
+                ? 'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.25)]'
+                : 'bg-[rgba(144,106,37,0.12)] border-[rgba(144,106,37,0.30)]'
             }`}>
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <Plane size={13} className={allDone ? 'text-green-600' : 'text-amber-600'} />
+                  <Plane size={13} className={allDone ? 'text-[#AACC00]' : 'text-[#D4A64A]'} />
                   <p className={`text-sm font-bold ${allDone ? 'text-green-800' : 'text-amber-800'}`}>
                     {trip.trip_name}
                   </p>
                 </div>
-                <p className={`text-xs flex items-center gap-1 ${allDone ? 'text-green-600' : 'text-amber-600'}`}>
+                <p className={`text-xs flex items-center gap-1 ${allDone ? 'text-[#AACC00]' : 'text-[#D4A64A]'}`}>
                   <MapPin size={10} />
                   {trip.departure_city} → {trip.arrival_city} · Departs{' '}
                   {new Date(trip.depart_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className={`text-lg font-black ${allDone ? 'text-green-700' : 'text-amber-700'}`}>{pct}%</p>
+                <p className={`text-lg font-black ${allDone ? 'text-[#AACC00]' : 'text-[#D4A64A]'}`}>{pct}%</p>
                 <p className="text-[10px] text-gray-500">complete</p>
               </div>
             </div>
@@ -260,14 +259,14 @@ function TripRequirementsBanner({ trips, modules }) {
               {trip.assignments.map(a => (
                 <div key={a.id} className="flex items-center gap-2 text-xs">
                   {a.completed
-                    ? <CheckCircle2 size={12} className="text-green-500 shrink-0" />
+                    ? <CheckCircle2 size={12} className="text-[#AACC00] shrink-0" />
                     : <div className="w-3 h-3 rounded-full border-2 border-amber-400 shrink-0" />
                   }
-                  <span className={a.completed ? 'text-green-700 line-through' : 'text-amber-800 font-medium'}>
+                  <span className={a.completed ? 'text-[#AACC00] line-through' : 'text-amber-800 font-medium'}>
                     {a.module_name}
                   </span>
                   {!a.completed && a.required_before_travel && (
-                    <span className="ml-auto text-[9px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">
+                    <span className="ml-auto text-[9px] font-bold text-[#D4A64A] bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">
                       Required
                     </span>
                   )}
@@ -276,7 +275,7 @@ function TripRequirementsBanner({ trips, modules }) {
             </div>
 
             {allDone && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-green-700 font-semibold">
+              <div className="mt-3 flex items-center gap-2 text-xs text-[#AACC00] font-semibold">
                 <CheckCircle2 size={13} />
                 All pre-travel training complete — you're cleared to travel
               </div>
@@ -297,10 +296,10 @@ export default function Training() {
   const [activeModal, setActiveModal]       = useState(null)
 
   const load = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-    const uid   = session.user.id
+    const uid   = user.id
     const today = new Date().toISOString().split('T')[0]
 
     const [
@@ -407,7 +406,7 @@ export default function Training() {
         <div className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-10"
           style={{ background: BRAND_GREEN, transform: 'translate(30%, -30%)' }} />
         <div className="absolute bottom-0 right-16 w-24 h-24 rounded-full opacity-10"
-          style={{ background: 'white', transform: 'translate(0%, 40%)' }} />
+          style={{ background: DS.surface, transform: 'translate(0%, 40%)' }} />
 
         <div className="relative flex items-end justify-between gap-4">
           <div className="flex-1">
@@ -501,7 +500,7 @@ export default function Training() {
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-black text-base"
                         style={isComplete
                           ? { background: `${BRAND_GREEN}20`, color: '#3F6212' }
-                          : { background: `${BRAND_BLUE}10`, color: BRAND_BLUE }
+                          : { background: DS.greenDim, color: DS.green }
                         }>
                         {mod.module_order}
                       </div>
@@ -514,7 +513,7 @@ export default function Training() {
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {isRequired && !isComplete && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-0.5">
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-[#D4A64A] border border-[rgba(144,106,37,0.30)] flex items-center gap-0.5">
                           <Plane size={8} /> Trip req.
                         </span>
                       )}
@@ -577,7 +576,7 @@ export default function Training() {
       {/* ISO note */}
       <div className="mt-6 rounded-2xl p-4 flex items-start gap-3"
         style={{ background: `${BRAND_BLUE}06`, border: `1px solid ${BRAND_BLUE}12` }}>
-        <BookOpen size={14} style={{ color: BRAND_BLUE, opacity: 0.5 }} className="shrink-0 mt-0.5" />
+        <BookOpen size={14} style={{ color: DS.green, opacity: 0.5 }} className="shrink-0 mt-0.5" />
         <p className="text-xs leading-relaxed" style={{ color: `${BRAND_BLUE}99` }}>
           This training follows <strong>ISO 31000:2018</strong> and <strong>ISO 31030:2021</strong>.
           Completing a module here automatically updates any pre-travel requirements for your approved trips.

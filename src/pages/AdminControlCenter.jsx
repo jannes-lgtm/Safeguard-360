@@ -11,14 +11,15 @@ import {
   Swords, HeartPulse, CloudRain, ChevronRight, ArrowUpRight,
   UserCheck, UserX, Plus, X, Loader2, Pencil, Trash2,
   Globe, BookOpen, Newspaper, Link2, Link2Off, Mail,
-  ClipboardList, ChevronDown, ChevronUp, Download,
+  ClipboardList, ChevronDown, ChevronUp, Download, Monitor,
+  Cpu, Rss, Database, BrainCircuit, Eye, LayoutDashboard, Car,
+  TrendingUp, Navigation, Zap, MapPin, Clock,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
 import { logAudit } from '../lib/audit'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 const TABS = [
   { id: 'overview',    label: 'Overview',       icon: LayoutGrid },
@@ -28,9 +29,83 @@ const TABS = [
   { id: 'policies',    label: 'Policies',        icon: FileText },
   { id: 'training',    label: 'Training',        icon: GraduationCap },
   { id: 'audit',       label: 'Audit Log',       icon: ClipboardList },
+  { id: 'traffic',     label: 'Live Traffic',    icon: Car },
+  { id: 'platform',    label: 'Platform',        icon: LayoutDashboard },
+  { id: 'gsoc',        label: 'GSOC',            icon: Monitor },
 ]
 
-const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1]'
+// ── All RSS feeds wired into CAIRO + Intel pipeline ───────────────────────────
+// Mirrors ALL_RISK_FEEDS in api/_claudeSynth.js — update both together.
+const CAIRO_RSS_FEEDS = [
+  // Conflict & wire services
+  { name: 'Reuters World',        category: 'conflict',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'AP World',             category: 'conflict',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'BBC World',            category: 'conflict',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'France 24',            category: 'conflict',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Al Jazeera',           category: 'conflict',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Middle East Eye',      category: 'conflict',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Iran International',   category: 'conflict',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Kyiv Independent',     category: 'conflict',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'UN News Africa',       category: 'conflict',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'UN News ME',           category: 'conflict',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'ACLED Blog',           category: 'conflict',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'The Defense Post',     category: 'conflict',      tier: 2, dest: ['cairo','intel'] },
+  // Security analysis
+  { name: 'ISS Africa',           category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Crisis Group Africa',  category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Crisis Group MENA',    category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Jamestown Foundation', category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'BBC Africa',           category: 'security',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'African Arguments',    category: 'security',      tier: 3, dest: ['cairo','intel'] },
+  { name: 'Oxford Analytica',     category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Soufan Center',        category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Foreign Policy',       category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'The Africa Report',    category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'CSIS',                 category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'War on the Rocks',     category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Janes Defence',        category: 'security',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'The Strategy Bridge',  category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'IISS',                 category: 'security',      tier: 1, dest: ['cairo','intel'] },
+  { name: 'The Diplomat',         category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Euractiv',             category: 'security',      tier: 2, dest: ['cairo','intel'] },
+  // Crime
+  { name: 'InSight Crime',        category: 'crime',         tier: 2, dest: ['cairo','intel'] },
+  // Economic & infrastructure
+  { name: 'Trading Economics',    category: 'economic',      tier: 2, dest: ['cairo','intel'] },
+  { name: 'Power Tech',           category: 'infrastructure',tier: 3, dest: ['cairo','intel'] },
+  // Aviation
+  { name: 'AviPages',             category: 'aviation',      tier: 2, dest: ['cairo','intel'] },
+  // Health
+  { name: 'WHO',                  category: 'health',        tier: 1, dest: ['cairo','intel'] },
+  { name: 'ReliefWeb/WHO',        category: 'health',        tier: 1, dest: ['cairo','intel'] },
+  { name: 'Outbreak News Today',  category: 'health',        tier: 2, dest: ['cairo','intel'] },
+  { name: 'CIDRAP',               category: 'health',        tier: 2, dest: ['cairo','intel'] },
+  { name: 'PAHO',                 category: 'health',        tier: 1, dest: ['cairo','intel'] },
+  { name: 'Africa CDC',           category: 'health',        tier: 2, dest: ['cairo','intel'] },
+  // Weather & disasters
+  { name: 'ReliefWeb Disasters',  category: 'weather',       tier: 1, dest: ['cairo','intel'] },
+  { name: 'NOAA NHC Atlantic',    category: 'weather',       tier: 1, dest: ['intel'] },
+  { name: 'NOAA NHC East Pacific',category: 'weather',       tier: 1, dest: ['intel'] },
+  { name: 'NetBlocks',            category: 'infrastructure', tier: 2, dest: ['cairo','intel'] },
+]
+
+const TIER_LABEL = { 1: 'T1', 2: 'T2', 3: 'T3' }
+const TIER_COLOR = { 1: 'green', 2: 'blue', 3: 'gray' }
+
+const CAT_ICON = {
+  conflict:       Swords,
+  security:       Shield,
+  crime:          Eye,
+  economic:       Activity,
+  infrastructure: Cpu,
+  aviation:       Plane,
+  health:         HeartPulse,
+  weather:        CloudRain,
+}
+
+const RSS_CATEGORIES = ['all','conflict','security','crime','economic','infrastructure','aviation','health','weather']
+
+const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]'
 const labelCls = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
 
 function fmtDate(d) {
@@ -45,9 +120,9 @@ function initials(name) {
 // ── Small shared components ───────────────────────────────────────────────────
 function Pill({ label, color = 'gray' }) {
   const map = {
-    green:  'bg-green-100 text-green-700 border-green-200',
-    red:    'bg-red-100 text-red-700 border-red-200',
-    amber:  'bg-amber-100 text-amber-700 border-amber-200',
+    green:  'bg-green-100 text-[#AACC00] border-[rgba(170,204,0,0.25)]',
+    red:    'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',
+    amber:  'bg-amber-100 text-[#D4A64A] border-[rgba(144,106,37,0.30)]',
     blue:   'bg-blue-100 text-blue-700 border-blue-200',
     purple: 'bg-purple-100 text-purple-700 border-purple-200',
     gray:   'bg-gray-100 text-gray-600 border-gray-200',
@@ -111,7 +186,7 @@ function SaveBtn({ saving, label = 'Save', onClick }) {
   return (
     <button onClick={onClick} disabled={saving}
       className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60 transition-all"
-      style={{ background: BRAND_BLUE }}>
+      style={{ background: DS.green }}>
       {saving && <Loader2 size={14} className="animate-spin" />}
       {saving ? 'Saving…' : label}
     </button>
@@ -132,10 +207,18 @@ const BUILTIN_FEEDS = [
   { id: 'promed',            name: 'ProMED Mail',              category: 'health',       status: 'active' },
   { id: 'gdacs',             name: 'GDACS (UN Disasters)',     category: 'weather',      status: 'active' },
   { id: 'usgs',              name: 'USGS Earthquakes',         category: 'weather',      status: 'active' },
-  { id: 'openweathermap',    name: 'OpenWeatherMap',           category: 'weather',      status: 'pending_key' },
+  { id: 'openweathermap',    name: 'OpenWeatherMap',           category: 'weather',      status: 'active' },
+  { id: 'nhc-atlantic',      name: 'NOAA NHC — Atlantic',      category: 'weather',      status: 'active' },
+  { id: 'nhc-pacific',       name: 'NOAA NHC — East Pacific',  category: 'weather',      status: 'active' },
   { id: 'eonet',             name: 'NASA EONET',               category: 'weather',      status: 'active' },
-  { id: 'open-meteo',        name: 'Open-Meteo',              category: 'weather',      status: 'active' },
+  { id: 'open-meteo',        name: 'Open-Meteo',               category: 'weather',      status: 'active' },
   { id: 'osac',              name: 'OSAC',                     category: 'security',     status: 'pending' },
+  { id: 'oxford-analytica',  name: 'Oxford Analytica',         category: 'security',     status: 'active' },
+  { id: 'soufan-center',     name: 'The Soufan Center',        category: 'security',     status: 'active' },
+  { id: 'foreign-policy',    name: 'Foreign Policy',           category: 'security',     status: 'active' },
+  { id: 'africa-report',     name: 'The Africa Report',        category: 'security',     status: 'active' },
+  { id: 'csis',              name: 'CSIS',                     category: 'security',     status: 'pending' },
+  { id: 'spglobal',          name: 'S&P Global Intelligence',  category: 'security',     status: 'pending_key' },
   { id: 'control-risks',     name: 'Control Risks',            category: 'security',     status: 'partnership' },
   { id: 'crisis24',          name: 'Crisis24 (Garda World)',   category: 'security',     status: 'partnership' },
 ]
@@ -188,7 +271,7 @@ function OrgModal({ org, onClose, onSaved }) {
 
   return (
     <Modal title={org ? 'Edit Organisation' : 'Add Organisation'} onClose={onClose} wide>
-      {error && <p className="mb-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+      {error && <p className="mb-3 text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] rounded-xl px-3 py-2">{error}</p>}
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
@@ -306,7 +389,7 @@ function InviteModal({ orgs, onClose, onSaved }) {
         </div>
       ) : (
         <div className="space-y-4">
-          {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+          {error && <p className="text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] rounded-xl px-3 py-2">{error}</p>}
           <div>
             <label className={labelCls}>Email Address *</label>
             <input className={inputCls} type="email" placeholder="traveller@company.com" {...f('email')} />
@@ -422,7 +505,7 @@ function FeedModal({ feed, onClose, onSaved }) {
 
   return (
     <Modal title={feed ? 'Edit Custom Feed' : 'Add Custom Intel Feed'} onClose={onClose}>
-      {error && <p className="mb-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+      {error && <p className="mb-3 text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] rounded-xl px-3 py-2">{error}</p>}
       <div className="space-y-4">
         <div>
           <label className={labelCls}>Feed Name *</label>
@@ -489,7 +572,7 @@ function PolicyModal({ policy, orgs, onClose, onSaved }) {
 
   return (
     <Modal title={policy ? 'Edit Policy' : 'Add Policy'} onClose={onClose}>
-      {error && <p className="mb-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+      {error && <p className="mb-3 text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] rounded-xl px-3 py-2">{error}</p>}
       <div className="space-y-4">
         <div>
           <label className={labelCls}>Policy Name *</label>
@@ -571,7 +654,7 @@ function TrainingModal({ module, orgs, onClose, onSaved }) {
 
   return (
     <Modal title={module ? 'Edit Training Module' : 'Add Training Module'} onClose={onClose}>
-      {error && <p className="mb-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+      {error && <p className="mb-3 text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] rounded-xl px-3 py-2">{error}</p>}
       <div className="space-y-4">
         <div>
           <label className={labelCls}>Module Title *</label>
@@ -621,6 +704,511 @@ function TrainingModal({ module, orgs, onClose, onSaved }) {
   )
 }
 
+// ── Live Traffic Tab ──────────────────────────────────────────────────────────
+const CONGESTION_STYLE = {
+  free:       { label: 'Free',       dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',  bar: 'bg-emerald-400', pct: 5  },
+  low:        { label: 'Low',        dot: 'bg-yellow-400',  badge: 'bg-yellow-50 text-yellow-700 border-yellow-200',     bar: 'bg-yellow-400',  pct: 25 },
+  moderate:   { label: 'Moderate',   dot: 'bg-orange-400',  badge: 'bg-orange-50 text-orange-700 border-orange-200',     bar: 'bg-orange-400',  pct: 55 },
+  heavy:      { label: 'Heavy',      dot: 'bg-red-500',     badge: 'bg-[rgba(138,46,46,0.12)] text-[#EF7474] border-[rgba(138,46,46,0.30)]',              bar: 'bg-red-500',     pct: 80 },
+  standstill: { label: 'Standstill', dot: 'bg-red-900',     badge: 'bg-red-100 text-red-900 border-red-300',             bar: 'bg-red-900',     pct: 100},
+}
+
+function fmtMins(secs) {
+  if (!secs) return '—'
+  const h = Math.floor(secs / 3600), m = Math.round((secs % 3600) / 60)
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
+// ── Run Scan Now button ───────────────────────────────────────────────────────
+
+function RunScanButton() {
+  const [state, setState] = useState('idle') // idle | running | done | error
+  const [result, setResult] = useState(null)
+
+  const run = async () => {
+    setState('running')
+    setResult(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin-trigger-scan', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Scan failed')
+      setResult(json)
+      setState('done')
+      setTimeout(() => setState('idle'), 8000)
+    } catch (e) {
+      setResult({ error: e.message })
+      setState('error')
+      setTimeout(() => setState('idle'), 6000)
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1.5 shrink-0">
+      <button onClick={run} disabled={state === 'running'}
+        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+        style={{ background: state === 'done' ? '#16A34A' : state === 'error' ? '#DC2626' : BRAND_BLUE, color: 'white', minWidth: 140 }}>
+        {state === 'running'
+          ? <><RefreshCw size={13} className="animate-spin" /> Scanning…</>
+          : state === 'done'
+          ? <><CheckCircle2 size={13} /> Scan fired!</>
+          : state === 'error'
+          ? <><AlertTriangle size={13} /> Failed</>
+          : <><Zap size={13} /> Run Scan Now</>
+        }
+      </button>
+      {result && state === 'done' && (
+        <p className="text-[10px] text-[#AACC00] font-medium">
+          {result.fanned_out} countr{result.fanned_out === 1 ? 'y' : 'ies'} · {result.itineraries} trips
+        </p>
+      )}
+      {result && state === 'error' && (
+        <p className="text-[10px] text-[#EF7474]">{result.error}</p>
+      )}
+    </div>
+  )
+}
+
+// ── Backfill Embeddings button ────────────────────────────────────────────────
+
+function IntelHealthPanel() {
+  const [health, setHealth] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const check = async () => {
+    setLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/intel-health', {
+        headers: { Authorization: `Bearer ${session?.access_token}` }
+      })
+      const text = await res.text()
+      setHealth(JSON.parse(text))
+    } catch (e) {
+      setHealth({ error: e.message })
+    }
+    setLoading(false)
+  }
+
+  const score = health?.health_score
+  const scoreColor = score >= 80 ? '#16A34A' : score >= 60 ? '#F59E0B' : '#DC2626'
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Intelligence Health</p>
+        <button type="button" onClick={check} disabled={loading}
+          className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors"
+          style={{ background: '#F3F4F6', color: '#374151' }}>
+          {loading ? 'Checking…' : 'Run Health Check'}
+        </button>
+      </div>
+
+      {!health && !loading && (
+        <p className="text-xs text-gray-400">Click to run retrieval validation across all intelligence sources.</p>
+      )}
+
+      {health?.error && (
+        <p className="text-xs text-[#EF7474]">{health.error}</p>
+      )}
+
+      {health && !health.error && (
+        <div className="space-y-3">
+          {/* Score */}
+          <div className="flex items-center gap-3">
+            <div className="text-3xl font-black" style={{ color: scoreColor }}>{score}</div>
+            <div>
+              <p className="text-xs font-bold" style={{ color: scoreColor }}>{score >= 80 ? 'HEALTHY' : score >= 60 ? 'DEGRADED' : 'CRITICAL'}</p>
+              <p className="text-[10px] text-gray-400">Overall intelligence health score</p>
+            </div>
+          </div>
+
+          {/* Retrieval */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-gray-50 rounded-lg p-2.5">
+              <p className="text-[10px] text-gray-500 mb-1">Vector Search</p>
+              <p className="text-xs font-bold" style={{ color: health.retrieval.vector_ok ? '#16A34A' : '#DC2626' }}>
+                {health.retrieval.vector_ok ? `✓ ${health.retrieval.vector_results} results` : '✗ Failed'}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-2.5">
+              <p className="text-[10px] text-gray-500 mb-1">Keyword Search</p>
+              <p className="text-xs font-bold" style={{ color: health.retrieval.keyword_ok ? '#16A34A' : '#DC2626' }}>
+                {health.retrieval.keyword_ok ? '✓ OK' : '✗ Failed'}
+              </p>
+            </div>
+          </div>
+
+          {/* Documents */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-gray-50 rounded-lg p-2">
+              <p className="text-base font-black text-gray-800">{health.documents.total}</p>
+              <p className="text-[9px] text-gray-500">Total Docs</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-2">
+              <p className="text-base font-black" style={{ color: '#7C3AED' }}>{health.embeddings.embedded}</p>
+              <p className="text-[9px] text-gray-500">Embedded</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-2">
+              <p className="text-base font-black" style={{ color: health.embeddings.missing > 0 ? '#F59E0B' : '#16A34A' }}>{health.embeddings.missing}</p>
+              <p className="text-[9px] text-gray-500">Missing Emb.</p>
+            </div>
+          </div>
+
+          {/* Freshness */}
+          <div className="flex gap-2 text-[10px] text-gray-500">
+            <span className="bg-[rgba(170,204,0,0.10)] text-[#AACC00] px-2 py-0.5 rounded-full font-medium">{health.documents.fresh_7d} this week</span>
+            <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{health.documents.fresh_30d} this month</span>
+            {health.documents.stale_90d > 0 && (
+              <span className="bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full font-medium">{health.documents.stale_90d} stale (&gt;90d)</span>
+            )}
+          </div>
+
+          {/* Dead letter */}
+          {health.dead_letter.unresolved > 0 && (
+            <div className="bg-[rgba(138,46,46,0.12)] rounded-lg p-2.5">
+              <p className="text-xs font-bold text-[#EF7474]">⚠ {health.dead_letter.unresolved} failed ingestion(s)</p>
+              {Object.entries(health.dead_letter.by_stage).map(([stage, count]) => (
+                <p key={stage} className="text-[10px] text-[#EF7474]">{stage}: {count}</p>
+              ))}
+            </div>
+          )}
+
+          {/* Retrieval errors */}
+          {health.retrieval.errors?.length > 0 && (
+            <p className="text-[10px] text-orange-500">{health.retrieval.errors[0]}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BackfillEmbeddingsButton() {
+  const [state, setState]   = useState('idle')
+  const [result, setResult] = useState(null)
+
+  const run = async () => {
+    setState('running')
+    setResult(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/backfill-embeddings', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+      })
+      const raw = await res.text()
+      let json
+      try { json = JSON.parse(raw) } catch {
+        throw new Error(`API returned non-JSON (HTTP ${res.status}): ${raw.slice(0, 300)}`)
+      }
+      if (!res.ok) throw new Error(json.error || 'Backfill failed')
+      setResult(json)
+      setState('done')
+      setTimeout(() => setState('idle'), 10000)
+    } catch (e) {
+      setResult({ error: e.message })
+      setState('error')
+      setTimeout(() => setState('idle'), 6000)
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1.5 shrink-0">
+      <button onClick={run} disabled={state === 'running'}
+        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+        style={{ background: state === 'done' ? '#16A34A' : state === 'error' ? '#DC2626' : '#7C3AED', color: 'white', minWidth: 160 }}>
+        {state === 'running'
+          ? <><RefreshCw size={13} className="animate-spin" /> Embedding…</>
+          : state === 'done'
+          ? <><CheckCircle2 size={13} /> Embeddings done!</>
+          : state === 'error'
+          ? <><AlertTriangle size={13} /> Failed</>
+          : <><Zap size={13} /> Embed Knowledge Base</>
+        }
+      </button>
+      {result && state === 'done' && (
+        <p className="text-[10px] text-[#AACC00] font-medium">
+          {result.success} embedded · {result.failed} failed
+        </p>
+      )}
+      {result && state === 'done' && result.model && (
+        <p className="text-[10px] text-gray-400">
+          {result.model} · {result.dims}d
+          {result.smoke_test?.ok ? ' · ✓ retrieval ok' : result.smoke_test ? ' · ⚠ retrieval failed' : ''}
+        </p>
+      )}
+      {result?.errors?.length > 0 && state === 'done' && (
+        <p className="text-[10px] text-orange-400 max-w-[240px] text-right leading-tight">
+          {result.errors[0]}
+        </p>
+      )}
+      {result?.message && state === 'done' && (
+        <p className="text-[10px] text-gray-500">{result.message}</p>
+      )}
+      {result && state === 'error' && (
+        <p className="text-[10px] text-[#EF7474] max-w-[240px] text-right leading-tight">{result.error}</p>
+      )}
+    </div>
+  )
+}
+
+function LiveTrafficTab() {
+  const [corridors,  setCorridors]  = useState([])
+  const [snapshots,  setSnapshots]  = useState({})  // keyed by corridor_id
+  const [loading,    setLoading]    = useState(true)
+  const [ingesting,  setIngesting]  = useState(false)
+  const [lastRun,    setLastRun]    = useState(null)
+  const [sources,    setSources]    = useState(null)
+  const [filter,     setFilter]     = useState('All')
+
+  async function loadData() {
+    setLoading(true)
+    const { data: cors } = await supabase
+      .from('traffic_corridors')
+      .select('id,name,country,region,origin_name,dest_name,distance_km')
+      .eq('is_active', true)
+      .order('country')
+
+    const { data: snaps } = await supabase
+      .from('traffic_snapshots')
+      .select('*')
+      .in('corridor_id', (cors || []).map(c => c.id))
+      .order('captured_at', { ascending: false })
+
+    // Keep only the latest snapshot per corridor
+    const latest = {}
+    for (const s of (snaps || [])) {
+      if (!latest[s.corridor_id]) latest[s.corridor_id] = s
+    }
+
+    setCorridors(cors || [])
+    setSnapshots(latest)
+    if (Object.values(latest).length) {
+      const newest = Object.values(latest).sort((a,b) => new Date(b.captured_at) - new Date(a.captured_at))[0]
+      setLastRun(newest.captured_at)
+    }
+    setLoading(false)
+  }
+
+  async function triggerIngest() {
+    setIngesting(true)
+    try {
+      const res  = await fetch('/api/traffic-ingest', { method: 'POST' })
+      const data = await res.json()
+      setSources(data.sources || null)
+      await loadData()
+    } catch {
+      // silently ignore — data reload still attempted
+    }
+    setIngesting(false)
+  }
+
+  useEffect(() => { loadData() }, [])
+
+  const countries = ['All', ...new Set((corridors).map(c => c.country).filter(Boolean).sort())]
+  const visible   = filter === 'All' ? corridors : corridors.filter(c => c.country === filter)
+
+  const sourcePills = [
+    { label: 'HERE Routing',  key: 'here',   always: true  },
+    { label: 'HERE Traffic',  key: 'here',   always: true  },
+    { label: 'Google Routes', key: 'google', always: false },
+    { label: 'OSM Overpass',  key: 'osm',    always: true  },
+  ]
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: `${BRAND_BLUE}18` }}>
+              <Car size={20} color={BRAND_BLUE} />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">Live Traffic Intelligence</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Real-time corridor snapshots from HERE, Google Routes &amp; OSM · 30-min ingest cycle
+              </p>
+              {lastRun && (
+                <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
+                  <Clock size={10} /> Last ingest: {new Date(lastRun).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
+                </p>
+              )}
+            </div>
+          </div>
+          <button onClick={triggerIngest} disabled={ingesting}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] border border-gray-200 text-xs font-medium text-gray-600 hover:border-[#AACC00] hover:text-[#AACC00] transition-colors disabled:opacity-50">
+            {ingesting ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+            {ingesting ? 'Running…' : 'Run Ingest Now'}
+          </button>
+        </div>
+
+        {/* Source status pills */}
+        <div className="flex flex-wrap gap-2 mt-4">
+          {sourcePills.map(s => (
+            <div key={s.label} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border
+              ${s.always || sources?.[s.key] ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${s.always || sources?.[s.key] ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+              {s.label}
+              {!s.always && !sources?.[s.key] && <span className="text-[10px] opacity-60 ml-0.5">· add key</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Country filter */}
+      <div className="flex gap-2 flex-wrap">
+        {countries.map(c => (
+          <button key={c} onClick={() => setFilter(c)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
+              ${filter === c ? 'bg-[#0118A1] text-white border-[#AACC00]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+            {c}
+          </button>
+        ))}
+      </div>
+
+      {/* Corridor cards */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 size={20} className="animate-spin text-[#AACC00]" />
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
+          <Car size={24} className="mx-auto text-gray-300 mb-2" />
+          <p className="text-sm text-gray-400">No active corridors found.</p>
+          <p className="text-xs text-gray-300 mt-1">Add corridors to the <code className="bg-gray-100 px-1 rounded">traffic_corridors</code> table to get started.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3">
+          {visible.map(corridor => {
+            const snap = snapshots[corridor.id]
+            const cs   = CONGESTION_STYLE[snap?.congestion_level] || CONGESTION_STYLE.free
+            const delay = snap?.delay_secs ? Math.round(snap.delay_secs / 60) : 0
+            const hereInc   = (snap?.incidents || []).filter(i => i.source === 'here')
+            const osmInc    = (snap?.incidents || []).filter(i => i.source === 'osm')
+            const googleLevel = snap?.google_congestion_level
+
+            return (
+              <div key={corridor.id} className="bg-white rounded-[10px] border border-gray-100 shadow-sm p-4">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-gray-900">{corridor.name}</span>
+                      <span className="text-[10px] text-gray-400">{corridor.country}</span>
+                      {corridor.distance_km && (
+                        <span className="text-[10px] text-gray-300">{corridor.distance_km} km</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                      <Navigation size={9} />
+                      {corridor.origin_name} → {corridor.dest_name}
+                    </p>
+                  </div>
+                  {snap ? (
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border shrink-0 ${cs.badge}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cs.dot}`} />
+                      {cs.label}
+                    </div>
+                  ) : (
+                    <span className="text-[11px] text-gray-300 border border-gray-100 px-2.5 py-1 rounded-full">No data</span>
+                  )}
+                </div>
+
+                {snap && (
+                  <>
+                    {/* Congestion bar */}
+                    <div className="h-1.5 bg-gray-100 rounded-full mb-3 overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${cs.bar}`} style={{ width: `${cs.pct}%` }} />
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                      <div className="bg-gray-50 rounded-[6px] px-2.5 py-1.5">
+                        <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Travel Time</div>
+                        <div className="text-xs font-bold text-gray-800">{fmtMins(snap.travel_time_secs)}</div>
+                      </div>
+                      <div className="bg-gray-50 rounded-[6px] px-2.5 py-1.5">
+                        <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Free Flow</div>
+                        <div className="text-xs font-bold text-gray-800">{fmtMins(snap.free_flow_secs)}</div>
+                      </div>
+                      <div className="bg-gray-50 rounded-[6px] px-2.5 py-1.5">
+                        <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">Delay</div>
+                        <div className={`text-xs font-bold ${delay > 15 ? 'text-[#EF7474]' : delay > 5 ? 'text-orange-500' : 'text-gray-800'}`}>
+                          {delay > 0 ? `+${delay}m` : '—'}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 rounded-[6px] px-2.5 py-1.5">
+                        <div className="text-[9px] text-gray-400 uppercase tracking-wide mb-0.5">HERE Jam</div>
+                        <div className="text-xs font-bold text-gray-800">
+                          {snap.here_jam_factor != null ? `${snap.here_jam_factor}/10` : '—'}
+                          {snap.here_speed_kmh  != null ? <span className="text-[10px] font-normal text-gray-400 ml-1">{snap.here_speed_kmh} km/h</span> : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Google corroboration */}
+                    {snap.google_travel_secs && (
+                      <div className="flex items-center gap-3 text-[11px] text-gray-500 bg-blue-50/50 border border-blue-100 rounded-[6px] px-2.5 py-1.5 mb-3">
+                        <Zap size={10} className="text-blue-400 shrink-0" />
+                        <span>Google: {fmtMins(snap.google_travel_secs)}</span>
+                        {snap.google_delay_secs > 0 && <span className="text-orange-500">+{Math.round(snap.google_delay_secs/60)}m delay</span>}
+                        {googleLevel && (
+                          <span className={`ml-auto capitalize ${CONGESTION_STYLE[googleLevel]?.badge.split(' ').slice(1).join(' ')}`}>
+                            {CONGESTION_STYLE[googleLevel]?.label}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Incidents */}
+                    {snap.incident_count > 0 && (
+                      <div className="space-y-1">
+                        {hereInc.slice(0,3).map((inc, i) => (
+                          <div key={i} className="flex items-start gap-2 text-[11px] text-gray-600 bg-[rgba(138,46,46,0.12)]/50 border border-red-100 rounded-[6px] px-2.5 py-1.5">
+                            <AlertTriangle size={10} className="text-red-400 shrink-0 mt-0.5" />
+                            <span className="truncate">{inc.description || inc.type}</span>
+                            {inc.delay_mins && <span className="text-[#EF7474] shrink-0">+{inc.delay_mins}m</span>}
+                            <span className="text-[9px] text-gray-300 shrink-0 uppercase">HERE</span>
+                          </div>
+                        ))}
+                        {osmInc.slice(0,2).map((inc, i) => (
+                          <div key={i} className="flex items-start gap-2 text-[11px] text-gray-600 bg-[rgba(144,106,37,0.12)]/50 border border-amber-100 rounded-[6px] px-2.5 py-1.5">
+                            <AlertTriangle size={10} className="text-amber-400 shrink-0 mt-0.5" />
+                            <span className="truncate">{inc.description}</span>
+                            <span className="text-[9px] text-gray-300 shrink-0 uppercase">OSM</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between mt-2.5">
+                      <div className="flex gap-1.5">
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border ${snap.tomtom_ok ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>HERE Route</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border ${snap.here_ok ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>HERE Flow</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border ${snap.google_ok ? 'bg-blue-50 text-[#6EA8C8] border-blue-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>Google</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded border ${snap.osm_ok ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>OSM</span>
+                      </div>
+                      <span className="text-[10px] text-gray-300">
+                        {snap.captured_at ? new Date(snap.captured_at).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) : ''}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
@@ -635,6 +1223,7 @@ export default function AdminControlCenter() {
   const [customFeeds, setCustomFeeds] = useState([])
   const [policies, setPolicies] = useState([])
   const [modules, setModules]   = useState([])
+  const [userActivity, setUserActivity] = useState({}) // { [user_id]: { last_sign_in_at, email_confirmed } }
   const [auditLogs, setAuditLogs]   = useState([])
   const [auditLoading, setAuditLoading] = useState(false)
   const [auditSearch, setAuditSearch]   = useState('')
@@ -676,6 +1265,21 @@ export default function AdminControlCenter() {
     setCustomFeeds(f.data||[])
     setPolicies(pol.data||[])
     setModules(mod.data||[])
+
+    // Fetch last login data from auth.users (admin only, read-only)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        const actRes = await fetch('/api/admin-user-activity', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        if (actRes.ok) {
+          const { activity } = await actRes.json()
+          setUserActivity(activity || {})
+        }
+      }
+    } catch { /* non-fatal — activity column just won't show */ }
+
     setLoading(false); setRefreshing(false)
   }
 
@@ -785,7 +1389,7 @@ export default function AdminControlCenter() {
   if (loading) return (
     <Layout>
       <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-[#AACC00] border-t-transparent rounded-full animate-spin" />
       </div>
     </Layout>
   )
@@ -824,7 +1428,7 @@ export default function AdminControlCenter() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Admin Control Center</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Developer Control Center</h1>
           <p className="text-sm text-gray-500 mt-0.5">Manage users, organisations, feeds, policies and training</p>
         </div>
         <button onClick={refresh} disabled={refreshing}
@@ -872,7 +1476,7 @@ export default function AdminControlCenter() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h2 className="text-sm font-bold text-gray-900">Recent Sign-ups</h2>
-              <button onClick={()=>setTab('travellers')} className="text-xs text-[#0118A1] font-medium hover:underline flex items-center gap-1">
+              <button onClick={()=>setTab('travellers')} className="text-xs text-[#AACC00] font-medium hover:underline flex items-center gap-1">
                 View all <ChevronRight size={12}/>
               </button>
             </div>
@@ -903,13 +1507,13 @@ export default function AdminControlCenter() {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
               <input className={`${inputCls} pl-9`} placeholder="Search name or email…" value={search} onChange={e=>setSearch(e.target.value)}/>
             </div>
-            <select className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0118A1]"
+            <select className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]"
               value={orgFilter} onChange={e=>setOrgFilter(e.target.value)}>
               <option value="all">All organisations</option>
               {orgs.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}
               <option value="">No organisation</option>
             </select>
-            <select className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#0118A1]"
+            <select className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]"
               value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}>
               <option value="all">All roles</option>
               <option value="traveller">Traveller</option>
@@ -936,6 +1540,7 @@ export default function AdminControlCenter() {
                     <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Role</th>
                     <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Onboarding</th>
                     <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Status</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden xl:table-cell">Last Login</th>
                     <th className="text-right px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Actions</th>
                   </tr>
                 </thead>
@@ -968,15 +1573,38 @@ export default function AdminControlCenter() {
                         </td>
                         <td className="px-4 py-3 hidden lg:table-cell">
                           {travellingIds.has(p.id)
-                            ? <div className="flex items-center gap-1.5 text-green-600 text-xs font-semibold">
+                            ? <div className="flex items-center gap-1.5 text-[#AACC00] text-xs font-semibold">
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>Travelling
                               </div>
                             : <span className="text-gray-400 text-xs">At home</span>}
                         </td>
+                        <td className="px-4 py-3 hidden xl:table-cell">
+                          {(() => {
+                            const act = userActivity[p.id]
+                            if (!act?.last_sign_in_at) return <span className="text-gray-400 text-xs">Never</span>
+                            const d = new Date(act.last_sign_in_at)
+                            const now = new Date()
+                            const diffMs = now - d
+                            const diffMins = Math.floor(diffMs / 60000)
+                            const diffHrs  = Math.floor(diffMs / 3600000)
+                            const diffDays = Math.floor(diffMs / 86400000)
+                            let label, color
+                            if (diffMins < 60)       { label = `${diffMins}m ago`;    color = '#22c55e' }
+                            else if (diffHrs < 24)   { label = `${diffHrs}h ago`;     color = '#22c55e' }
+                            else if (diffDays < 7)   { label = `${diffDays}d ago`;    color = '#AACC00' }
+                            else if (diffDays < 30)  { label = `${diffDays}d ago`;    color = '#94A3B8' }
+                            else                     { label = d.toLocaleDateString(); color = '#64748B' }
+                            return (
+                              <span className="text-xs font-medium" style={{ color }}>
+                                {label}
+                              </span>
+                            )
+                          })()}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1.5 flex-wrap">
                             <button onClick={()=>setLinkProfile(p)}
-                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#0118A1] bg-blue-50 hover:bg-blue-100 transition-colors">
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#AACC00] bg-blue-50 hover:bg-blue-100 transition-colors">
                               <Link2 size={11}/> Assign Org
                             </button>
                             <button onClick={()=>setRoleProfile(p)}
@@ -985,12 +1613,12 @@ export default function AdminControlCenter() {
                             </button>
                             {p.org_id && (
                               <button onClick={async()=>{ if(confirm('Remove from organisation?')) { await supabase.from('profiles').update({org_id:null}).eq('id',p.id); refresh() }}}
-                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors">
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#D4A64A] bg-[rgba(144,106,37,0.12)] hover:bg-amber-100 transition-colors">
                                 <Link2Off size={11}/> Unlink
                               </button>
                             )}
                             <button onClick={()=>handleDeleteProfile(p)}
-                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition-colors">
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[#EF7474] bg-[rgba(138,46,46,0.12)] hover:bg-red-100 transition-colors">
                               <Trash2 size={11}/> Delete
                             </button>
                           </div>
@@ -1059,7 +1687,7 @@ export default function AdminControlCenter() {
                         <td className="px-4 py-3 font-semibold text-gray-900">{orgTravellerCount[o.id]||0}</td>
                         <td className="px-4 py-3 hidden lg:table-cell">
                           {tNow>0
-                            ? <div className="flex items-center gap-1.5 text-green-600 text-xs font-semibold">
+                            ? <div className="flex items-center gap-1.5 text-[#AACC00] text-xs font-semibold">
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>{tNow}
                               </div>
                             : <span className="text-gray-400 text-xs">0</span>}
@@ -1079,22 +1707,22 @@ export default function AdminControlCenter() {
                           <div className="flex items-center justify-end gap-1">
                             {o.approval_status !== 'approved' && (
                               <button onClick={()=>handleOrgApproval(o,'approved')} title="Approve"
-                                className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors">
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-[#AACC00] hover:bg-[rgba(170,204,0,0.10)] transition-colors">
                                 <UserCheck size={14}/>
                               </button>
                             )}
                             {o.approval_status !== 'rejected' && (
                               <button onClick={()=>handleOrgApproval(o,'rejected')} title="Reject"
-                                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-[#EF7474] hover:bg-[rgba(138,46,46,0.12)] transition-colors">
                                 <UserX size={14}/>
                               </button>
                             )}
                             <button onClick={()=>setEditOrg(o)} title="Edit organisation"
-                              className="p-1.5 rounded-lg text-gray-400 hover:text-[#0118A1] hover:bg-blue-50 transition-colors">
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-[#AACC00] hover:bg-blue-50 transition-colors">
                               <Pencil size={14}/>
                             </button>
                             <button onClick={()=>handleDeleteOrg(o)} title="Delete organisation"
-                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-[#EF7474] hover:bg-[rgba(138,46,46,0.12)] transition-colors">
                               <Trash2 size={14}/>
                             </button>
                           </div>
@@ -1115,16 +1743,63 @@ export default function AdminControlCenter() {
       {/* ── FEEDS ────────────────────────────────────────────────────────────── */}
       {tab==='feeds' && (
         <div className="space-y-5">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <KpiCard icon={Wifi}      label="Live"         value={BUILTIN_FEEDS.filter(f=>f.status==='active').length + customFeeds.filter(f=>f.status==='active').length} color="#22C55E"/>
-            <KpiCard icon={Key}       label="Needs API Key" value={needsKey} color="#F59E0B" link="/intel-feeds"/>
-            <KpiCard icon={Handshake} label="Partnerships" value={BUILTIN_FEEDS.filter(f=>f.status==='partnership').length} color="#7C3AED"/>
-            <KpiCard icon={Globe}     label="Custom Feeds" value={customFeeds.length} color={BRAND_BLUE}/>
+          {/* KPIs + Run Scan button */}
+          <div className="flex items-start gap-4">
+            <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <KpiCard icon={Rss}       label="RSS Feeds"     value={CAIRO_RSS_FEEDS.length}  color="#22C55E"/>
+              <KpiCard icon={Database}  label="Structured APIs" value={BUILTIN_FEEDS.filter(f=>f.status==='active').length} color={BRAND_BLUE}/>
+              <KpiCard icon={Key}       label="Needs API Key" value={needsKey} color="#F59E0B" link="/intel-feeds"/>
+              <KpiCard icon={BrainCircuit} label="Into CAIRO" value={CAIRO_RSS_FEEDS.filter(f=>f.dest.includes('cairo')).length} color="#7C3AED"/>
+            </div>
+            <div className="flex flex-col gap-2">
+              <RunScanButton />
+              <BackfillEmbeddingsButton />
+            </div>
           </div>
 
-          {/* Category filter */}
+          {/* Intelligence Health Dashboard */}
+          <IntelHealthPanel />
+
+          {/* Pipeline diagram */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">Intelligence Pipeline</p>
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <div className="flex items-center gap-2 bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] rounded-xl px-4 py-2.5">
+                <Rss size={14} className="text-[#AACC00]"/>
+                <span className="font-semibold text-green-800">{CAIRO_RSS_FEEDS.length} RSS Feeds</span>
+              </div>
+              <ChevronRight size={16} className="text-gray-300 shrink-0"/>
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
+                <Cpu size={14} className="text-[#6EA8C8]"/>
+                <span className="font-semibold text-blue-800">Context Assembly Engine</span>
+              </div>
+              <ChevronRight size={16} className="text-gray-300 shrink-0"/>
+              <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-xl px-4 py-2.5">
+                <BrainCircuit size={14} className="text-purple-600"/>
+                <span className="font-semibold text-purple-800">CAIRO</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-sm mt-3">
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5">
+                <Database size={14} className="text-gray-500"/>
+                <span className="font-semibold text-gray-700">{BUILTIN_FEEDS.filter(f=>f.status==='active').length} Structured APIs</span>
+              </div>
+              <ChevronRight size={16} className="text-gray-300 shrink-0"/>
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
+                <Cpu size={14} className="text-[#6EA8C8]"/>
+                <span className="font-semibold text-blue-800">Intel Cron (hourly)</span>
+              </div>
+              <ChevronRight size={16} className="text-gray-300 shrink-0"/>
+              <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-xl px-4 py-2.5">
+                <BrainCircuit size={14} className="text-purple-600"/>
+                <span className="font-semibold text-purple-800">CAIRO</span>
+              </div>
+            </div>
+          </div>
+
+          {/* RSS category filter */}
           <div className="flex flex-wrap gap-2">
-            {['all',...FEED_CATEGORIES].map(cat=>(
+            {RSS_CATEGORIES.map(cat=>(
               <button key={cat} onClick={()=>setFeedCatFilter(cat)}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
                   feedCatFilter===cat?'text-white border-transparent':'bg-white border-gray-200 text-gray-500 hover:border-gray-300'}`}
@@ -1134,11 +1809,80 @@ export default function AdminControlCenter() {
             ))}
           </div>
 
-          {/* Builtin feeds */}
+          {/* RSS feeds — CAIRO + Intel */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Rss size={14} className="text-[#AACC00]"/>
+                <h2 className="text-sm font-bold text-gray-900">RSS Intelligence Feeds</h2>
+                <span className="text-xs text-gray-400 ml-1">— feed into CAIRO context pipeline + hourly intel cron</span>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="text-left px-5 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide">Source</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide">Category</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide">Trust Tier</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide">Destination</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-bold text-gray-400 uppercase tracking-wide">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {CAIRO_RSS_FEEDS.filter(f=>feedCatFilter==='all'||f.category===feedCatFilter).map(f=>{
+                    const CatIcon = CAT_ICON[f.category] || Globe
+                    return (
+                      <tr key={f.name} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <CatIcon size={13} className="text-gray-400 shrink-0"/>
+                            <span className="font-semibold text-gray-800">{f.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="text-xs text-gray-500 capitalize">{f.category}</span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <Pill label={`Tier ${f.tier}`} color={TIER_COLOR[f.tier]}/>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex gap-1 flex-wrap">
+                            {f.dest.includes('cairo') && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700 border border-purple-200">
+                                <BrainCircuit size={9}/> CAIRO
+                              </span>
+                            )}
+                            {f.dest.includes('intel') && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+                                <Database size={9}/> Intel
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500"/>
+                            <span className="text-xs text-gray-500">Live</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Structured API connectors */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-sm font-bold text-gray-900">Built-in Feeds</h2>
-              <Link to="/intel-feeds" className="flex items-center gap-1.5 text-xs text-[#0118A1] font-medium hover:underline">
+              <div className="flex items-center gap-2">
+                <Database size={14} className="text-[#6EA8C8]"/>
+                <h2 className="text-sm font-bold text-gray-900">Structured Data Connectors</h2>
+                <span className="text-xs text-gray-400 ml-1">— API/structured feeds into intel cron</span>
+              </div>
+              <Link to="/intel-feeds" className="flex items-center gap-1.5 text-xs text-[#AACC00] font-medium hover:underline">
                 Full manager <ExternalLink size={12}/>
               </Link>
             </div>
@@ -1177,8 +1921,8 @@ export default function AdminControlCenter() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Pill label={f.status==='active'?'Live':'Inactive'} color={f.status==='active'?'green':'gray'}/>
-                  <button onClick={()=>setEditFeed(f)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#0118A1] hover:bg-blue-50 transition-colors"><Pencil size={13}/></button>
-                  <button onClick={()=>deleteFeed(f.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={13}/></button>
+                  <button onClick={()=>setEditFeed(f)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#AACC00] hover:bg-blue-50 transition-colors"><Pencil size={13}/></button>
+                  <button onClick={()=>deleteFeed(f.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#EF7474] hover:bg-[rgba(138,46,46,0.12)] transition-colors"><Trash2 size={13}/></button>
                 </div>
               </div>
             ))}
@@ -1229,8 +1973,8 @@ export default function AdminControlCenter() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={()=>setEditPolicy(p)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#0118A1] hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
-                          <button onClick={()=>deletePolicy(p.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={14}/></button>
+                          <button onClick={()=>setEditPolicy(p)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#AACC00] hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
+                          <button onClick={()=>deletePolicy(p.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#EF7474] hover:bg-[rgba(138,46,46,0.12)] transition-colors"><Trash2 size={14}/></button>
                         </div>
                       </td>
                     </tr>
@@ -1242,7 +1986,7 @@ export default function AdminControlCenter() {
           </div>
 
           <div className="flex justify-end">
-            <Link to="/policies" className="flex items-center gap-1.5 text-sm font-medium text-[#0118A1] hover:underline">
+            <Link to="/policies" className="flex items-center gap-1.5 text-sm font-medium text-[#AACC00] hover:underline">
               View policy library (user view) <ExternalLink size={13}/>
             </Link>
           </div>
@@ -1295,8 +2039,8 @@ export default function AdminControlCenter() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={()=>setEditModule(m)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#0118A1] hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
-                          <button onClick={()=>deleteModule(m.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={14}/></button>
+                          <button onClick={()=>setEditModule(m)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#AACC00] hover:bg-blue-50 transition-colors"><Pencil size={14}/></button>
+                          <button onClick={()=>deleteModule(m.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-[#EF7474] hover:bg-[rgba(138,46,46,0.12)] transition-colors"><Trash2 size={14}/></button>
                         </div>
                       </td>
                     </tr>
@@ -1308,7 +2052,7 @@ export default function AdminControlCenter() {
           </div>
 
           <div className="flex justify-end">
-            <Link to="/training" className="flex items-center gap-1.5 text-sm font-medium text-[#0118A1] hover:underline">
+            <Link to="/training" className="flex items-center gap-1.5 text-sm font-medium text-[#AACC00] hover:underline">
               View training (user view) <ExternalLink size={13}/>
             </Link>
           </div>
@@ -1319,18 +2063,18 @@ export default function AdminControlCenter() {
       {tab === 'audit' && (() => {
         const ACTION_COLORS = {
           'trip.approved':  'bg-blue-100 text-blue-700 border-blue-200',
-          'trip.rejected':  'bg-red-100 text-red-700 border-red-200',
+          'trip.rejected':  'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',
           'trip.submitted': 'bg-indigo-100 text-indigo-700 border-indigo-200',
-          'user.deleted':   'bg-red-100 text-red-700 border-red-200',
+          'user.deleted':   'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',
           'user.role_changed': 'bg-purple-100 text-purple-700 border-purple-200',
           'user.org_assigned': 'bg-violet-100 text-violet-700 border-violet-200',
-          'org.approved':   'bg-green-100 text-green-700 border-green-200',
-          'org.rejected':   'bg-red-100 text-red-700 border-red-200',
-          'org.deleted':    'bg-red-100 text-red-700 border-red-200',
+          'org.approved':   'bg-green-100 text-[#AACC00] border-[rgba(170,204,0,0.25)]',
+          'org.rejected':   'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',
+          'org.deleted':    'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',
           'checkin.submitted': 'bg-emerald-100 text-emerald-700 border-emerald-200',
           'sos.triggered':  'bg-red-100 text-red-800 border-red-300',
-          'policy.created': 'bg-amber-100 text-amber-700 border-amber-200',
-          'policy.deleted': 'bg-amber-100 text-amber-700 border-amber-200',
+          'policy.created': 'bg-amber-100 text-[#D4A64A] border-[rgba(144,106,37,0.30)]',
+          'policy.deleted': 'bg-amber-100 text-[#D4A64A] border-[rgba(144,106,37,0.30)]',
           'training.completed': 'bg-teal-100 text-teal-700 border-teal-200',
         }
 
@@ -1377,17 +2121,17 @@ export default function AdminControlCenter() {
                   <input
                     value={auditSearch} onChange={e => setAuditSearch(e.target.value)}
                     placeholder="Search actor, action, description…"
-                    className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-[#0118A1]"
+                    className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]"
                   />
                 </div>
                 <select value={auditAction} onChange={e => setAuditAction(e.target.value)}
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]">
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]">
                   {ACTION_CATEGORIES.map(c => (
                     <option key={c} value={c}>{c === 'all' ? 'All actions' : c.charAt(0).toUpperCase() + c.slice(1)}</option>
                   ))}
                 </select>
                 <button onClick={loadAuditLogs} disabled={auditLoading}
-                  className="flex items-center gap-1.5 text-sm text-[#0118A1] font-medium hover:underline disabled:opacity-40">
+                  className="flex items-center gap-1.5 text-sm text-[#AACC00] font-medium hover:underline disabled:opacity-40">
                   <RefreshCw size={13} className={auditLoading ? 'animate-spin' : ''} />Refresh
                 </button>
               </div>
@@ -1473,6 +2217,106 @@ export default function AdminControlCenter() {
           </div>
         )
       })()}
+
+      {/* ── PLATFORM ─────────────────────────────────────────────────────────── */}
+      {tab === 'platform' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">SafeGuard 360 — Travel Risk Platform</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Live production platform — risk360.co</p>
+            </div>
+            <a href="https://risk360.co" target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white shrink-0"
+              style={{ background: DS.green }}>
+              <ExternalLink size={13}/> Open in new tab
+            </a>
+          </div>
+          <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm bg-gray-50"
+            style={{ height: 'calc(100vh - 260px)', minHeight: 600 }}>
+            <iframe
+              src="https://risk360.co"
+              title="SafeGuard 360 Platform"
+              className="w-full h-full border-0"
+              allow="fullscreen"
+            />
+          </div>
+          <p className="text-xs text-gray-400 text-center">
+            If the platform does not load here, open it directly at{' '}
+            <a href="https://risk360.co" target="_blank" rel="noopener noreferrer"
+              className="text-[#AACC00] hover:underline">risk360.co</a>
+            {' '}(some browsers block cross-origin iframes).
+          </p>
+        </div>
+      )}
+
+      {/* ── Live Traffic ─────────────────────────────────────────────────────── */}
+      {tab === 'traffic' && <LiveTrafficTab />}
+
+      {/* ── GSOC ─────────────────────────────────────────────────────────────── */}
+      {tab === 'gsoc' && (
+        <div className="space-y-5">
+          {/* Header */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: `${BRAND_BLUE}18` }}>
+                <Monitor size={22} color={BRAND_BLUE}/>
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Global Security Operations Centre</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Centralised watch function for live incident monitoring, traveller oversight,
+                  shift management, and escalation coordination.
+                </p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {['Watch Board','Shift Log','Active Incidents','Traveller Tracker','Escalations','Intel Feed Monitor'].map(f => (
+                    <span key={f} className="px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 border border-gray-200">
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Placeholder modules */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { icon: Eye,           label: 'Watch Board',          desc: 'Live overview of all active travellers, open incidents and escalations.',           path: '/gsoc/watch' },
+              { icon: ClipboardList, label: 'Shift Log',            desc: 'Structured handover notes, shift summaries and operator activity log.',              path: '/gsoc/shifts' },
+              { icon: AlertTriangle, label: 'Active Incidents',     desc: 'Open incident timeline, escalation chain and resolution tracking.',                  path: '/gsoc/incidents' },
+              { icon: Plane,         label: 'Traveller Tracker',    desc: 'Real-time position, check-in status and SOS monitoring for all active travellers.',   path: '/gsoc/tracker' },
+              { icon: Radio,         label: 'Intel Feed Monitor',   desc: 'Live feed health, ingest rate and signal volume across all connected sources.',       path: '/gsoc/feeds' },
+              { icon: Shield,        label: 'Escalation Queue',     desc: 'Pending escalations awaiting GSOC acknowledgement and response assignment.',          path: '/gsoc/escalations' },
+            ].map(m => {
+              const Icon = m.icon
+              return (
+                <div key={m.label}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 opacity-70">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: DS.greenDim }}>
+                    <Icon size={18} color={BRAND_BLUE}/>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">{m.label}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">{m.desc}</p>
+                  </div>
+                  <div className="mt-auto">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-[#D4A64A] border border-[rgba(144,106,37,0.30)]">
+                      Coming Soon
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <p className="text-xs text-gray-400 text-center pt-2">
+            GSOC module is under development. Existing pages at <code className="bg-gray-100 px-1 rounded">/gsoc/watch</code>, <code className="bg-gray-100 px-1 rounded">/gsoc/shifts</code> available as scaffolds.
+          </p>
+        </div>
+      )}
     </Layout>
   )
 }

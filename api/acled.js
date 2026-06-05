@@ -3,9 +3,7 @@
 // Env vars: ACLED_API_KEY, ACLED_EMAIL
 // Covers all of Africa + Middle East + Asia with GPS-tagged events
 
-let cache = {}
-let cacheTime = {}
-const CACHE_TTL = 60 * 60 * 1000 // 1 hour
+import { cache as appCache } from './_cacheManager.js'
 
 async function fetchWithTimeout(url, ms = 8000) {
   const controller = new AbortController()
@@ -34,9 +32,8 @@ async function _handler(req, res) {
   const cacheKey = `${country || 'all'}-${days}`
 
   // Return cached data if fresh
-  if (cache[cacheKey] && Date.now() - (cacheTime[cacheKey] || 0) < CACHE_TTL) {
-    return res.json({ ...cache[cacheKey], cached: true })
-  }
+  const hit = appCache.get('acled:' + cacheKey)
+  if (hit) return res.json({ ...hit, cached: true })
 
   // Date range — last N days
   const since = new Date()
@@ -89,8 +86,7 @@ async function _handler(req, res) {
     cached: false,
   }
 
-  cache[cacheKey] = result
-  cacheTime[cacheKey] = Date.now()
+  appCache.set('acled:' + cacheKey, result, 60 * 60 * 1000)
 
   res.json(result)
 }

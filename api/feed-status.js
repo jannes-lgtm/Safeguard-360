@@ -26,11 +26,56 @@ function _handler(req, res) {
     promed:              'active',
 
     // Security — public RSS feeds, always active
-    'african-arguments': 'active',
-    osac:                'active',
+    'african-arguments':  'active',
+    osac:                 'active',
+    'oxford-analytica':   'active',
+    'soufan-center':      'active',
+    'foreign-policy':     'active',
+    'africa-report':      'active',
+    csis:                 'active',
 
     // Conflict — public API/RSS, always active
     gdelt:               'active',
+
+    // ── CAIRO RSS Context Pipeline — all public, no keys required ────────────
+    // Wire services
+    'reuters-world':     'active',
+    'ap-world':          'active',
+    'bbc-world':         'active',
+    'france24':          'active',
+    'aljazeera':         'active',
+    'middle-east-eye':   'active',
+    'iran-intl':         'active',
+    'kyiv-independent':  'active',
+    'un-news-africa':    'active',
+    'un-news-me':        'active',
+    'acled-blog':        'active',
+    'defense-post':      'active',
+    // Security analysis RSS
+    'bbc-africa':        'active',
+    'iss-africa':        'active',
+    'crisis-group-africa': 'active',
+    'crisis-group-mena': 'active',
+    'jamestown':         'active',
+    'war-on-rocks':      'active',
+    'janes-defence':     'active',
+    'strategy-bridge':   'active',
+    'iiss':              'active',
+    'the-diplomat':      'active',
+    'euractiv':          'active',
+    // Crime / economic / infrastructure / aviation
+    'insight-crime':     'active',
+    'trading-economics': 'active',
+    'power-tech':        'active',
+    'aviapages':         'active',
+    // Health RSS (alongside structured health connectors)
+    'who-rss':           'active',
+    'reliefweb-who':     'active',
+    'outbreak-news':     'active',
+    'cidrap':            'active',
+    'paho':              'active',
+    'africa-cdc':        'active',
+    'reliefweb-disasters': 'active',
 
     // ── Require API keys ─────────────────────────────────────────────────────
     whatsapp:       has('TWILIO_ACCOUNT_SID')     ? 'active' : 'pending_key',
@@ -41,6 +86,9 @@ function _handler(req, res) {
     aisstream:      has('AISSTREAM_API_KEY')       ? 'active' : 'pending_key',
     'nasa-firms':   has('NASA_FIRMS_API_KEY')     ? 'active' : 'pending_key',
     healthmap:      has('HEALTHMAP_API_KEY')       ? 'active' : 'pending_key',
+
+    // ── Subscription / signup required ───────────────────────────────────────
+    spglobal:       has('SPGLOBAL_API_KEY') ? 'active' : 'pending_key',
 
     // ── Partnership / enterprise — must be manually negotiated ───────────────
     // (not listed here so they fall back to 'partnership' status in the UI)

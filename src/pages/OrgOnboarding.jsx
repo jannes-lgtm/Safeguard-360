@@ -6,11 +6,9 @@ import {
   Briefcase, Loader2, AlertTriangle, Send,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
-
-const inputClass = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
+const inputClass = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-white'
 const labelClass = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
 
 const STEPS = [
@@ -249,7 +247,7 @@ export default function OrgOnboarding() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center gap-3">
-        <img src="/logo-colour.png" alt="SafeGuard360" className="h-8 w-auto" />
+        <img src="/logo-transparent.png" alt="SafeGuard360" className="h-11 w-auto" />
         <span className="text-sm text-gray-400 font-medium">Organisation Setup</span>
       </div>
 
@@ -289,7 +287,7 @@ export default function OrgOnboarding() {
                       >
                         {complete ? <CheckCircle2 size={13} /> : <Icon size={13} />}
                       </div>
-                      <span className={`hidden sm:block text-[10px] font-semibold mt-1 ${active ? 'text-[#0118A1]' : complete ? 'text-[#AACC00]' : 'text-gray-400'}`}>
+                      <span className={`hidden sm:block text-[10px] font-semibold mt-1 ${active ? 'text-[#AACC00]' : complete ? 'text-[#AACC00]' : 'text-gray-400'}`}>
                         {s.label}
                       </span>
                     </div>
@@ -306,7 +304,7 @@ export default function OrgOnboarding() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
 
             {error && (
-              <div className="mb-4 flex items-start gap-2 bg-red-50 text-red-600 text-sm rounded-xl px-4 py-3">
+              <div className="mb-4 flex items-start gap-2 bg-[rgba(138,46,46,0.12)] text-[#EF7474] text-sm rounded-xl px-4 py-3">
                 <AlertTriangle size={16} className="mt-0.5 shrink-0" />
                 <span>{error}</span>
               </div>
@@ -454,7 +452,7 @@ export default function OrgOnboarding() {
                             onChange={e => updateRow(i, 'email', e.target.value)}
                           />
                           <select
-                            className="border border-gray-200 rounded-xl px-3 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#0118A1]"
+                            className="border border-gray-200 rounded-xl px-3 py-3 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]"
                             value={row.role}
                             onChange={e => updateRow(i, 'role', e.target.value)}
                           >
@@ -462,7 +460,7 @@ export default function OrgOnboarding() {
                             <option value="org_admin">Admin</option>
                           </select>
                           {inviteRows.length > 1 && (
-                            <button onClick={() => removeRow(i)} className="text-gray-400 hover:text-red-500 transition-colors">
+                            <button onClick={() => removeRow(i)} className="text-gray-400 hover:text-[#EF7474] transition-colors">
                               <X size={16} />
                             </button>
                           )}
@@ -472,7 +470,7 @@ export default function OrgOnboarding() {
 
                     <button
                       onClick={addRow}
-                      className="flex items-center gap-1.5 text-sm font-medium text-[#0118A1] hover:text-[#AACC00] transition-colors"
+                      className="flex items-center gap-1.5 text-sm font-medium text-[#AACC00] hover:text-[#AACC00] transition-colors"
                     >
                       <Plus size={15} /> Add another
                     </button>
@@ -486,9 +484,9 @@ export default function OrgOnboarding() {
                     {inviteRows.filter(r => r.email.trim()).map((row, i) => (
                       <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
                         <div className="flex-1 text-sm text-gray-700">{row.email}</div>
-                        {inviteStatus[i] === 'sent'    && <span className="flex items-center gap-1 text-xs text-green-600 font-medium"><CheckCircle2 size={14} /> Sent</span>}
+                        {inviteStatus[i] === 'sent'    && <span className="flex items-center gap-1 text-xs text-[#AACC00] font-medium"><CheckCircle2 size={14} /> Sent</span>}
                         {inviteStatus[i] === 'sending' && <span className="text-xs text-gray-400">Sending…</span>}
-                        {inviteStatus[i] === 'error'   && <span className="text-xs text-red-500 font-medium">Failed</span>}
+                        {inviteStatus[i] === 'error'   && <span className="text-xs text-[#EF7474] font-medium">Failed</span>}
                       </div>
                     ))}
                     {inviteRows.every(r => !r.email.trim()) && (

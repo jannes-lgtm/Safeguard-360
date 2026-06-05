@@ -3,7 +3,7 @@
  *
  * Checks all traveller profiles for passports expiring within 180 days.
  * Sends email to the traveller and (if applicable) their org admin.
- * Uses audit_log to avoid spamming — one notification per 7 days per user.
+ * Uses audit_logs to avoid spamming — one notification per 7 days per user.
  *
  * Triggered by Vercel cron daily at 07:00 UTC.
  * Can also be called manually with the CRON_SECRET header.

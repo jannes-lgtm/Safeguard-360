@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 function devApiPlugin(env) {
   return {
@@ -93,8 +94,40 @@ function devApiPlugin(env) {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+
+  // Sentry source-map upload — only when SENTRY_AUTH_TOKEN is present (CI/Vercel build)
+  const sentryPlugin = (env.SENTRY_AUTH_TOKEN && env.SENTRY_ORG && env.SENTRY_PROJECT)
+    ? sentryVitePlugin({
+        org:       env.SENTRY_ORG,
+        project:   env.SENTRY_PROJECT,
+        authToken: env.SENTRY_AUTH_TOKEN,
+        release:   {
+          name: process.env.VERCEL_GIT_COMMIT_SHA
+            ? `safeguard360@${process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 8)}`
+            : `safeguard360@dev`,
+        },
+        sourcemaps: { assets: './dist/**' },
+        telemetry:  false,
+      })
+    : null
+
   return {
-    plugins: [react(), devApiPlugin(env)],
+    plugins: [react(), devApiPlugin(env), sentryPlugin].filter(Boolean),
+
+    define: {
+      // Inject release ID at build time from Vercel's auto-provided git SHA
+      'import.meta.env.VITE_SENTRY_RELEASE': JSON.stringify(
+        process.env.VERCEL_GIT_COMMIT_SHA
+          ? `safeguard360@${process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 8)}`
+          : 'safeguard360@dev'
+      ),
+    },
+
+    build: {
+      // Source maps required for Sentry to map minified stack traces
+      sourcemap: true,
+    },
+
     server: {
       port: 5174,
       headers: {

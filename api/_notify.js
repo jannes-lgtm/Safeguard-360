@@ -176,7 +176,7 @@ function emailShell(accentColour, headerContent, bodyContent) {
   <tr><td style="background:#f9fafb;padding:14px 28px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;">
     <p style="margin:0;font-size:11px;color:#9ca3af;">
       Safeguard 360 &mdash; Travel Risk Intelligence Platform &mdash;
-      <a href="https://safeguard360.co.za" style="color:#6b7280;">safeguard360.co.za</a>
+      <a href="https://www.risk360.co" style="color:#6b7280;">risk360.co</a>
     </p>
   </td></tr>
 </table>
@@ -240,7 +240,7 @@ export async function notifyAlert({ userEmail, userPhone, userWhatsApp, alerts, 
      <table width="100%" cellpadding="0" cellspacing="0">${alertRows}</table>
      ${count > 5 ? `<p style="font-size:12px;color:#9ca3af;margin:12px 0 0;">+${count - 5} more alert${count - 5 !== 1 ? 's' : ''} — view all in the app.</p>` : ''}
      <div style="margin-top:24px;">
-       <a href="https://safeguard360.co.za/dashboard"
+       <a href="https://www.risk360.co/dashboard"
          style="display:inline-block;background:#0118A1;color:#ffffff;padding:11px 22px;border-radius:7px;text-decoration:none;font-size:13px;font-weight:600;">
          View Dashboard →
        </a>

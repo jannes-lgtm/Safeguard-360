@@ -39,6 +39,9 @@ import { fetchArticlesForCountry } from './_claudeSynth.js'
 import { buildMemoryContext, scoreDataQuality } from './_operationalMemory.js'
 import { normalizeArticles } from './_intelNormalizer.js'
 import { correlateEvents, deduplicateIntel, resolveConflicts, detectEscalation } from './_eventCorrelator.js'
+import { assembleTrafficContext } from './_trafficContext.js'
+import { assembleCountryRiskContext } from './_countryRiskContext.js'
+import { emit } from './_telemetry.js'
 
 const SUPABASE_URL = () => process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 const SERVICE_KEY  = () => process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -76,14 +79,24 @@ async function fetchLiveFeedArticles(geoContexts) {
   let totalFetched = 0
 
   const jobs = geoContexts.map(async (loc) => {
+    const t0 = Date.now()
     try {
       const articles = await fetchArticlesForCountry(loc)
       const normalized = normalizeArticles(articles, loc)
       byLocation[loc] = normalized
       totalFetched += normalized.length
-    } catch {
+    } catch (err) {
       byLocation[loc] = []
       feedsFailed = true
+      emit({
+        type:      'feed_fetch_failure',
+        endpoint:  'context_assembly',
+        region:    loc,
+        durationMs: Date.now() - t0,
+        success:   false,
+        errorCode: err.name === 'TimeoutError' || err.name === 'AbortError' ? 'TIMEOUT' : 'FETCH_ERROR',
+        errorMsg:  err.message,
+      })
     }
   })
 
@@ -391,17 +404,226 @@ function buildFallbackContext(geoContexts, memoryContext) {
   return lines.join('\n')
 }
 
+// ── Optional layer fetchers (additive — called only when flags are true) ───────
+
+/**
+ * fetchOperationalState(orgId)
+ *
+ * Fetches live operational picture for the org: active SOS events, open incidents,
+ * and in-progress escalations. Used by operational briefings and crisis support.
+ * Returns null when orgId is absent or queries fail.
+ */
+async function fetchOperationalState(orgId) {
+  if (!orgId) return null
+  try {
+    const [sosRows, incidentRows, escalationRows] = await Promise.all([
+      sbQuery('sos_events', {
+        status: 'eq.active',
+        order:  'created_at.desc',
+        limit:  '5',
+        select: 'id,status,created_at,message,latitude,longitude',
+      }),
+      sbQuery('incidents', {
+        status: 'in.(Open,Under Review)',
+        order:  'created_at.desc',
+        limit:  '10',
+        select: 'id,status,severity,title,created_at,country',
+      }),
+      sbQuery('gsoc_escalations', {
+        status: 'in.(open,in_progress)',
+        order:  'created_at.desc',
+        limit:  '5',
+        select: 'id,status,priority,created_at',
+      }),
+    ])
+
+    const hasSOS        = Array.isArray(sosRows)        && sosRows.length > 0
+    const hasIncidents  = Array.isArray(incidentRows)   && incidentRows.length > 0
+    const hasEscalations = Array.isArray(escalationRows) && escalationRows.length > 0
+
+    if (!hasSOS && !hasIncidents && !hasEscalations) return null
+
+    const lines = ['═══════════════════════════════════════════════════════════',
+      'LIVE OPERATIONAL STATE',
+      '═══════════════════════════════════════════════════════════']
+
+    if (hasSOS) {
+      lines.push(`Active SOS Events: ${sosRows.length}`)
+      sosRows.forEach(s => {
+        const age = Math.round((Date.now() - new Date(s.created_at)) / 60000)
+        lines.push(`  • SOS ${s.id?.slice(0, 8)} — ${age}min ago${s.message ? ` — "${s.message.slice(0, 80)}"` : ''}`)
+      })
+    }
+
+    if (hasIncidents) {
+      lines.push(`Open Incidents: ${incidentRows.length}`)
+      incidentRows.forEach(i => {
+        lines.push(`  • [${i.severity ?? '?'}] ${i.title ?? i.id?.slice(0, 8)} — ${i.country ?? 'Unknown'} — ${i.status}`)
+      })
+    }
+
+    if (hasEscalations) {
+      lines.push(`Active Escalations: ${escalationRows.length}`)
+      escalationRows.forEach(e => {
+        lines.push(`  • Escalation ${e.id?.slice(0, 8)} — priority ${e.priority ?? '?'} — ${e.status}`)
+      })
+    }
+
+    return {
+      sos:         sosRows,
+      incidents:   incidentRows,
+      escalations: escalationRows,
+      formatted:   lines.join('\n'),
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * fetchTravelerContext(userId)
+ *
+ * Fetches the traveler's active trip, last known location, and most recent
+ * check-in. Used by personalized advisories and operational briefings.
+ * Returns null when userId is absent or queries fail.
+ */
+async function fetchTravelerContext(userId) {
+  if (!userId) return null
+  try {
+    const [itinRows, locationRows, checkinRows] = await Promise.all([
+      sbQuery('itineraries', {
+        user_id: `eq.${userId}`,
+        status:  'eq.active',
+        order:   'created_at.desc',
+        limit:   '1',
+        select:  'id,destination,origin,depart_date,return_date,status,trip_name',
+      }),
+      sbQuery('staff_locations', {
+        user_id: `eq.${userId}`,
+        order:   'created_at.desc',
+        limit:   '1',
+        select:  'id,latitude,longitude,accuracy,created_at',
+      }),
+      sbQuery('check_ins', {
+        user_id: `eq.${userId}`,
+        order:   'created_at.desc',
+        limit:   '1',
+        select:  'id,status,created_at,note',
+      }),
+    ])
+
+    const activeTrip    = itinRows?.[0]        ?? null
+    const lastLocation  = locationRows?.[0]    ?? null
+    const lastCheckin   = checkinRows?.[0]     ?? null
+
+    if (!activeTrip && !lastLocation && !lastCheckin) return null
+
+    const lines = ['═══════════════════════════════════════════════════════════',
+      'TRAVELER CONTEXT',
+      '═══════════════════════════════════════════════════════════']
+
+    if (activeTrip) {
+      lines.push(`Active Trip: ${activeTrip.trip_name ?? activeTrip.id?.slice(0, 8)}`)
+      lines.push(`  Route: ${activeTrip.origin ?? '?'} → ${activeTrip.destination ?? '?'}`)
+      lines.push(`  Dates: ${activeTrip.depart_date ?? '?'} → ${activeTrip.return_date ?? '?'}`)
+    }
+
+    if (lastLocation) {
+      const age = Math.round((Date.now() - new Date(lastLocation.created_at)) / 60000)
+      lines.push(`Last Known Location: ${lastLocation.latitude?.toFixed(4)}, ${lastLocation.longitude?.toFixed(4)} — ${age}min ago`)
+    }
+
+    if (lastCheckin) {
+      const age = Math.round((Date.now() - new Date(lastCheckin.created_at)) / 60000)
+      lines.push(`Last Check-in: ${lastCheckin.status ?? 'completed'} — ${age}min ago${lastCheckin.note ? ` — "${lastCheckin.note.slice(0, 80)}"` : ''}`)
+    }
+
+    return {
+      activeTrip,
+      lastLocation,
+      lastCheckin,
+      formatted: lines.join('\n'),
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * fetchOrgContext(orgId)
+ *
+ * Fetches organisation name, subscription tier, and travel policy.
+ * Used to inject org-level constraints into advisories and briefings.
+ * Returns null when orgId is absent or queries fail.
+ */
+async function fetchOrgContext(orgId) {
+  if (!orgId) return null
+  try {
+    const [orgRows, policyRows] = await Promise.all([
+      sbQuery('organisations', {
+        id:     `eq.${orgId}`,
+        limit:  '1',
+        select: 'id,name,subscription_tier',
+      }),
+      sbQuery('travel_policies', {
+        org_id: `eq.${orgId}`,
+        limit:  '1',
+        select: 'risk_tolerance,restricted_countries,required_approvals,special_instructions',
+      }),
+    ])
+
+    const org    = orgRows?.[0]    ?? null
+    const policy = policyRows?.[0] ?? null
+
+    if (!org && !policy) return null
+
+    const lines = ['═══════════════════════════════════════════════════════════',
+      'ORGANISATIONAL CONTEXT',
+      '═══════════════════════════════════════════════════════════']
+
+    if (org) {
+      lines.push(`Organisation: ${org.name ?? orgId}`)
+      if (org.subscription_tier) lines.push(`Tier: ${org.subscription_tier}`)
+    }
+
+    if (policy) {
+      if (policy.risk_tolerance)        lines.push(`Risk Tolerance: ${policy.risk_tolerance}`)
+      if (policy.restricted_countries?.length) lines.push(`Restricted Countries: ${policy.restricted_countries.join(', ')}`)
+      if (policy.required_approvals)    lines.push(`Approval Requirements: ${policy.required_approvals}`)
+      if (policy.special_instructions)  lines.push(`Special Instructions: ${policy.special_instructions.slice(0, 200)}`)
+    }
+
+    return { org, policy, formatted: lines.join('\n') }
+  } catch {
+    return null
+  }
+}
+
 // ── MAIN: Context Assembly Engine ─────────────────────────────────────────────
 /**
- * assembleContext(journey)
+ * assembleContext(journey, options)
  *
  * Orchestrates the full intelligence retrieval and packaging pipeline.
  * Single function replacing gatherIntel() + buildMemoryContext() in journey-agent.js.
  *
  * @param {object} journey  { destination, transitPoints, transportModes, purpose, ... }
+ * @param {object} [options={}]  Optional layer flags — all default false (backward-compatible)
+ * @param {boolean} [options.includeOperationalState=false]  Fetch live SOS/incident state
+ * @param {boolean} [options.includeTravelerContext=false]   Fetch traveler trip/location
+ * @param {boolean} [options.includeOrgContext=false]        Fetch org policies
+ * @param {string}  [options.userId]    Required for traveler context
+ * @param {string}  [options.orgId]     Required for org + operational context
  * @returns {Promise<object>} Complete context package for injection into Claude
  */
-export async function assembleContext(journey) {
+export async function assembleContext(journey, options = {}) {
+  const {
+    includeOperationalState = false,
+    includeTravelerContext  = false,
+    includeOrgContext       = false,
+    userId = null,
+    orgId  = null,
+  } = options
+
   if (!journey?.destination) {
     return {
       formatted: 'No destination specified. Awaiting journey details.',
@@ -412,6 +634,9 @@ export async function assembleContext(journey) {
       dataAvailable: false,
       feedsFailed: false,
       totalArticles: 0,
+      operationalState: null,
+      travelerContext:  null,
+      orgContext:       null,
       stats: { live_signals: 0, corroboration_clusters: 0, memory_incidents: 0, memory_patterns: 0, confidence_score: 0, confidence_band: 'minimal' },
     }
   }
@@ -419,20 +644,32 @@ export async function assembleContext(journey) {
   const geoContexts = buildGeoContexts(journey)
 
   // ── Retrieve all intelligence layers in parallel ──────────────────────────
-  const [liveResult, memResult, storedIntelResult, storedCorrResult] = await Promise.allSettled([
+  const [liveResult, memResult, storedIntelResult, storedCorrResult, trafficResult, countryRiskResult] = await Promise.allSettled([
     fetchLiveFeedArticles(geoContexts),
     buildMemoryContext(journey.destination, journey.transitPoints || []),
     fetchStoredIntel(geoContexts),
     fetchStoredCorrelations(geoContexts),
+    assembleTrafficContext(journey),
+    assembleCountryRiskContext(journey.destination, journey.transitPoints || []),
   ])
 
-  const live         = liveResult.status     === 'fulfilled' ? liveResult.value     : { byLocation: {}, feedsFailed: true, totalFetched: 0 }
-  const memory       = memResult.status      === 'fulfilled' ? memResult.value      : { dataAvailable: false, formatted: '' }
-  const storedIntel  = storedIntelResult.status === 'fulfilled' ? storedIntelResult.value : []
-  const storedCorr   = storedCorrResult.status  === 'fulfilled' ? storedCorrResult.value  : []
+  const live         = liveResult.status         === 'fulfilled' ? liveResult.value         : { byLocation: {}, feedsFailed: true, totalFetched: 0 }
+  const memory       = memResult.status          === 'fulfilled' ? memResult.value          : { dataAvailable: false, formatted: '' }
+  const storedIntel  = storedIntelResult.status  === 'fulfilled' ? storedIntelResult.value  : []
+  const storedCorr   = storedCorrResult.status   === 'fulfilled' ? storedCorrResult.value   : []
+  const traffic      = trafficResult.status      === 'fulfilled' ? trafficResult.value      : { hasData: false, corridors: [] }
+  const countryRisk  = countryRiskResult.status  === 'fulfilled' ? countryRiskResult.value  : { hasData: false }
 
   // Total feed failure + no stored intel = degraded mode
   if (live.feedsFailed && live.totalFetched === 0 && storedIntel.length === 0) {
+    emit({
+      type:     'context_assembly_degraded',
+      endpoint: 'context_assembly',
+      region:   journey.destination,
+      success:  false,
+      errorCode: 'ALL_FEEDS_FAILED',
+      metadata: { geo_contexts: geoContexts.length, memory_available: memory.dataAvailable },
+    })
     const formatted = buildFallbackContext(geoContexts, memory)
     const acs = computeACS([], memory, [])
     return {
@@ -445,6 +682,9 @@ export async function assembleContext(journey) {
       feedsFailed: true,
       totalArticles: 0,
       live_intel_available: false,
+      operationalState: null,
+      travelerContext:  null,
+      orgContext:       null,
       stats: {
         live_signals: 0, corroboration_clusters: storedCorr.length,
         memory_incidents: memory.incidents?.length || 0,
@@ -480,11 +720,51 @@ export async function assembleContext(journey) {
 
   const acs = computeACS(prioritized, memory, allCorrelations)
 
-  const formatted = formatContextBlock(
+  let formatted = formatContextBlock(
     prioritized, allCorrelations, acs, memory, live.feedsFailed, journey
   )
 
+  // Append country risk intelligence (FCDO + AI brief + hazards)
+  if (countryRisk.hasData && countryRisk.formatted) {
+    formatted += '\n\n' + countryRisk.formatted
+  }
+
+  // Append live traffic intelligence if available
+  if (traffic.hasData && traffic.formatted) {
+    formatted += '\n\n' + traffic.formatted
+  }
+
+  // ── Optional layers (additive — all default OFF) ────────────────────────────
+  const [opsStateResult, travelerCtxResult, orgCtxResult] = await Promise.allSettled([
+    includeOperationalState ? fetchOperationalState(orgId)  : Promise.resolve(null),
+    includeTravelerContext  ? fetchTravelerContext(userId)   : Promise.resolve(null),
+    includeOrgContext       ? fetchOrgContext(orgId)         : Promise.resolve(null),
+  ])
+  const operationalState = opsStateResult.status   === 'fulfilled' ? opsStateResult.value   : null
+  const travelerCtx      = travelerCtxResult.status === 'fulfilled' ? travelerCtxResult.value : null
+  const orgCtx           = orgCtxResult.status      === 'fulfilled' ? orgCtxResult.value      : null
+
+  if (operationalState?.formatted) formatted += '\n\n' + operationalState.formatted
+  if (travelerCtx?.formatted)      formatted += '\n\n' + travelerCtx.formatted
+  if (orgCtx?.formatted)           formatted += '\n\n' + orgCtx.formatted
+
   const totalArticles = live.totalFetched + storedIntel.length
+
+  emit({
+    type:     'context_assembly_complete',
+    endpoint: 'context_assembly',
+    region:   journey.destination,
+    success:  true,
+    metadata: {
+      live_signals:   prioritized.length,
+      clusters:       allCorrelations.length,
+      total_articles: totalArticles,
+      acs_score:      acs.score,
+      acs_band:       acs.band,
+      feeds_failed:   live.feedsFailed,
+      memory_available: memory.dataAvailable,
+    },
+  })
 
   return {
     formatted,
@@ -493,6 +773,11 @@ export async function assembleContext(journey) {
     memoryContext:      memory,
     realTimeConfidence: acs,
     escalation,
+    trafficContext:     traffic,
+    countryRiskContext: countryRisk,
+    operationalState,
+    travelerContext:    travelerCtx,
+    orgContext:         orgCtx,
     dataAvailable:      memory.dataAvailable || prioritized.length > 0,
     feedsFailed:        live.feedsFailed,
     live_intel_available: !live.feedsFailed || storedIntel.length > 0,
@@ -508,6 +793,10 @@ export async function assembleContext(journey) {
       confidence_band:          acs.band,
       escalation_pattern:       escalation?.pattern || 'unknown',
       total_raw_articles:       totalArticles,
+      traffic_corridors:        traffic.corridors?.length || 0,
+      traffic_heavy:            traffic.heavyCount || 0,
+      traffic_incidents:        traffic.incidentTotal || 0,
+      country_risk_countries:   countryRisk.countries?.length || 0,
     },
   }
 }

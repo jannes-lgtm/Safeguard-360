@@ -13,9 +13,8 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtPct(n)   { return n == null ? '—' : `${Math.round(n * 100)}%` }
@@ -36,10 +35,10 @@ function scoreColor(n) {
 
 function scoreBg(n) {
   if (n == null) return 'bg-gray-100 text-gray-600'
-  if (n >= 90) return 'bg-green-100 text-green-700'
-  if (n >= 70) return 'bg-amber-100 text-amber-700'
+  if (n >= 90) return 'bg-green-100 text-[#AACC00]'
+  if (n >= 70) return 'bg-amber-100 text-[#D4A64A]'
   if (n >= 50) return 'bg-orange-100 text-orange-700'
-  return 'bg-red-100 text-red-700'
+  return 'bg-red-100 text-[#EF7474]'
 }
 
 function reliabilityColor(score) {
@@ -50,9 +49,9 @@ function reliabilityColor(score) {
 }
 
 const SEV_CONFIG = {
-  critical: { color: 'bg-red-100 text-red-700 border-red-200',     dot: 'bg-red-500' },
+  critical: { color: 'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',     dot: 'bg-red-500' },
   high:     { color: 'bg-orange-100 text-orange-700 border-orange-200', dot: 'bg-orange-500' },
-  medium:   { color: 'bg-amber-100 text-amber-700 border-amber-200',  dot: 'bg-amber-500' },
+  medium:   { color: 'bg-amber-100 text-[#D4A64A] border-[rgba(144,106,37,0.30)]',  dot: 'bg-amber-500' },
   low:      { color: 'bg-blue-100 text-blue-700 border-blue-200',    dot: 'bg-blue-400' },
 }
 
@@ -82,7 +81,7 @@ function StatCard({ label, value, sub, icon: Icon, color = BRAND_BLUE }) {
 function SectionHeader({ title, icon: Icon }) {
   return (
     <div className="flex items-center gap-2 mb-3">
-      {Icon && <Icon size={16} style={{ color: BRAND_BLUE }} />}
+      {Icon && <Icon size={16} style={{ color: DS.green }} />}
       <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest">{title}</h3>
     </div>
   )
@@ -213,7 +212,7 @@ export default function OperationalIntel() {
               onClick={runAnalysis}
               disabled={runningAnalysis}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition"
-              style={{ background: BRAND_BLUE }}
+              style={{ background: DS.green }}
             >
               {runningAnalysis ? <Loader2 size={14} className="animate-spin" /> : <BarChart2 size={14} />}
               Run Analysis
@@ -232,14 +231,14 @@ export default function OperationalIntel() {
 
         {/* analysis message */}
         {analysisMsg && (
-          <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium ${analysisMsg.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          <div className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium ${analysisMsg.ok ? 'bg-[rgba(170,204,0,0.10)] text-[#AACC00] border border-[rgba(170,204,0,0.25)]' : 'bg-[rgba(138,46,46,0.12)] text-[#EF7474] border border-[rgba(138,46,46,0.30)]'}`}>
             {analysisMsg.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
             {analysisMsg.text}
           </div>
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl flex items-center gap-2">
+          <div className="bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] text-[#EF7474] text-sm px-4 py-3 rounded-xl flex items-center gap-2">
             <XCircle size={15} /> {error}
           </div>
         )}
@@ -299,14 +298,14 @@ export default function OperationalIntel() {
             {(report.predictive_warnings?.length > 0 || report.trend_summary) && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {report.predictive_warnings?.length > 0 && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                  <div className="bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] rounded-2xl p-5">
                     <div className="flex items-center gap-2 mb-3">
-                      <TrendingUp size={16} className="text-amber-600" />
+                      <TrendingUp size={16} className="text-[#D4A64A]" />
                       <h3 className="text-sm font-bold text-amber-800 uppercase tracking-wide">Predictive Warnings</h3>
                     </div>
                     <ul className="space-y-2">
                       {report.predictive_warnings.map((w, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-amber-700">
+                        <li key={i} className="flex items-start gap-2 text-sm text-[#D4A64A]">
                           <AlertOctagon size={13} className="shrink-0 mt-0.5 text-amber-500" />
                           {w}
                         </li>
@@ -317,7 +316,7 @@ export default function OperationalIntel() {
                 {report.trend_summary && (
                   <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
                     <div className="flex items-center gap-2 mb-3">
-                      <BarChart2 size={16} className="text-blue-600" />
+                      <BarChart2 size={16} className="text-[#6EA8C8]" />
                       <h3 className="text-sm font-bold text-blue-800 uppercase tracking-wide">Latest Trend Analysis</h3>
                     </div>
                     <p className="text-sm text-blue-700 leading-relaxed">{report.trend_summary}</p>
@@ -335,7 +334,7 @@ export default function OperationalIntel() {
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
               <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle size={16} style={{ color: BRAND_BLUE }} />
+                  <AlertTriangle size={16} style={{ color: DS.green }} />
                   <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest">Active Anomalies</h3>
                 </div>
                 <div className="flex items-center gap-2">
@@ -411,7 +410,7 @@ export default function OperationalIntel() {
                         <div className="w-28 shrink-0">
                           <p className="text-xs font-semibold text-gray-700 truncate">{f.feed_id}</p>
                           {f.consecutive_failures > 0 && (
-                            <p className="text-[10px] text-red-500">{f.consecutive_failures} failures</p>
+                            <p className="text-[10px] text-[#EF7474]">{f.consecutive_failures} failures</p>
                           )}
                         </div>
                         <ScoreBar value={f.reliability_score} />
@@ -442,9 +441,9 @@ export default function OperationalIntel() {
                         <ScoreBar value={r.connectivity_score} />
                         <div className="shrink-0">
                           {r.status === 'healthy' ? (
-                            <Wifi size={13} className="text-green-500" />
+                            <Wifi size={13} className="text-[#AACC00]" />
                           ) : r.status === 'blackout' ? (
-                            <WifiOff size={13} className="text-red-500" />
+                            <WifiOff size={13} className="text-[#EF7474]" />
                           ) : (
                             <Wifi size={13} className="text-amber-400" />
                           )}
@@ -488,7 +487,7 @@ export default function OperationalIntel() {
                           />
                         </div>
                         {stats.failed > 0 && (
-                          <p className="text-[10px] text-red-500 mt-1">{stats.failed} failed deliveries</p>
+                          <p className="text-[10px] text-[#EF7474] mt-1">{stats.failed} failed deliveries</p>
                         )}
                       </div>
                     ))}
@@ -506,11 +505,11 @@ export default function OperationalIntel() {
                       <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Total</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-black text-red-600">{report.escalation_stats?.zero_reach_7d ?? '—'}</p>
+                      <p className="text-2xl font-black text-[#EF7474]">{report.escalation_stats?.zero_reach_7d ?? '—'}</p>
                       <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Zero Reach</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-black text-amber-600">{report.escalation_stats?.partial_reach_7d ?? '—'}</p>
+                      <p className="text-2xl font-black text-[#D4A64A]">{report.escalation_stats?.partial_reach_7d ?? '—'}</p>
                       <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Partial</p>
                     </div>
                   </div>
@@ -547,7 +546,7 @@ export default function OperationalIntel() {
                     <Zap size={16} style={{ color: '#7c3aed' }} />
                     <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest">Chaos Test Results</h3>
                     {chaosResult && !runningChaos && (
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${chaosResult.ok ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${chaosResult.ok ? 'bg-green-100 text-[#AACC00]' : 'bg-red-100 text-[#EF7474]'}`}>
                         {chaosResult.survivability_score != null ? `${chaosResult.survivability_score}% survivability` : 'Error'}
                       </span>
                     )}
@@ -560,10 +559,10 @@ export default function OperationalIntel() {
                   <div className="p-6 space-y-4">
                     {/* assessment banner */}
                     <div className={`px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2
-                      ${chaosResult.survivability_score >= 90 ? 'bg-green-50 text-green-700 border border-green-200' :
-                        chaosResult.survivability_score >= 70 ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                      ${chaosResult.survivability_score >= 90 ? 'bg-[rgba(170,204,0,0.10)] text-[#AACC00] border border-[rgba(170,204,0,0.25)]' :
+                        chaosResult.survivability_score >= 70 ? 'bg-[rgba(144,106,37,0.12)] text-[#D4A64A] border border-[rgba(144,106,37,0.30)]' :
                         chaosResult.survivability_score >= 50 ? 'bg-orange-50 text-orange-700 border border-orange-200' :
-                        'bg-red-50 text-red-700 border border-red-200'}`}>
+                        'bg-[rgba(138,46,46,0.12)] text-[#EF7474] border border-[rgba(138,46,46,0.30)]'}`}>
                       {chaosResult.ok ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
                       {chaosResult.assessment || 'Unknown status'}
                       <span className="ml-auto text-xs font-normal opacity-70">{chaosResult.total_ms}ms</span>
@@ -572,12 +571,12 @@ export default function OperationalIntel() {
                     {/* scenario results grid */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                       {Object.entries(chaosResult.results || {}).map(([scenario, result]) => (
-                        <div key={scenario} className={`rounded-xl p-3 border ${result.ok ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                        <div key={scenario} className={`rounded-xl p-3 border ${result.ok ? 'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.25)]' : 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)]'}`}>
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-bold uppercase tracking-wide text-gray-600">{scenario}</span>
                             {result.ok
-                              ? <CheckCircle2 size={13} className="text-green-500" />
-                              : <XCircle size={13} className="text-red-500" />
+                              ? <CheckCircle2 size={13} className="text-[#AACC00]" />
+                              : <XCircle size={13} className="text-[#EF7474]" />
                             }
                           </div>
                           <p className="text-[10px] text-gray-500">
@@ -585,7 +584,7 @@ export default function OperationalIntel() {
                           </p>
                           {result.latency_ms != null && <p className="text-[10px] text-gray-400">{fmtMs(result.latency_ms)}</p>}
                           {result.survivability_score != null && <p className="text-[10px] text-gray-400">{result.survivability_score}%</p>}
-                          {result.error && <p className="text-[10px] text-red-600 truncate mt-0.5">{result.error}</p>}
+                          {result.error && <p className="text-[10px] text-[#EF7474] truncate mt-0.5">{result.error}</p>}
                           {result.note && <p className="text-[10px] text-gray-500 mt-0.5">{result.note}</p>}
                         </div>
                       ))}
@@ -598,10 +597,10 @@ export default function OperationalIntel() {
                         <div className="space-y-1">
                           {Object.entries(chaosResult.results.feeds.detail).map(([id, r]) => (
                             <div key={id} className="flex items-center gap-3 text-xs">
-                              {r.ok ? <CheckCircle2 size={12} className="text-green-500" /> : <XCircle size={12} className="text-red-500" />}
+                              {r.ok ? <CheckCircle2 size={12} className="text-[#AACC00]" /> : <XCircle size={12} className="text-[#EF7474]" />}
                               <span className="w-40 font-medium text-gray-700">{id}</span>
                               <span className="text-gray-400">{fmtMs(r.latency_ms)}</span>
-                              <span className={`${r.ok ? 'text-green-600' : 'text-red-600'}`}>{r.status}</span>
+                              <span className={`${r.ok ? 'text-[#AACC00]' : 'text-[#EF7474]'}`}>{r.status}</span>
                             </div>
                           ))}
                         </div>
@@ -614,7 +613,7 @@ export default function OperationalIntel() {
                         <div className="space-y-1">
                           {Object.entries(chaosResult.results.regional.detail).map(([region, r]) => (
                             <div key={region} className="flex items-center gap-3 text-xs">
-                              {r.ok ? <CheckCircle2 size={12} className="text-green-500" /> : <XCircle size={12} className="text-red-500" />}
+                              {r.ok ? <CheckCircle2 size={12} className="text-[#AACC00]" /> : <XCircle size={12} className="text-[#EF7474]" />}
                               <span className="w-32 font-medium text-gray-700">{region}</span>
                               <span className="text-gray-400 flex-1 truncate">{r.label}</span>
                               <span className="text-gray-400">{fmtMs(r.latency_ms)}</span>

@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import { log } from '../lib/logger'
+import { Sentry } from '../lib/sentry'
 
 /**
  * SafeGuard360 — Global Error Boundary
@@ -34,6 +35,14 @@ export default class ErrorBoundary extends Component {
       stack:      error?.stack?.split('\n').slice(0, 5).join(' | '),
       component:  info?.componentStack?.split('\n').slice(0, 3).join(' | '),
     })
+
+    // Forward to Sentry (safe no-op when DSN not configured)
+    Sentry?.captureException?.(error, {
+      contexts: {
+        react: { componentStack: info?.componentStack },
+        boundary: { context: this.props.context || 'App' },
+      },
+    })
   }
 
   render() {
@@ -43,7 +52,7 @@ export default class ErrorBoundary extends Component {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="bg-white rounded-[12px] shadow-sm border border-gray-200 max-w-md w-full p-8 text-center">
-          <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+          <div className="w-14 h-14 rounded-full bg-[rgba(138,46,46,0.12)] flex items-center justify-center mx-auto mb-4">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="8" x2="12" y2="12"/>
@@ -71,7 +80,7 @@ export default class ErrorBoundary extends Component {
           {import.meta.env.DEV && this.state.error && (
             <details className="mt-6 text-left">
               <summary className="text-xs text-gray-400 cursor-pointer">Error details (dev only)</summary>
-              <pre className="mt-2 text-xs text-red-600 bg-red-50 p-3 rounded overflow-auto max-h-40">
+              <pre className="mt-2 text-xs text-[#EF7474] bg-[rgba(138,46,46,0.12)] p-3 rounded overflow-auto max-h-40">
                 {this.state.error.message}
                 {'\n'}
                 {this.state.error.stack}

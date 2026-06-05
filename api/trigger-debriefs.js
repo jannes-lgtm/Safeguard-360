@@ -188,21 +188,23 @@ async function _handler(req, res) {
     const sent = await sendEmail(email, subject, buildDebriefEmail({ trip, userEmail: email }))
 
     if (sent) {
-      await sb.from('audit_logs').insert({
-        actor_id:    trip.user_id,
-        actor_email: email,
-        actor_role:  profile?.role || null,
-        action:      'debrief.reminder_sent',
-        entity_type: 'itinerary',
-        entity_id:   trip.id,
-        description: `Post-travel debrief reminder sent for trip: ${tripName}`,
-        metadata: {
-          trip_id:     trip.id,
-          trip_name:   tripName,
-          destination: trip.arrival_city,
-          return_date: trip.return_date,
-        },
-      }).catch(() => {})
+      try {
+        await sb.from('audit_logs').insert({
+          actor_id:    trip.user_id,
+          actor_email: email,
+          actor_role:  profile?.role || null,
+          action:      'debrief.reminder_sent',
+          entity_type: 'itinerary',
+          entity_id:   trip.id,
+          description: `Post-travel debrief reminder sent for trip: ${tripName}`,
+          metadata: {
+            trip_id:     trip.id,
+            trip_name:   tripName,
+            destination: trip.arrival_city,
+            return_date: trip.return_date,
+          },
+        })
+      } catch { /* non-critical audit log — do not block debrief flow */ }
       emailed++
     }
   }

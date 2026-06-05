@@ -12,6 +12,7 @@
  */
 
 import { fetchHealthOutbreaks, resolveModel } from './_claudeSynth.js'
+import { claudeCall } from './_claudeClient.js'
 import { adapt } from './_adapter.js'
 import { checkRateLimit } from './_rateLimit.js'
 
@@ -237,26 +238,18 @@ Return ONLY valid JSON — no markdown, no explanation. Be specific to the desti
 }`
 
       const model = await resolveModel(apiKey)
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({ model, max_tokens: 1000, messages: [{ role: 'user', content: prompt }] }),
-        signal: AbortSignal.timeout(20000),
+      const rawText = await claudeCall(apiKey, {
+        messages:  [{ role: 'user', content: prompt }],
+        model,
+        maxTokens: 1000,
+        timeout:   20000,
       })
-
-      if (res.ok) {
-        const data  = await res.json()
-        const raw   = (data?.content?.[0]?.text || '').replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim()
-        const match = raw.match(/\{[\s\S]*\}/)
-        if (match) {
-          const result = JSON.parse(match[0])
-          CACHE[cacheKey] = { data: result, ts: Date.now() }
-          return result
-        }
+      const raw   = (rawText || '').replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim()
+      const match = raw.match(/\{[\s\S]*\}/)
+      if (match) {
+        const result = JSON.parse(match[0])
+        CACHE[cacheKey] = { data: result, ts: Date.now() }
+        return result
       }
     } catch (e) {
       console.error('[health-requirements] AI call failed:', e.message)
@@ -279,7 +272,7 @@ async function _handler(req, res) {
   if (!valid) return res.status(401).json({ error: 'Unauthorized' })
 
   // Rate limit: 20 AI health checks per user per hour
-  const { allowed } = checkRateLimit(req, 'health-requirements', { max: 20, windowMs: 3_600_000 })
+  const { allowed } = await checkRateLimit(req, 'health-requirements', { max: 20, windowMs: 3_600_000 })
   if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   const { destination, country, depart_date } = req.body || {}

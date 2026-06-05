@@ -24,8 +24,8 @@ export const SOURCE_TIERS = {
 // Maps normalised feed name / source name patterns → tier
 const SOURCE_REGISTRY = {
   // Tier 1 — Institutional
-  'reuters':              1, 'reuters africa':          1,
-  'associated press':     1, 'ap news':                 1, 'ap':          1,
+  'reuters':              1, 'reuters africa':          1, 'reuters world':       1,
+  'associated press':     1, 'ap news':                 1, 'ap':          1, 'ap world': 1,
   'bbc':                  1, 'bbc news':                1, 'bbc africa':  1,
   'afp':                  1, 'agence france-presse':    1,
   'un ocha':              1, 'reliefweb':               1, 'ocha':        1,
@@ -33,6 +33,8 @@ const SOURCE_REGISTRY = {
   'osac':                 1, 'us state department':     1, 'state dept':  1,
   'uk fco':               1, 'fcdo':                    1,
   'un news':              1, 'unhcr':                   1,
+  'janes defence':        1, 'janes':                   1,                       // institutional defence intel
+  'iiss':                 1,                                                      // International Institute for Strategic Studies
 
   // Tier 2 — Established
   'al jazeera':           2, 'aljazeera':               2,
@@ -48,6 +50,13 @@ const SOURCE_REGISTRY = {
   'new vision uganda':    2,
   'the east african':     2,
   'mail and guardian':    2,
+  'the strategy bridge':  2,                                                      // established military strategy analysis
+  'trading economics':    2,                                                      // established economic data
+  'the diplomat':         2,                                                      // Asia-Pacific security
+  'insight crime':        2, 'insightcrime':            2,                       // Latin America organised crime
+  'euractiv':             2,                                                      // EU policy & security
+  'aviapages':            2,                                                      // aviation incident tracking
+  'power tech':           3, 'power-technology':        3,                       // industry infrastructure publication
 
   // Tier 3 — Regional/secondary
   'allafrica':            3, 'allafrica.com':           3,

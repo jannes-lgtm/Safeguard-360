@@ -6,12 +6,10 @@ import {
   Loader2, AlertTriangle, ChevronDown, Briefcase, Plus, Trash2,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
-
-const inputClass = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
-const labelClass = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
+const inputClass = 'w-full rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-[#0A0F1C] border border-[rgba(255,255,255,0.1)] text-[#F1F5F9] placeholder-[#475569]'
+const labelClass = 'block text-xs font-semibold mb-1.5 uppercase tracking-wide text-[#64748B]'
 
 const BLANK_CONTACT = { full_name: '', relationship: '', phone: '', email: '' }
 
@@ -19,16 +17,16 @@ const BLANK_CONTACT = { full_name: '', relationship: '', phone: '', email: '' }
 function MiniPolicy({ config }) {
   const c = config || {}
   const Field = ({ value, fallback = '___' }) =>
-    value ? <strong style={{ color: BRAND_BLUE }}>{value}</strong>
-           : <span className="text-gray-400">{fallback}</span>
+    value ? <strong style={{ color: '#AACC00' }}>{value}</strong>
+           : <span style={{ color: '#475569' }}>{fallback}</span>
 
   return (
-    <div className="text-xs text-gray-600 leading-relaxed space-y-4">
-      <div className="text-center pb-3 border-b border-gray-200">
-        <h3 className="font-bold text-gray-900 text-sm">
+    <div className="text-xs leading-relaxed space-y-4" style={{ color: '#94A3B8' }}>
+      <div className="text-center pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <h3 className="font-bold text-sm" style={{ color: '#F1F5F9' }}>
           Corporate Travel Risk Management Policy
         </h3>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs mt-1" style={{ color: '#64748B' }}>
           <Field value={c.company_name} fallback="Your Organisation" /> · v{c.policy_version || '1.0'} · ISO 31030:2021
         </p>
       </div>
@@ -36,7 +34,7 @@ function MiniPolicy({ config }) {
         <Field value={c.company_name} fallback="Your organisation" /> is committed to the health, safety, and security of all travelling employees. This policy establishes the framework for managing travel-related risks in accordance with ISO 31030:2021.
       </p>
       <div>
-        <p className="font-bold text-gray-800 mb-1">As a traveller you agree to:</p>
+        <p className="font-bold mb-1" style={{ color: '#F1F5F9' }}>As a traveller you agree to:</p>
         <ul className="list-disc list-inside space-y-1 ml-1">
           <li>Submit all trips for approval before booking</li>
           <li>Complete mandatory pre-travel safety training</li>
@@ -47,10 +45,10 @@ function MiniPolicy({ config }) {
           <li>Keep your profile and next of kin details current at all times</li>
         </ul>
       </div>
-      <div className="rounded-lg p-3" style={{ background: '#FFF5F5', border: '1px solid #FCA5A5' }}>
-        <p className="font-bold text-red-800 mb-1">Emergency</p>
-        <p>24/7 Emergency Line: <Field value={c.emergency_number} fallback="[see full policy]" /></p>
-        <p className="mt-1">Activate SOS in SafeGuard360 immediately in any life-threatening situation.</p>
+      <div className="rounded-lg p-3" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+        <p className="font-bold mb-1" style={{ color: '#FCA5A5' }}>Emergency</p>
+        <p style={{ color: '#94A3B8' }}>24/7 Emergency Line: <Field value={c.emergency_number} fallback="[see full policy]" /></p>
+        <p className="mt-1" style={{ color: '#94A3B8' }}>Activate SOS in SafeGuard360 immediately in any life-threatening situation.</p>
       </div>
       <p>By signing below you confirm you have read, understood, and agree to comply with the full Travel Risk Management Policy. This signature is legally binding.</p>
     </div>
@@ -60,12 +58,12 @@ function MiniPolicy({ config }) {
 // ── SafeGuard360 Solo Traveller Agreement ─────────────────────────────────────
 function SoloTerms() {
   return (
-    <div className="text-xs text-gray-600 leading-relaxed space-y-4">
-      <div className="text-center pb-3 border-b border-gray-200">
-        <h3 className="font-bold text-gray-900 text-sm">
+    <div className="text-xs leading-relaxed space-y-4" style={{ color: '#94A3B8' }}>
+      <div className="text-center pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <h3 className="font-bold text-sm" style={{ color: '#F1F5F9' }}>
           SafeGuard360 — Solo Traveller Agreement
         </h3>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs mt-1" style={{ color: '#64748B' }}>
           Personal Travel Safety & Platform Terms · v1.0
         </p>
       </div>
@@ -73,7 +71,7 @@ function SoloTerms() {
       <p>SafeGuard360 provides you with real-time travel risk intelligence, emergency check-in tools, and a direct line to our 24/7 control room. By using the platform you agree to the following.</p>
 
       <div>
-        <p className="font-bold text-gray-800 mb-1">Your responsibilities:</p>
+        <p className="font-bold mb-1" style={{ color: '#F1F5F9' }}>Your responsibilities:</p>
         <ul className="list-disc list-inside space-y-1 ml-1">
           <li>Keep your profile, passport details, and emergency contacts accurate and up to date</li>
           <li>Log all trips before you depart so your contacts can be notified</li>
@@ -85,7 +83,7 @@ function SoloTerms() {
       </div>
 
       <div>
-        <p className="font-bold text-gray-800 mb-1">What SafeGuard360 provides:</p>
+        <p className="font-bold mb-1" style={{ color: '#F1F5F9' }}>What SafeGuard360 provides:</p>
         <ul className="list-disc list-inside space-y-1 ml-1">
           <li>Real-time risk alerts relevant to your travel destinations</li>
           <li>Automated notifications to your emergency contacts on missed check-ins</li>
@@ -96,7 +94,7 @@ function SoloTerms() {
       </div>
 
       <div>
-        <p className="font-bold text-gray-800 mb-1">Data &amp; Privacy (POPIA):</p>
+        <p className="font-bold mb-1" style={{ color: '#F1F5F9' }}>Data &amp; Privacy (POPIA):</p>
         <ul className="list-disc list-inside space-y-1 ml-1">
           <li>Your personal data is stored securely and used only to deliver the services described above</li>
           <li>Emergency contact details are used solely for notifying those contacts in your interest</li>
@@ -105,8 +103,8 @@ function SoloTerms() {
         </ul>
       </div>
 
-      <div className="rounded-lg p-3" style={{ background: '#FFF5F5', border: '1px solid #FCA5A5' }}>
-        <p className="font-bold text-red-800 mb-1">SOS &amp; Missed Check-in</p>
+      <div className="rounded-lg p-3" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+        <p className="font-bold mb-1" style={{ color: '#FCA5A5' }}>SOS &amp; Missed Check-in</p>
         <p>If you miss a check-in, your emergency contacts will be notified automatically. Activating SOS alerts the SafeGuard360 control room and all your emergency contacts simultaneously. Use it only in genuine emergencies.</p>
       </div>
 
@@ -160,7 +158,7 @@ export default function Onboarding() {
       const { data: prof } = await supabase
         .from('profiles')
         .select('full_name, phone, org_id, role, onboarding_completed_at')
-        .eq('id', user.id).single()
+        .eq('id', user.id).maybeSingle()
 
       if (prof?.onboarding_completed_at) { navigate('/dashboard'); return }
       if (prof?.full_name) setPersonal(p => ({ ...p, full_name: prof.full_name }))
@@ -314,7 +312,7 @@ export default function Onboarding() {
           location_name:  location?.locationName || null,
         }
         if (orgPolicy) {
-          const { data: prof } = await supabase.from('profiles').select('org_id').eq('id', userId).single()
+          const { data: prof } = await supabase.from('profiles').select('org_id').eq('id', userId).maybeSingle()
           await supabase.from('policy_signatures').upsert({
             ...sigPayload,
             policy_id:      orgPolicy.id,
@@ -340,25 +338,25 @@ export default function Onboarding() {
     return map[id] || id
   }
 
-  const pct = Math.round((step / totalSteps) * 100)
+  const pct = Math.round(((step + 1) / totalSteps) * 100)
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#F0F2F8' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: '#090A0C' }}>
 
       {/* Top bar */}
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-100 px-4 py-3">
+      <div className="sticky top-0 z-20 px-4 py-3" style={{ background: '#0C0E12', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-3">
-            <img src="/logo-colour.png" alt="SafeGuard360" className="h-7 w-auto" />
+            <img src="/logo-transparent.png" alt="SafeGuard360" className="h-10 w-auto" />
             <div className="text-right">
               <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: BRAND_BLUE }}>
                 {stepLabel(currentStepId)}
               </span>
-              <span className="text-[10px] text-gray-400 ml-2">{step + 1}/{totalSteps}</span>
+              <span className="text-[10px] ml-2" style={{ color: '#475569' }}>{step + 1}/{totalSteps}</span>
             </div>
           </div>
           {/* Progress bar */}
-          <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
+          <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
             <div className="h-2 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${BRAND_BLUE}, ${BRAND_GREEN})` }} />
           </div>
@@ -367,7 +365,7 @@ export default function Onboarding() {
             {stepIds.map((id, i) => (
               <div key={id} className="flex flex-col items-center gap-0.5">
                 <div className="w-2 h-2 rounded-full transition-all duration-300"
-                  style={{ background: i < step ? BRAND_GREEN : i === step ? BRAND_BLUE : '#E2E8F0',
+                  style={{ background: i < step ? BRAND_GREEN : i === step ? BRAND_BLUE : 'rgba(255,255,255,0.15)',
                     transform: i === step ? 'scale(1.3)' : 'scale(1)' }} />
               </div>
             ))}
@@ -380,15 +378,15 @@ export default function Onboarding() {
 
           {/* ── STEP: Personal Details ── */}
           {currentStepId === 'personal' && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
+            <div className="rounded-2xl overflow-hidden" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="px-6 py-5" style={{ background: 'rgba(1,24,161,0.12)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: BRAND_BLUE }}>
                     <User size={18} color="white" />
                   </div>
                   <div>
-                    <h2 className="font-bold text-gray-900">Personal Details</h2>
-                    <p className="text-xs text-gray-400 mt-0.5">Your identity and travel document information</p>
+                    <h2 className="font-bold" style={{ color: '#F1F5F9' }}>Personal Details</h2>
+                    <p className="text-xs mt-0.5" style={{ color: '#475569' }}>Your identity and travel document information</p>
                   </div>
                 </div>
               </div>
@@ -432,20 +430,20 @@ export default function Onboarding() {
           {/* ── STEP: Emergency Contacts ── */}
           {currentStepId === 'contacts' && (
             <div className="space-y-4">
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
+              <div className="rounded-2xl overflow-hidden" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className="px-6 py-5" style={{ background: 'rgba(1,24,161,0.12)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#e53e3e' }}>
                       <Heart size={18} color="white" />
                     </div>
                     <div>
-                      <h2 className="font-bold text-gray-900">Emergency Contacts</h2>
-                      <p className="text-xs text-gray-400 mt-0.5">Up to 3 contacts — notified automatically if you cannot be reached</p>
+                      <h2 className="font-bold" style={{ color: '#F1F5F9' }}>Emergency Contacts</h2>
+                      <p className="text-xs mt-0.5" style={{ color: '#475569' }}>Up to 3 contacts — notified automatically if you cannot be reached</p>
                     </div>
                   </div>
                 </div>
                 <div className="p-6 space-y-6">
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                  <div className="rounded-xl p-3 text-xs" style={{ background: 'rgba(212,166,74,0.08)', border: '1px solid rgba(212,166,74,0.25)', color: '#D4A64A' }}>
                     These contacts are notified automatically on missed check-ins and SOS events. They will also receive your trip itinerary by email when you log a new trip. No platform account is needed.
                   </div>
 
@@ -456,11 +454,11 @@ export default function Onboarding() {
                           style={{ background: i === 0 ? '#e53e3e' : BRAND_BLUE }}>
                           {i + 1}
                         </div>
-                        <span className="text-sm font-semibold text-gray-700">
+                        <span className="text-sm font-semibold" style={{ color: '#94A3B8' }}>
                           {i === 0 ? 'Primary Contact *' : i === 1 ? 'Secondary Contact' : 'Tertiary Contact'}
                         </span>
-                        {i === 0 && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">Required</span>}
-                        {i > 0 && <span className="text-[10px] text-gray-400">(optional)</span>}
+                        {i === 0 && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: 'rgba(239,68,68,0.15)', color: '#FCA5A5' }}>Required</span>}
+                        {i > 0 && <span className="text-[10px]" style={{ color: '#475569' }}>(optional)</span>}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-8">
                         <div>
@@ -492,7 +490,7 @@ export default function Onboarding() {
                             value={c.email} onChange={e => setC(i, 'email', e.target.value)} />
                         </div>
                       </div>
-                      {i < contacts.length - 1 && <div className="mt-5 border-b border-gray-100" />}
+                      {i < contacts.length - 1 && <div className="mt-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }} />}
                     </div>
                   ))}
                 </div>
@@ -502,20 +500,20 @@ export default function Onboarding() {
 
           {/* ── STEP: Line Manager (org only) ── */}
           {currentStepId === 'manager' && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
+            <div className="rounded-2xl overflow-hidden" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="px-6 py-5" style={{ background: 'rgba(1,24,161,0.12)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: BRAND_BLUE }}>
                     <Briefcase size={18} color="white" />
                   </div>
                   <div>
-                    <h2 className="font-bold text-gray-900">Line Manager</h2>
-                    <p className="text-xs text-gray-400 mt-0.5">The person who approves your travel and signs your visa letters</p>
+                    <h2 className="font-bold" style={{ color: '#F1F5F9' }}>Line Manager</h2>
+                    <p className="text-xs mt-0.5" style={{ color: '#475569' }}>The person who approves your travel and signs your visa letters</p>
                   </div>
                 </div>
               </div>
               <div className="p-6 space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800">
+                <div className="rounded-xl p-3 text-xs" style={{ background: 'rgba(1,24,161,0.15)', border: '1px solid rgba(1,24,161,0.3)', color: '#93C5FD' }}>
                   Your line manager's details will be used on visa support letters and travel approval requests.
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -565,14 +563,14 @@ export default function Onboarding() {
           )}
 
           {error && (
-            <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 mt-4">
+            <div className="flex items-center gap-2 px-4 py-3 bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-xl text-sm text-[#EF7474] mt-4">
               <AlertTriangle size={14} className="shrink-0" />{error}
             </div>
           )}
 
           <div className="mt-6 space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between">
             <button onClick={() => { setError(''); setStep(s => s - 1) }} disabled={step === 0}
-              className="flex items-center justify-center gap-2 w-full sm:w-auto px-5 py-3.5 sm:py-3 rounded-xl text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-white transition-all disabled:opacity-0 disabled:pointer-events-none order-2 sm:order-1">
+              className="flex items-center justify-center gap-2 w-full sm:w-auto px-5 py-3.5 sm:py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-0 disabled:pointer-events-none order-2 sm:order-1" style={{ color: '#64748B' }}>
               <ChevronLeft size={16} /> Back
             </button>
             {step < totalSteps - 1 ? (
@@ -599,57 +597,56 @@ export default function Onboarding() {
 
 // ── Shared signing step wrapper ───────────────────────────────────────────────
 function SigningStep({ scrollRef, scrolled, setScrolled, signedName, setSignedName, location, locating, locError, getLocation, title, subtitle, children }) {
-  const BRAND_BLUE  = '#0118A1'
-  const BRAND_GREEN = '#AACC00'
-  const inputClass  = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent bg-white'
-  const labelClass  = 'block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide'
+  const sigInputClass = 'w-full rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent bg-[#0A0F1C] border border-[rgba(255,255,255,0.1)] text-[#F1F5F9] placeholder-[#475569]'
+  const sigLabelClass = 'block text-xs font-semibold mb-1.5 uppercase tracking-wide text-[#64748B]'
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="px-6 py-5 border-b border-gray-50" style={{ background: `${BRAND_BLUE}08` }}>
+    <div className="rounded-2xl overflow-hidden" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="px-6 py-5" style={{ background: 'rgba(1,24,161,0.12)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: BRAND_GREEN }}>
             <CreditCard size={18} color={BRAND_BLUE} />
           </div>
           <div>
-            <h2 className="font-bold text-gray-900">{title}</h2>
-            <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
+            <h2 className="font-bold" style={{ color: '#F1F5F9' }}>{title}</h2>
+            <p className="text-xs mt-0.5" style={{ color: '#475569' }}>{subtitle}</p>
           </div>
         </div>
       </div>
       <div ref={scrollRef}
         onScroll={e => { const el = e.target; if (el.scrollHeight - el.scrollTop - el.clientHeight < 80) setScrolled(true) }}
-        className="h-64 overflow-y-auto p-6 border-b border-gray-100" style={{ scrollbarWidth: 'thin' }}>
+        className="h-64 overflow-y-auto p-6" style={{ scrollbarWidth: 'thin', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         {children}
         <div className="h-4" />
       </div>
       {!scrolled && (
-        <div className="px-6 py-2 flex items-center gap-2 text-xs text-gray-400 bg-gray-50 border-b border-gray-100">
+        <div className="px-6 py-2 flex items-center gap-2 text-xs" style={{ color: '#475569', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <ChevronDown size={12} className="animate-bounce" />Scroll to the bottom to unlock signing
         </div>
       )}
       <div className={`p-6 space-y-4 transition-opacity ${!scrolled ? 'opacity-40 pointer-events-none' : ''}`}>
         <div>
-          <label className={labelClass}>Type your full name to sign *</label>
-          <input className={inputClass} placeholder="e.g. Jane Smith"
+          <label className={sigLabelClass}>Type your full name to sign *</label>
+          <input className={sigInputClass} placeholder="e.g. Jane Smith"
             value={signedName} onChange={e => setSignedName(e.target.value)} />
         </div>
         <div>
-          <label className={labelClass}>Location at signing <span className="font-normal normal-case text-gray-400">(recommended)</span></label>
+          <label className={sigLabelClass}>Location at signing <span className="font-normal normal-case" style={{ color: '#475569' }}>(recommended)</span></label>
           {location ? (
-            <div className="flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-800">
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs" style={{ background: 'rgba(170,204,0,0.10)', border: '1px solid rgba(170,204,0,0.25)', color: '#AACC00' }}>
               <MapPin size={12} className="shrink-0" />{location.locationName}
             </div>
           ) : (
             <button onClick={getLocation} disabled={locating}
-              className="flex items-center gap-2 px-4 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all disabled:opacity-50 w-full">
+              className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm transition-all disabled:opacity-50 w-full"
+              style={{ border: '1px solid rgba(255,255,255,0.1)', color: '#94A3B8' }}>
               {locating ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
               {locating ? 'Getting location…' : 'Capture my current location'}
             </button>
           )}
-          {locError && <p className="text-xs text-amber-600 mt-1">{locError}</p>}
+          {locError && <p className="text-xs text-[#D4A64A] mt-1">{locError}</p>}
         </div>
-        <p className="text-[11px] text-gray-400">
-          Signing timestamp: <strong className="text-gray-600">
+        <p className="text-[11px]" style={{ color: '#475569' }}>
+          Signing timestamp: <strong style={{ color: '#94A3B8' }}>
             {new Date().toLocaleString('en-GB', { dateStyle: 'full', timeStyle: 'short' })}
           </strong>
         </p>

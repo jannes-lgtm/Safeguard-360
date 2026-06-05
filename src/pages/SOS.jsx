@@ -28,19 +28,16 @@ import {
 import Layout from '../components/Layout'
 import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
-import { resolveCountry } from '../lib/cityToCountry'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 
 const fmtDate = d => d ? new Date(d).toLocaleString('en-GB', {
   day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
 }) : '—'
 
 const STATUS_STYLE = {
-  active:      { label: '🔴 Active',      bg: 'bg-red-50',    border: 'border-red-300',    text: 'text-red-700'    },
-  resolved:    { label: '✅ Resolved',     bg: 'bg-green-50',  border: 'border-green-300',  text: 'text-green-700'  },
-  false_alarm: { label: '⚠️ False Alarm', bg: 'bg-amber-50',  border: 'border-amber-300',  text: 'text-amber-700'  },
+  active:      { label: '🔴 Active',      bg: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-red-300',    text: 'text-[#EF7474]'    },
+  resolved:    { label: '✅ Resolved',     bg: 'bg-[rgba(170,204,0,0.10)]',  border: 'border-green-300',  text: 'text-[#AACC00]'  },
+  false_alarm: { label: '⚠️ False Alarm', bg: 'bg-[rgba(144,106,37,0.12)]',  border: 'border-amber-300',  text: 'text-[#D4A64A]'  },
 }
 
 // ── GPS capture ───────────────────────────────────────────────────────────────
@@ -130,9 +127,9 @@ export default function SOS() {
 
   const loadData = async () => {
     setLoading(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    const uid = session.user.id
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const uid = user.id
 
     const today = new Date().toISOString().split('T')[0]
     const [{ data: prof }, { data: trip }, { data: evts }, { data: contacts }] = await Promise.all([
@@ -146,9 +143,9 @@ export default function SOS() {
     ])
     setEmergencyContacts(contacts || [])
 
-    const role = prof?.role || session.user.app_metadata?.role || 'traveller'
+    const role = prof?.role || 'traveller'
     setIsAdmin(['admin', 'org_admin', 'developer'].includes(role))
-    setProfile({ ...prof, email: session.user.email })
+    setProfile({ ...prof, email: user.email })
     setActiveTrip(trip || null)
     setEvents(evts || [])
     setLoading(false)
@@ -163,65 +160,62 @@ export default function SOS() {
     capture()
   }
 
+  const [deliveryResult, setDeliveryResult] = useState(null) // { delivered, total, message, status }
+
   const sendSOS = async () => {
     setStep('sending')
-    const { data: { session } } = await supabase.auth.getSession()
-    const user = session?.user
+    setError('')
 
-    const payload = {
-      user_id: user.id,
-      full_name: profile?.full_name || profile?.email || 'Unknown',
-      latitude: pos?.latitude || null,
-      longitude: pos?.longitude || null,
-      accuracy: pos?.accuracy || null,
-      location_label: pos ? `${pos.latitude.toFixed(5)}, ${pos.longitude.toFixed(5)}` : null,
-      message: message.trim() || null,
-      trip_name: activeTrip?.trip_name || null,
-      arrival_city: activeTrip?.arrival_city || null,
-      status: 'active',
+    // Retrieve access token — session is fine here since we only use it to
+    // call our own backend (which re-verifies via getUser() server-side).
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      setError('Session expired — please log in again')
+      setStep('confirm')
+      return
     }
 
-    const { error: sosErr } = await supabase.from('sos_events').insert(payload)
+    // Single server-side call: creates SOS event + fires notifications atomically.
+    // The server verifies the JWT independently and returns verified delivery status.
+    // No client-side DB insert — server is authoritative source of the SOS record.
+    try {
+      const r = await fetch('/api/sos-trigger', {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          latitude:     pos?.latitude     || null,
+          longitude:    pos?.longitude    || null,
+          accuracy:     pos?.accuracy     || null,
+          message:      message.trim()    || null,
+          trip_name:    activeTrip?.trip_name    || null,
+          arrival_city: activeTrip?.arrival_city || null,
+        }),
+      })
 
-    if (sosErr) { setError(sosErr.message); setStep('confirm'); return }
-
-    // Also create a Critical alert so it appears in the alerts feed
-    await supabase.from('alerts').insert({
-      title: `🆘 SOS — ${payload.full_name}`,
-      description: message.trim() || `SOS triggered by ${payload.full_name}${activeTrip ? ` in ${activeTrip.arrival_city}` : ''}. Immediate response required.`,
-      country: resolveCountry(activeTrip?.arrival_city) || activeTrip?.arrival_city || 'Unknown',
-      location: payload.location_label || activeTrip?.arrival_city || null,
-      severity: 'Critical',
-      status: 'Active',
-      date_issued: new Date().toISOString().split('T')[0],
-    })
-
-    // Send SOS notifications with retry — critical path, must not silently fail
-    if (session?.access_token) {
-      const notifyWithRetry = async (attempt = 1) => {
-        try {
-          const r = await fetch('/api/notify', {
-            method: 'POST',
-            headers: {
-              'Content-Type':  'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ type: 'sos', ...payload }),
-          })
-          if (!r.ok && attempt < 3) {
-            await new Promise(res => setTimeout(res, attempt * 2000))
-            return notifyWithRetry(attempt + 1)
-          }
-          if (!r.ok) console.error('[SOS] notify failed after 3 attempts:', r.status)
-        } catch (e) {
-          if (attempt < 3) {
-            await new Promise(res => setTimeout(res, attempt * 2000))
-            return notifyWithRetry(attempt + 1)
-          }
-          console.error('[SOS] notify network failure after 3 attempts:', e.message)
-        }
+      // 500 = SOS was NOT stored — hard error
+      if (r.status === 500) {
+        const body = await r.json().catch(() => ({}))
+        setError(body.error || 'Failed to record SOS. Please call emergency services directly.')
+        setStep('confirm')
+        return
       }
-      notifyWithRetry()
+
+      const body = await r.json().catch(() => ({}))
+      setDeliveryResult({
+        delivered: body.delivered ?? 0,
+        total:     body.total     ?? 0,
+        message:   body.message   || '',
+        status:    body.status    || 'unknown',
+        sosId:     body.sosId     || null,
+      })
+    } catch (e) {
+      // Network failure after SOS intent — give clear recovery guidance
+      setError('Network error. If this is a real emergency, call your emergency contacts directly or use local emergency services.')
+      setStep('confirm')
+      return
     }
 
     setStep('sent')
@@ -229,10 +223,10 @@ export default function SOS() {
   }
 
   const resolveEvent = async (id, status) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
     await supabase.from('sos_events').update({
-      status, resolved_by: session.user.id, resolved_at: new Date().toISOString()
+      status, resolved_by: user.id, resolved_at: new Date().toISOString()
     }).eq('id', id)
     loadData()
   }
@@ -266,29 +260,45 @@ export default function SOS() {
           </div>
         </div>
 
-        {/* Sent confirmation */}
+        {/* Sent confirmation — shows verified delivery status */}
         {step === 'sent' ? (
-          <div className="bg-red-50 border-2 border-red-400 rounded-[12px] p-8 text-center mb-6">
-            <AlertOctagon size={40} className="text-red-600 mx-auto mb-3"/>
-            <h2 className="text-xl font-bold text-red-800 mb-2">SOS Alert Sent</h2>
-            <p className="text-sm text-red-600 mb-1">Your emergency team has been notified.</p>
+          <div className={`border-2 rounded-[12px] p-8 text-center mb-6 ${
+            deliveryResult?.delivered > 0
+              ? 'bg-[rgba(138,46,46,0.12)] border-red-400'
+              : 'bg-[rgba(144,106,37,0.12)] border-amber-400'
+          }`}>
+            <AlertOctagon size={40} className={`mx-auto mb-3 ${deliveryResult?.delivered > 0 ? 'text-[#EF7474]' : 'text-amber-500'}`}/>
+            <h2 className={`text-xl font-bold mb-2 ${deliveryResult?.delivered > 0 ? 'text-red-800' : 'text-amber-800'}`}>
+              {deliveryResult?.delivered > 0 ? 'SOS Alert Sent' : 'SOS Recorded'}
+            </h2>
+            {deliveryResult?.message && (
+              <p className={`text-sm mb-1 ${deliveryResult.delivered > 0 ? 'text-[#EF7474]' : 'text-amber-700'}`}>
+                {deliveryResult.message}
+              </p>
+            )}
+            {deliveryResult?.delivered === 0 && (
+              <p className="text-xs text-amber-600 mt-2 font-semibold">
+                ⚠ If this is an active emergency, contact your emergency team directly.
+                The system will automatically retry notification within 5 minutes.
+              </p>
+            )}
             {pos && (
               <div className="mt-3 flex justify-center">
                 <W3WAddress lat={pos.latitude} lng={pos.longitude} />
               </div>
             )}
-            <button onClick={() => setStep('idle')} className="mt-5 text-sm text-red-600 underline">
+            <button onClick={() => { setStep('idle'); setDeliveryResult(null) }} className="mt-5 text-sm text-[#EF7474] underline">
               Back
             </button>
           </div>
         ) : step === 'confirm' ? (
           /* Confirm step */
-          <div className="bg-red-50 border-2 border-red-300 rounded-[12px] p-6 mb-6 space-y-4">
+          <div className="bg-[rgba(138,46,46,0.12)] border-2 border-red-300 rounded-[12px] p-6 mb-6 space-y-4">
             <h2 className="text-lg font-bold text-red-800">Confirm SOS Alert</h2>
-            <p className="text-sm text-red-600">This will immediately notify your emergency team with your location.</p>
+            <p className="text-sm text-[#EF7474]">This will immediately notify your emergency team with your location.</p>
 
             {/* GPS status */}
-            <div className={`flex items-center gap-2 text-xs rounded p-2 ${pos ? 'bg-green-50 text-green-700' : gpsError ? 'bg-amber-50 text-amber-700' : 'bg-gray-50 text-gray-500'}`}>
+            <div className={`flex items-center gap-2 text-xs rounded p-2 ${pos ? 'bg-[rgba(170,204,0,0.10)] text-[#AACC00]' : gpsError ? 'bg-[rgba(144,106,37,0.12)] text-[#D4A64A]' : 'bg-gray-50 text-gray-500'}`}>
               <Navigation size={11}/>
               {gpsLoading ? 'Capturing GPS location…' :
                pos ? `Location captured (±${Math.round(pos.accuracy || 0)}m)` :
@@ -307,10 +317,10 @@ export default function SOS() {
               <label className="text-xs font-medium text-gray-600 mb-1 block">Message (optional)</label>
               <textarea value={message} onChange={e => setMessage(e.target.value)} rows={2}
                 placeholder="Describe your situation, location details, or what help is needed…"
-                className="w-full border border-red-200 rounded-[6px] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none bg-white"/>
+                className="w-full border border-[rgba(138,46,46,0.30)] rounded-[6px] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none bg-white"/>
             </div>
 
-            {error && <p className="text-xs text-red-600">{error}</p>}
+            {error && <p className="text-xs text-[#EF7474]">{error}</p>}
 
             <div className="flex gap-3">
               <button onClick={sendSOS} disabled={step === 'sending'}
@@ -347,7 +357,7 @@ export default function SOS() {
             <div className="space-y-3">
               {emergencyContacts.map((c, i) => (
                 <div key={c.id} className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-[#0118A1]/10 flex items-center justify-center shrink-0 text-[10px] font-bold text-[#0118A1]">
+                  <div className="w-7 h-7 rounded-full bg-[#0118A1]/10 flex items-center justify-center shrink-0 text-[10px] font-bold text-[#AACC00]">
                     {i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -371,14 +381,14 @@ export default function SOS() {
             </div>
             <p className="text-[10px] text-gray-400 mt-3">
               These contacts will be notified immediately when you trigger an SOS. Update them in{' '}
-              <span className="text-[#0118A1] font-medium">My Profile</span>.
+              <span className="text-[#AACC00] font-medium">My Profile</span>.
             </p>
           </div>
         )}
         {emergencyContacts.length === 0 && !loading && (
-          <div className="bg-amber-50 border border-amber-200 rounded-[12px] p-4 mb-6">
+          <div className="bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] rounded-[12px] p-4 mb-6">
             <p className="text-xs font-semibold text-amber-800 mb-1">⚠️ No emergency contacts set</p>
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-[#D4A64A]">
               Add emergency contacts in <span className="font-semibold">My Profile</span> so someone can be notified if you trigger an SOS.
             </p>
           </div>

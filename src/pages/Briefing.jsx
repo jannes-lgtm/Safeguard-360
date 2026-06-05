@@ -6,9 +6,8 @@ import {
   Scale, Phone, List, ClipboardCheck, Lock, Printer,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 const RISK_STYLE = {
   Critical: { color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', label: 'CRITICAL' },
@@ -113,7 +112,7 @@ export default function Briefing() {
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#F0F2F8' }}>
       <div className="text-center">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: BRAND_BLUE }}>
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: DS.green }}>
           <FileText size={22} color="white" />
         </div>
         <p className="text-sm text-gray-500 font-medium">Loading briefing document…</p>
@@ -127,7 +126,7 @@ export default function Briefing() {
         <AlertCircle size={40} className="text-red-400 mx-auto mb-3" />
         <p className="text-sm text-gray-700 font-semibold mb-1">Document Unavailable</p>
         <p className="text-xs text-gray-400">{error}</p>
-        <Link to="/dashboard" className="mt-4 inline-block text-xs font-semibold hover:underline" style={{ color: BRAND_BLUE }}>← Back to Dashboard</Link>
+        <Link to="/dashboard" className="mt-4 inline-block text-xs font-semibold hover:underline" style={{ color: DS.green }}>← Back to Dashboard</Link>
       </div>
     </div>
   )
@@ -140,7 +139,7 @@ export default function Briefing() {
     <div className="min-h-screen" style={{ background: '#F0F2F8' }}>
       {/* Top bar */}
       <div className="sticky top-0 z-20 flex items-center gap-3 px-6 py-3 shadow-sm"
-        style={{ background: BRAND_BLUE, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        style={{ background: DS.green, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: BRAND_GREEN }}>
           <Shield size={14} color={BRAND_BLUE} />
         </div>
@@ -165,7 +164,7 @@ export default function Briefing() {
           {/* ISO badge */}
           <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
             <span className="text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-lg"
-              style={{ background: `${BRAND_BLUE}10`, color: BRAND_BLUE, border: `1px solid ${BRAND_BLUE}20` }}>
+              style={{ background: DS.greenDim, color: DS.green, border: `1px solid ${BRAND_BLUE}20` }}>
               ISO 31030:2021 — Travel Risk Management
             </span>
             <span className="text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg"
@@ -182,7 +181,7 @@ export default function Briefing() {
           </p>
 
           {/* Meta grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-5 rounded-xl" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-5 rounded-xl" style={{ background: DS.bgAlt, border: '1px solid #E2E8F0' }}>
             {[
               { label: 'Traveller',   value: briefing.traveller_name, icon: Shield },
               { label: 'Organisation', value: briefing.org_name,       icon: FileText },
@@ -227,7 +226,7 @@ export default function Briefing() {
 
           {!scrolled && !acknowledged && (
             <div className="sticky top-0 z-10 flex items-center justify-center gap-2 py-2 text-xs font-semibold"
-              style={{ background: `${BRAND_BLUE}08`, borderBottom: `1px solid ${BRAND_BLUE}12`, color: BRAND_BLUE }}>
+              style={{ background: `${BRAND_BLUE}08`, borderBottom: `1px solid ${BRAND_BLUE}12`, color: DS.green }}>
               <ChevronDown size={13} className="animate-bounce" />
               Scroll to read the full briefing before acknowledging
             </div>
@@ -240,8 +239,8 @@ export default function Briefing() {
                 <div key={key} className="px-7 py-6">
                   <div className="flex items-center gap-2.5 mb-3">
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ background: `${BRAND_BLUE}10` }}>
-                      <Icon size={13} style={{ color: BRAND_BLUE }} />
+                      style={{ background: DS.greenDim }}>
+                      <Icon size={13} style={{ color: DS.green }} />
                     </div>
                     <h3 className="text-sm font-bold text-gray-900">{title}</h3>
                   </div>
@@ -251,7 +250,7 @@ export default function Briefing() {
                       {content.map((item, i) => (
                         <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700 leading-relaxed">
                           <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
-                            style={{ background: `${BRAND_BLUE}12`, color: BRAND_BLUE }}>{i + 1}</span>
+                            style={{ background: DS.greenDim, color: DS.green }}>{i + 1}</span>
                           {item}
                         </li>
                       ))}
@@ -277,7 +276,7 @@ export default function Briefing() {
                 <p className="text-xs text-gray-400">Your travel administrator has been notified.</p>
               </div>
             </div>
-            <div className="rounded-xl p-4 mb-4" style={{ background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+            <div className="rounded-xl p-4 mb-4" style={{ background: DS.bgAlt, border: '1px solid #E2E8F0' }}>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-0.5">Acknowledged by</p>
@@ -303,15 +302,15 @@ export default function Briefing() {
             </p>
             <Link to="/itinerary"
               className="mt-4 inline-flex items-center gap-2 text-sm font-bold px-4 py-2.5 rounded-xl transition-opacity hover:opacity-80"
-              style={{ background: BRAND_BLUE, color: '#fff' }}>
+              style={{ background: DS.green, color: '#fff' }}>
               <Plane size={14} /> View My Trips
             </Link>
           </div>
         ) : (
           <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
             <div className="flex items-center gap-2.5 mb-5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}10` }}>
-                <ClipboardCheck size={14} style={{ color: BRAND_BLUE }} />
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: DS.greenDim }}>
+                <ClipboardCheck size={14} style={{ color: DS.green }} />
               </div>
               <h2 className="text-sm font-bold text-gray-900">Formal Acknowledgement</h2>
             </div>
@@ -325,7 +324,7 @@ export default function Briefing() {
 
             {!scrolled && (
               <div className="flex items-center gap-2 text-xs font-semibold rounded-xl px-4 py-3 mb-5"
-                style={{ background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A' }}>
+                style={{ background: '#FEF3C7', color: DS.amberText, border: '1px solid #FDE68A' }}>
                 <ChevronDown size={13} />
                 Please scroll through the full document before acknowledging.
               </div>
@@ -361,7 +360,7 @@ export default function Briefing() {
                 onClick={handleAcknowledge}
                 disabled={!scrolled || !name.trim() || !checked || submitting}
                 className="w-full py-3.5 rounded-xl font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ background: BRAND_BLUE, color: '#fff' }}>
+                style={{ background: DS.green, color: '#fff' }}>
                 {submitting ? 'Submitting…' : 'Formally Acknowledge Briefing'}
               </button>
 

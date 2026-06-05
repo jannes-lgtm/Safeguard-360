@@ -4,83 +4,111 @@
     "api/create-checkout-session.js": { "maxDuration": 20 },
     "api/stripe-webhook.js":          { "maxDuration": 20 },
     "api/billing-portal.js":          { "maxDuration": 15 },
-    "api/enterprise-inquiry.js":      { "maxDuration": 10 },
-    "api/parse-itinerary.js":  { "maxDuration": 45 },
-    "api/country-risk.js":     { "maxDuration": 45 },
-    "api/trip-alert-scan.js":  { "maxDuration": 120 },
-    "api/ai-assistant.js":     { "maxDuration": 45 },
-    "api/notify.js":           { "maxDuration": 30 },
-    "api/rss-ingest.js":       { "maxDuration": 30 },
-    "api/acled.js":            { "maxDuration": 30 },
-    "api/flight-status.js":    { "maxDuration": 20 },
-    "api/weather-alerts.js":   { "maxDuration": 30 },
-    "api/loadshedding.js":     { "maxDuration": 20 },
-    "api/feed-status.js":      { "maxDuration": 10 },
-    "api/travel-approval.js":  { "maxDuration": 90 },
-    "api/scan-all.js":         { "maxDuration": 300 },
-    "api/invite-user.js":      { "maxDuration": 20 },
-    "api/accept-invite.js":    { "maxDuration": 10 },
-    "api/notify-signup.js":    { "maxDuration": 10 },
-    "api/visa-check.js":       { "maxDuration": 45 },
-    "api/visa-letter.js":      { "maxDuration": 60 },
-    "api/org-signup.js":       { "maxDuration": 20 },
-    "api/notify-org-approval.js": { "maxDuration": 10 },
-    "api/delete-user.js":         { "maxDuration": 10 },
-    "api/audit-log.js":           { "maxDuration": 10 },
-    "api/notify-trip-contacts.js": { "maxDuration": 15 },
-    "api/trip-share.js":           { "maxDuration": 10 },
-    "api/missed-checkins.js":      { "maxDuration": 60 },
-    "api/generate-briefing.js":   { "maxDuration": 60 },
-    "api/acknowledge-briefing.js": { "maxDuration": 15 },
-    "api/passport-expiry.js":      { "maxDuration": 30 },
-    "api/post-travel-debrief.js":  { "maxDuration": 15 },
-    "api/trigger-debriefs.js":     { "maxDuration": 60 },
-    "api/notify-trip-submitted.js": { "maxDuration": 20 },
-    "api/notify-incident.js":       { "maxDuration": 20 },
-    "api/crisis-broadcast.js":      { "maxDuration": 60 },
-    "api/health-requirements.js":   { "maxDuration": 45 },
-    "api/destination-feed.js":      { "maxDuration": 30 },
-    "api/health.js":                { "maxDuration": 15 },
-    "api/ops-analyze.js":           { "maxDuration": 90 },
-    "api/ops-report.js":            { "maxDuration": 15 },
-    "api/ops-ingest.js":            { "maxDuration": 10 },
-    "api/chaos-test.js":            { "maxDuration": 90 },
-    "api/journey-agent.js":         { "maxDuration": 60 },
-    "api/ingest-feeds.js":          { "maxDuration": 120 }
+    "api/whatsapp-webhook.js":        { "maxDuration": 30 },
+    "api/parse-itinerary.js":         { "maxDuration": 45 },
+    "api/country-risk.js":            { "maxDuration": 45 },
+    "api/trip-alert-scan.js":         { "maxDuration": 120 },
+    "api/ai-assistant.js":            { "maxDuration": 45 },
+    "api/notify.js":                  { "maxDuration": 30 },
+    "api/sos-trigger.js":             { "maxDuration": 30 },
+    "api/sos-escalation-check.js":    { "maxDuration": 30 },
+    "api/rss-ingest.js":              { "maxDuration": 30 },
+    "api/acled.js":                   { "maxDuration": 30 },
+    "api/flight-status.js":           { "maxDuration": 20 },
+    "api/weather-alerts.js":          { "maxDuration": 30 },
+    "api/loadshedding.js":            { "maxDuration": 20 },
+    "api/travel-approval.js":         { "maxDuration": 90 },
+    "api/scan-all.js":                { "maxDuration": 30  },
+    "api/inngest.js":                 { "maxDuration": 60  },
+    "api/admin-trigger-scan.js":      { "maxDuration": 30  },
+    "api/invite-user.js":             { "maxDuration": 20 },
+    "api/visa-check.js":              { "maxDuration": 45 },
+    "api/visa-letter.js":             { "maxDuration": 60 },
+    "api/org-signup.js":              { "maxDuration": 20 },
+    "api/notify-trip-contacts.js":    { "maxDuration": 15 },
+    "api/missed-checkins.js":         { "maxDuration": 60 },
+    "api/generate-briefing.js":       { "maxDuration": 60 },
+    "api/acknowledge-briefing.js":    { "maxDuration": 15 },
+    "api/passport-expiry.js":         { "maxDuration": 30 },
+    "api/trigger-debriefs.js":        { "maxDuration": 60 },
+    "api/notify-trip-submitted.js":   { "maxDuration": 20 },
+    "api/notify-incident.js":         { "maxDuration": 20 },
+    "api/crisis-broadcast.js":        { "maxDuration": 60 },
+    "api/health-requirements.js":     { "maxDuration": 45 },
+    "api/destination-feed.js":        { "maxDuration": 30 },
+    "api/ops-analyze.js":             { "maxDuration": 90 },
+    "api/ops-report.js":              { "maxDuration": 15 },
+    "api/cairo-context.js":           { "maxDuration": 30 },
+    "api/journey-agent.js":           { "maxDuration": 60 },
+    "api/ingest-feeds.js":            { "maxDuration": 120 },
+    "api/country-risk-warmup.js":     { "maxDuration": 800 },
+    "api/gdelt-ingest.js":            { "maxDuration": 300 },
+    "api/cairo-upload.js":            { "maxDuration": 300 },
+    "api/backfill-embeddings.js":     { "maxDuration": 300 },
+    "api/traffic-ingest.js":          { "maxDuration": 60 },
+    "api/route-lookup.js":            { "maxDuration": 30 },
+    "api/facilities.js":              { "maxDuration": 55 },
+    "api/prewarm-facilities.js":      { "maxDuration": 300 },
+    "api/airfields.js":               { "maxDuration": 55 },
+    "api/intel-health.js":            { "maxDuration": 30 }
   },
   "crons": [
-    {
-      "path": "/api/scan-all",
-      "schedule": "0 */4 * * *"
-    },
-    {
-      "path": "/api/missed-checkins",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/passport-expiry",
-      "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/trigger-debriefs",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/ops-analyze",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/ingest-feeds",
-      "schedule": "0 * * * *"
-    }
+    { "path": "/api/sos-escalation-check",  "schedule": "*/5 * * * *"  },
+    { "path": "/api/scan-all",              "schedule": "0 */4 * * *"  },
+    { "path": "/api/missed-checkins",       "schedule": "0 * * * *"    },
+    { "path": "/api/passport-expiry",       "schedule": "0 7 * * *"    },
+    { "path": "/api/trigger-debriefs",      "schedule": "0 9 * * *"    },
+    { "path": "/api/ops-analyze",           "schedule": "0 */6 * * *"  },
+    { "path": "/api/ingest-feeds",          "schedule": "0 * * * *"    },
+    { "path": "/api/gdelt-ingest?batch=1",  "schedule": "0 * * * *"     },
+    { "path": "/api/gdelt-ingest?batch=2",  "schedule": "5 * * * *"     },
+    { "path": "/api/gdelt-ingest?batch=3",  "schedule": "10 * * * *"    },
+    { "path": "/api/gdelt-ingest?batch=4",  "schedule": "15 * * * *"    },
+    { "path": "/api/gdelt-ingest?batch=5",  "schedule": "20 * * * *"    },
+    { "path": "/api/gdelt-ingest?batch=6",  "schedule": "25 * * * *"    },
+    { "path": "/api/gdelt-ingest?batch=7",  "schedule": "32 * * * *"    },
+    { "path": "/api/gdelt-ingest?batch=8",  "schedule": "37 * * * *"    },
+    { "path": "/api/gdelt-ingest?batch=9",  "schedule": "42 * * * *"    },
+    { "path": "/api/gdelt-ingest?batch=10", "schedule": "47 * * * *"    },
+    { "path": "/api/gdelt-ingest?batch=11", "schedule": "52 * * * *"    },
+    { "path": "/api/gdelt-ingest?batch=12", "schedule": "57 * * * *"    },
+    { "path": "/api/country-risk-warmup",        "schedule": "*/15 * * * *"  },
+    { "path": "/api/country-risk-warmup?tier=slow", "schedule": "10 */3 * * *"  },
+    { "path": "/api/traffic-ingest",        "schedule": "*/30 * * * *" },
+    { "path": "/api/prewarm-facilities",    "schedule": "0 2 * * *"    }
   ],
   "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options",  "value": "nosniff" },
+        { "key": "X-Frame-Options",         "value": "SAMEORIGIN" },
+        { "key": "X-XSS-Protection",        "value": "1; mode=block" },
+        { "key": "Referrer-Policy",         "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy",      "value": "camera=(), microphone=(), geolocation=(self)" },
+        { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload" }
+      ]
+    },
     {
       "source": "/api/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin",  "value": "https://www.risk360.co" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" },
+        { "key": "Access-Control-Allow-Credentials", "value": "true" }
+      ]
+    },
+    {
+      "source": "/((?!api/).*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.openstreetmap.org https://*.openweathermap.org https://*.maptiler.com https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://*.cartocdn.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://tile.openweathermap.org https://overpass.openstreetmap.fr https://davidmegginson.github.io https://healthsites.io https://router.project-osrm.org https://api.anthropic.com https://raw.githubusercontent.com https://*.basemaps.cartocdn.com https://*.cartocdn.com https://api.maptiler.com https://*.maptiler.com https://fonts.openmaptiles.org https://fonts.googleapis.com https://fonts.gstatic.com https://api.mapbox.com https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io; worker-src blob: 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+        }
       ]
     }
   ],

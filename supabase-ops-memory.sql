@@ -32,7 +32,11 @@ create index if not exists idx_ops_events_endpoint_ts  on public.ops_events (end
 
 alter table public.ops_events enable row level security;
 drop policy if exists "Service role full access" on public.ops_events;
-create policy "Service role full access" on public.ops_events for all using (true) with check (true);
+create policy "ops_events__service__all" on public.ops_events
+  for all to service_role using (true) with check (true);
+create policy "ops_events__admin__select" on public.ops_events
+  for select to authenticated
+  using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','developer')));
 
 -- ── 2. Feed reliability scores (materialised by ops-analyze cron) ───────────
 create table if not exists public.feed_reliability (
@@ -59,7 +63,11 @@ create table if not exists public.feed_reliability (
 
 alter table public.feed_reliability enable row level security;
 drop policy if exists "Service role full access" on public.feed_reliability;
-create policy "Service role full access" on public.feed_reliability for all using (true) with check (true);
+create policy "feed_reliability__service__all" on public.feed_reliability
+  for all to service_role using (true) with check (true);
+create policy "feed_reliability__admin__select" on public.feed_reliability
+  for select to authenticated
+  using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','developer')));
 
 -- ── 3. Notification delivery history ────────────────────────────────────────
 create table if not exists public.notification_delivery (
@@ -84,7 +92,11 @@ create index if not exists idx_notif_delivery_success   on public.notification_d
 
 alter table public.notification_delivery enable row level security;
 drop policy if exists "Service role full access" on public.notification_delivery;
-create policy "Service role full access" on public.notification_delivery for all using (true) with check (true);
+create policy "notification_delivery__service__all" on public.notification_delivery
+  for all to service_role using (true) with check (true);
+create policy "notification_delivery__admin__select" on public.notification_delivery
+  for select to authenticated
+  using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','developer')));
 
 -- ── 4. Regional connectivity intelligence ───────────────────────────────────
 create table if not exists public.regional_connectivity (
@@ -107,7 +119,11 @@ create table if not exists public.regional_connectivity (
 
 alter table public.regional_connectivity enable row level security;
 drop policy if exists "Service role full access" on public.regional_connectivity;
-create policy "Service role full access" on public.regional_connectivity for all using (true) with check (true);
+create policy "regional_connectivity__service__all" on public.regional_connectivity
+  for all to service_role using (true) with check (true);
+create policy "regional_connectivity__admin__select" on public.regional_connectivity
+  for select to authenticated
+  using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','developer')));
 
 -- ── 5. Detected operational anomalies ───────────────────────────────────────
 create table if not exists public.ops_anomalies (
@@ -136,7 +152,11 @@ create index if not exists idx_ops_anomalies_subject     on public.ops_anomalies
 
 alter table public.ops_anomalies enable row level security;
 drop policy if exists "Service role full access" on public.ops_anomalies;
-create policy "Service role full access" on public.ops_anomalies for all using (true) with check (true);
+create policy "ops_anomalies__service__all" on public.ops_anomalies
+  for all to service_role using (true) with check (true);
+create policy "ops_anomalies__admin__select" on public.ops_anomalies
+  for select to authenticated
+  using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','developer')));
 
 -- ── 6. Escalation failure log ────────────────────────────────────────────────
 create table if not exists public.escalation_failures (
@@ -159,7 +179,11 @@ create index if not exists idx_escalation_failures_type on public.escalation_fai
 
 alter table public.escalation_failures enable row level security;
 drop policy if exists "Service role full access" on public.escalation_failures;
-create policy "Service role full access" on public.escalation_failures for all using (true) with check (true);
+create policy "escalation_failures__service__all" on public.escalation_failures
+  for all to service_role using (true) with check (true);
+create policy "escalation_failures__admin__select" on public.escalation_failures
+  for select to authenticated
+  using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','developer')));
 
 -- ── 7. WebSocket disconnect history ─────────────────────────────────────────
 create table if not exists public.ws_disconnects (
@@ -176,7 +200,11 @@ create index if not exists idx_ws_disconnects_ts on public.ws_disconnects (ts de
 
 alter table public.ws_disconnects enable row level security;
 drop policy if exists "Service role full access" on public.ws_disconnects;
-create policy "Service role full access" on public.ws_disconnects for all using (true) with check (true);
+create policy "ws_disconnects__service__all" on public.ws_disconnects
+  for all to service_role using (true) with check (true);
+create policy "ws_disconnects__admin__select" on public.ws_disconnects
+  for select to authenticated
+  using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','developer')));
 
 -- ── 8. Operational trend summaries (periodic snapshots) ─────────────────────
 create table if not exists public.ops_trend_summaries (
@@ -195,7 +223,11 @@ create index if not exists idx_ops_trend_ts on public.ops_trend_summaries (gener
 
 alter table public.ops_trend_summaries enable row level security;
 drop policy if exists "Service role full access" on public.ops_trend_summaries;
-create policy "Service role full access" on public.ops_trend_summaries for all using (true) with check (true);
+create policy "ops_trend_summaries__service__all" on public.ops_trend_summaries
+  for all to service_role using (true) with check (true);
+create policy "ops_trend_summaries__admin__select" on public.ops_trend_summaries
+  for select to authenticated
+  using (exists (select 1 from profiles where id = auth.uid() and role in ('admin','developer')));
 
 -- ── Seed known regions for connectivity tracking ─────────────────────────────
 insert into public.regional_connectivity (region, country, continent) values

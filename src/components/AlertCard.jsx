@@ -1,51 +1,69 @@
+import { DS, sev } from '../lib/ds'
 import SeverityBadge from './SeverityBadge'
 
-const severityDot = {
-  Critical: 'bg-red-500',
-  High: 'bg-amber-500',
-  Medium: 'bg-yellow-400',
-  Low: 'bg-gray-400',
-}
-
-const severityBorder = {
-  Critical: 'border-l-red-500',
-  High: 'border-l-orange-500',
-  Medium: 'border-l-yellow-400',
-  Low: 'border-l-gray-300',
-}
-
+/**
+ * Operational alert card — dark surfaces, muted left-border accent.
+ * No white or light backgrounds.
+ */
 export default function AlertCard({ alert }) {
-  const isCritical = alert.severity === 'Critical'
+  const s = sev(alert.severity)
   const isResolved = alert.status === 'Resolved'
 
   return (
     <div
-      className={`
-        bg-white rounded-[8px] shadow-[0_1px_3px_rgba(0,0,0,0.08)]
-        border-l-4 ${severityBorder[alert.severity] || 'border-l-gray-300'}
-        p-4 transition-opacity
-        ${isCritical ? 'bg-[#FEF2F2]' : ''}
-        ${isResolved ? 'opacity-60' : ''}
-      `}
+      style={{
+        background:   DS.surface,
+        border:       `1px solid ${DS.border}`,
+        borderLeft:   `3px solid ${s.bar}`,
+        borderRadius: 6,
+        padding:      '12px 16px',
+        opacity:      isResolved ? 0.55 : 1,
+        transition:   'opacity 0.15s',
+      }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <div className={`mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 ${severityDot[alert.severity] || 'bg-gray-400'}`} />
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <span className="font-semibold text-gray-900 text-sm">{alert.title}</span>
-              <SeverityBadge severity={alert.severity} />
-              {isResolved && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
-                  Resolved
-                </span>
-              )}
-            </div>
-            <div className="text-xs text-gray-500 mb-1">
-              {alert.country} &bull; {alert.date_issued}
-            </div>
-            <p className="text-sm text-gray-700 leading-relaxed">{alert.description}</p>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        {/* Severity dot */}
+        <div style={{
+          width:        7,
+          height:       7,
+          borderRadius: '50%',
+          background:   s.dot,
+          marginTop:    5,
+          flexShrink:   0,
+        }} />
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontWeight: 600, color: DS.white, fontSize: 13 }}>
+              {alert.title}
+            </span>
+            <SeverityBadge severity={alert.severity} />
+            {isResolved && (
+              <span style={{
+                display:       'inline-flex',
+                alignItems:    'center',
+                padding:       '2px 8px',
+                borderRadius:  3,
+                fontSize:      9,
+                fontWeight:    700,
+                letterSpacing: '0.10em',
+                textTransform: 'uppercase',
+                background:    DS.greenDim,
+                color:         DS.green,
+                border:        `1px solid ${DS.green}33`,
+              }}>
+                Resolved
+              </span>
+            )}
           </div>
+
+          <div style={{ fontSize: 11, color: DS.textSub, marginBottom: 6 }}>
+            {alert.country} &bull; {alert.date_issued}
+          </div>
+
+          <p style={{ fontSize: 13, color: DS.text, lineHeight: 1.55, margin: 0 }}>
+            {alert.description}
+          </p>
         </div>
       </div>
     </div>

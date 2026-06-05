@@ -10,14 +10,13 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
 
 const PLAN_STYLE = {
   solo:         { label: 'SOLO',         bg: 'bg-gray-100',   text: 'text-gray-600' },
   team:         { label: 'TEAM',         bg: 'bg-blue-100',   text: 'text-blue-700' },
-  operations:   { label: 'OPERATIONS',   bg: 'bg-amber-100',  text: 'text-amber-700' },
+  operations:   { label: 'OPERATIONS',   bg: 'bg-amber-100',  text: 'text-[#D4A64A]' },
   enterprise:   { label: 'ENTERPRISE',   bg: 'bg-purple-100', text: 'text-purple-700' },
   // legacy fallbacks
   starter:      { label: 'SOLO',         bg: 'bg-gray-100',   text: 'text-gray-600' },
@@ -42,16 +41,16 @@ function OrgCard({ org, stats, onClick }) {
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-[#0118A1]/20 transition-all cursor-pointer group"
+      className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-[#AACC00]/20 transition-all cursor-pointer group"
     >
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold"
-            style={{ background: `${BRAND_BLUE}12`, color: BRAND_BLUE }}>
+            style={{ background: DS.greenDim, color: DS.green }}>
             {org.name[0]?.toUpperCase()}
           </div>
           <div>
-            <p className="font-semibold text-gray-900 group-hover:text-[#0118A1] transition-colors">{org.name}</p>
+            <p className="font-semibold text-gray-900 group-hover:text-[#AACC00] transition-colors">{org.name}</p>
             <p className="text-xs text-gray-400">{org.industry || 'No industry'} · {org.country || 'No country'}</p>
           </div>
         </div>
@@ -60,7 +59,7 @@ function OrgCard({ org, stats, onClick }) {
             {plan.label}
           </span>
           {!org.is_active && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-[#EF7474]">
               Inactive
             </span>
           )}
@@ -78,9 +77,9 @@ function OrgCard({ org, stats, onClick }) {
           <p className="text-[10px] text-gray-400">Active Trips</p>
         </div>
         <div className={`rounded-lg py-2 ${
-          (stats?.pending_approvals || 0) > 0 ? 'bg-amber-50' : 'bg-gray-50'
+          (stats?.pending_approvals || 0) > 0 ? 'bg-[rgba(144,106,37,0.12)]' : 'bg-gray-50'
         }`}>
-          <p className={`text-base font-bold ${(stats?.pending_approvals || 0) > 0 ? 'text-amber-600' : 'text-gray-900'}`}>
+          <p className={`text-base font-bold ${(stats?.pending_approvals || 0) > 0 ? 'text-[#D4A64A]' : 'text-gray-900'}`}>
             {stats?.pending_approvals || 0}
           </p>
           <p className="text-[10px] text-gray-400">Pending</p>
@@ -126,7 +125,7 @@ function OrgModal({ org, onClose, onSaved }) {
     else console.error('save org error:', error)
   }
 
-  const inputClass = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+  const inputClass = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20"
   const labelClass = "text-xs font-semibold text-gray-600 block mb-1"
 
   return (
@@ -220,7 +219,7 @@ function OrgModal({ org, onClose, onSaved }) {
                 {members.map(m => (
                   <div key={m.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
                     <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 text-white"
-                      style={{ background: BRAND_BLUE }}>
+                      style={{ background: DS.green }}>
                       {(m.full_name || m.email || '?')[0].toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -242,7 +241,7 @@ function OrgModal({ org, onClose, onSaved }) {
           </button>
           <button onClick={save} disabled={saving || !form.name.trim()}
             className="flex-1 px-4 py-2.5 text-sm font-bold rounded-xl disabled:opacity-50"
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            style={{ background: BRAND_GREEN, color: DS.bg }}>
             {saving ? 'Saving…' : isNew ? 'Add Organisation' : 'Save Changes'}
           </button>
         </div>
@@ -330,7 +329,7 @@ export default function Organisations() {
           </button>
           <button onClick={() => setModal('new')}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            style={{ background: BRAND_GREEN, color: DS.bg }}>
             <Plus size={15} /> Add Organisation
           </button>
         </div>
@@ -342,13 +341,13 @@ export default function Organisations() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search organisations…"
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 flex-1 min-w-[200px]"
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 flex-1 min-w-[200px]"
         />
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 flex-wrap">
           {['all', 'solo', 'team', 'operations', 'enterprise'].map(p => (
             <button key={p} onClick={() => setFilterPlan(p)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium uppercase transition-colors ${
-                filterPlan === p ? 'bg-white text-[#0118A1] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                filterPlan === p ? 'bg-white text-[#AACC00] shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}>
               {p}
             </button>

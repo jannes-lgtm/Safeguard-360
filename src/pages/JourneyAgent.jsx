@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
+import { sendCairoMessage } from '../services/cairoService'
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -133,10 +134,10 @@ function Spinner({ size = 14 }) {
 
 // ── Quick prompts ─────────────────────────────────────────────────────────────
 const QUICK_PROMPTS = [
-  { label: 'Nairobi next week', icon: Plane, msg: 'I need to travel to Nairobi, Kenya next Monday for a 4-day board meeting. Flying from London.' },
-  { label: 'Lagos route risk', icon: Route, msg: 'Assess the risk for road travel from Lagos to Port Harcourt. 2 travellers, business purpose.' },
-  { label: 'Abuja 3 days', icon: Target, msg: 'Business trip to Abuja, Nigeria. Departing this Friday, returning Monday. 1 traveller, staying at Transcorp Hilton.' },
-  { label: 'Dubai + Riyadh', icon: Compass, msg: 'Two-leg trip: Dubai for 2 days then Riyadh for 3 days. Business meetings. What are the key operational considerations?' },
+  { label: 'Nairobi next week',        icon: Plane,   msg: 'I need to travel to Nairobi, Kenya next Monday for a 4-day board meeting. Flying from London.' },
+  { label: 'Lagos route risk',         icon: Route,   msg: 'Assess the risk for road travel from Lagos to Port Harcourt. 2 travellers, business purpose.' },
+  { label: 'Dubai to Riyadh',         icon: Compass,  msg: 'Two-leg trip: Dubai for 2 days then Riyadh for 3 days. Business meetings. Key operational considerations?' },
+  { label: 'Kinshasa extraction route', icon: Target, msg: 'Extraction route planning from Kinshasa. What are the primary evacuation options and current access status?' },
 ]
 
 // ── Risk gauge ────────────────────────────────────────────────────────────────
@@ -1079,7 +1080,7 @@ export default function JourneyAgent() {
     const name = profile?.full_name?.split(' ')[0]
     setMessages([{
       role: 'assistant',
-      text: `${name ? `CAIRO online. Ready, ${name}.` : 'CAIRO online.'}\n\nOperational intelligence systems active. Live feeds, incident monitoring, and historical pattern database online.\n\nDescribe your journey and I'll produce a full risk advisory — live situational intelligence, threat context, historical pattern analysis, recommended mitigations, and contingency planning. Confidence levels are explicitly scored and evidence-attributed.\n\nI advise and contextualise. You and your team decide.\n\nExample: "Travelling to Nairobi next Monday for a 3-day board meeting, flying from London."`,
+      text: `${name ? `Ready, ${name}.` : 'Operational intelligence ready.'}\n\nTell me where you're going.`,
     }])
   }, [profile])
 
@@ -1147,29 +1148,12 @@ export default function JourneyAgent() {
         addPhaseMsg('Retrieving live intelligence — feeds, incidents, correlations, operational memory…')
       }
 
-      const res = await fetch('/api/journey-agent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`,
-        },
-        body: JSON.stringify({
-          message: text,
-          action,
-          journey,
-          history: messages,
-          orgContext: profile?.orgName ? { orgName: profile.orgName } : null,
-        }),
+      const token = session?.access_token || ''
+      const data = await sendCairoMessage(text, token, {
+        history: messages,
+        journey,
+        orgContext: profile?.orgName ? { orgName: profile.orgName } : null,
       })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setMessages(prev => [...prev, { role: 'assistant', text: data.error || 'Error processing request.' }])
-        setSending(false)
-        setPhase('idle')
-        return
-      }
 
       // Update journey state
       if (data.journey?.destination) {
@@ -1217,7 +1201,7 @@ export default function JourneyAgent() {
     const name = profile?.full_name?.split(' ')[0]
     setMessages([{
       role: 'assistant',
-      text: `${name ? `CAIRO online. Ready, ${name}.` : 'CAIRO online.'}\n\nOperational intelligence systems active. Describe your journey and I'll produce a full advisory — live situational intelligence, threat context, pattern analysis, and contingency planning.\n\nI advise and contextualise. You and your team decide.`,
+      text: `${name ? `Ready, ${name}.` : 'Operational intelligence ready.'}\n\nTell me where you're going.`,
     }])
     setTimeout(() => inputRef.current?.focus(), 100)
   }
@@ -1231,32 +1215,29 @@ export default function JourneyAgent() {
 
   return (
     <Layout>
-      <div className="min-h-screen" style={{ background: C.bg }}>
+      <div className="flex flex-col" style={{ height: 'calc(100vh - 56px)', background: C.bg }}>
 
         {/* ── Header ─────────────────────────────────────────────────────────── */}
-        <div className="sticky top-0 z-20 px-4 py-3 flex items-center justify-between"
-          style={{ background: C.bg, borderBottom: `1px solid ${C.border}`, backdropFilter: 'blur(12px)' }}>
+        <div className="shrink-0 px-4 py-3 flex items-center justify-between"
+          style={{ background: C.bg, borderBottom: `1px solid ${C.border}` }}>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center"
               style={{ background: C.accentDim, border: `1px solid ${C.borderHi}` }}>
               <Compass size={15} style={{ color: C.accent }} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <span className="text-sm font-black tracking-tight" style={{ color: C.text }}>
                   CAIRO
                 </span>
-                <span className="text-[10px] font-semibold tracking-wide" style={{ color: C.textDim }}>
+                <span className="text-[10px] font-medium" style={{ color: C.textDim }}>
                   Operational Travel Intelligence
                 </span>
                 <span className="flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full"
                   style={{ background: C.accentDim, color: C.accent, border: `1px solid ${C.borderHi}` }}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> ONLINE
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: C.accent }} /> ONLINE
                 </span>
               </div>
-              <p className="text-[10px]" style={{ color: C.textDim }}>
-                Contextual Adaptive Intelligence for Route Operations · SafeGuard 360
-              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1284,10 +1265,10 @@ export default function JourneyAgent() {
         </div>
 
         {/* ── Main layout ─────────────────────────────────────────────────────── */}
-        <div className={`flex gap-0 ${showAnalysis && hasAnalysis ? 'lg:gap-5 lg:p-5' : 'p-4 max-w-2xl mx-auto'}`}>
+        <div className={`flex-1 min-h-0 flex overflow-hidden ${showAnalysis && hasAnalysis ? 'lg:gap-5 lg:p-5' : 'p-4'}`}>
 
           {/* ── Left: Chat panel ────────────────────────────────────────────── */}
-          <div className={`flex-1 flex flex-col ${showAnalysis && hasAnalysis ? 'lg:min-w-0' : ''}`}>
+          <div className={`flex-1 min-h-0 flex flex-col ${showAnalysis && hasAnalysis ? '' : 'max-w-2xl mx-auto w-full'}`}>
 
             {/* Journey summary card */}
             {hasJourney && (
@@ -1296,8 +1277,9 @@ export default function JourneyAgent() {
               </div>
             )}
 
-            {/* Messages */}
-            <div className="flex-1 space-y-3 mb-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 320px)' }}>
+            {/* Messages — flex-1 min-h-0 lets this grow to fill remaining space and
+                scroll internally instead of pushing the input box down the page */}
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-3 mb-4">
               {messages.map((m, i) => <MessageBubble key={i} msg={m} />)}
               {sending && (
                 <div className="flex items-center gap-2">
@@ -1315,23 +1297,24 @@ export default function JourneyAgent() {
               <div ref={bottomRef} />
             </div>
 
-            {/* Quick prompts — show only when no journey yet */}
+            {/* Quick prompts — show only on empty state */}
             {!hasJourney && messages.length <= 1 && (
-              <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="shrink-0 grid grid-cols-2 gap-1.5 mb-4">
                 {QUICK_PROMPTS.map((p, i) => (
                   <button key={i} onClick={() => send(p.msg)}
-                    className="flex items-center gap-2 text-left px-3 py-2.5 rounded-xl text-[11px] font-medium transition-all hover:opacity-90"
-                    style={{ background: C.elevated, border: `1px solid ${C.border}`, color: C.textMid }}>
-                    <p.icon size={12} style={{ color: C.accent, shrink: 0 }} />
+                    className="flex items-center gap-2 text-left px-3 py-2.5 rounded-lg text-[11px] font-medium transition-all"
+                    style={{ background: C.elevated, border: `1px solid ${C.border}`, color: C.textDim }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.11)'; e.currentTarget.style.color = C.textMid }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.textDim }}
+                  >
                     {p.label}
-                    <ChevronRight size={10} className="ml-auto shrink-0" style={{ color: C.textDim }} />
                   </button>
                 ))}
               </div>
             )}
 
-            {/* Input */}
-            <div className="rounded-2xl overflow-hidden"
+            {/* Input — shrink-0 keeps it pinned to the bottom of the flex column */}
+            <div className="shrink-0 rounded-2xl overflow-hidden"
               style={{ background: C.elevated, border: `1px solid ${C.border}`, boxShadow: '0 0 0 1px rgba(170,204,0,0.06)' }}>
               <textarea
                 ref={inputRef}
@@ -1340,7 +1323,7 @@ export default function JourneyAgent() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKey}
                 disabled={sending}
-                placeholder="Describe your journey — destination, dates, purpose, transport mode…"
+                placeholder="Destination, route, or operational question…"
                 className="w-full resize-none bg-transparent px-4 pt-3 pb-2 text-sm focus:outline-none placeholder:text-sm"
                 style={{ color: C.text, caretColor: C.accent }}
               />
@@ -1354,9 +1337,9 @@ export default function JourneyAgent() {
                       Get CAIRO Advisory
                     </button>
                   )}
-                  {!hasJourney && (
+                  {!hasJourney && input.trim() && (
                     <span className="text-[10px]" style={{ color: C.textDim }}>
-                      Press Enter to send
+                      ↵ Enter
                     </span>
                   )}
                 </div>
@@ -1383,9 +1366,9 @@ export default function JourneyAgent() {
           )}
         </div>
 
-        {/* ── Mobile analysis panel (below chat) ─────────────────────────────── */}
+        {/* ── Mobile analysis panel (below chat on small screens) ─────────────── */}
         {showAnalysis && hasAnalysis && (
-          <div className="lg:hidden px-4 pb-6 space-y-3">
+          <div className="lg:hidden shrink-0 overflow-y-auto px-4 pb-6 space-y-3" style={{ maxHeight: '50vh' }}>
             <div className="h-px my-4" style={{ background: C.border }} />
             <AnalysisPanel analysis={analysis} assets={assets} />
           </div>

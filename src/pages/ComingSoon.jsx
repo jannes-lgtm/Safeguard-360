@@ -1,10 +1,12 @@
+import { DS } from '../lib/ds'
+
 export default function ComingSoon() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: '#0118A1' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: DS.green }}>
       <div className="flex flex-col items-center gap-6 text-center">
 
         {/* Logo - transparent blends with background */}
-        <img src="/logo-transparent.png" alt="SafeGuard360" className="h-28 w-auto" />
+        <img src="/logo-transparent.png" alt="SafeGuard360" className="h-20 w-auto" />
 
         {/* Divider */}
         <div className="w-12 h-0.5 bg-[#AACC00] rounded-full" />

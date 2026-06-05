@@ -12,6 +12,8 @@
  * Get a key at: https://cloud.maptiler.com/account/keys
  */
 
+import { BRAND_BLUE } from './colors'
+
 const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY
 
 // ── Raster fallback styles (no API key required) ──────────────────────────────
@@ -19,20 +21,23 @@ const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY
 const CARTO_DARK_STYLE = {
   version: 8,
   name: 'Operational Dark',
+  // Glyphs enable MapLibre symbol/text layers on top of this raster base
+  glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
   sources: {
     'carto-dark': {
       type: 'raster',
+      // dark_nolabels — removes baked-in raster labels so our own labels aren't doubled
       tiles: [
-        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png',
       ],
       tileSize: 256,
       attribution: '© OpenStreetMap contributors © CARTO',
       maxzoom: 19,
     },
   },
-  layers: [{ id: 'carto-dark-tiles', type: 'raster', source: 'carto-dark', paint: { 'raster-opacity': 1 } }],
+  layers: [{ id: 'carto-dark-tiles', type: 'raster', source: 'carto-dark', paint: { 'raster-opacity': 0.78 } }],
 }
 
 const CARTO_LIGHT_STYLE = {
@@ -75,7 +80,7 @@ const CARTO_BLUE_STYLE = {
   },
   layers: [
     // Brand blue background — shows through as the "ocean" colour
-    { id: 'background', type: 'background', paint: { 'background-color': '#0118A1' } },
+    { id: 'background', type: 'background', paint: { 'background-color': BRAND_BLUE } },
     // Dark land tiles at 75% opacity — land appears dark navy, ocean stays blue
     { id: 'carto-dark-tiles', type: 'raster', source: 'carto-dark', paint: { 'raster-opacity': 0.75 } },
   ],
@@ -94,7 +99,7 @@ export const MAP_STYLES = {
 
   standard: MAPTILER_KEY
     ? `https://api.maptiler.com/maps/basic-v2/style.json?key=${MAPTILER_KEY}`
-    : CARTO_BLUE_STYLE,
+    : CARTO_DARK_STYLE,
 
   terrain: MAPTILER_KEY
     ? `https://api.maptiler.com/maps/outdoor/style.json?key=${MAPTILER_KEY}`

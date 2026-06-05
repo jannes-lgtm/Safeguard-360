@@ -5,6 +5,8 @@ import {
   Wind, Thermometer, RefreshCw, ChevronRight, ChevronUp, ChevronDown, Clock
 } from 'lucide-react'
 import Layout from '../components/Layout'
+import { timeAgo } from '../lib/dateUtils'
+import { getCountryRisk, listFeeds, getFeedById } from '../services/intelligenceService'
 
 // ── Country metadata: capital city + coordinates ──────────────────────────────
 const COUNTRY_META = {
@@ -100,10 +102,10 @@ const wmo = (code) => WMO[code] ?? '🌡 Unknown'
 
 // ── Risk severity config ──────────────────────────────────────────────────────
 const RISK = {
-  Critical: { bg: 'bg-red-600',    light: 'bg-red-50',    border: 'border-red-300',    text: 'text-red-800',    dot: 'bg-red-500',    bar: 100 },
+  Critical: { bg: 'bg-red-600',    light: 'bg-[rgba(138,46,46,0.12)]',    border: 'border-red-300',    text: 'text-red-800',    dot: 'bg-red-500',    bar: 100 },
   High:     { bg: 'bg-orange-500', light: 'bg-orange-50', border: 'border-orange-300', text: 'text-orange-800', dot: 'bg-orange-500', bar: 75  },
   Medium:   { bg: 'bg-yellow-500', light: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-800', dot: 'bg-yellow-400', bar: 50  },
-  Low:      { bg: 'bg-green-500',  light: 'bg-green-50',  border: 'border-green-300',  text: 'text-green-800',  dot: 'bg-green-500',  bar: 25  },
+  Low:      { bg: 'bg-green-500',  light: 'bg-[rgba(170,204,0,0.10)]',  border: 'border-green-300',  text: 'text-green-800',  dot: 'bg-green-500',  bar: 25  },
   Unknown:  { bg: 'bg-gray-400',   light: 'bg-gray-50',   border: 'border-gray-300',   text: 'text-gray-600',   dot: 'bg-gray-400',   bar: 10  },
 }
 const getRisk = (s) => RISK[s] || RISK.Unknown
@@ -123,7 +125,7 @@ const RESOURCES = [
   },
   {
     category: 'Security Intelligence',
-    color: 'bg-red-50 border-red-200 text-red-800',
+    color: 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)] text-red-800',
     icon: Shield,
     items: [
       { name: 'ACLED Dashboard — Africa', url: 'https://acleddata.com/dashboard/', desc: 'Interactive conflict event map for Africa — updated weekly' },
@@ -134,7 +136,7 @@ const RESOURCES = [
   },
   {
     category: 'Humanitarian & Health',
-    color: 'bg-amber-50 border-amber-200 text-amber-800',
+    color: 'bg-[rgba(144,106,37,0.12)] border-[rgba(144,106,37,0.30)] text-amber-800',
     icon: AlertTriangle,
     items: [
       { name: 'UN OCHA — ReliefWeb', url: 'https://reliefweb.int/updates?advanced-search=%28PC246%29_%28PC171%29_%28PC188%29', desc: 'Humanitarian situation reports, flash updates and maps for Africa' },
@@ -159,27 +161,11 @@ const RESOURCES = [
 // ── Category badge colours ────────────────────────────────────────────────────
 const CAT_COLORS = {
   security: 'bg-purple-100 text-purple-700 border-purple-200',
-  conflict: 'bg-red-100 text-red-700 border-red-200',
+  conflict: 'bg-red-100 text-[#EF7474] border-[rgba(138,46,46,0.30)]',
   health:   'bg-rose-100 text-rose-700 border-rose-200',
   weather:  'bg-teal-100 text-teal-700 border-teal-200',
 }
 const catColor = (c) => CAT_COLORS[c] || 'bg-gray-100 text-gray-600 border-gray-200'
-
-// ── Relative time ─────────────────────────────────────────────────────────────
-function timeAgo(dateStr) {
-  if (!dateStr) return null
-  const diff = Date.now() - new Date(dateStr).getTime()
-  if (isNaN(diff)) return null
-  const s = Math.floor(diff / 1000)
-  if (s < 60)  return `${s}s ago`
-  const m = Math.floor(s / 60)
-  if (m < 60)  return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24)  return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 7)   return `${d}d ago`
-  return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-}
 
 // ── Article card ──────────────────────────────────────────────────────────────
 function ArticleCard({ article }) {
@@ -190,7 +176,7 @@ function ArticleCard({ article }) {
       <div className="w-1.5 h-1.5 rounded-full bg-[#AACC00] mt-2 shrink-0" />
       <div className="flex-1 min-w-0">
         <a href={article.url} target="_blank" rel="noopener noreferrer"
-          className="text-sm font-semibold text-gray-900 hover:text-[#0118A1] hover:underline leading-snug block mb-1.5">
+          className="text-sm font-semibold text-gray-900 hover:text-[#AACC00] hover:underline leading-snug block mb-1.5">
           {article.title}
         </a>
         <div className="flex items-center gap-2 flex-wrap">
@@ -208,7 +194,7 @@ function ArticleCard({ article }) {
         )}
       </div>
       <a href={article.url} target="_blank" rel="noopener noreferrer"
-        className="text-gray-300 hover:text-[#0118A1] transition-colors opacity-0 group-hover:opacity-100 shrink-0 mt-1">
+        className="text-gray-300 hover:text-[#AACC00] transition-colors opacity-0 group-hover:opacity-100 shrink-0 mt-1">
         <ExternalLink size={13} />
       </a>
     </div>
@@ -229,10 +215,10 @@ function ResourceSection({ section }) {
           <a key={i} href={item.url} target="_blank" rel="noopener noreferrer"
             className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group">
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-gray-800 group-hover:text-[#0118A1] transition-colors">{item.name}</div>
+              <div className="text-sm font-medium text-gray-800 group-hover:text-[#AACC00] transition-colors">{item.name}</div>
               <div className="text-xs text-gray-400 mt-0.5 leading-relaxed">{item.desc}</div>
             </div>
-            <ExternalLink size={13} className="text-gray-300 group-hover:text-[#0118A1] transition-colors shrink-0 mt-0.5" />
+            <ExternalLink size={13} className="text-gray-300 group-hover:text-[#AACC00] transition-colors shrink-0 mt-0.5" />
           </a>
         ))}
       </div>
@@ -260,9 +246,7 @@ function CountryProfile({ country, meta, allArticles, feedsLoading }) {
     setWeather(null)
     setLoading(true)
 
-    const fetchRisk = fetch(`/api/country-risk?country=${encodeURIComponent(country)}`)
-      .then(r => r.json())
-      .catch(() => null)
+    const fetchRisk = getCountryRisk(country).catch(() => null)
 
     const fetchWeather = fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${meta.lat}&longitude=${meta.lon}` +
@@ -328,7 +312,7 @@ function CountryProfile({ country, meta, allArticles, feedsLoading }) {
                     className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-800 group-hover:text-[#0118A1]">{src.name}</span>
+                        <span className="text-sm font-semibold text-gray-800 group-hover:text-[#AACC00]">{src.name}</span>
                         {src.level && (
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getRisk(['Low','Low','Medium','High','Critical'][src.level] || 'Unknown').light} ${getRisk(['Low','Low','Medium','High','Critical'][src.level] || 'Unknown').border} ${getRisk(['Low','Low','Medium','High','Critical'][src.level] || 'Unknown').text}`}>
                             Level {src.level}
@@ -337,7 +321,7 @@ function CountryProfile({ country, meta, allArticles, feedsLoading }) {
                       </div>
                       {src.message && <p className="text-xs text-gray-500 mt-0.5">{src.message}</p>}
                     </div>
-                    <ExternalLink size={12} className="text-gray-300 group-hover:text-[#0118A1] shrink-0" />
+                    <ExternalLink size={12} className="text-gray-300 group-hover:text-[#AACC00] shrink-0" />
                   </a>
                 ))}
               </div>
@@ -391,7 +375,7 @@ function CountryProfile({ country, meta, allArticles, feedsLoading }) {
               Intel Feed Headlines
             </span>
             {feedsLoading && (
-              <span className="flex items-center gap-1 text-[10px] text-[#0118A1]">
+              <span className="flex items-center gap-1 text-[10px] text-[#AACC00]">
                 <RefreshCw size={9} className="animate-spin" /> loading more…
               </span>
             )}
@@ -404,7 +388,7 @@ function CountryProfile({ country, meta, allArticles, feedsLoading }) {
           <div className="py-8 text-center">
             {feedsLoading ? (
               <p className="text-xs text-gray-400 flex items-center justify-center gap-2">
-                <RefreshCw size={12} className="animate-spin text-[#0118A1]" />
+                <RefreshCw size={12} className="animate-spin text-[#AACC00]" />
                 Scanning feeds for {country}…
               </p>
             ) : (
@@ -418,7 +402,7 @@ function CountryProfile({ country, meta, allArticles, feedsLoading }) {
                 <div className="w-1.5 h-1.5 rounded-full bg-[#AACC00] mt-2 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <a href={a.url} target="_blank" rel="noopener noreferrer"
-                    className="text-sm font-medium text-gray-900 hover:text-[#0118A1] hover:underline leading-snug block">
+                    className="text-sm font-medium text-gray-900 hover:text-[#AACC00] hover:underline leading-snug block">
                     {a.title}
                   </a>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -433,7 +417,7 @@ function CountryProfile({ country, meta, allArticles, feedsLoading }) {
                   </div>
                 </div>
                 <a href={a.url} target="_blank" rel="noopener noreferrer"
-                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-[#0118A1] transition-all shrink-0 mt-1">
+                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-[#AACC00] transition-all shrink-0 mt-1">
                   <ExternalLink size={12} />
                 </a>
               </div>
@@ -472,8 +456,8 @@ function CountryAdvisory({ allArticles, feedsLoading }) {
             onClick={() => setMobilePicker(p => !p)}
             className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
             <span className="flex items-center gap-2">
-              <Search size={13} className="text-[#0118A1]" />
-              <span className={selected ? 'text-[#0118A1] font-semibold' : 'text-gray-500'}>
+              <Search size={13} className="text-[#AACC00]" />
+              <span className={selected ? 'text-[#AACC00] font-semibold' : 'text-gray-500'}>
                 {selected || 'Select a country…'}
               </span>
             </span>
@@ -488,7 +472,7 @@ function CountryAdvisory({ allArticles, feedsLoading }) {
                   <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input value={search} onChange={e => setSearch(e.target.value)}
                     placeholder="Search country…"
-                    className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"
+                    className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00]"
                   />
                 </div>
               </div>
@@ -508,7 +492,7 @@ function CountryAdvisory({ allArticles, feedsLoading }) {
             <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search…"
-              className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 focus:border-[#0118A1]"
+              className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-[6px] text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20 focus:border-[#AACC00]"
             />
           </div>
           <div className="space-y-0.5 max-h-[calc(100vh-280px)] overflow-y-auto">
@@ -552,8 +536,7 @@ export default function Briefings() {
 
   // Step 1: fetch feed list
   useEffect(() => {
-    fetch('/api/rss-ingest')
-      .then(r => r.json())
+    listFeeds()
       .then(d => {
         const feeds = d.feeds || []
         setRssFeeds(feeds)
@@ -570,8 +553,7 @@ export default function Briefings() {
     setLoadedCount(0)
 
     rssFeeds.forEach(feed => {
-      fetch(`/api/rss-ingest?id=${feed.id}&limit=6`)
-        .then(r => r.json())
+      getFeedById(feed.id, 6)
         .then(d => {
           if (d.articles?.length) {
             const tagged = d.articles.map(a => ({
@@ -626,7 +608,7 @@ export default function Briefings() {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
-          <Newspaper size={20} className="text-[#0118A1]" />
+          <Newspaper size={20} className="text-[#AACC00]" />
           <h1 className="text-2xl font-bold text-gray-900">Briefings</h1>
         </div>
         <p className="text-sm text-gray-500">Live intelligence, country risk profiles and security reports</p>
@@ -640,7 +622,7 @@ export default function Briefings() {
             return (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-[6px] text-sm font-medium transition-colors whitespace-nowrap
-                  ${activeTab === tab.id ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#0118A1]'}`}>
+                  ${activeTab === tab.id ? 'bg-[#0118A1] text-white shadow-sm' : 'text-gray-600 hover:text-[#AACC00]'}`}>
                 <Icon size={14} />
                 {tab.label}
               </button>
@@ -657,7 +639,7 @@ export default function Briefings() {
             <div className="mb-4">
               <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
                 <span className="flex items-center gap-1.5">
-                  <RefreshCw size={11} className="animate-spin text-[#0118A1]" />
+                  <RefreshCw size={11} className="animate-spin text-[#AACC00]" />
                   Loading feeds… {loadedCount} / {totalFeeds} sources
                 </span>
                 <span>{articles.length} articles so far</span>
@@ -678,7 +660,7 @@ export default function Briefings() {
                 <button key={c.id} onClick={() => setCatFilter(c.id)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
                     ${catFilter === c.id
-                      ? 'bg-[#0118A1] text-white border-[#0118A1]'
+                      ? 'bg-[#0118A1] text-white border-[#AACC00]'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
                   {c.label}
                 </button>
@@ -689,7 +671,7 @@ export default function Briefings() {
                 <button key={r} onClick={() => setRegionFilter(r)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
                     ${regionFilter === r
-                      ? 'bg-[#AACC00] text-[#0118A1] border-[#AACC00] font-bold'
+                      ? 'bg-[#AACC00] text-[#AACC00] border-[#AACC00] font-bold'
                       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
                   {r}
                 </button>

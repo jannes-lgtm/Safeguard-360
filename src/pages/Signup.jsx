@@ -2,11 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { Eye, EyeOff, Building2, UserPlus, CheckCircle2, User } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
 
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
-
-const inputClass = 'w-full border border-gray-300 rounded-[6px] px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0118A1] focus:border-transparent'
+const inputClass = 'w-full border border-gray-300 rounded-[6px] px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)] focus:border-transparent'
 const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5'
 
 export default function Signup() {
@@ -217,7 +215,7 @@ export default function Signup() {
 
           {/* Mobile logo */}
           <div className="flex md:hidden mb-8">
-            <img src="/logo-colour.png" alt="SafeGuard360" className="h-8 w-auto" />
+            <img src="/logo-transparent.png" alt="SafeGuard360" className="h-14 w-auto" />
           </div>
 
           {/* Tab switcher — only show if no invite token */}
@@ -276,20 +274,20 @@ export default function Signup() {
               </div>
 
               {error && (
-                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-[6px] px-3 py-2">{error}</p>
+                <p className="text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-[6px] px-3 py-2">{error}</p>
               )}
 
               <button type="submit" disabled={loading}
                 className="w-full py-2.5 rounded-[6px] text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
                 style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
                 {loading
-                  ? <><div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" /> Creating account…</>
+                  ? <><div className="w-4 h-4 border-2 border-[#AACC00] border-t-transparent rounded-full animate-spin" /> Creating account…</>
                   : 'Create Account'}
               </button>
 
               <p className="text-xs text-gray-400 text-center">
                 By signing up you agree to our{' '}
-                <Link to="/terms" className="text-[#0118A1] hover:underline">Terms & Conditions</Link>.
+                <Link to="/terms" className="text-[#AACC00] hover:underline">Terms & Conditions</Link>.
               </p>
             </form>
           )}
@@ -298,9 +296,9 @@ export default function Signup() {
           {tab === 'invite' && (
             <>
               {inviteError ? (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
-                  <p className="text-sm text-red-700 font-medium">{inviteError}</p>
-                  <p className="text-xs text-red-500 mt-1">Ask your admin to resend the invite link.</p>
+                <div className="bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-xl p-4 mb-4">
+                  <p className="text-sm text-[#EF7474] font-medium">{inviteError}</p>
+                  <p className="text-xs text-[#EF7474] mt-1">Ask your admin to resend the invite link.</p>
                 </div>
               ) : inviteToken && !inviteData ? (
                 <div className="flex items-center gap-2 text-gray-400 mb-6 text-sm">
@@ -309,7 +307,7 @@ export default function Signup() {
                 </div>
               ) : inviteData ? (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-5">
-                  <p className="text-xs text-blue-600 font-semibold uppercase tracking-wider mb-0.5">Invited by</p>
+                  <p className="text-xs text-[#6EA8C8] font-semibold uppercase tracking-wider mb-0.5">Invited by</p>
                   <p className="text-sm font-bold text-gray-900">{inviteData.org_name}</p>
                   <p className="text-xs text-gray-500 capitalize">Role: {inviteData.role === 'org_admin' ? 'Company Administrator' : 'Traveller'}</p>
                 </div>
@@ -353,14 +351,14 @@ export default function Signup() {
                   </div>
 
                   {error && (
-                    <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-[6px] px-3 py-2">{error}</p>
+                    <p className="text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-[6px] px-3 py-2">{error}</p>
                   )}
 
                   <button type="submit" disabled={loading}
                     className="w-full py-2.5 rounded-[6px] text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
                     style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
                     {loading
-                      ? <><div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" /> Creating account…</>
+                      ? <><div className="w-4 h-4 border-2 border-[#AACC00] border-t-transparent rounded-full animate-spin" /> Creating account…</>
                       : 'Accept Invite & Sign Up'}
                   </button>
                 </form>
@@ -416,20 +414,20 @@ export default function Signup() {
               </div>
 
               {error && (
-                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-[6px] px-3 py-2">{error}</p>
+                <p className="text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-[6px] px-3 py-2">{error}</p>
               )}
 
               <button type="submit" disabled={loading}
                 className="w-full py-2.5 rounded-[6px] text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
                 style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
                 {loading
-                  ? <><div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" /> Creating account…</>
+                  ? <><div className="w-4 h-4 border-2 border-[#AACC00] border-t-transparent rounded-full animate-spin" /> Creating account…</>
                   : 'Create Organisation & Sign Up'}
               </button>
 
               <p className="text-xs text-gray-400 text-center">
                 By signing up you agree to our{' '}
-                <Link to="/terms" className="text-[#0118A1] hover:underline">Terms & Conditions</Link>.
+                <Link to="/terms" className="text-[#AACC00] hover:underline">Terms & Conditions</Link>.
               </p>
             </form>
           )}

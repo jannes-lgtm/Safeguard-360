@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE = '#0118A1'
-const BRAND_LIME = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS, SEVERITY as SEV_DS } from '../lib/ds'
+const BRAND_LIME = DS.green
 
 const RISK_BADGE = {
-  Critical: { bg: '#FEF2F2', text: '#991B1B', border: '#FECACA' },
-  High:     { bg: '#FFF7ED', text: '#92400E', border: '#FED7AA' },
-  Medium:   { bg: '#FFFBEB', text: '#78350F', border: '#FDE68A' },
-  Low:      { bg: '#F0FDF4', text: '#14532D', border: '#BBF7D0' },
+  Critical: { bg: DS.redDim,    text: DS.redText,    border: 'rgba(138,46,46,0.35)' },
+  High:     { bg: DS.amberDim,  text: DS.amberText,  border: 'rgba(144,106,37,0.35)' },
+  Medium:   { bg: 'rgba(122,106,26,0.12)', text: '#C4A83A', border: 'rgba(122,106,26,0.30)' },
+  Low:      { bg: DS.steelDim,  text: DS.steelText,  border: 'rgba(58,88,112,0.28)' },
 }
 
 function StarRating({ value, onChange, label, sublabel }) {
@@ -64,9 +64,9 @@ function IncidentToggle({ question, subtext, value, onChange, detailsValue, onDe
             borderRadius: 12,
             fontWeight: 700,
             fontSize: 14,
-            border: `2px solid ${value === false ? '#D1D5DB' : '#E5E7EB'}`,
-            background: value === false ? '#F3F4F6' : '#FFFFFF',
-            color: value === false ? '#374151' : '#9CA3AF',
+            border: `2px solid ${value === false ? DS.borderHi : DS.border}`,
+            background: value === false ? DS.surfaceHi : DS.surface,
+            color: value === false ? DS.white : DS.textMuted,
             transition: 'all .15s',
             cursor: 'pointer',
           }}
@@ -82,9 +82,9 @@ function IncidentToggle({ question, subtext, value, onChange, detailsValue, onDe
             borderRadius: 12,
             fontWeight: 700,
             fontSize: 14,
-            border: `2px solid ${value === true ? '#EF4444' : '#E5E7EB'}`,
-            background: value === true ? '#FEF2F2' : '#FFFFFF',
-            color: value === true ? '#DC2626' : '#9CA3AF',
+            border: `2px solid ${value === true ? DS.redAlt : DS.border}`,
+            background: value === true ? DS.redDim : DS.surface,
+            color: value === true ? DS.redText : DS.textMuted,
             transition: 'all .15s',
             cursor: 'pointer',
           }}
@@ -139,7 +139,6 @@ export default function Debrief() {
   const navigate              = useNavigate()
   const [loading, setLoading] = useState(true)
   const [trip, setTrip]       = useState(null)
-  const [session, setSession] = useState(null)
   const [alreadyDone, setAlreadyDone] = useState(false)
   const [form, setForm]       = useState(defaultForm)
   const [submitting, setSubmitting] = useState(false)
@@ -149,15 +148,14 @@ export default function Debrief() {
 
   useEffect(() => {
     async function init() {
-      const { data: { session: s } } = await supabase.auth.getSession()
-      if (!s) { navigate('/login', { replace: true }); return }
-      setSession(s)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { navigate('/login', { replace: true }); return }
 
       const { data: tripData, error: tripErr } = await supabase
         .from('itineraries')
         .select('id, trip_name, arrival_city, departure_city, depart_date, return_date, risk_level, status')
         .eq('id', tripId)
-        .eq('user_id', s.user.id)
+        .eq('user_id', user.id)
         .single()
 
       if (tripErr || !tripData) {
@@ -193,11 +191,12 @@ export default function Debrief() {
     setSubmitting(true)
 
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/post-travel-debrief', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({ trip_id: tripId, ...form }),
       })
@@ -215,7 +214,7 @@ export default function Debrief() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', background: DS.bgAlt, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ width: 32, height: 32, border: `3px solid ${BRAND_BLUE}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       </div>
@@ -224,10 +223,10 @@ export default function Debrief() {
 
   if (fetchError) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ minHeight: '100vh', background: DS.bgAlt, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ maxWidth: 400, textAlign: 'center' }}>
           <p style={{ fontSize: 15, color: '#374151', marginBottom: 16 }}>{fetchError}</p>
-          <button onClick={() => navigate('/itinerary')} style={{ background: BRAND_BLUE, color: '#fff', border: 'none', borderRadius: 12, padding: '12px 24px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+          <button onClick={() => navigate('/itinerary')} style={{ background: DS.green, color: DS.bg, border: 'none', borderRadius: 12, padding: '12px 24px', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
             Back to Itinerary
           </button>
         </div>
@@ -236,11 +235,11 @@ export default function Debrief() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: DS.bgAlt, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg) } } * { box-sizing: border-box; }`}</style>
 
       {/* Header bar */}
-      <div style={{ background: BRAND_BLUE, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 40 }}>
+      <div style={{ background: DS.green, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 40 }}>
         <button
           onClick={() => navigate('/itinerary')}
           style={{ background: 'rgba(255,255,255,0.12)', border: 'none', borderRadius: 8, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
@@ -261,8 +260,8 @@ export default function Debrief() {
 
         {/* Already submitted state */}
         {alreadyDone && (
-          <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #E5E7EB', padding: 32, textAlign: 'center', marginTop: 8 }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <div style={{ background: DS.surface, borderRadius: 20, border: `1px solid ${DS.border}`, padding: 32, textAlign: 'center', marginTop: 8 }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: DS.greenDim, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
@@ -273,7 +272,7 @@ export default function Debrief() {
             </p>
             <button
               onClick={() => navigate('/itinerary')}
-              style={{ background: BRAND_BLUE, color: '#fff', border: 'none', borderRadius: 14, padding: '14px 28px', fontWeight: 700, fontSize: 15, cursor: 'pointer', minHeight: 52 }}
+              style={{ background: DS.green, color: DS.bg, border: 'none', borderRadius: 14, padding: '14px 28px', fontWeight: 700, fontSize: 15, cursor: 'pointer', minHeight: 52 }}
             >
               Back to My Trips
             </button>
@@ -282,8 +281,8 @@ export default function Debrief() {
 
         {/* Success state */}
         {submitted && !alreadyDone && (
-          <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #E5E7EB', padding: 32, textAlign: 'center', marginTop: 8 }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <div style={{ background: DS.surface, borderRadius: 20, border: `1px solid ${DS.border}`, padding: 32, textAlign: 'center', marginTop: 8 }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: DS.greenDim, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
@@ -294,7 +293,7 @@ export default function Debrief() {
             </p>
             <button
               onClick={() => navigate('/itinerary')}
-              style={{ background: BRAND_BLUE, color: '#fff', border: 'none', borderRadius: 14, padding: '14px 28px', fontWeight: 700, fontSize: 15, cursor: 'pointer', minHeight: 52 }}
+              style={{ background: DS.green, color: DS.bg, border: 'none', borderRadius: 14, padding: '14px 28px', fontWeight: 700, fontSize: 15, cursor: 'pointer', minHeight: 52 }}
             >
               Back to My Trips
             </button>
@@ -305,7 +304,7 @@ export default function Debrief() {
         {!alreadyDone && !submitted && trip && (
           <>
             {/* Trip info card */}
-            <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #E5E7EB', padding: '20px', marginBottom: 16 }}>
+            <div style={{ background: DS.surface, borderRadius: 20, border: `1px solid ${DS.border}`, padding: '20px', marginBottom: 16 }}>
               <p style={{ margin: '0 0 4px', fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.08em' }}>Trip</p>
               <p style={{ margin: '0 0 6px', fontSize: 17, fontWeight: 800, color: '#111827' }}>{trip.trip_name || trip.arrival_city}</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -367,7 +366,7 @@ export default function Debrief() {
             </div>
 
             {/* Section 2 — Ratings */}
-            <div id="ratings-section" style={{ background: '#fff', borderRadius: 20, border: `1.5px solid ${ratingError ? '#EF4444' : '#E5E7EB'}`, padding: '20px', marginBottom: 16 }}>
+            <div id="ratings-section" style={{ background: DS.surface, borderRadius: 20, border: `1.5px solid ${ratingError ? '#EF4444' : '#E5E7EB'}`, padding: '20px', marginBottom: 16 }}>
               <p style={{ margin: '0 0 16px', fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.08em' }}>
                 Section 2 — Ratings
               </p>
@@ -383,7 +382,7 @@ export default function Debrief() {
                   value={form.overall_safety_rating}
                   onChange={v => { setField('overall_safety_rating', v); setRatingError(false) }}
                 />
-                <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: 20 }}>
+                <div style={{ borderTop: `1px solid ${DS.border}`, paddingTop: 20 }}>
                   <StarRating
                     label="How useful was your pre-travel briefing?"
                     sublabel="1 = Not useful — 5 = Very useful"
@@ -391,7 +390,7 @@ export default function Debrief() {
                     onChange={v => { setField('briefing_usefulness', v); setRatingError(false) }}
                   />
                 </div>
-                <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: 20 }}>
+                <div style={{ borderTop: `1px solid ${DS.border}`, paddingTop: 20 }}>
                   <StarRating
                     label="How accurate was the destination risk assessment?"
                     sublabel="1 = Very inaccurate — 5 = Very accurate"
@@ -403,7 +402,7 @@ export default function Debrief() {
             </div>
 
             {/* Section 3 — Open Feedback */}
-            <div style={{ background: '#fff', borderRadius: 20, border: '1px solid #E5E7EB', padding: '20px', marginBottom: 16 }}>
+            <div style={{ background: DS.surface, borderRadius: 20, border: `1px solid ${DS.border}`, padding: '20px', marginBottom: 16 }}>
               <p style={{ margin: '0 0 16px', fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '.08em' }}>
                 Section 3 — Feedback
               </p>
@@ -464,7 +463,7 @@ export default function Debrief() {
               style={{
                 width: '100%', minHeight: 52, borderRadius: 16,
                 background: submitting ? '#C8E066' : BRAND_LIME,
-                color: BRAND_BLUE, border: 'none',
+                color: DS.green, border: 'none',
                 fontWeight: 800, fontSize: 16, cursor: submitting ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                 transition: 'background .15s',

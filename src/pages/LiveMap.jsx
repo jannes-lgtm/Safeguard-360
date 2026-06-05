@@ -34,22 +34,11 @@ import {
   MAP_STYLES, MAP_DEFAULTS, RISK_STYLE,
   PROXIMITY_KM, WS_RECONNECT, LOCATION_WRITE_THROTTLE_MS, HAS_MAPTILER,
 } from '../lib/mapConfig'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
+import { timeAgo } from '../lib/dateUtils'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function timeAgo(d) {
-  if (!d) return '—'
-  const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000)
-  if (s < 60)  return `${s}s ago`
-  const m = Math.floor(s / 60)
-  if (m < 60)  return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24)  return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
 
 function haversineKm(lat1, lon1, lat2, lon2) {
   const R = 6371
@@ -163,76 +152,97 @@ export default function LiveMap() {
   const mapRef           = useRef(null)
   const markersRef       = useRef({})        // { user_id: maplibregl.Marker }
   const myMarkerRef      = useRef(null)
-  const channelRef       = useRef(null)
-  const watchRef         = useRef(null)
-  const lastWriteRef     = useRef(0)
-  const reconnectTimer   = useRef(null)
-  const styleChanging    = useRef(false)
-  const locationsRef     = useRef([])        // keep ref in sync for closure access
+  const channelRef         = useRef(null)
+  const watchRef           = useRef(null)
+  const lastWriteRef       = useRef(0)
+  const reconnectTimer     = useRef(null)
+  const styleChanging      = useRef(false)
+  const locationsRef       = useRef([])        // keep ref in sync for closure access
+  const mountedRef         = useRef(true)      // cancels waitForMap / waitForStyle polls on unmount
+  const intentionalClose   = useRef(false)     // prevents CLOSED event from triggering reconnect during intentional cleanup
 
   // ── Initial data load ───────────────────────────────────────────────────────
   const loadInitialData = useCallback(async () => {
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
-
-    const today = new Date().toISOString().split('T')[0]
-    const [{ data: prof }, { data: trip }, { data: locs }] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
-      supabase.from('itineraries').select('*')
-        .eq('user_id', user.id).lte('depart_date', today).gte('return_date', today)
-        .limit(1).maybeSingle(),
-      supabase.from('staff_locations').select('*')
-        .eq('is_sharing', true)
-        .gte('recorded_at', new Date(Date.now() - 86_400_000).toISOString())
-        .order('recorded_at', { ascending: false }),
-    ])
-
-    const role = prof?.role || user.app_metadata?.role || 'traveller'
-    const isSoloRole = role === 'solo' || (!prof?.org_id && !['admin','developer','org_admin'].includes(role))
-    setIsAdmin(role === 'admin' || role === 'developer')
-    setIsSolo(isSoloRole)
-    setProfile({ ...prof, id: user.id, email: user.email })
-    setActiveTrip(trip || null)
-
-    // Clear any stale is_sharing=true rows left by a previous session that
-    // closed without calling stopSharing (e.g. browser tab closed).
-    // Rows older than 2 hours with is_sharing=true are considered abandoned.
-    const staleThreshold = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-    supabase.from('staff_locations')
-      .update({ is_sharing: false })
-      .eq('user_id', user.id)
-      .eq('is_sharing', true)
-      .lt('recorded_at', staleThreshold)
-      .then(() => {})  // fire-and-forget
-
-    // Deduplicate to latest position per user
-    const seen = new Set()
-    const dedup = (locs || []).filter(l => { if (seen.has(l.user_id)) return false; seen.add(l.user_id); return true })
-    locationsRef.current = dedup
-    setLocations(dedup)
-    setLoading(false)
-
-    // Background: fetch trip alerts for risk zone overlay
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.access_token) {
-        fetch('/api/trip-alert-scan', { headers: { Authorization: `Bearer ${session.access_token}` } })
-          .then(r => r.ok ? r.json() : null)
-          .then(data => {
-            if (data?.alerts) {
-              setTripAlerts(data.alerts.filter(a => ['Critical', 'High'].includes(a.severity) && a.country))
-            }
-          })
-          .catch(() => {})
-      }
-    } catch {}
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setLoading(false); return }
+
+      const today = new Date().toISOString().split('T')[0]
+      const [{ data: prof }, { data: trip }, { data: locs }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+        supabase.from('itineraries').select('*')
+          .eq('user_id', user.id).lte('depart_date', today).gte('return_date', today)
+          .limit(1).maybeSingle(),
+        supabase.from('staff_locations').select('*')
+          .eq('is_sharing', true)
+          .gte('recorded_at', new Date(Date.now() - 86_400_000).toISOString())
+          .order('recorded_at', { ascending: false }),
+      ])
+
+      const role = prof?.role || 'traveller'
+      const isSoloRole = role === 'solo' || (!prof?.org_id && !['admin','developer','org_admin'].includes(role))
+      setIsAdmin(role === 'admin' || role === 'developer')
+      setIsSolo(isSoloRole)
+      setProfile({ ...prof, id: user.id, email: user.email })
+      setActiveTrip(trip || null)
+
+      // Clear any stale is_sharing=true rows left by a previous session that
+      // closed without calling stopSharing (e.g. browser tab closed).
+      // Rows older than 2 hours with is_sharing=true are considered abandoned.
+      const staleThreshold = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+      supabase.from('staff_locations')
+        .update({ is_sharing: false })
+        .eq('user_id', user.id)
+        .eq('is_sharing', true)
+        .lt('recorded_at', staleThreshold)
+        .then(() => {})  // fire-and-forget
+
+      // Deduplicate to latest position per user
+      const seen = new Set()
+      const dedup = (locs || []).filter(l => { if (seen.has(l.user_id)) return false; seen.add(l.user_id); return true })
+      locationsRef.current = dedup
+      setLocations(dedup)
+
+      // Background: fetch trip alerts for risk zone overlay
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.access_token) {
+          fetch('/api/trip-alert-scan', { headers: { Authorization: `Bearer ${session.access_token}` } })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (data?.alerts) {
+                setTripAlerts(data.alerts.filter(a => ['Critical', 'High'].includes(a.severity) && a.country))
+              }
+            })
+            .catch(() => {})
+        }
+      } catch {}
+    } catch (err) {
+      console.error('[LiveMap] loadInitialData error:', err)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { loadInitialData() }, [loadInitialData])
 
+  // ── Mounted guard — prevents recursive setTimeout polls from firing after unmount ──
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
+
   // ── Supabase Realtime subscription ─────────────────────────────────────────
   const subscribeRealtime = useCallback(() => {
+    // Don't subscribe until we know the user's role — prevents solo users from
+    // receiving all-user location events during the brief pre-load window.
+    if (!profile?.id) return
+
+    // Reset the intentional-close guard so this new subscription's CLOSED events
+    // are treated as unexpected failures that warrant reconnect.
+    intentionalClose.current = false
+
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current)
       channelRef.current = null
@@ -268,6 +278,12 @@ export default function LiveMap() {
           setReconnectAttempts(0)
           log.realtime.connected({ channel: 'staff_locations', userId: profile?.id })
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          // If we intentionally closed this channel (cleanup or re-subscribe), don't
+          // treat the resulting CLOSED event as a connection failure. Without this
+          // guard, every useEffect cleanup would kick off a spurious reconnect loop
+          // that competed with the new channel being created at the same time.
+          if (intentionalClose.current) return
+
           setWsStatus('reconnecting')
           supabase.removeChannel(channel)
           channelRef.current = null
@@ -294,8 +310,15 @@ export default function LiveMap() {
   useEffect(() => {
     subscribeRealtime()
     return () => {
+      // Mark as intentional BEFORE calling removeChannel so the async CLOSED
+      // event that fires inside the subscribe callback is ignored and does not
+      // trigger a reconnect that races with the new channel being spun up.
+      intentionalClose.current = true
       clearTimeout(reconnectTimer.current)
-      if (channelRef.current) supabase.removeChannel(channelRef.current)
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
     }
   }, [subscribeRealtime])
 
@@ -507,6 +530,7 @@ export default function LiveMap() {
     if (!map) return
 
     const waitForMap = () => {
+      if (!mountedRef.current) return   // component unmounted — stop polling
       if (!map.isStyleLoaded()) { setTimeout(waitForMap, 100); return }
 
       const currentIds = new Set(locations.map(l => l.user_id))
@@ -587,6 +611,7 @@ export default function LiveMap() {
     const pos = [myPos.longitude, myPos.latitude]
 
     const waitForStyle = () => {
+      if (!mountedRef.current) return   // component unmounted — stop polling
       if (!map.isStyleLoaded()) { setTimeout(waitForStyle, 100); return }
       if (myMarkerRef.current) {
         myMarkerRef.current.setLngLat(pos)
@@ -636,20 +661,20 @@ export default function LiveMap() {
     if (now - lastWriteRef.current < LOCATION_WRITE_THROTTLE_MS) return
     lastWriteRef.current = now
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-    // Use auth session email as the most reliable fallback — profile state
+    // Use auth user email as the most reliable fallback — profile state
     // may still be null if sharing started before loadInitialData resolved.
     const displayName =
       profile?.full_name ||
       profile?.email     ||
-      session.user.email ||
-      session.user.user_metadata?.full_name ||
+      user.email ||
+      user.user_metadata?.full_name ||
       'Unknown'
 
     await supabase.from('staff_locations').insert({
-      user_id:      session.user.id,
+      user_id:      user.id,
       full_name:    displayName,
       latitude:     coords.latitude,
       longitude:    coords.longitude,
@@ -800,7 +825,7 @@ export default function LiveMap() {
               {/* Stats strip */}
               <div className={`grid grid-cols-3 gap-1.5 rounded-xl p-2.5 border backdrop-blur-md ${panelBg}`}>
                 {[
-                  { label: 'Sharing',  value: locations.length,    color: '#0118A1' },
+                  { label: 'Sharing',  value: locations.length,    color: BRAND_GREEN },
                   { label: 'Alerts',   value: tripAlerts.length,   color: tripAlerts.some(a => a.severity === 'Critical') ? '#ef4444' : '#f59e0b' },
                   { label: 'Nearby',   value: proximityWarnings.length, color: proximityWarnings.length ? '#ef4444' : '#6b7280' },
                 ].map(s => (
@@ -845,7 +870,7 @@ export default function LiveMap() {
                     )}
                     <button onClick={startSharing}
                       className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold transition"
-                      style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+                      style={{ background: BRAND_GREEN, color: '#090A0C' }}>
                       <Navigation size={12} /> Share My Location
                     </button>
                     <p className={`text-[9px] text-center ${subText}`}>Shares every 30s — not continuous</p>

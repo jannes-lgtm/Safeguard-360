@@ -28,9 +28,9 @@ import {
 import Layout from '../components/Layout'
 import W3WAddress from '../components/W3WAddress'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
+import { timeAgo } from '../lib/dateUtils'
 
 const INTERVALS = [
   { hours: 4,  label: 'Every 4 hours'  },
@@ -44,17 +44,6 @@ function fmtDate(d) {
   return new Date(d).toLocaleString('en-GB', {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
   })
-}
-
-function timeAgo(d) {
-  if (!d) return null
-  const diff = Date.now() - new Date(d).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1)  return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
 }
 
 function overdueMins(due) {
@@ -71,16 +60,19 @@ function StaffCheckinRow({ staff }) {
   const isOver = late > 0
 
   return (
-    <div className={`border rounded-[8px] overflow-hidden ${isOver ? 'border-red-200 bg-red-50/30' : 'border-gray-200 bg-white'}`}>
+    <div className="border rounded-[8px] overflow-hidden"
+      style={isOver
+        ? { borderColor: 'rgba(138,46,46,0.30)', background: 'rgba(138,46,46,0.10)' }
+        : { borderColor: 'rgba(255,255,255,0.08)', background: DS.surface }}>
       <button className="w-full flex items-center gap-3 px-4 py-3" onClick={() => setOpen(p => !p)}>
         <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-          style={{ background: BRAND_BLUE }}>
+          style={{ background: DS.green }}>
           {(staff.full_name || staff.email || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0 text-left">
           <p className="text-sm font-semibold text-gray-900">{staff.full_name || staff.email}</p>
           {last ? (
-            <p className={`text-xs ${isOver ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+            <p className={`text-xs ${isOver ? 'text-[#EF7474] font-medium' : 'text-gray-500'}`}>
               Last check-in: {timeAgo(last.created_at)}
               {isOver && ` · Overdue by ${late >= 60 ? `${Math.floor(late/60)}h ${late%60}m` : `${late}m`}`}
             </p>
@@ -90,22 +82,24 @@ function StaffCheckinRow({ staff }) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {last ? (
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-              isOver ? 'bg-red-100 border-red-300 text-red-700' :
-              last.status === 'distress' ? 'bg-amber-100 border-amber-300 text-amber-700' :
-              'bg-green-100 border-green-300 text-green-700'
-            }`}>
-              {isOver ? '⚠️ Overdue' : last.status === 'distress' ? '🟡 Distress' : '✅ Safe'}
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+              style={isOver
+                ? { background: 'rgba(138,46,46,0.15)', borderColor: 'rgba(138,46,46,0.35)', color: '#EF7474' }
+                : last.status === 'distress'
+                ? { background: 'rgba(144,106,37,0.15)', borderColor: 'rgba(144,106,37,0.35)', color: '#D4A64A' }
+                : { background: 'rgba(170,204,0,0.10)', borderColor: 'rgba(170,204,0,0.25)', color: '#AACC00' }}>
+              {isOver ? '⚠ Overdue' : last.status === 'distress' ? 'Distress' : '✓ Safe'}
             </span>
           ) : (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-gray-500">No data</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${DS.border}`, color: DS.textSub }}>No data</span>
           )}
           {open ? <ChevronUp size={14} className="text-gray-400"/> : <ChevronDown size={14} className="text-gray-400"/>}
         </div>
       </button>
 
       {open && last && (
-        <div className="px-4 pb-3 space-y-1.5 border-t border-gray-100 pt-3">
+        <div className="px-4 pb-3 space-y-1.5 pt-3" style={{ borderTop: `1px solid ${DS.border}` }}>
           {last.trip_name && <p className="text-xs text-gray-600"><span className="font-medium">Trip:</span> {last.trip_name} · {last.arrival_city}</p>}
           {last.latitude && last.longitude && (
             <W3WAddress lat={last.latitude} lng={last.longitude} />
@@ -152,10 +146,10 @@ export default function CheckIn() {
 
   const loadData = async () => {
     setLoading(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-    const uid = session.user.id
+    const uid = user.id
 
     const today = new Date().toISOString().split('T')[0]
     const [{ data: prof }, { data: trip }, { data: myCheckins }, { data: allCheckins }, { data: profiles }, { data: scheduled }] = await Promise.all([
@@ -174,9 +168,9 @@ export default function CheckIn() {
         .limit(10),
     ])
 
-    const role = prof?.role || session.user.app_metadata?.role || 'traveller'
+    const role = prof?.role || 'traveller'
     setIsAdmin(role === 'admin' || role === 'developer')
-    setProfile({ ...prof, id: uid, email: session.user.email })
+    setProfile({ ...prof, id: uid, email: user.email })
     setActiveTrip(trip || null)
     setCheckins(myCheckins || [])
     setScheduledCheckins(scheduled || [])
@@ -213,14 +207,14 @@ export default function CheckIn() {
     setError('')
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
         setChecking(false)
         setError('Session expired — please refresh the page and try again.')
         return
       }
 
-      const uid = session.user.id
+      const uid = user.id
       const nextDue = new Date(Date.now() + interval * 3600000).toISOString()
       const now = new Date().toISOString()
 
@@ -294,16 +288,16 @@ export default function CheckIn() {
 
           {/* Status card */}
           {lastCheckin && (
-            <div className={`rounded-[12px] border p-5 ${overdue ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+            <div className={`rounded-[12px] border p-5 ${overdue ? 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)]' : 'bg-[rgba(170,204,0,0.10)] border-[rgba(170,204,0,0.25)]'}`}>
               <div className="flex items-center gap-3">
                 {overdue
-                  ? <AlertCircle size={20} className="text-red-600 shrink-0"/>
-                  : <CheckCircle size={20} className="text-green-600 shrink-0"/>}
+                  ? <AlertCircle size={20} className="text-[#EF7474] shrink-0"/>
+                  : <CheckCircle size={20} className="text-[#AACC00] shrink-0"/>}
                 <div>
-                  <p className={`text-sm font-bold ${overdue ? 'text-red-800' : 'text-green-800'}`}>
+                  <p className="text-sm font-bold" style={{ color: overdue ? '#EF7474' : DS.green }}>
                     {overdue ? 'Check-in Overdue' : 'You\'re checked in ✓'}
                   </p>
-                  <p className={`text-xs ${overdue ? 'text-red-600' : 'text-green-600'}`}>
+                  <p className={`text-xs ${overdue ? 'text-[#EF7474]' : 'text-[#AACC00]'}`}>
                     Last: {timeAgo(lastCheckin.created_at)}
                     {nextDue && ` · Next due: ${fmtDate(nextDue)}`}
                   </p>
@@ -314,10 +308,10 @@ export default function CheckIn() {
 
           {/* Scheduled check-ins panel */}
           {scheduledCheckins.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-[12px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+            <div className="rounded-[8px] p-5" style={{ background: DS.surface, border: `1px solid ${DS.border}` }}>
               <div className="flex items-center gap-2 mb-3">
-                <Bell size={14} className="text-[#0118A1]" />
-                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Scheduled Check-ins</p>
+                <Bell size={14} className="text-[#AACC00]" />
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: DS.textSub }}>Scheduled Check-ins</p>
               </div>
               <div className="space-y-2">
                 {scheduledCheckins.map((sc, idx) => {
@@ -325,34 +319,34 @@ export default function CheckIn() {
                   const isDueSoon = !isOverdue && (new Date(sc.due_at) - Date.now()) < 6 * 3600000
                   const isArrival = sc.checkin_type === 'arrival'
                   return (
-                    <div key={sc.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border text-xs ${
-                      isOverdue
-                        ? 'bg-red-50 border-red-200'
+                    <div key={sc.id} className="flex items-center gap-3 px-3 py-2.5 rounded-[6px] border text-xs"
+                      style={isOverdue
+                        ? { background: 'rgba(138,46,46,0.12)', borderColor: 'rgba(138,46,46,0.30)' }
                         : isDueSoon
-                        ? 'bg-amber-50 border-amber-200'
-                        : 'bg-gray-50 border-gray-100'
-                    }`}>
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                        isOverdue ? 'bg-red-100' : isDueSoon ? 'bg-amber-100' : 'bg-gray-100'
-                      }`}>
+                        ? { background: 'rgba(144,106,37,0.12)', borderColor: 'rgba(144,106,37,0.30)' }
+                        : { background: DS.bgAlt, borderColor: 'rgba(255,255,255,0.06)' }}>
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                        style={{ background: isOverdue ? 'rgba(138,46,46,0.20)' : isDueSoon ? 'rgba(144,106,37,0.20)' : 'rgba(255,255,255,0.05)' }}>
                         {isArrival
-                          ? <MapPin size={10} className={isOverdue ? 'text-red-600' : 'text-gray-500'} />
-                          : <Bell size={10} className={isOverdue ? 'text-red-600' : isDueSoon ? 'text-amber-600' : 'text-gray-400'} />
+                          ? <MapPin size={10} className={isOverdue ? 'text-[#EF7474]' : 'text-gray-500'} />
+                          : <Bell size={10} className={isOverdue ? 'text-[#EF7474]' : isDueSoon ? 'text-[#D4A64A]' : 'text-gray-400'} />
                         }
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`font-semibold ${isOverdue ? 'text-red-700' : isDueSoon ? 'text-amber-700' : 'text-gray-700'}`}>
+                        <p className={`font-semibold ${isOverdue ? 'text-[#EF7474]' : isDueSoon ? 'text-[#D4A64A]' : 'text-gray-700'}`}>
                           {sc.label || `Check-in ${idx + 1}`}
                         </p>
                         <p className="text-gray-400">Due: {fmtDate(sc.due_at)}</p>
                       </div>
                       {isOverdue && (
-                        <span className="text-[10px] font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full shrink-0">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
+                          style={{ color: '#EF7474', background: 'rgba(138,46,46,0.20)' }}>
                           Overdue
                         </span>
                       )}
                       {isDueSoon && !isOverdue && (
-                        <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full shrink-0">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
+                          style={{ color: '#D4A64A', background: 'rgba(144,106,37,0.20)' }}>
                           Due soon
                         </span>
                       )}
@@ -368,7 +362,7 @@ export default function CheckIn() {
 
           {/* Check-in error */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-[8px] px-4 py-3 text-sm text-red-700 flex items-center gap-2">
+            <div className="bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-[8px] px-4 py-3 text-sm text-[#EF7474] flex items-center gap-2">
               <span className="shrink-0">⚠</span>
               <span>{error}</span>
             </div>
@@ -376,21 +370,21 @@ export default function CheckIn() {
 
           {/* Check-in form */}
           {success ? (
-            <div className="bg-green-50 border-2 border-green-400 rounded-[12px] p-8 text-center">
-              <CheckCircle size={40} className="text-green-600 mx-auto mb-3"/>
-              <h2 className="text-lg font-bold text-green-800 mb-1">Check-in Confirmed ✓</h2>
-              <p className="text-sm text-green-600">
+            <div className="rounded-[8px] p-8 text-center" style={{ background: 'rgba(170,204,0,0.10)', border: `2px solid rgba(170,204,0,0.30)` }}>
+              <CheckCircle size={40} className="text-[#AACC00] mx-auto mb-3"/>
+              <h2 className="text-lg font-bold mb-1" style={{ color: DS.green }}>Check-in Confirmed ✓</h2>
+              <p className="text-sm text-[#AACC00]">
                 Next check-in due in {interval} hours
                 {gpsPos && ' · Location shared'}
               </p>
             </div>
           ) : (
-            <div className="bg-white border border-gray-200 rounded-[12px] p-6 shadow-[0_1px_3px_rgba(0,0,0,0.08)] space-y-4">
-              <h2 className="text-base font-bold text-gray-900">I'm Safe — Check In</h2>
+            <div className="rounded-[8px] p-6 space-y-4" style={{ background: DS.surface, border: `1px solid ${DS.border}` }}>
+              <h2 className="text-base font-bold" style={{ color: DS.white }}>I'm Safe — Check In</h2>
 
               {/* GPS status */}
-              <div className={`rounded-[6px] p-2.5 ${gpsPos ? 'bg-green-50' : 'bg-gray-50'}`}>
-                <div className={`flex items-center gap-2 text-xs ${gpsPos ? 'text-green-700' : 'text-gray-500'}`}>
+              <div className={`rounded-[6px] p-2.5 ${gpsPos ? 'bg-[rgba(170,204,0,0.10)]' : 'bg-gray-50'}`}>
+                <div className={`flex items-center gap-2 text-xs ${gpsPos ? 'text-[#AACC00]' : 'text-gray-500'}`}>
                   <Navigation size={11}/>
                   {gpsLoading ? 'Capturing location…' :
                    gpsPos ? `Location ready (±${Math.round(gpsPos.accuracy || 0)}m)` :
@@ -406,32 +400,34 @@ export default function CheckIn() {
 
               {/* Active trip */}
               {activeTrip && (
-                <div className="flex items-center gap-2 text-xs text-gray-600 bg-blue-50 rounded-[6px] p-2.5 border border-blue-100">
-                  <MapPin size={11} className="text-blue-500"/>
+                <div className="flex items-center gap-2 text-xs rounded-[6px] p-2.5"
+                  style={{ background: DS.steelDim, border: `1px solid ${DS.steel}`, color: DS.steelText }}>
+                  <MapPin size={11} style={{ color: DS.steelText }}/>
                   <span className="font-medium">{activeTrip.trip_name}</span> · {activeTrip.arrival_city}
                 </div>
               )}
 
               {/* Message */}
               <div>
-                <label className="text-xs font-medium text-gray-600 mb-1 block">Optional message</label>
+                <label className="text-xs font-medium mb-1 block" style={{ color: DS.textSub }}>Optional message</label>
                 <textarea value={message} onChange={e => setMessage(e.target.value)} rows={2}
                   placeholder="e.g. Arrived at hotel, all clear…"
-                  className="w-full border border-gray-200 rounded-[6px] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20 resize-none"/>
+                  className="w-full rounded-[6px] px-3 py-2 text-sm focus:outline-none resize-none"
+                  style={{ background: DS.bgAlt, border: `1px solid rgba(255,255,255,0.09)`, color: DS.text }}/>
               </div>
 
               {/* Next interval */}
               <div>
-                <label className="text-xs font-medium text-gray-600 mb-1.5 block">
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: DS.textSub }}>
                   <Clock size={11} className="inline mr-1"/>Next check-in due in
                 </label>
                 <div className="flex gap-2 flex-wrap">
                   {INTERVALS.map(opt => (
                     <button key={opt.hours} onClick={() => setInterval2(opt.hours)}
-                      className={`text-xs px-3 py-1.5 rounded-full font-medium border transition-colors ${
-                        interval === opt.hours
-                          ? 'bg-[#0118A1] text-white border-[#0118A1]'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+                      className="text-xs px-3 py-1.5 rounded-full font-medium border transition-colors"
+                      style={interval === opt.hours
+                        ? { background: DS.green, color: DS.bg, borderColor: DS.green }
+                        : { background: DS.surface, color: DS.textSub, borderColor: 'rgba(255,255,255,0.09)' }}>
                       {opt.label}
                     </button>
                   ))}
@@ -439,7 +435,7 @@ export default function CheckIn() {
               </div>
 
               <button onClick={doCheckIn} disabled={checking}
-                style={{ background: BRAND_GREEN, color: BRAND_BLUE }}
+                style={{ background: DS.green, color: DS.bg }}
                 className="w-full flex items-center justify-center gap-2 font-bold py-3 rounded-[8px] text-sm disabled:opacity-60 hover:opacity-90 transition-all">
                 {checking
                   ? <><RefreshCw size={14} className="animate-spin"/>Checking in…</>
@@ -450,12 +446,12 @@ export default function CheckIn() {
 
           {/* My check-in history */}
           {checkins.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-[12px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">My Check-in History</p>
+            <div className="rounded-[8px] p-5" style={{ background: DS.surface, border: `1px solid ${DS.border}` }}>
+              <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: DS.textSub }}>My Check-in History</p>
               <div className="space-y-2">
                 {checkins.map(c => (
-                  <div key={c.id} className="flex items-start gap-2.5 py-2 border-b border-gray-50 last:border-0">
-                    <CheckCircle size={13} className="text-green-500 shrink-0 mt-0.5"/>
+                  <div key={c.id} className="flex items-start gap-2.5 py-2 last:border-0" style={{ borderBottom: `1px solid ${DS.divider}` }}>
+                    <CheckCircle size={13} className="text-[#AACC00] shrink-0 mt-0.5"/>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-medium text-gray-800">{timeAgo(c.created_at)}</span>
@@ -477,9 +473,9 @@ export default function CheckIn() {
         {/* ── Admin panel ── */}
         {isAdmin && (
           <div className="lg:col-span-2">
-            <div className="bg-white border border-gray-200 rounded-[12px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.08)] sticky top-6">
+            <div className="rounded-[8px] p-5 sticky top-6" style={{ background: DS.surface, border: `1px solid ${DS.border}` }}>
               <div className="flex items-center justify-between mb-4">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Staff Status</p>
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: DS.textSub }}>Staff Status</p>
                 <button onClick={loadData} className="text-gray-400 hover:text-gray-600"><RefreshCw size={13}/></button>
               </div>
 

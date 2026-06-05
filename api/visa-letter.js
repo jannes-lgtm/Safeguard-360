@@ -15,6 +15,7 @@
  */
 
 import { resolveModel } from './_claudeSynth.js'
+import { claudeCall } from './_claudeClient.js'
 import { adapt } from './_adapter.js'
 import { checkRateLimit } from './_rateLimit.js'
 
@@ -51,7 +52,7 @@ async function handler(req, res) {
   }
 
   // Rate limit: 10 letter generations per user per hour (heavy AI operation)
-  const { allowed } = checkRateLimit(req, 'visa-letter', { max: 10, windowMs: 3_600_000 })
+  const { allowed } = await checkRateLimit(req, 'visa-letter', { max: 10, windowMs: 3_600_000 })
   if (!allowed) return res.status(429).json({ error: 'Rate limit exceeded — try again in an hour' })
 
   const {
@@ -121,24 +122,12 @@ Write a complete, formal visa support letter. Requirements:
 
   try {
     const model = await resolveModel(ANTHROPIC_API_KEY)
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key':         ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type':      'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 1500,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
-
-    if (!r.ok) { res.status(502).json({ error: 'AI service error' }); return }
-
-    const aiData    = await r.json()
-    const letterText = aiData.content?.[0]?.text?.trim() || ''
+    const apiKey = ANTHROPIC_API_KEY
+    const letterText = (await claudeCall(apiKey, {
+      messages:  [{ role: 'user', content: prompt }],
+      model,
+      maxTokens: 1500,
+    })).trim()
 
     // Save to Supabase
     let requestId = null

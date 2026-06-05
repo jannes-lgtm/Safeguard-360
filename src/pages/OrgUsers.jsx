@@ -10,33 +10,37 @@ import {
   BookOpen, RefreshCw, ChevronDown, ChevronUp, Mail,
   UserPlus, X, Shield, FileText, Printer, Globe,
   Phone, Calendar, Plane, GraduationCap, AlertCircle,
+  MessageCircle, Send,
 } from 'lucide-react'
 import Layout from '../components/Layout'
 import { supabase } from '../lib/supabase'
-
-const BRAND_BLUE  = '#0118A1'
-const BRAND_GREEN = '#AACC00'
-
-function timeAgo(d) {
-  if (!d) return null
-  const diff = Date.now() - new Date(d).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1)  return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ${m % 60}m ago`
-  return `${Math.floor(h / 24)}d ago`
-}
+import { BRAND_BLUE, BRAND_GREEN } from '../lib/colors'
+import { DS } from '../lib/ds'
+import { timeAgo } from '../lib/dateUtils'
 
 function complianceColor(pct) {
-  if (pct >= 80) return { text: 'text-green-600',  bg: 'bg-green-100',  bar: '#22c55e' }
-  if (pct >= 50) return { text: 'text-amber-600',  bg: 'bg-amber-100',  bar: '#f59e0b' }
-  return             { text: 'text-red-600',    bg: 'bg-red-100',    bar: '#ef4444' }
+  if (pct >= 80) return { text: 'text-[#AACC00]',  bg: 'bg-green-100',  bar: '#22c55e' }
+  if (pct >= 50) return { text: 'text-[#D4A64A]',  bg: 'bg-amber-100',  bar: '#f59e0b' }
+  return             { text: 'text-[#EF7474]',    bg: 'bg-red-100',    bar: '#ef4444' }
 }
 
 // ── User row ──────────────────────────────────────────────────────────────────
-function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, onReinvite, onRemove, reinviting, removing }) {
-  const [open, setOpen] = useState(false)
+function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, onReinvite, onRemove, onWhatsApp, reinviting, removing }) {
+  const [open, setOpen]       = useState(false)
+  const [waOpen, setWaOpen]   = useState(false)
+  const [waMsg, setWaMsg]     = useState('')
+  const [waSending, setWaSending] = useState(false)
+  const [waResult, setWaResult]   = useState(null)  // { ok } | { error }
+
+  const handleSendWa = async () => {
+    if (!waMsg.trim()) return
+    setWaSending(true)
+    setWaResult(null)
+    const result = await onWhatsApp(user.id, waMsg.trim())
+    setWaResult(result)
+    setWaSending(false)
+    if (result?.ok) { setWaMsg(''); setTimeout(() => { setWaOpen(false); setWaResult(null) }, 2000) }
+  }
 
   const totalModules    = trainingRecs.length
   const completedModules = trainingRecs.filter(r => r.completed).length
@@ -57,12 +61,12 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
 
   return (
     <div className={`border rounded-xl overflow-hidden transition-all ${
-      hasOverdue ? 'border-red-200 bg-red-50/30' : 'border-gray-200 bg-white'
+      hasOverdue ? 'border-[rgba(138,46,46,0.30)] bg-[rgba(138,46,46,0.12)]/30' : 'border-gray-200 bg-white'
     }`}>
       <button className="w-full flex items-center gap-4 px-4 py-3.5" onClick={() => setOpen(p => !p)}>
         {/* Avatar */}
         <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 text-white"
-          style={{ background: BRAND_BLUE }}>
+          style={{ background: DS.green }}>
           {initials}
         </div>
 
@@ -73,19 +77,19 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
           </p>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {activeTrip ? (
-              <span className="flex items-center gap-1 text-[10px] font-medium text-blue-600">
+              <span className="flex items-center gap-1 text-[10px] font-medium text-[#6EA8C8]">
                 <MapPin size={9} /> Travelling · {activeTrip.arrival_city}
               </span>
             ) : (
               <span className="text-[10px] text-gray-400">Not travelling</span>
             )}
             {pendingApprovals > 0 && (
-              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">
+              <span className="text-[10px] font-bold text-[#D4A64A] bg-[rgba(144,106,37,0.12)] px-1.5 py-0.5 rounded-full border border-[rgba(144,106,37,0.30)]">
                 {pendingApprovals} pending approval
               </span>
             )}
             {hasOverdue && (
-              <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-200">
+              <span className="text-[10px] font-bold text-[#EF7474] bg-[rgba(138,46,46,0.12)] px-1.5 py-0.5 rounded-full border border-[rgba(138,46,46,0.30)]">
                 ⚠ Check-in overdue
               </span>
             )}
@@ -109,7 +113,7 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-white rounded-xl p-3 border border-gray-100">
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Contact</p>
-              <a href={`mailto:${user.email}`} className="flex items-center gap-1.5 text-xs text-[#0118A1] hover:underline mb-1">
+              <a href={`mailto:${user.email}`} className="flex items-center gap-1.5 text-xs text-[#AACC00] hover:underline mb-1">
                 <Mail size={11}/> {user.email}
               </a>
               {user.phone && (
@@ -122,8 +126,8 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Account</p>
               <p className="text-xs text-gray-700">
                 {user.onboarding_completed_at
-                  ? <span className="text-green-600 font-semibold">✓ Onboarding complete</span>
-                  : <span className="text-amber-600 font-semibold">⚠ Onboarding pending</span>}
+                  ? <span className="text-[#AACC00] font-semibold">✓ Onboarding complete</span>
+                  : <span className="text-[#D4A64A] font-semibold">⚠ Onboarding pending</span>}
               </p>
               {user.created_at && (
                 <p className="text-[11px] text-gray-400 mt-0.5">
@@ -190,14 +194,14 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
                 {trainingRecs.map((rec, i) => (
                   <div key={i} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-100">
                     {rec.completed
-                      ? <CheckCircle2 size={13} className="text-green-500 shrink-0" />
+                      ? <CheckCircle2 size={13} className="text-[#AACC00] shrink-0" />
                       : <AlertCircle size={13} className="text-amber-400 shrink-0" />}
                     <span className="text-xs text-gray-700 flex-1 truncate">
                       {rec.training_modules?.module_name || rec.training_modules?.module_order
                         ? `Module ${rec.training_modules.module_order}`
                         : `Module ${i + 1}`}
                     </span>
-                    <span className={`text-[10px] font-semibold ${rec.completed ? 'text-green-600' : 'text-amber-600'}`}>
+                    <span className={`text-[10px] font-semibold ${rec.completed ? 'text-[#AACC00]' : 'text-[#D4A64A]'}`}>
                       {rec.completed ? 'Complete' : 'Pending'}
                     </span>
                   </div>
@@ -208,12 +212,12 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
 
           {/* Overdue check-ins */}
           {hasOverdue && (
-            <div className="bg-red-50 rounded-xl p-3 border border-red-200">
-              <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-1.5">
+            <div className="bg-[rgba(138,46,46,0.12)] rounded-xl p-3 border border-[rgba(138,46,46,0.30)]">
+              <p className="text-[10px] font-bold text-[#EF7474] uppercase tracking-wide mb-1.5">
                 <AlertCircle size={10} className="inline mr-1" />Overdue Check-ins
               </p>
               {pendingCheckins.slice(0, 3).map((c, i) => (
-                <p key={i} className="text-xs text-red-700">
+                <p key={i} className="text-xs text-[#EF7474]">
                   {c.label || 'Check-in'} — due {new Date(c.due_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                 </p>
               ))}
@@ -224,17 +228,24 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
           <div className="flex gap-2 flex-wrap pt-1">
             <a href={`mailto:${user.email}`}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-85"
-              style={{ background: BRAND_BLUE }}>
+              style={{ background: DS.green }}>
               <Mail size={12}/> Send Email
             </a>
             <a href={`mailto:${user.email}?subject=SafeGuard360 Check-in Reminder`}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85"
-              style={{ border: `1px solid ${BRAND_BLUE}`, color: BRAND_BLUE, background: `${BRAND_BLUE}07` }}>
+              style={{ border: `1px solid ${BRAND_BLUE}`, color: DS.green, background: `${BRAND_BLUE}07` }}>
               <Clock size={12}/> Send Reminder
             </a>
+            {user.whatsapp_number && (
+              <button onClick={() => { setWaOpen(p => !p); setWaResult(null) }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85"
+                style={{ background: '#25D366', color: '#fff' }}>
+                <MessageCircle size={12}/> WhatsApp
+              </button>
+            )}
             <button onClick={() => onReinvite(user)} disabled={reinviting}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-opacity hover:opacity-85 disabled:opacity-40"
-              style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+              style={{ background: BRAND_GREEN, color: DS.bg }}>
               {reinviting
                 ? <><div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" /> Sending…</>
                 : <><UserPlus size={12}/> Resend Invite</>}
@@ -245,6 +256,45 @@ function UserRow({ user, trainingRecs, checkins, activeTrip, pendingApprovals, o
               <X size={12}/> Remove from Org
             </button>
           </div>
+
+          {/* WhatsApp composer */}
+          {waOpen && (
+            <div className="mt-2 rounded-xl border border-[#25D366]/30 bg-[#f0fdf4] p-3 space-y-2">
+              <p className="text-[10px] font-bold text-[#16a34a] uppercase tracking-wide flex items-center gap-1.5">
+                <MessageCircle size={10}/> WhatsApp — {user.full_name || user.email}
+              </p>
+              <textarea
+                value={waMsg}
+                onChange={e => setWaMsg(e.target.value)}
+                placeholder="Type your message…"
+                rows={3}
+                maxLength={1600}
+                className="w-full border border-[#25D366]/30 rounded-lg px-3 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 bg-white resize-none"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] text-gray-400">{waMsg.length}/1600</span>
+                <div className="flex gap-2">
+                  <button onClick={() => { setWaOpen(false); setWaMsg(''); setWaResult(null) }}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-100">
+                    Cancel
+                  </button>
+                  <button onClick={handleSendWa} disabled={waSending || !waMsg.trim()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white rounded-lg disabled:opacity-40"
+                    style={{ background: '#25D366' }}>
+                    {waSending
+                      ? <><div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"/> Sending…</>
+                      : <><Send size={11}/> Send</>}
+                  </button>
+                </div>
+              </div>
+              {waResult?.ok && (
+                <p className="text-[11px] font-semibold text-[#16a34a]">✓ Message sent successfully</p>
+              )}
+              {waResult?.error && (
+                <p className="text-[11px] font-semibold text-[#EF7474]">{waResult.error}</p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -383,6 +433,21 @@ export default function OrgUsers() {
     }
   }
 
+  const handleWhatsApp = async (userId, message) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const r = await fetch('/api/send-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ userId, message }),
+      })
+      const data = await r.json()
+      return r.ok ? { ok: true } : { error: data.error || 'Failed to send' }
+    } catch {
+      return { error: 'Network error — please try again' }
+    }
+  }
+
   const handleReinvite = async (user) => {
     setReinvitingId(user.id)
     try {
@@ -435,7 +500,7 @@ export default function OrgUsers() {
           </button>
           <button onClick={() => setShowInvite(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-            style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+            style={{ background: BRAND_GREEN, color: DS.green }}>
             <UserPlus size={15} /> Invite Traveller
           </button>
         </div>
@@ -453,11 +518,11 @@ export default function OrgUsers() {
             <button key={t.id} onClick={() => setActiveTab(t.id)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
               style={activeTab === t.id
-                ? { background: 'white', color: BRAND_BLUE, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
+                ? { background: DS.surface, color: DS.green, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }
                 : { color: '#64748B' }}>
               <Icon size={14} /> {t.label}
               {t.count > 0 && (
-                <span className="ml-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{t.count}</span>
+                <span className="ml-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-[#D4A64A]">{t.count}</span>
               )}
             </button>
           )
@@ -467,8 +532,8 @@ export default function OrgUsers() {
       {/* Quick stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
-          { label: 'Currently Travelling', value: travelling.length, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' },
-          { label: 'Check-in Overdue',     value: overdue.length,    color: 'text-red-600',  bg: 'bg-red-50 border-red-200' },
+          { label: 'Currently Travelling', value: travelling.length, color: 'text-[#6EA8C8]', bg: 'bg-blue-50 border-blue-200' },
+          { label: 'Check-in Overdue',     value: overdue.length,    color: 'text-[#EF7474]',  bg: 'bg-[rgba(138,46,46,0.12)] border-[rgba(138,46,46,0.30)]' },
           { label: 'Total Travellers',     value: users.length,      color: 'text-gray-800', bg: 'bg-gray-50 border-gray-200' },
         ].map(s => (
           <div key={s.label} className={`rounded-xl border p-4 ${s.bg}`}>
@@ -498,8 +563,8 @@ export default function OrgUsers() {
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ background: `${BRAND_BLUE}12` }}>
-                        <Globe size={15} style={{ color: BRAND_BLUE }} />
+                        style={{ background: DS.greenDim }}>
+                        <Globe size={15} style={{ color: DS.green }} />
                       </div>
                       <div>
                         <p className="text-sm font-bold text-gray-900">
@@ -515,7 +580,7 @@ export default function OrgUsers() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+                      <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-[rgba(170,204,0,0.10)] text-[#AACC00] border border-[rgba(170,204,0,0.25)]">
                         {l.status}
                       </span>
                       <span className="text-[10px] text-gray-400">
@@ -525,7 +590,7 @@ export default function OrgUsers() {
                   </div>
                   {l.letter_text && (
                     <details className="mt-3">
-                      <summary className="text-xs font-semibold cursor-pointer" style={{ color: BRAND_BLUE }}>
+                      <summary className="text-xs font-semibold cursor-pointer" style={{ color: DS.green }}>
                         View letter
                       </summary>
                       <pre className="mt-3 whitespace-pre-wrap text-xs text-gray-600 leading-relaxed font-serif bg-gray-50 rounded-lg p-4 border border-gray-100 max-h-64 overflow-y-auto">
@@ -554,7 +619,7 @@ export default function OrgUsers() {
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800 mb-3">
+            <div className="bg-[rgba(144,106,37,0.12)] border border-[rgba(144,106,37,0.30)] rounded-xl px-4 py-3 text-xs text-amber-800 mb-3">
               <strong>{pending.length} traveller{pending.length !== 1 ? 's' : ''}</strong> {pending.length === 1 ? 'has' : 'have'} not completed onboarding.
               Use <strong>Resend Invite</strong> to send them a fresh signup link, or <strong>Remove from Org</strong> to revoke access.
             </div>
@@ -568,6 +633,7 @@ export default function OrgUsers() {
                 pendingApprovals={approvalMap[u.id] || 0}
                 onReinvite={handleReinvite}
                 onRemove={u => setConfirmRemove(u)}
+                onWhatsApp={handleWhatsApp}
                 reinviting={reinvitingId === u.id}
                 removing={removingId === u.id}
               />
@@ -600,6 +666,7 @@ export default function OrgUsers() {
                 pendingApprovals={approvalMap[u.id] || 0}
                 onReinvite={handleReinvite}
                 onRemove={u => setConfirmRemove(u)}
+                onWhatsApp={handleWhatsApp}
                 reinviting={reinvitingId === u.id}
                 removing={removingId === u.id}
               />
@@ -614,7 +681,7 @@ export default function OrgUsers() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-                <X size={18} className="text-red-600" />
+                <X size={18} className="text-[#EF7474]" />
               </div>
               <div>
                 <h2 className="text-base font-bold text-gray-900">Remove from Organisation</h2>
@@ -653,11 +720,11 @@ export default function OrgUsers() {
 
             {inviteResult?.ok ? (
               <div className="space-y-4">
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                <div className="bg-[rgba(170,204,0,0.10)] border border-[rgba(170,204,0,0.25)] rounded-xl p-4 text-center">
                   <p className="font-semibold text-green-800 mb-1">
                     {inviteResult.email_sent ? '✓ Invite sent!' : '✓ Invite created'}
                   </p>
-                  <p className="text-xs text-green-700">
+                  <p className="text-xs text-[#AACC00]">
                     {inviteResult.email_sent
                       ? `An invite email has been sent to ${inviteEmail || 'the user'}.`
                       : 'Copy the link below and share it manually.'}
@@ -668,14 +735,14 @@ export default function OrgUsers() {
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Invite link</p>
                     <p className="text-xs font-mono text-gray-700 break-all">{inviteResult.invite_url}</p>
                     <button onClick={() => navigator.clipboard.writeText(inviteResult.invite_url)}
-                      className="mt-2 text-xs font-semibold text-[#0118A1] hover:underline">
+                      className="mt-2 text-xs font-semibold text-[#AACC00] hover:underline">
                       Copy link
                     </button>
                   </div>
                 )}
                 <button onClick={() => { setInviteResult(null); setInviteEmail('') }}
                   className="w-full py-2.5 text-sm font-bold rounded-xl"
-                  style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+                  style={{ background: BRAND_GREEN, color: DS.green }}>
                   Invite another
                 </button>
               </div>
@@ -687,27 +754,27 @@ export default function OrgUsers() {
                     type="email" required
                     value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
                     placeholder="colleague@company.com"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
                   <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0118A1]/20">
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(170,204,0,0.35)]/20">
                     <option value="traveller">Traveller</option>
                     <option value="org_admin">Company Administrator</option>
                   </select>
                 </div>
                 {inviteResult?.error && (
-                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  <p className="text-sm text-[#EF7474] bg-[rgba(138,46,46,0.12)] border border-[rgba(138,46,46,0.30)] rounded-lg px-3 py-2">
                     {inviteResult.error}
                   </p>
                 )}
                 <button type="submit" disabled={inviting}
                   className="w-full py-2.5 text-sm font-bold rounded-xl disabled:opacity-60 flex items-center justify-center gap-2"
-                  style={{ background: BRAND_GREEN, color: BRAND_BLUE }}>
+                  style={{ background: BRAND_GREEN, color: DS.green }}>
                   {inviting
-                    ? <><div className="w-4 h-4 border-2 border-[#0118A1] border-t-transparent rounded-full animate-spin" /> Sending…</>
+                    ? <><div className="w-4 h-4 border-2 border-[#AACC00] border-t-transparent rounded-full animate-spin" /> Sending…</>
                     : 'Send Invite'}
                 </button>
               </form>

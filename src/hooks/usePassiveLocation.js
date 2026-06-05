@@ -41,7 +41,7 @@ export default function usePassiveLocation(profile) {
         .lte('depart_date', today)
         .gte('return_date', today)
         .limit(1)
-        .single()
+        .maybeSingle()
 
       // No active trip — don't ping
       if (!trip) return
