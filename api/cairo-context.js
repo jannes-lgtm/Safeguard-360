@@ -14,6 +14,7 @@
 import { createClient }            from '@supabase/supabase-js'
 import { generateQueryEmbedding }  from './_embeddings.js'
 import { EMBEDDING_MODEL, EMBEDDING_DIMS } from './_embedding-config.js'
+import { verifyAdminJwt }          from './_supabase.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
@@ -24,6 +25,10 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  // Auth — admin or developer JWT required (service role bypasses RLS on cairo_knowledge)
+  const jwt = await verifyAdminJwt(req.headers['authorization'] || '')
+  if (!jwt.ok) return res.status(jwt.status).json({ error: jwt.error })
 
   const {
     query,
