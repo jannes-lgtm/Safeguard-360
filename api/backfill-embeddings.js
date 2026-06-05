@@ -14,8 +14,8 @@ import { validateEmbedding, EMBEDDING_MODEL, EMBEDDING_DIMS, VOYAGE_EMBEDDINGS_U
 import { dbInsert, dbUpdate, dbSelect, dbRpc, dbFireAndForget } from './_db.js'
 
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 )
 
 // ── Field-level type inspector ────────────────────────────────────────────────

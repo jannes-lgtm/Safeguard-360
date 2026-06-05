@@ -16,8 +16,8 @@ import { generateQueryEmbedding }  from './_embeddings.js'
 import { EMBEDDING_MODEL, EMBEDDING_DIMS } from './_embedding-config.js'
 
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 )
 
 export default async function handler(req, res) {

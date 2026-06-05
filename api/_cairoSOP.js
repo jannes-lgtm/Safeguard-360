@@ -28,8 +28,8 @@ import { createClient } from '@supabase/supabase-js'
 // ── Supabase client (service role — read-only KB queries) ─────────────────────
 let _sb = null
 const getSB = () => _sb || (_sb = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
 ))
 
 // ── Region map ────────────────────────────────────────────────────────────────
