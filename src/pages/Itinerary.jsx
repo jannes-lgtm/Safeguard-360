@@ -197,21 +197,36 @@ export default function Itinerary() {
       insurance_emergency_number: form.insurance_emergency_number || null,
     }
 
-    const { data: { user: currentUser } } = await supabase.auth.getUser()
-    const currentUserId = currentUser?.id
+    const { data: authData } = await supabase.auth.getUser()
+    const currentUserId = authData?.user?.id
+    if (!currentUserId) {
+      setToast('Session expired. Please log in again.')
+      setSubmitting(false)
+      return
+    }
     const isSolo        = profile?.role === 'solo'
     let savedTripId     = null
 
     if (editingId) {
       const { error } = await supabase.from('itineraries').update(tripData).eq('id', editingId)
-      if (error) { setSubmitting(false); return }
+      if (error) {
+        console.error('[trip-update] update error:', error)
+        setToast('Failed to update trip. Please try again.')
+        setSubmitting(false)
+        return
+      }
     } else {
       const approvalFields = isSolo
         ? { approval_status: 'approved', approval_required: false, submitted_at: new Date().toISOString() }
         : { approval_status: 'pending',  approval_required: true,  submitted_at: new Date().toISOString() }
       const { data: inserted, error } = await supabase.from('itineraries')
         .insert({ ...tripData, user_id: currentUserId, ...approvalFields }).select('id').single()
-      if (error) { setSubmitting(false); return }
+      if (error) {
+        console.error('[trip-create] insert error:', error)
+        setToast('Failed to save trip. Please try again.')
+        setSubmitting(false)
+        return
+      }
       savedTripId = inserted?.id
 
       if (isSolo && savedTripId) {
@@ -239,7 +254,8 @@ export default function Itinerary() {
             due_at: returnDate.toISOString(), window_hours: 12, label: 'Return check-in', completed: false,
           })
         }
-        await supabase.from('scheduled_checkins').insert(checkins)
+        const { error: checkinsError } = await supabase.from('scheduled_checkins').insert(checkins)
+        if (checkinsError) console.error('[trip-create] scheduled_checkins insert error:', checkinsError)
         try {
           const { data: { session: s } } = await supabase.auth.getSession()
           if (s?.access_token) {
