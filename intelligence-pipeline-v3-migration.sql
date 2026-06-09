@@ -49,13 +49,12 @@ ALTER TABLE live_intelligence
   ADD COLUMN IF NOT EXISTS content_hash   text,
   ADD COLUMN IF NOT EXISTS canonical_url  text;
 
--- Partial unique index: prevent inserting the same content_hash within active records.
--- The partial condition (is_active = true OR ingested_at > now() - 96h) covers
--- the active dedup window without blocking historical records.
+-- Unique index: prevent inserting the same content_hash globally.
+-- Note: now() is STABLE (not IMMUTABLE) so cannot be used in index predicates.
+-- Global dedup on content_hash is correct — same content should never re-insert.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_live_intel_content_hash_dedup
   ON live_intelligence (content_hash)
-  WHERE content_hash IS NOT NULL
-    AND ingested_at > (now() - interval '96 hours');
+  WHERE content_hash IS NOT NULL;
 
 -- Non-unique index for canonical_url lookups (used by dedup check query)
 CREATE INDEX IF NOT EXISTS idx_live_intel_canonical_url
