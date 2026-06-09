@@ -7,15 +7,16 @@
 --   event_correlations   — corroboration clusters from event correlator
 --   feed_sources         — source registry with trust tier scores
 -- ============================================================
+-- SAFETY NOTE: This file uses CREATE TABLE IF NOT EXISTS (not DROP TABLE).
+-- It is safe to run on databases with existing data.
+-- ============================================================
 
 -- ── live_intelligence ─────────────────────────────────────────────────────────
 -- Stores normalized, pre-processed intelligence objects ingested from RSS feeds.
 -- Populated by api/ingest-feeds.js (hourly cron).
 -- Read by api/_contextAssembly.js (per-query retrieval).
 
-DROP TABLE IF EXISTS live_intelligence CASCADE;
-
-CREATE TABLE live_intelligence (
+CREATE TABLE IF NOT EXISTS live_intelligence (
   id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   event_type          text NOT NULL DEFAULT 'general_security',
   country             text,
@@ -42,19 +43,17 @@ CREATE TABLE live_intelligence (
 );
 
 -- Retrieval indexes for Context Assembly Engine
-CREATE INDEX idx_live_intel_country        ON live_intelligence(country, is_active, ingested_at DESC);
-CREATE INDEX idx_live_intel_active_ingested ON live_intelligence(is_active, ingested_at DESC);
-CREATE INDEX idx_live_intel_event_type      ON live_intelligence(event_type);
-CREATE INDEX idx_live_intel_severity        ON live_intelligence(severity DESC) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_live_intel_country        ON live_intelligence(country, is_active, ingested_at DESC);
+CREATE INDEX IF NOT EXISTS idx_live_intel_active_ingested ON live_intelligence(is_active, ingested_at DESC);
+CREATE INDEX IF NOT EXISTS idx_live_intel_event_type      ON live_intelligence(event_type);
+CREATE INDEX IF NOT EXISTS idx_live_intel_severity        ON live_intelligence(severity DESC) WHERE is_active = true;
 
 -- ── event_correlations ────────────────────────────────────────────────────────
 -- Stores corroboration clusters detected by the Event Correlation Engine.
 -- Multiple intel objects reporting the same event → one correlation cluster.
 -- Higher corroboration_score = more confident, multi-source event.
 
-DROP TABLE IF EXISTS event_correlations CASCADE;
-
-CREATE TABLE event_correlations (
+CREATE TABLE IF NOT EXISTS event_correlations (
   id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   cluster_name        text,
   event_type          text,
@@ -71,17 +70,15 @@ CREATE TABLE event_correlations (
   updated_at          timestamptz DEFAULT now()
 );
 
-CREATE INDEX idx_correlations_country       ON event_correlations(country, is_active);
-CREATE INDEX idx_correlations_latest        ON event_correlations(latest_signal_at DESC) WHERE is_active = true;
-CREATE INDEX idx_correlations_event_type    ON event_correlations(event_type, is_active);
+CREATE INDEX IF NOT EXISTS idx_correlations_country       ON event_correlations(country, is_active);
+CREATE INDEX IF NOT EXISTS idx_correlations_latest        ON event_correlations(latest_signal_at DESC) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_correlations_event_type    ON event_correlations(event_type, is_active);
 
 -- ── feed_sources ──────────────────────────────────────────────────────────────
 -- Registry of all intelligence feed sources with trust tier classifications.
 -- Used by source weighting engine to assign reliability scores.
 
-DROP TABLE IF EXISTS feed_sources CASCADE;
-
-CREATE TABLE feed_sources (
+CREATE TABLE IF NOT EXISTS feed_sources (
   id                      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   source_name             text UNIQUE NOT NULL,
   source_url              text,
@@ -102,13 +99,44 @@ ALTER TABLE event_correlations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feed_sources       ENABLE ROW LEVEL SECURITY;
 
 -- Service role: full access (used by Vercel functions)
-CREATE POLICY "service_rw_live_intel"  ON live_intelligence  USING (true) WITH CHECK (true);
-CREATE POLICY "service_rw_correlations" ON event_correlations USING (true) WITH CHECK (true);
-CREATE POLICY "service_rw_feed_sources" ON feed_sources       USING (true) WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'live_intelligence' AND policyname = 'service_rw_live_intel'
+  ) THEN
+    CREATE POLICY "service_rw_live_intel"  ON live_intelligence  USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'event_correlations' AND policyname = 'service_rw_correlations'
+  ) THEN
+    CREATE POLICY "service_rw_correlations" ON event_correlations USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'feed_sources' AND policyname = 'service_rw_feed_sources'
+  ) THEN
+    CREATE POLICY "service_rw_feed_sources" ON feed_sources       USING (true) WITH CHECK (true);
+  END IF;
+END $$;
 
 -- Authenticated users: read-only (CAIRO can display intel in UI if needed)
-CREATE POLICY "auth_read_live_intel"    ON live_intelligence  FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "auth_read_correlations"  ON event_correlations FOR SELECT USING (auth.role() = 'authenticated');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'live_intelligence' AND policyname = 'auth_read_live_intel'
+  ) THEN
+    CREATE POLICY "auth_read_live_intel"    ON live_intelligence  FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'event_correlations' AND policyname = 'auth_read_correlations'
+  ) THEN
+    CREATE POLICY "auth_read_correlations"  ON event_correlations FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
 -- ── Seed: Feed Sources Registry ───────────────────────────────────────────────
 INSERT INTO feed_sources (source_name, source_tier, base_trust_score, region_coverage, notes) VALUES

@@ -8,6 +8,7 @@
 
 import { parseRssXml } from './_rssParser.js'
 import { createClient } from '@supabase/supabase-js'
+import { filterByPrimaryAttribution, normalizeCountryKey } from './_countryAttribution.js'
 
 // Lazy Supabase client — only created when a knowledge lookup is needed
 let _sb = null
@@ -233,19 +234,23 @@ async function fetchFeedItems(url, name) {
 }
 
 /**
- * Fetch recent articles from ALL configured risk feeds that mention the
- * given country (or city), using alias matching for common abbreviations
- * and armed-group names. Returns up to 30 unique articles sorted newest first.
+ * Fetch recent articles from ALL configured risk feeds that are primarily
+ * about the given country, using the production-grade attribution engine.
+ *
+ * Replaces the previous substring text.includes(alias) matching that caused
+ * widespread false attribution (e.g. "isis" matching "crisis", "mali" matching
+ * "somalia", "niger" matching "nigeria").
+ *
+ * Now uses word-boundary regex matching + confidence scoring from
+ * _countryAttribution.js. Only articles with attribution confidence ≥ 0.45
+ * are returned, ensuring articles are primarily ABOUT the requested country.
+ *
+ * Returns up to 30 unique articles sorted by attribution confidence,
+ * then by recency.
  */
 export async function fetchArticlesForCountry(country, city = null) {
-  const q       = country.toLowerCase().trim()
-  const aliases = new Set([q])
-
-  if (city) aliases.add(city.toLowerCase().trim())
-
-  // Add known aliases for this country
-  const knownAliases = COUNTRY_ALIASES[q] || []
-  knownAliases.forEach(a => aliases.add(a))
+  // Normalize country key for attribution engine
+  const countryKey = normalizeCountryKey(country)
 
   // Fetch all feeds in parallel (skip duplicate URLs)
   const seenUrls = new Set()
@@ -266,16 +271,21 @@ export async function fetchArticlesForCountry(country, city = null) {
     .filter(r => r.status === 'fulfilled')
     .flatMap(r => r.value)
 
-  // Filter for country relevance
-  const matches = allItems.filter(item => {
-    const text = `${item.title} ${item.description}`.toLowerCase()
-    return [...aliases].some(a => text.includes(a))
+  // ── NEW: Use production attribution engine instead of text.includes() ──────
+  // filterByPrimaryAttribution applies word-boundary regex + confidence scoring.
+  // Articles with confidence < 0.45 are excluded (not primarily about this country).
+  const attributed = filterByPrimaryAttribution(allItems, countryKey, 0.45)
+
+  // Sort: highest attribution confidence first, then newest first
+  const sorted = attributed.sort((a, b) => {
+    const confDiff = (b._attribution?.confidence || 0) - (a._attribution?.confidence || 0)
+    if (Math.abs(confDiff) > 0.1) return confDiff > 0 ? 1 : -1
+    return new Date(b.pubDate || 0) - new Date(a.pubDate || 0)
   })
 
-  // Sort newest first, deduplicate by title prefix
+  // Deduplicate by title prefix (within this batch)
   const seen = new Set()
-  return matches
-    .sort((a, b) => new Date(b.pubDate || 0) - new Date(a.pubDate || 0))
+  return sorted
     .filter(item => {
       const key = (item.title || '').slice(0, 60).toLowerCase()
       if (seen.has(key)) return false

@@ -4,8 +4,11 @@
  * CAIRO Country Risk Cache Warmup — Full FCDO Coverage
  *
  * Runs on two schedules (set in vercel.json):
- *   Fast tier  — every 15 min  → Tier A + B  (~70 countries, Critical/High)
- *   Slow tier  — every 3 hours → Tier C + D  (~150 countries, Medium/Low)
+ *   Fast tier  — every 30 min  → Tier A + B  (~70 countries, Critical/High)
+ *   Slow tier  — every 2 hours → Tier C + D  (~150 countries, Medium/Low)
+ *
+ * Cache TTL = 3 hours.  Warmup interval < TTL ensures the Heat Map always has
+ * a live AI entry — the cache never expires between warmup runs.
  *
  * Caller passes ?tier=fast or ?tier=slow (defaults to fast).
  *
@@ -14,8 +17,8 @@
  *     the country skips AI invalidation and returns in ~0.3s.
  *   • If FCDO level has genuinely changed, _fcdoAlert.js logs the event to
  *     live_intelligence (GSOC feed) and alerts any affected orgs.
- *   • Tier A (Critical) and Tier B (High) are re-checked every 15 minutes.
- *   • Tier C (Medium) and Tier D (Low/stable) re-checked every 3 hours —
+ *   • Tier A (Critical) and Tier B (High) are re-checked every 30 minutes.
+ *   • Tier C (Medium) and Tier D (Low/stable) re-checked every 2 hours —
  *     changes here are rare but caught automatically.
  */
 

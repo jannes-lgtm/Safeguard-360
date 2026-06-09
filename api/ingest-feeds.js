@@ -21,6 +21,19 @@ import { normalizeArticles }       from './_intelNormalizer.js'
 import { correlateEvents }         from './_eventCorrelator.js'
 import { adapt }                   from './_adapter.js'
 import { enrichWithCoordinates }   from './_geocoder.js'
+import { findDuplicate }           from './_contentHash.js'
+import { createClient }            from '@supabase/supabase-js'
+
+// Lazy Supabase client for dedup checks
+let _dedupClient = null
+function getDedupClient() {
+  if (_dedupClient) return _dedupClient
+  const url = SUPABASE_URL()
+  const key = SERVICE_KEY()
+  if (!url || !key) return null
+  _dedupClient = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  return _dedupClient
+}
 
 const SUPABASE_URL = () => process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || ''
 const SERVICE_KEY  = () => process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -134,13 +147,33 @@ async function ingestLocation(location) {
     // 4a. Geocode city names → attach city_lat / city_lon before DB insert
     const geocoded = await enrichWithCoordinates(significant)
 
-    // 4. Store in live_intelligence (ignore duplicates on raw_title + country)
-    const expiresAt = new Date(now + INTEL_TTL_HOURS * 60 * 60 * 1000).toISOString()
+    // 4. Store in live_intelligence — with deduplication check (Phase 3)
+    const expiresAt  = new Date(now + INTEL_TTL_HOURS * 60 * 60 * 1000).toISOString()
     const ingestedAt = new Date(now).toISOString()
+    const sb         = getDedupClient()
+    let skipped      = 0
 
     for (const obj of geocoded) {
+      // ── Deduplication check ───────────────────────────────────────────────
+      // Check by canonical URL (primary) or content hash (fallback).
+      // This prevents the same article from being re-inserted on every cron run
+      // while it remains live in the RSS feed (was causing 48× duplicates per article).
+      if (sb && obj.canonical_url && obj.content_hash) {
+        const existingId = await findDuplicate(sb, obj.canonical_url, obj.content_hash, INTEL_TTL_HOURS + 24)
+        if (existingId) {
+          skipped++
+          continue   // skip duplicate — article already in DB within TTL window
+        }
+      }
+
       // Strip runtime-only fields before inserting
-      const { _raw_text, relevance_score, ...clean } = obj
+      const {
+        _raw_text,
+        _attribution_signals,
+        relevance_score,
+        ...clean
+      } = obj
+
       const ok = await sbPost('live_intelligence', {
         ...clean,
         expires_at:  expiresAt,
@@ -148,6 +181,10 @@ async function ingestLocation(location) {
         is_active:   true,
       })
       if (ok) result.stored++
+    }
+
+    if (skipped > 0) {
+      result.deduped = (result.deduped || 0) + skipped
     }
 
     // 5. Correlate events for this location
@@ -217,17 +254,19 @@ async function _handler(req, res) {
   // Step 3: Summary
   const totalFetched  = allResults.reduce((s, r) => s + (r.fetched  || 0), 0)
   const totalStored   = allResults.reduce((s, r) => s + (r.stored   || 0), 0)
+  const totalDeduped  = allResults.reduce((s, r) => s + (r.deduped  || 0), 0)
   const totalClusters = allResults.reduce((s, r) => s + (r.clusters || 0), 0)
   const errors        = allResults.filter(r => r.error).length
   const elapsed       = Date.now() - start
 
-  console.log(`[ingest] Complete — fetched=${totalFetched} stored=${totalStored} clusters=${totalClusters} errors=${errors} elapsed=${elapsed}ms`)
+  console.log(`[ingest] Complete — fetched=${totalFetched} stored=${totalStored} deduped=${totalDeduped} clusters=${totalClusters} errors=${errors} elapsed=${elapsed}ms`)
 
   return res.status(200).json({
     ok:                      true,
     locations_processed:     MONITORED_LOCATIONS.length,
     articles_fetched:        totalFetched,
     intel_objects_stored:    totalStored,
+    intel_objects_deduped:   totalDeduped,
     correlation_clusters:    totalClusters,
     locations_with_errors:   errors,
     elapsed_ms:              elapsed,
