@@ -51,7 +51,9 @@
     "api/prewarm-facilities.js":      { "maxDuration": 300 },
     "api/airfields.js":               { "maxDuration": 55 },
     "api/intel-health.js":                  { "maxDuration": 30 },
-    "api/admin/country-risk-health.js":     { "maxDuration": 15 }
+    "api/admin/country-risk-health.js":      { "maxDuration": 15 },
+    "api/intel-coverage.js":                { "maxDuration": 30 },
+    "api/admin/intel-pipeline-health.js":   { "maxDuration": 20 }
   },
   "crons": [
     { "path": "/api/sos-escalation-check",  "schedule": "*/15 * * * *" },

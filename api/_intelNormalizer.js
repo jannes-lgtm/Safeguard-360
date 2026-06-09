@@ -28,6 +28,8 @@
  */
 
 import { getSourceTier, computeSourceReliability } from './_sourceWeights.js'
+import { attributeArticle, normalizeCountryKey }    from './_countryAttribution.js'
+import { computeContentHash, normalizeUrl }          from './_contentHash.js'
 
 // ── Event type classifiers ─────────────────────────────────────────────────────
 // Ordered: more specific types first
@@ -328,7 +330,7 @@ function extractCity(text, country) {
 // ── Core: normalize a single article ─────────────────────────────────────────
 /**
  * @param {object} article   Raw feed article { title, summary, pubDate, feedName, url }
- * @param {string} country   Canonical country name
+ * @param {string} country   Canonical country name (pre-attributed by fetchArticlesForCountry)
  * @param {number} ageHours  Age of article in hours
  */
 export function normalizeArticle(article, country, ageHours = 0) {
@@ -350,25 +352,64 @@ export function normalizeArticle(article, country, ageHours = 0) {
     sourceReliability * (0.65 + (severity / 5) * 0.30) * 100
   ) / 100)
 
+  // ── Phase 2: Attribution metadata ────────────────────────────────────────
+  // Use the pre-attached _attribution from filterByPrimaryAttribution if available,
+  // otherwise run attribution engine now.
+  let attributionConfidence = 0.5
+  let attributionMethod     = 'inherited'
+  let attributionSignals    = []
+  let mentionedCountries    = []
+  const countryKey = normalizeCountryKey(country)
+
+  if (article._attribution) {
+    // Pre-computed by filterByPrimaryAttribution in fetchArticlesForCountry
+    attributionConfidence = article._attribution.confidence
+    attributionMethod     = article._attribution.method
+    attributionSignals    = article._attribution.signals || []
+    mentionedCountries    = article._attribution.mentionedCountries || []
+  } else {
+    // Fallback: compute now (e.g. when normalizer is called independently)
+    const attr = attributeArticle(article, country)
+    attributionConfidence = attr.confidence
+    attributionMethod     = attr.method
+    attributionSignals    = attr.signals || []
+    mentionedCountries    = attr.mentionedCountries || []
+  }
+
+  // ── Phase 3: Content hash for deduplication ───────────────────────────────
+  const summary    = article.summary || article.description || ''
+  const contentHash = computeContentHash(article.title || '', summary)
+  const rawUrl      = article.url || article.link || null
+  const canonicalUrl = rawUrl ? normalizeUrl(rawUrl) : null
+
   return {
-    event_type:          eventType,
+    event_type:              eventType,
     country,
+    // Phase 2: attribution fields
+    primary_country:         country,
+    mentioned_countries:     mentionedCountries,
+    attribution_confidence:  attributionConfidence,
+    attribution_method:      attributionMethod,
     city,
     severity,
     confidence,
-    source_reliability:  sourceReliability,
-    source_tier:         sourceTier,
-    movement_impact:     movementImpact,
-    affected_routes:     [],
-    raw_title:           stripHtml(article.title || '').slice(0, 250),
-    raw_summary:         stripHtml(text).slice(0, 500),
-    source_name:         article.feedName || article.source || 'Unknown',
-    source_url:          article.url || article.link || null,
-    event_timestamp:     article.pubDate
+    source_reliability:      sourceReliability,
+    source_tier:             sourceTier,
+    movement_impact:         movementImpact,
+    affected_routes:         [],
+    raw_title:               stripHtml(article.title || '').slice(0, 250),
+    raw_summary:             stripHtml(text).slice(0, 500),
+    source_name:             article.feedName || article.source || 'Unknown',
+    source_url:              rawUrl,
+    // Phase 3: deduplication fields
+    canonical_url:           canonicalUrl,
+    content_hash:            contentHash,
+    event_timestamp:         article.pubDate
       ? new Date(article.pubDate).toISOString()
       : new Date().toISOString(),
     keywords,
-    _raw_text:           text,   // stripped before DB insert
+    _raw_text:               text,   // stripped before DB insert
+    _attribution_signals:    attributionSignals,  // stripped before DB insert
   }
 }
 
