@@ -319,7 +319,7 @@ export default function HealthDeclaration() {
                           ? opt === 'Completed'
                             ? { background: '#059669', color: '#fff', borderColor: '#059669' }
                             : opt === 'Scheduled'
-                            ? { background: '#2563EB', color: '#fff', borderColor: '#2563EB' }
+                            ? { background: '#3A5870', color: '#6EA8C8', borderColor: '#4A6E8A' }
                             : { background: '#6B7280', color: '#fff', borderColor: '#6B7280' }
                           : { background: 'rgba(255,255,255,0.04)', color: '#64748B', borderColor: 'rgba(255,255,255,0.1)' }}>
                         {opt}
