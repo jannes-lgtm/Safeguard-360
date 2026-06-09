@@ -181,6 +181,12 @@ function CountryPanel({ filter, selected, onSelect, onClose, dataset }) {
                       color: '#AACC00', border: '1px solid rgba(170,204,0,0.2)',
                       letterSpacing: '0.06em', flexShrink: 0 }}>AI</span>
                   )}
+                  {data.isStale && (
+                    <span style={{ fontSize: 7, fontWeight: 700, padding: '1px 4px',
+                      borderRadius: 999, background: 'rgba(245,158,11,0.12)',
+                      color: '#f59e0b', border: '1px solid rgba(245,158,11,0.2)',
+                      letterSpacing: '0.06em', flexShrink: 0 }}>~AI</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -196,15 +202,25 @@ function CountryPanel({ filter, selected, onSelect, onClose, dataset }) {
 const WORLD_GEOJSON_URL = '/world.geojson'
 
 // ── Build effective COUNTRIES map — static baseline merged with live AI data ──
-// liveRisks: { [countryNameLower]: 'Critical|High|Medium|Low' }
-function mergeWithLive(liveRisks) {
-  if (!liveRisks || !Object.keys(liveRisks).length) return COUNTRIES
+// liveRisks:  { [countryNameLower]: 'Critical|High|Medium|Low' }  — fresh cache
+// staleRisks: { [countryNameLower]: 'Critical|High|Medium|Low' }  — expired ≤6h old
+// Priority: live > stale > static baseline
+// isLive:true  — AI brief current, < 3 hours old
+// isStale:true — AI brief expired but served rather than falling back to hardcode
+// (neither)    — hardcoded riskData.js value; no AI assessment available
+function mergeWithLive(liveRisks, staleRisks = {}) {
   const merged = {}
   for (const [name, data] of Object.entries(COUNTRIES)) {
-    const liveRisk = liveRisks[name.toLowerCase()]
-    merged[name] = liveRisk
-      ? { ...data, risk: liveRisk, isLive: true }
-      : data
+    const key       = name.toLowerCase()
+    const liveRisk  = liveRisks[key]
+    const staleRisk = staleRisks[key]
+    if (liveRisk) {
+      merged[name] = { ...data, risk: liveRisk, isLive: true }
+    } else if (staleRisk) {
+      merged[name] = { ...data, risk: staleRisk, isStale: true }
+    } else {
+      merged[name] = data   // static baseline — isLive and isStale both undefined
+    }
   }
   return merged
 }
@@ -227,12 +243,14 @@ export default function HeatMap() {
   const [mapReady,      setMapReady]      = useState(false)
   const [selected,      setSelected]      = useState(null)
   const [showList,      setShowList]      = useState(true)
-  const [liveRisks,     setLiveRisks]     = useState({})  // { countryLower: severity }
+  const [liveRisks,     setLiveRisks]     = useState({})  // { countryLower: severity } — fresh
+  const [staleRisks,    setStaleRisks]    = useState({})  // { countryLower: severity } — expired ≤6h
   const [liveCount,     setLiveCount]     = useState(0)
+  const [staleCount,    setStaleCount]    = useState(0)
   const [dataSource,    setDataSource]    = useState('static')  // 'static' | 'live'
 
-  // Effective dataset — static baseline overridden by live AI assessments
-  const effectiveCountries = mergeWithLive(liveRisks)
+  // Effective dataset — static baseline overridden by live then stale AI assessments
+  const effectiveCountries = mergeWithLive(liveRisks, staleRisks)
   // Keep ref in sync so map click handlers always see current data
   useEffect(() => { effectiveCountriesRef.current = effectiveCountries }, [effectiveCountries])
 
@@ -246,10 +264,18 @@ export default function HeatMap() {
     fetch('/api/country-risk-summary', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (d?.risks && Object.keys(d.risks).length > 0) {
+        if (!d) return
+        if (d.risks && Object.keys(d.risks).length > 0) {
           setLiveRisks(d.risks)
           setLiveCount(d._count || 0)
           setDataSource('live')
+        }
+        // Always apply stale entries — they display with a visual indicator
+        // and are preferable to the hardcoded static baseline
+        if (d.stale && Object.keys(d.stale).length > 0) {
+          setStaleRisks(d.stale)
+          setStaleCount(d._stale_count || 0)
+          if (!d.risks || Object.keys(d.risks).length === 0) setDataSource('stale')
         }
       })
       .catch(() => { /* fall through to static */ })
@@ -446,18 +472,27 @@ export default function HeatMap() {
       })
 
       // ── 4. Popup builder ────────────────────────────────────────────────────
-      const showPopup = (name, risk, region, lngLat, isLive = false) => {
+      const showPopup = (name, risk, region, lngLat, isLive = false, isStale = false) => {
         if (activePopup.current) { activePopup.current.remove(); activePopup.current = null }
         const color = RISK_COLOR[risk] ?? '#9ca3af'
         const el = document.createElement('div')
         el.style.fontFamily = 'system-ui,-apple-system,sans-serif'
+        const sourceBadge = isLive
+          ? `<span style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:999px;
+               background:rgba(170,204,0,0.12);color:#AACC00;border:1px solid rgba(170,204,0,0.25);
+               letter-spacing:0.08em">AI LIVE</span>`
+          : isStale
+            ? `<span style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:999px;
+                 background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.25);
+                 letter-spacing:0.08em" title="AI assessment cached — refreshing soon">STALE</span>`
+            : `<span style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:999px;
+                 background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.3);border:1px solid rgba(255,255,255,0.1);
+                 letter-spacing:0.08em" title="Static baseline — no live AI assessment available">STATIC</span>`
         el.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
             <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;
               color:rgba(255,255,255,0.35);text-transform:uppercase">${region}</span>
-            ${isLive ? `<span style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:999px;
-              background:rgba(170,204,0,0.12);color:#AACC00;border:1px solid rgba(170,204,0,0.25);
-              letter-spacing:0.08em">AI LIVE</span>` : ''}
+            ${sourceBadge}
           </div>
           <div style="font-weight:800;font-size:15px;color:#EAEEF5;margin-bottom:8px;
             letter-spacing:0.01em;line-height:1.2">${name}</div>
@@ -497,14 +532,14 @@ export default function HeatMap() {
         const data    = effectiveCountriesRef.current[key]
         if (!data) return
         setSelected(key)
-        showPopup(key, data.risk, data.region, e.lngLat, data.isLive)
+        showPopup(key, data.risk, data.region, e.lngLat, data.isLive, data.isStale)
       })
 
       map.on('click', 'risk-circles', (e) => {
         const p = e.features[0].properties
         const liveData = effectiveCountriesRef.current[p.name]
         setSelected(p.name)
-        showPopup(p.name, liveData?.risk || p.risk, p.region, e.lngLat, liveData?.isLive)
+        showPopup(p.name, liveData?.risk || p.risk, p.region, e.lngLat, liveData?.isLive, liveData?.isStale)
       })
       map.on('mouseenter', 'risk-circles', () => { map.getCanvas().style.cursor = 'pointer' })
       map.on('mouseleave', 'risk-circles', () => { map.getCanvas().style.cursor = '' })
@@ -606,10 +641,19 @@ export default function HeatMap() {
               <span className="hidden md:flex items-center gap-1 text-[10px]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#AACC00] animate-pulse" />
                 <span className="text-[#AACC00] font-semibold">{liveCount} AI assessed</span>
+                {staleCount > 0 && (
+                  <span className="text-[#f59e0b]/70">· {staleCount} stale</span>
+                )}
+                <span className="text-white/25">· {filteredCount} monitored</span>
+              </span>
+            ) : dataSource === 'stale' ? (
+              <span className="hidden md:flex items-center gap-1 text-[10px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" />
+                <span className="text-[#f59e0b] font-semibold">{staleCount} cached (stale)</span>
                 <span className="text-white/25">· {filteredCount} monitored</span>
               </span>
             ) : (
-              <span className="text-[10px] text-white/25 hidden md:block">{filteredCount} countries monitored</span>
+              <span className="text-[10px] text-white/25 hidden md:block">{filteredCount} countries · static baseline</span>
             )}
 
             <div className="flex-1" />

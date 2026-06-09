@@ -9,7 +9,8 @@
  *   GDACS (UN disaster system)
  *   USGS earthquake feed
  *
- * Claude AI synthesises all feeds into an executive brief (cached 1 hour per country).
+ * Claude AI synthesises all feeds into an executive brief (cached 3 hours per country).
+ * Warmup cron: Tier A/B every 30 min, Tier C/D every 2 hours.
  * When no advisory data is available, severity is returned as null.
  */
 
@@ -22,8 +23,8 @@ import { logFcdoChange } from './_fcdoAlert.js'
 import { fetchGdeltSignals } from './_gdelt.js'
 import { storeBriefHistory, buildTrendContext } from './_cairoMemory.js'
 
-const CACHE_TTL      = 60 * 60 * 1000       // 1 hour
-const ISS_CACHE_TTL  = 4  * 60 * 60 * 1000  // 4 hours
+const CACHE_TTL      = 3 * 60 * 60 * 1000   // 3 hours (aligned with warmup interval)
+const ISS_CACHE_TTL  = 4 * 60 * 60 * 1000   // 4 hours
 
 async function _handler(req, res) {
   const { country } = req.query
@@ -293,8 +294,11 @@ async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = 
       // L2 — Supabase persistent cache (survives cold starts)
       const persisted = await dbCacheGet(dbKey)
       if (persisted) {
-        ai_brief = persisted
-        await sharedCache.set('risk-ai:' + cacheKey, ai_brief, 60 * 60 * 1000)
+        // Stamp last_refreshed_at on promotion to L1 so health endpoint can
+        // detect how recently this instance served the entry.
+        const now = new Date().toISOString()
+        ai_brief = { ...persisted, last_refreshed_at: now }
+        await sharedCache.set('risk-ai:' + cacheKey, ai_brief, CACHE_TTL)
         // Await trend meta — fire-and-forget loses it before response is built
         try { const r = await buildTrendContext(country); trendMeta = r.meta } catch {}
       } else {
@@ -319,8 +323,30 @@ async function getCountryRisk(country, { forceRefresh = false, checkTimestamp = 
           const effectiveSev = (aiSev && fcdoSev)
             ? SEVER_ORDER.indexOf(fcdoSev) > SEVER_ORDER.indexOf(aiSev) ? fcdoSev : aiSev
             : aiSev || fcdoSev || null
-          const briefToCache = { ...ai_brief, overall_severity: effectiveSev }
-          await sharedCache.set('risk-ai:' + cacheKey, briefToCache, 60 * 60 * 1000)
+
+          // ── Audit fields — embedded in cached value for health monitoring ──
+          const now = new Date().toISOString()
+          const briefToCache = {
+            ...ai_brief,
+            overall_severity: effectiveSev,
+            // Audit fields
+            last_generated_at:    now,
+            last_refreshed_at:    now,
+            source_count: [
+              fcdo,
+              iss,
+              gdacs.length > 0 ? true : null,
+              usgs.length  > 0 ? true : null,
+              (health?.matches?.length || 0) > 0 ? true : null,
+              gdelt?.tempoScore != null ? true : null,
+            ].filter(Boolean).length,
+            intelligence_count:
+              gdacs.length +
+              usgs.length  +
+              (health?.matches?.length || 0) +
+              (iss?.articles?.length  || 0),
+          }
+          await sharedCache.set('risk-ai:' + cacheKey, briefToCache, CACHE_TTL)
           dbCacheSet(dbKey, briefToCache, CACHE_TTL)  // fire-and-forget
         }
       }

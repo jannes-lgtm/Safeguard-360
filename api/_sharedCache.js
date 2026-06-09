@@ -283,7 +283,7 @@ export function __resetRedisForTest() {
 // Reference these instead of hardcoding magic numbers.
 
 export const CACHE_TTL = {
-  COUNTRY_RISK:        60  * 60 * 1000,   //  1 hour  — country risk synthesis
+  COUNTRY_RISK:        3   * 60 * 60 * 1000,  //  3 hours — country risk synthesis (warmup every 30m/2h)
   CAIRO_CONTEXT:       5   * 60 * 1000,   //  5 min   — context assembly (operational state changes)
   COUNTRY_SUMMARY:     30  * 60 * 1000,   // 30 min   — lightweight country summaries
   RSS_FEED:            15  * 60 * 1000,   // 15 min   — RSS feed results

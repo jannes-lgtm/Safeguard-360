@@ -50,7 +50,8 @@
     "api/facilities.js":              { "maxDuration": 55 },
     "api/prewarm-facilities.js":      { "maxDuration": 300 },
     "api/airfields.js":               { "maxDuration": 55 },
-    "api/intel-health.js":            { "maxDuration": 30 }
+    "api/intel-health.js":                  { "maxDuration": 30 },
+    "api/admin/country-risk-health.js":     { "maxDuration": 15 }
   },
   "crons": [
     { "path": "/api/sos-escalation-check",  "schedule": "*/15 * * * *" },
@@ -61,8 +62,8 @@
     { "path": "/api/ops-analyze",           "schedule": "0 */12 * * *" },
     { "path": "/api/ingest-feeds",          "schedule": "0 */4 * * *"  },
     { "path": "/api/gdelt-ingest?batch=1",  "schedule": "0 */6 * * *"  },
-    { "path": "/api/country-risk-warmup",        "schedule": "0 */6 * * *"  },
-    { "path": "/api/country-risk-warmup?tier=slow", "schedule": "0 */12 * * *" }
+    { "path": "/api/country-risk-warmup",              "schedule": "*/30 * * * *" },
+    { "path": "/api/country-risk-warmup?tier=slow",    "schedule": "0 */2 * * *"  }
   ],
   "headers": [
     {
