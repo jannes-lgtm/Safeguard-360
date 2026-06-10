@@ -65,15 +65,15 @@ export default function CountryRisk({ country, tripName, profile }) {
   if (error) return (
     <div className="flex items-center gap-2 mt-1">
       <span className="text-xs text-[#EF7474]">{error}</span>
-      <button onClick={check} className="text-xs text-[#1B3A6B] hover:underline">Retry</button>
+      <button onClick={check} className="text-xs text-[#6EA8C8] hover:underline">Retry</button>
     </div>
   )
 
   if (!risk) return (
     <button onClick={check} disabled={loading}
-      className="mt-1 inline-flex items-center gap-1.5 text-xs text-[#1B3A6B] font-medium hover:underline disabled:opacity-60">
+      className="mt-1 inline-flex items-center gap-1.5 text-xs text-[#6EA8C8] font-medium hover:underline disabled:opacity-60">
       {loading
-        ? <div className="w-3 h-3 border border-[#1B3A6B] border-t-transparent rounded-full animate-spin" />
+        ? <div className="w-3 h-3 border border-[#6EA8C8] border-t-transparent rounded-full animate-spin" />
         : <Globe size={11} />}
       {loading ? `Checking ${country} risk…` : `Check ${country} risk`}
     </button>
@@ -96,7 +96,7 @@ export default function CountryRisk({ country, tripName, profile }) {
 
         {advisories.map(s => (
           <a key={s.name} href={s.url} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-0.5 text-xs text-gray-400 hover:text-[#1B3A6B] transition-colors">
+            className="inline-flex items-center gap-0.5 text-xs text-gray-400 hover:text-[#6EA8C8] transition-colors">
             {s.name} <ExternalLink size={9} />
           </a>
         ))}
