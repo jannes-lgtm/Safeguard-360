@@ -13,8 +13,8 @@ const inputCls = 'w-full rounded-xl px-4 py-3 text-sm focus:outline-none focus:r
 const labelCls = 'block text-xs font-semibold mb-1.5 uppercase tracking-wide text-[#64748B]'
 
 const SEV_COLOR = { High: '#F87171', Medium: '#FBBF24', Low: '#34D399' }
-const CAT_COLOR = { required: '#F87171', recommended: '#60A5FA', consider: '#94A3B8' }
-const CAT_BG    = { required: 'rgba(239,68,68,0.12)', recommended: 'rgba(59,130,246,0.12)', consider: 'rgba(148,163,184,0.1)' }
+const CAT_COLOR = { required: '#F87171', recommended: '#6EA8C8', consider: '#94A3B8' }
+const CAT_BG    = { required: 'rgba(239,68,68,0.12)', recommended: 'rgba(58,88,112,0.12)', consider: 'rgba(148,163,184,0.1)' }
 const VAX_STATUS_OPTIONS = ['Completed', 'Scheduled', 'Not applicable']
 
 export default function HealthDeclaration() {
@@ -267,15 +267,15 @@ export default function HealthDeclaration() {
         {/* Vaccination Requirements */}
         <div className="rounded-2xl overflow-hidden" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
           <div className="flex items-center gap-2 px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-            <Syringe size={15} color="#60A5FA" />
+            <Syringe size={15} color="#6EA8C8" />
             <h2 className="text-sm font-bold flex-1" style={{ color: '#F1F5F9' }}>Vaccination Requirements</h2>
             {reqsLoading && (
-              <span className="flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,0.12)', color: '#60A5FA' }}>
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(58,88,112,0.12)', color: '#6EA8C8' }}>
                 <Loader2 size={9} className="animate-spin" /> Loading…
               </span>
             )}
             {aiLoaded && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,0.12)', color: '#60A5FA' }}>AI · Live</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(58,88,112,0.12)', color: '#6EA8C8' }}>AI · Live</span>
             )}
             {reqsError && !reqsLoading && (
               <button onClick={() => trip && fetchReqs(trip, existing)}
@@ -370,7 +370,7 @@ export default function HealthDeclaration() {
         {/* General advice */}
         {aiLoaded && reqs?.general_advice && (
           <div className="mt-3 rounded-2xl px-5 py-4 flex gap-3" style={{ background: 'rgba(1,24,161,0.12)', border: '1px solid rgba(1,24,161,0.3)' }}>
-            <Info size={14} color="#60A5FA" className="shrink-0 mt-0.5" />
+            <Info size={14} color="#6EA8C8" className="shrink-0 mt-0.5" />
             <div>
               <p className="text-xs font-bold mb-1" style={{ color: '#93C5FD' }}>General Health Advice</p>
               <p className="text-xs leading-relaxed" style={{ color: '#94A3B8' }}>{reqs.general_advice}</p>
@@ -406,7 +406,7 @@ export default function HealthDeclaration() {
         {/* Medical history */}
         <div className="rounded-2xl p-5" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
           <h2 className="text-sm font-bold mb-5 flex items-center gap-2" style={{ color: '#F1F5F9' }}>
-            <ActivitySquare size={15} color="#60A5FA" /> Medical History
+            <ActivitySquare size={15} color="#6EA8C8" /> Medical History
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Chronic conditions */}
@@ -477,7 +477,7 @@ export default function HealthDeclaration() {
         {/* Emergency medical contact */}
         <div className="rounded-2xl p-5" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
           <h2 className="text-sm font-bold mb-1 flex items-center gap-2" style={{ color: '#F1F5F9' }}>
-            <Phone size={15} color="#60A5FA" /> In-Country Emergency Medical Contact
+            <Phone size={15} color="#6EA8C8" /> In-Country Emergency Medical Contact
           </h2>
           <p className="text-xs mb-4" style={{ color: '#64748B' }}>A local contact who can assist in a medical emergency (doctor, local host, colleague).</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -499,7 +499,7 @@ export default function HealthDeclaration() {
         {/* Final declarations */}
         <div className="rounded-2xl p-5 space-y-4" style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.08)' }}>
           <h2 className="text-sm font-bold flex items-center gap-2" style={{ color: '#F1F5F9' }}>
-            <FileText size={15} color="#60A5FA" /> Final Declarations
+            <FileText size={15} color="#6EA8C8" /> Final Declarations
           </h2>
           <label className="flex items-start gap-3 cursor-pointer">
             <input type="checkbox" checked={insuranceConfirmed} onChange={e => setInsuranceConfirmed(e.target.checked)}
