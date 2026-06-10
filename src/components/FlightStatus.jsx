@@ -87,16 +87,16 @@ export default function FlightStatus({ flightNumber, tripName, profile }) {
   if (error) return (
     <div className="mt-2 flex items-center gap-2">
       <span className="text-xs text-[#EF7474]">⚠ {error}</span>
-      <button onClick={check} className="text-xs text-[#1B3A6B] hover:underline">Retry</button>
+      <button onClick={check} className="text-xs text-[#6EA8C8] hover:underline">Retry</button>
     </div>
   )
 
   if (!status) return (
     <div className="mt-2 flex items-center gap-2 flex-wrap">
       <button onClick={check} disabled={loading}
-        className="inline-flex items-center gap-1.5 text-xs text-[#1B3A6B] font-medium hover:underline disabled:opacity-60">
+        className="inline-flex items-center gap-1.5 text-xs text-[#6EA8C8] font-medium hover:underline disabled:opacity-60">
         {loading
-          ? <div className="w-3 h-3 border border-[#1B3A6B] border-t-transparent rounded-full animate-spin" />
+          ? <div className="w-3 h-3 border border-[#6EA8C8] border-t-transparent rounded-full animate-spin" />
           : <Plane size={11} />}
         {loading ? 'Checking…' : 'Check live status'}
       </button>
