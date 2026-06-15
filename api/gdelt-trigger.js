@@ -86,29 +86,44 @@ async function _handler(req, res) {
     console.warn('[gdelt-trigger] Queue upsert warning:', err.message)
   }
 
-  // ── Publish one message per country with staggered delay ──────────────────
-  const queued  = []
-  const errored = []
+  // ── Publish all countries in parallel batches of 10 ─────────────────────
+  // Each batch fires 10 enqueueJSON() calls concurrently via Promise.all().
+  // Batches are still sequential so we don't flood Upstash with 102 simultaneous
+  // connections. At ~50-100ms per call, 10 parallel = ~100ms per batch,
+  // 11 batches = ~1.1s total — well under the 60s maxDuration.
+  const BATCH_SIZE = 10
+  const queued     = []
+  const errored    = []
 
-  for (let i = 0; i < ALL_COUNTRIES.length; i++) {
-    const country  = ALL_COUNTRIES[i]
-    const delaySec = i * STAGGER_SECONDS
+  for (let b = 0; b < ALL_COUNTRIES.length; b += BATCH_SIZE) {
+    const batch = ALL_COUNTRIES.slice(b, b + BATCH_SIZE)
 
-    try {
-      const result = await client.queue({ queueName: QUEUE_NAME }).enqueueJSON({
-        url:     workerUrl,
-        body:    { country },
-        delay:   delaySec,
-        retries: 3,
+    const results = await Promise.all(
+      batch.map(async (country, localIdx) => {
+        const globalIdx = b + localIdx
+        const delaySec  = globalIdx * STAGGER_SECONDS
+        try {
+          const result = await client.queue({ queueName: QUEUE_NAME }).enqueueJSON({
+            url:     workerUrl,
+            body:    { country },
+            delay:   delaySec,
+            retries: 3,
+          })
+          return { ok: true, country, messageId: result.messageId, delaySec }
+        } catch (err) {
+          console.error(`[gdelt-trigger] Failed to queue ${country}:`, err.message)
+          return { ok: false, country, error: err.message }
+        }
       })
-      queued.push({ country, messageId: result.messageId, delaySec })
-    } catch (err) {
-      console.error(`[gdelt-trigger] Failed to queue ${country}:`, err.message)
-      errored.push({ country, error: err.message })
+    )
+
+    for (const r of results) {
+      if (r.ok) queued.push({ country: r.country, messageId: r.messageId, delaySec: r.delaySec })
+      else       errored.push({ country: r.country, error: r.error })
     }
   }
 
-  console.log(`[gdelt-trigger] Queued ${queued.length}/${ALL_COUNTRIES.length} countries. Errors: ${errored.length}`)
+  console.log(`[gdelt-trigger] Queued ${queued.length}/${ALL_COUNTRIES.length} countries in ${Math.ceil(ALL_COUNTRIES.length / BATCH_SIZE)} batches. Errors: ${errored.length}`)
 
   return res.status(200).json({
     queued:  queued.length,
