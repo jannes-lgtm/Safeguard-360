@@ -38,7 +38,6 @@
     "api/journey-agent.js":           { "maxDuration": 60 },
     "api/ingest-feeds.js":            { "maxDuration": 120 },
     "api/country-risk-warmup.js":     { "maxDuration": 800 },
-    "api/gdelt-ingest.js":            { "maxDuration": 300 },
     "api/gdelt-trigger.js":           { "maxDuration": 60  },
     "api/gdelt-worker.js":            { "maxDuration": 60  },
     "api/gdelt-dlq.js":               { "maxDuration": 30  },
