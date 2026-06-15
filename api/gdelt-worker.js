@@ -101,6 +101,7 @@ export default async function handler(req, res) {
   // ── 4. Fetch GDELT signals with per-country timeout ────────────────────────
   const ctrl     = new AbortController()
   const capTimer = setTimeout(() => ctrl.abort(), PER_COUNTRY_CAP)
+  let aborted    = false
 
   let signals
   try {
@@ -108,9 +109,12 @@ export default async function handler(req, res) {
   } catch (err) {
     clearTimeout(capTimer)
     console.error(`[gdelt-worker] Error fetching "${country}":`, err.message)
-    // 503 → QStash retries with back-off
     return res.status(503).json({ error: err.message, country })
   } finally {
+    // Record whether we aborted before clearing the timer.
+    // fetchGdeltSignals swallows AbortError internally and returns null,
+    // so we track it here to distinguish a genuine timeout from no-data.
+    aborted = ctrl.signal.aborted
     clearTimeout(capTimer)
   }
 
@@ -120,13 +124,21 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'GDELT rate limited', country })
   }
 
-  // ── 6. No data / timeout — don't retry (won't help), return 200 ───────────
+  // ── 6. Timeout — AbortController fired before GDELT responded ─────────────
+  // Return 503 so QStash retries rather than silently dropping the country.
+  if (aborted) {
+    console.warn(`[gdelt-worker] Timeout on "${country}" after ${PER_COUNTRY_CAP}ms — returning 503 for QStash retry`)
+    return res.status(503).json({ error: 'GDELT fetch timed out', country })
+  }
+
+  // ── 7. No data — GDELT returned an empty or unscorable result ─────────────
+  // Not a timeout — retrying won't help. Return 200 to advance the queue.
   if (!signals || signals.tempoScore === null) {
     console.log(`[gdelt-worker] No data for "${country}" — skipping (status: no_data)`)
     return res.status(200).json({ country, status: 'no_data' })
   }
 
-  // ── 7. Success ─────────────────────────────────────────────────────────────
+  // ── 8. Success ─────────────────────────────────────────────────────────────
   console.log(`[gdelt-worker] ✓ ${country}: tempo=${signals.tempoScore} trend=${signals.trend} themes=[${(signals.themes || []).join(',')}]`)
   return res.status(200).json({
     country,
