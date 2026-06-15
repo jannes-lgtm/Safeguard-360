@@ -41,6 +41,7 @@
     "api/gdelt-ingest.js":            { "maxDuration": 300 },
     "api/gdelt-trigger.js":           { "maxDuration": 60  },
     "api/gdelt-worker.js":            { "maxDuration": 60  },
+    "api/gdelt-dlq.js":               { "maxDuration": 30  },
     "api/cairo-upload.js":            { "maxDuration": 300 },
     "api/backfill-embeddings.js":     { "maxDuration": 300 },
     "api/traffic-ingest.js":          { "maxDuration": 60 },
