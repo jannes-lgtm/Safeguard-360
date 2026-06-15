@@ -57,47 +57,48 @@ const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 // ── TIER 1: Critical & High-risk (batches 1-6, :00-:25 each hour) ─────────────
 
-const BATCH_1 = [  // :00 — Africa conflict core (7)
-  'Somalia', 'South Sudan', 'Sudan', 'Libya', 'Mali', 'Niger', 'Burkina Faso',
+// Batch size reduced to 5 (from 7) and BATCH_DELAY increased to 10s (from 5.5s)
+// to reliably clear GDELT's throttle window.
+// Worst-case: 5 × 22 000 + 4 × 10 000 = 150 000ms — well inside 300 000ms limit.
+
+const BATCH_1 = [  // :00 — Africa conflict core (5)
+  'Somalia', 'South Sudan', 'Sudan', 'Libya', 'Mali',
 ]
-const BATCH_2 = [  // :05 — Central Africa + Middle East + SE Asia (7)
-  'Central African Republic', 'Democratic Republic of Congo',
-  'Syria', 'Yemen', 'Iraq', 'Afghanistan', 'Myanmar',
+const BATCH_2 = [  // :05 — Africa + Middle East high-risk (5)
+  'Niger', 'Burkina Faso', 'Central African Republic', 'Democratic Republic of Congo', 'Syria',
 ]
-const BATCH_3 = [  // :10 — Major powers + high-volume (7)
-  'Ukraine', 'Russia', 'Iran', 'Nigeria', 'Pakistan', 'Mexico', 'Ethiopia',
+const BATCH_3 = [  // :10 — Middle East + Asia (5)
+  'Yemen', 'Iraq', 'Afghanistan', 'Myanmar', 'Ukraine',
 ]
-const BATCH_4 = [  // :15 — Americas + MENA high-risk (7)
-  'Haiti', 'Lebanon', 'Venezuela', 'Colombia', 'Egypt', 'India', 'Turkey',
+const BATCH_4 = [  // :15 — Major powers + high-volume (5)
+  'Russia', 'Iran', 'Nigeria', 'Pakistan', 'Ethiopia',
 ]
-const BATCH_5 = [  // :20 — East Africa + Eastern Europe (7)
-  'Kenya', 'Mozambique', 'Cameroon', 'Chad', 'Zimbabwe', 'Israel', 'Belarus',
+const BATCH_5 = [  // :20 — Americas + MENA (5)
+  'Haiti', 'Lebanon', 'Venezuela', 'Colombia', 'Egypt',
 ]
-const BATCH_6 = [  // :25 — Caucasus + South/SE Asia (7)
-  'Azerbaijan', 'Philippines', 'Indonesia', 'Saudi Arabia', 'Bangladesh', 'North Korea', 'Tunisia',
+const BATCH_6 = [  // :25 — South/SE Asia + Americas (5)
+  'India', 'Turkey', 'Mexico', 'Israel', 'Bangladesh',
 ]
 
 // ── TIER 2: Expanded regional coverage (batches 7-12, :32-:57 each hour) ──────
-// Tier 2 starts at :32 — 7 minutes after Tier 1 ends at :25 —
-// ensuring no cross-tier GDELT rate-limit collisions.
 
-const BATCH_7 = [  // :32 — South America core (7)
-  'Serbia', 'Georgia', 'Brazil', 'Argentina', 'Peru', 'Ecuador', 'Bolivia',
+const BATCH_7 = [  // :32 — East Africa + Eastern Europe (5)
+  'Kenya', 'Mozambique', 'Cameroon', 'Chad', 'Zimbabwe',
 ]
-const BATCH_8 = [  // :37 — Southern Cone + West Africa (7)
-  'Chile', 'Paraguay', 'Uruguay', 'South Africa', 'Ghana', 'Senegal', 'Ivory Coast',
+const BATCH_8 = [  // :37 — Caucasus + SE Asia + North Africa (5)
+  'Belarus', 'Azerbaijan', 'Philippines', 'Indonesia', 'Tunisia',
 ]
-const BATCH_9 = [  // :42 — West + Central + East Africa (7)
-  'Guinea', 'Liberia', 'Sierra Leone', 'Uganda', 'Tanzania', 'Rwanda', 'Angola',
+const BATCH_9 = [  // :42 — Gulf + Central Asia (5)
+  'Saudi Arabia', 'North Korea', 'Serbia', 'Georgia', 'Brazil',
 ]
-const BATCH_10 = [  // :47 — East Africa + North Africa (7)
-  'Zambia', 'Congo', 'Eritrea', 'Djibouti', 'Morocco', 'Algeria', 'Burundi',
+const BATCH_10 = [  // :47 — South America (5)
+  'Argentina', 'Peru', 'Ecuador', 'Bolivia', 'Chile',
 ]
-const BATCH_11 = [  // :52 — Gulf states + Levant (7)
-  'Madagascar', 'Malawi', 'UAE', 'Qatar', 'Jordan', 'Kuwait', 'Oman',
+const BATCH_11 = [  // :52 — West Africa + Southern Africa (5)
+  'South Africa', 'Ghana', 'Senegal', 'Ivory Coast', 'Guinea',
 ]
-const BATCH_12 = [  // :57 — Central Asia (7)
-  'Bahrain', 'Armenia', 'Kazakhstan', 'Kyrgyzstan', 'Tajikistan', 'Uzbekistan', 'Turkmenistan',
+const BATCH_12 = [  // :57 — East + Central Africa (5)
+  'Uganda', 'Tanzania', 'Rwanda', 'Angola', 'Zambia',
 ]
 
 const BATCH_MAP = {
@@ -108,8 +109,8 @@ const BATCH_MAP = {
 
 // ── Runtime budget ────────────────────────────────────────────────────────────
 // Hard limit: N × PER_COUNTRY_CAP + (N-1) × BATCH_DELAY < 300 000ms
-// Worst case (7 countries × 22s cap): 7×22000 + 6×5500 = 187 000ms ✓ (113s headroom)
-const MAX_COUNTRIES = 7
+// Worst case (5 countries × 22s cap + 4 × 10s delay): 110 000 + 40 000 = 150 000ms ✓ (150s headroom)
+const MAX_COUNTRIES = 5
 
 // ── Thresholds ────────────────────────────────────────────────────────────────
 const SPIKE_THRESHOLD      = 2.5   // tempoScore — add to fast 15-min tier
@@ -119,7 +120,7 @@ const DEESCALATE_READINGS  = 2     // consecutive low readings before de-escalat
 
 // ── Timing ────────────────────────────────────────────────────────────────────
 const BATCH_SIZE      = 1      // sequential — GDELT rate limit: 1 req/5s
-const BATCH_DELAY     = 5500   // ms between countries — 5.5s > 5s minimum
+const BATCH_DELAY     = 10000  // ms between countries — 10s to clear GDELT throttle window
 const PER_COUNTRY_CAP = 22000  // ms — matches GDELT's full response window (15-20s typical)
 
 // ── Distributed lock ─────────────────────────────────────────────────────────
