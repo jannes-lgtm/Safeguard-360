@@ -13,8 +13,8 @@
  * If the worker returns 429 or 503, QStash retries with exponential back-off
  * automatically — no custom retry logic needed.
  *
- * Total delivery window: 60 countries × 6s stagger = 6 minutes. Well inside
- * the 30-minute GDELT cache TTL (results stay fresh for 30 min).
+ * Total delivery window: 102 countries × ~18s avg = ~31 minutes.
+ * Cache TTL is 60 minutes — all countries stay fresh for every hourly run.
  *
  * Required env vars:
  *   QSTASH_TOKEN        — Upstash QStash publish token
@@ -27,24 +27,47 @@ import { adapt }  from './_adapter.js'
 const QSTASH_TOKEN    = process.env.QSTASH_TOKEN    || ''
 const WORKER_BASE_URL = process.env.WORKER_BASE_URL || 'https://www.risk360.co'
 const QUEUE_NAME      = 'gdelt-ingestion'
-const STAGGER_SECONDS = 6   // 6s between messages → 60 countries = 6 min total
+const STAGGER_SECONDS = 6   // 6s minimum gap between messages
 
-// ── All 60 monitored countries — priority-ordered (high-risk first) ───────────
+// ── All 102 monitored countries — priority-ordered (highest risk first) ────────
+
 const ALL_COUNTRIES = [
-  // Tier 1 — Critical & High-risk
+  // ── Tier 1: Critical conflict zones ─────────────────────────────────────────
   'Somalia', 'South Sudan', 'Sudan', 'Libya', 'Mali',
   'Niger', 'Burkina Faso', 'Central African Republic', 'Democratic Republic of Congo', 'Syria',
   'Yemen', 'Iraq', 'Afghanistan', 'Myanmar', 'Ukraine',
   'Russia', 'Iran', 'Nigeria', 'Pakistan', 'Ethiopia',
   'Haiti', 'Lebanon', 'Venezuela', 'Colombia', 'Egypt',
   'India', 'Turkey', 'Mexico', 'Israel', 'Bangladesh',
-  // Tier 2 — Expanded regional coverage
+
+  // ── Tier 2: High-risk regional ────────────────────────────────────────────
   'Kenya', 'Mozambique', 'Cameroon', 'Chad', 'Zimbabwe',
   'Belarus', 'Azerbaijan', 'Philippines', 'Indonesia', 'Tunisia',
   'Saudi Arabia', 'North Korea', 'Serbia', 'Georgia', 'Brazil',
   'Argentina', 'Peru', 'Ecuador', 'Bolivia', 'Chile',
   'South Africa', 'Ghana', 'Senegal', 'Ivory Coast', 'Guinea',
   'Uganda', 'Tanzania', 'Rwanda', 'Angola', 'Zambia',
+
+  // ── Africa: expanded coverage ─────────────────────────────────────────────
+  'Morocco', 'Algeria', 'Mauritania', 'Eritrea', 'Djibouti',
+  'Burundi', 'Malawi', 'Madagascar', 'Liberia', 'Sierra Leone',
+  'Guinea-Bissau', 'Togo', 'Benin', 'Gambia', 'Namibia',
+  'Botswana', 'Congo', 'Gabon',
+
+  // ── Middle East: expanded coverage ────────────────────────────────────────
+  'Jordan', 'United Arab Emirates', 'Palestine', 'Kuwait', 'Oman',
+  'Qatar', 'Bahrain',
+
+  // ── Central America ───────────────────────────────────────────────────────
+  'Guatemala', 'Honduras', 'El Salvador', 'Nicaragua', 'Costa Rica',
+  'Panama', 'Belize',
+
+  // ── Caribbean ─────────────────────────────────────────────────────────────
+  'Cuba', 'Dominican Republic', 'Jamaica', 'Trinidad and Tobago',
+  'Bahamas', 'Barbados', 'Guyana', 'Suriname',
+
+  // ── South America: remaining ──────────────────────────────────────────────
+  'Paraguay', 'Uruguay',
 ]
 
 async function _handler(req, res) {

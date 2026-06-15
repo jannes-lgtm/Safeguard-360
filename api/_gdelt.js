@@ -22,13 +22,13 @@
  *   topArticles   — up to 8 recent high-signal articles with titles + urls
  *                   Passed directly to CAIRO for synthesis context.
  *
- * Results cached 30 min per country (gdelt-ingest cron pre-warms this).
+ * Results cached 60 min per country (gdelt-trigger cron pre-warms this via QStash).
  */
 
 import { sharedCache } from './_sharedCache.js'
 
 const GDELT_BASE  = 'https://api.gdeltproject.org/api/v2/doc/doc'
-const CACHE_TTL   = 30 * 60 * 1000   // 30 min cache per country
+const CACHE_TTL   = 60 * 60 * 1000   // 60 min cache per country
 const FETCH_MS    = 22_000            // 22s timeout — GDELT API averages 15-20s response time
 
 // ── Security keyword filter ───────────────────────────────────────────────────
