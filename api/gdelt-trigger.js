@@ -57,7 +57,7 @@ const ALL_COUNTRIES = [
   'Morocco', 'Algeria', 'Mauritania', 'Eritrea', 'Djibouti',
   'Burundi', 'Malawi', 'Madagascar', 'Liberia', 'Sierra Leone',
   'Guinea-Bissau', 'Togo', 'Benin', 'Gambia', 'Namibia',
-  'Botswana', 'Congo', 'Gabon',
+  'Botswana', 'Republic of Congo', 'Gabon',
 
   // ── Middle East: expanded coverage ────────────────────────────────────────
   'Jordan', 'United Arab Emirates', 'Palestine', 'Kuwait', 'Oman',
