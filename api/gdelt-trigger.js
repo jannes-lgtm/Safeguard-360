@@ -77,7 +77,10 @@ const ALL_COUNTRIES = [
 
 async function _handler(req, res) {
   // ── Auth ──────────────────────────────────────────────────────────────────
-  if (CRON_SECRET && req.headers['x-cron-secret'] !== CRON_SECRET) {
+  // Accept both x-cron-secret (manual curl) and Authorization: Bearer (Vercel cron auto-header)
+  const incomingSecret = req.headers['x-cron-secret']
+    || (req.headers['authorization'] || '').replace('Bearer ', '')
+  if (CRON_SECRET && incomingSecret !== CRON_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
