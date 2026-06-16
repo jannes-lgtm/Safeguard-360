@@ -19,17 +19,20 @@
  * Serialisation is handled entirely by parallelism=1 on the queue — no
  * per-message delay needed or supported with enqueue().
  *
+ * Auth: x-cron-secret header checked against CRON_SECRET env var.
+ * Worker URL derived from req.headers.host — no WORKER_BASE_URL env var needed.
+ *
  * Required env vars:
- *   QSTASH_TOKEN        — Upstash QStash publish token
- *   WORKER_BASE_URL     — e.g. https://www.risk360.co (no trailing slash)
+ *   QSTASH_TOKEN  — Upstash QStash publish token
+ *   CRON_SECRET   — shared secret for cron auth
  */
 
 import { Client } from '@upstash/qstash'
 import { adapt }  from './_adapter.js'
 
-const QSTASH_TOKEN    = process.env.QSTASH_TOKEN    || ''
-const WORKER_BASE_URL = process.env.WORKER_BASE_URL || 'https://www.risk360.co'
-const QUEUE_NAME      = 'gdelt-ingestion'
+const QSTASH_TOKEN = process.env.QSTASH_TOKEN || ''
+const CRON_SECRET  = process.env.CRON_SECRET  || ''
+const QUEUE_NAME   = 'gdelt-ingestion'
 
 // ── All 102 monitored countries — priority-ordered (highest risk first) ────────
 
@@ -73,65 +76,59 @@ const ALL_COUNTRIES = [
 ]
 
 async function _handler(req, res) {
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  if (CRON_SECRET && req.headers['x-cron-secret'] !== CRON_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
   if (!QSTASH_TOKEN) {
     return res.status(500).json({ error: 'QSTASH_TOKEN not configured' })
   }
 
-  const client     = new Client({ token: QSTASH_TOKEN })
-  const workerUrl  = `${WORKER_BASE_URL}/api/gdelt-worker`
-
-  // ── Ensure queue exists with parallelism=1 (idempotent) ──────────────────
-  // upsert() lives on the Queue instance, not on client.queues (which doesn't exist).
   try {
+    const client    = new Client({ token: QSTASH_TOKEN })
+    const workerUrl = `https://${req.headers.host}/api/gdelt-worker`
+
+    // ── Ensure queue exists with parallelism=1 (idempotent) ────────────────
+    // upsert() is on the Queue instance — client.queues does not exist.
     await client.queue({ queueName: QUEUE_NAME }).upsert({ parallelism: 1 })
-  } catch (err) {
-    // Non-fatal — queue may already be configured correctly
-    console.warn('[gdelt-trigger] Queue upsert warning:', err.message)
-  }
 
-  // ── Publish all countries in parallel batches of 10 ─────────────────────
-  // Each batch fires 10 enqueueJSON() calls concurrently via Promise.all().
-  // Batches are sequential so we don't flood Upstash with 102 simultaneous
-  // connections. At ~50-100ms per call: 10 parallel × 11 batches = ~1.1s total.
-  // No delay parameter — enqueue() does not support it. Serialisation is
-  // enforced by parallelism=1 on the queue itself.
-  const BATCH_SIZE = 10
-  const queued     = []
-  const errored    = []
+    // ── Publish all countries in parallel batches of 10 ──────────────────
+    // No delay parameter — enqueue() does not support it.
+    // Serialisation enforced by parallelism=1 on the queue.
+    const CHUNK_SIZE = 10
+    let totalQueued  = 0
 
-  for (let b = 0; b < ALL_COUNTRIES.length; b += BATCH_SIZE) {
-    const batch = ALL_COUNTRIES.slice(b, b + BATCH_SIZE)
+    for (let i = 0; i < ALL_COUNTRIES.length; i += CHUNK_SIZE) {
+      const chunk = ALL_COUNTRIES.slice(i, i + CHUNK_SIZE)
 
-    const results = await Promise.all(
-      batch.map(async (country) => {
-        try {
-          const result = await client.queue({ queueName: QUEUE_NAME }).enqueueJSON({
-            url:     workerUrl,
-            body:    { country },
-            retries: 3,
-          })
-          return { ok: true, country, messageId: result.messageId }
-        } catch (err) {
-          console.error(`[gdelt-trigger] Failed to queue ${country}:`, err.message)
-          return { ok: false, country, error: err.message }
-        }
-      })
-    )
-
-    for (const r of results) {
-      if (r.ok) queued.push({ country: r.country, messageId: r.messageId })
-      else       errored.push({ country: r.country, error: r.error })
+      await Promise.all(
+        chunk.map(async (country) => {
+          try {
+            await client.queue({ queueName: QUEUE_NAME }).enqueueJSON({
+              url:  workerUrl,
+              body: { country },
+            })
+            totalQueued++
+          } catch (err) {
+            console.error(`[gdelt-trigger] Failed to queue ${country}:`, err.message)
+          }
+        })
+      )
     }
+
+    console.log(`[gdelt-trigger] Queued ${totalQueued}/${ALL_COUNTRIES.length} countries`)
+
+    return res.status(200).json({
+      status: 'success',
+      queued: totalQueued,
+      total:  ALL_COUNTRIES.length,
+    })
+
+  } catch (err) {
+    console.error('[gdelt-trigger] Fatal error:', err.message)
+    return res.status(500).json({ error: err.message })
   }
-
-  console.log(`[gdelt-trigger] Queued ${queued.length}/${ALL_COUNTRIES.length} countries in ${Math.ceil(ALL_COUNTRIES.length / BATCH_SIZE)} batches. Errors: ${errored.length}`)
-
-  return res.status(200).json({
-    queued:  queued.length,
-    total:   ALL_COUNTRIES.length,
-    errored: errored.length,
-    errors:  errored.length ? errored : undefined,
-  })
 }
 
 export const handler = adapt(_handler)
