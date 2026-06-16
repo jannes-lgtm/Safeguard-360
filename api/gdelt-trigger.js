@@ -16,6 +16,9 @@
  * Total delivery window: 102 countries × ~18s avg = ~31 minutes.
  * Cache TTL is 60 minutes — all countries stay fresh for every hourly run.
  *
+ * Serialisation is handled entirely by parallelism=1 on the queue — no
+ * per-message delay needed or supported with enqueue().
+ *
  * Required env vars:
  *   QSTASH_TOKEN        — Upstash QStash publish token
  *   WORKER_BASE_URL     — e.g. https://www.risk360.co (no trailing slash)
@@ -27,7 +30,6 @@ import { adapt }  from './_adapter.js'
 const QSTASH_TOKEN    = process.env.QSTASH_TOKEN    || ''
 const WORKER_BASE_URL = process.env.WORKER_BASE_URL || 'https://www.risk360.co'
 const QUEUE_NAME      = 'gdelt-ingestion'
-const STAGGER_SECONDS = 6   // 6s minimum gap between messages
 
 // ── All 102 monitored countries — priority-ordered (highest risk first) ────────
 
@@ -79,8 +81,9 @@ async function _handler(req, res) {
   const workerUrl  = `${WORKER_BASE_URL}/api/gdelt-worker`
 
   // ── Ensure queue exists with parallelism=1 (idempotent) ──────────────────
+  // upsert() lives on the Queue instance, not on client.queues (which doesn't exist).
   try {
-    await client.queues.upsert({ queueName: QUEUE_NAME, parallelism: 1 })
+    await client.queue({ queueName: QUEUE_NAME }).upsert({ parallelism: 1 })
   } catch (err) {
     // Non-fatal — queue may already be configured correctly
     console.warn('[gdelt-trigger] Queue upsert warning:', err.message)
@@ -88,9 +91,10 @@ async function _handler(req, res) {
 
   // ── Publish all countries in parallel batches of 10 ─────────────────────
   // Each batch fires 10 enqueueJSON() calls concurrently via Promise.all().
-  // Batches are still sequential so we don't flood Upstash with 102 simultaneous
-  // connections. At ~50-100ms per call, 10 parallel = ~100ms per batch,
-  // 11 batches = ~1.1s total — well under the 60s maxDuration.
+  // Batches are sequential so we don't flood Upstash with 102 simultaneous
+  // connections. At ~50-100ms per call: 10 parallel × 11 batches = ~1.1s total.
+  // No delay parameter — enqueue() does not support it. Serialisation is
+  // enforced by parallelism=1 on the queue itself.
   const BATCH_SIZE = 10
   const queued     = []
   const errored    = []
@@ -99,17 +103,14 @@ async function _handler(req, res) {
     const batch = ALL_COUNTRIES.slice(b, b + BATCH_SIZE)
 
     const results = await Promise.all(
-      batch.map(async (country, localIdx) => {
-        const globalIdx = b + localIdx
-        const delaySec  = globalIdx * STAGGER_SECONDS
+      batch.map(async (country) => {
         try {
           const result = await client.queue({ queueName: QUEUE_NAME }).enqueueJSON({
             url:     workerUrl,
             body:    { country },
-            delay:   delaySec,
             retries: 3,
           })
-          return { ok: true, country, messageId: result.messageId, delaySec }
+          return { ok: true, country, messageId: result.messageId }
         } catch (err) {
           console.error(`[gdelt-trigger] Failed to queue ${country}:`, err.message)
           return { ok: false, country, error: err.message }
@@ -118,7 +119,7 @@ async function _handler(req, res) {
     )
 
     for (const r of results) {
-      if (r.ok) queued.push({ country: r.country, messageId: r.messageId, delaySec: r.delaySec })
+      if (r.ok) queued.push({ country: r.country, messageId: r.messageId })
       else       errored.push({ country: r.country, error: r.error })
     }
   }
