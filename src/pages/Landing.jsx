@@ -814,13 +814,18 @@ export default function Landing() {
       {/* ── FOOTER ────────────────────────────────────────────────────────── */}
       <footer className="landing-footer" style={{ borderTop: `1px solid ${C.border}`, padding: '32px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <img src="/logo-transparent.png" alt="Safeguard" style={{ height: 44, width: 'auto', opacity: 0.45 }} />
-        <div className="landing-footer-links" style={{ display: 'flex', gap: 28 }}>
-          {['Privacy Policy', 'Terms of Service', 'Contact'].map(item => (
+        <div className="landing-footer-links" style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
+          {['Privacy Policy', 'Terms of Service'].map(item => (
             <span key={item} style={{ fontSize: 11, color: C.textMuted, cursor: 'pointer' }}
               onMouseEnter={e => e.currentTarget.style.color = C.textSub}
               onMouseLeave={e => e.currentTarget.style.color = C.textMuted}
             >{item}</span>
           ))}
+          <a href="mailto:info@risk360.co"
+            style={{ fontSize: 11, color: C.textMuted, textDecoration: 'none', cursor: 'pointer' }}
+            onMouseEnter={e => e.currentTarget.style.color = C.green}
+            onMouseLeave={e => e.currentTarget.style.color = C.textMuted}
+          >info@risk360.co</a>
         </div>
         <span style={{ fontSize: 11, color: C.textMuted }}>© {new Date().getFullYear()} Safeguard360</span>
       </footer>

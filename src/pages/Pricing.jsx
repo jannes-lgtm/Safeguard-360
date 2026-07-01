@@ -145,7 +145,7 @@ function EnterpriseModal({ onClose }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, message: form.context }),
       })
-      if (!res.ok) throw new Error('Submission failed — contact sales@risk360.co directly.')
+      if (!res.ok) throw new Error('Submission failed — contact info@risk360.co directly.')
       setSent(true)
     } catch (e) {
       setErr(e.message)
@@ -736,10 +736,10 @@ export default function Pricing() {
                 style={{ background: C.surface2, color: C.textPrimary }}>
                 Discuss enterprise deployment <ArrowUpRight size={14} />
               </button>
-              <a href="mailto:sales@risk360.co"
+              <a href="mailto:info@risk360.co"
                 className="flex items-center gap-2 px-5 py-3 rounded-[7px] text-sm font-bold transition-all hover:opacity-80"
                 style={{ border: `1px solid ${C.border}`, color: C.textSecond }}>
-                sales@risk360.co
+                info@risk360.co
               </a>
             </div>
           </div>
@@ -800,7 +800,7 @@ export default function Pricing() {
                   onMouseEnter={e => e.currentTarget.style.color = C.textSecond}
                   onMouseLeave={e => e.currentTarget.style.color = C.textMuted}
                 >{label}</button>
-              : <a key={label} href="mailto:sales@risk360.co"
+              : <a key={label} href="mailto:info@risk360.co"
                   style={{ fontSize: 11, color: C.textMuted, textDecoration: 'none' }}
                   onMouseEnter={e => e.currentTarget.style.color = C.textSecond}
                   onMouseLeave={e => e.currentTarget.style.color = C.textMuted}
